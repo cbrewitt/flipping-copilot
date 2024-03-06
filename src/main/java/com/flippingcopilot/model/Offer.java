@@ -135,8 +135,7 @@ public class Offer {
         return !active && status != OfferStatus.EMPTY && (gpToCollect == 0 && itemsToCollect == 0);
     }
 
-    JsonObject toJson() {
-        Gson gson = new Gson();
+    JsonObject toJson(Gson gson) {
         JsonParser jsonParser = new JsonParser();
         return jsonParser.parse(gson.toJson(this)).getAsJsonObject();
     }

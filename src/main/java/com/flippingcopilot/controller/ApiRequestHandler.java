@@ -14,10 +14,14 @@ public class ApiRequestHandler {
 
     private static final String serverUrl = "https://api.flippingcopilot.com/";
     private static final OkHttpClient client = new OkHttpClient();
-    private static final Gson gson = new Gson();
+    private final Gson gson;
     private String jwtToken = null;
     @Getter
     private LoginResponse loginResponse;
+
+    public ApiRequestHandler(Gson gson) {
+        this.gson = gson;
+    }
 
     public void onLogout() {
         jwtToken = null;
@@ -66,9 +70,9 @@ public class ApiRequestHandler {
     }
 
     public Suggestion getSuggestion(AccountStatus accountStatus) throws IOException {
-        JsonObject status = accountStatus.toJson();
+        JsonObject status = accountStatus.toJson(gson);
         JsonObject suggestionJson = postJson(status, "/suggestion");
-        return Suggestion.fromJson(suggestionJson);
+        return Suggestion.fromJson(suggestionJson, gson);
     }
 
     private JsonObject postJson(JsonObject json, String route) throws HttpResponseException {

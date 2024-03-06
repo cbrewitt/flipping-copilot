@@ -1,6 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.Constants;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import lombok.Getter;
@@ -64,13 +65,13 @@ public class AccountStatus {
         offers.removeCollectables();
     }
 
-    public JsonObject toJson() {
+    public JsonObject toJson(Gson gson) {
         JsonObject statusJson = new JsonObject();
         statusJson.addProperty("display_name", displayName);
         statusJson.addProperty("sell_only", sellOnlyMode);
         statusJson.addProperty("is_member", isMember);
         statusJson.addProperty("skip_suggestion", skipSuggestion);
-        JsonArray offersJsonArray = offers.toJson();
+        JsonArray offersJsonArray = offers.toJson(gson);
         JsonArray itemsJsonArray = getItemsJson();
         statusJson.add("offers", offersJsonArray);
         statusJson.add("items", itemsJsonArray);

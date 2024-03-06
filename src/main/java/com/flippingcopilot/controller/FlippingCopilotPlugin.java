@@ -5,6 +5,7 @@ import com.flippingcopilot.model.LoginResponse;
 import com.flippingcopilot.model.Transaction;
 import com.flippingcopilot.ui.GpDropOverlay;
 import com.flippingcopilot.ui.MainPanel;
+import com.google.gson.Gson;
 import com.google.inject.Provides;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +50,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	Notifier notifier;
 	@Inject
 	public OverlayManager overlayManager;
+	@Inject
+	public Gson gson;
 	public ApiRequestHandler apiRequestHandler;
 	NavigationButton navButton;
 	public AccountStatus accountStatus;
@@ -65,9 +68,9 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void startUp() throws Exception {
-		Persistance.setUp();
+		Persistance.setUp(gson);
 		flipTracker = new FlipTracker();
-		apiRequestHandler = new ApiRequestHandler();
+		apiRequestHandler = new ApiRequestHandler(gson);
 		mainPanel = new MainPanel();
 		suggestionHandler = new SuggestionHandler(this);
 		accountStatus = new AccountStatus();

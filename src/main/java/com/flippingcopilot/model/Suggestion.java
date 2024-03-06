@@ -32,8 +32,7 @@ public class Suggestion {
 
     private final String message;
 
-    public static Suggestion fromJson(JsonObject json) {
-        Gson gson = new Gson();
+    public static Suggestion fromJson(JsonObject json, Gson gson) {
         return gson.fromJson(json, Suggestion.class);
     }
 

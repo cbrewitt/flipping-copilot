@@ -13,7 +13,7 @@ import java.nio.file.Paths;
 
 @Slf4j
 public class Persistance {
-    public static Gson gson = new Gson();
+    public static Gson gson;
     public static final File PARENT_DIRECTORY = new File(RuneLite.RUNELITE_DIR, "flipping-copilot");
     public static final String LOGIN_RESPONSE_JSON_FILE = "login-response.json";
     public static File directory;
@@ -24,7 +24,8 @@ public class Persistance {
         createRequiredFiles();
     }
 
-    public static void setUp() throws IOException {
+    public static void setUp(Gson gson) throws IOException {
+        Persistance.gson = gson;
         directory = PARENT_DIRECTORY;
         createDirectory(PARENT_DIRECTORY);
         createRequiredFiles();

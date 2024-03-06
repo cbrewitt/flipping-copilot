@@ -1,11 +1,14 @@
 package com.flippingcopilot.model;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import net.runelite.api.GrandExchangeOffer;
 import net.runelite.api.events.GrandExchangeOfferChanged;
 import static net.runelite.api.ItemID.COINS_995;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -73,7 +76,12 @@ public class OfferList extends ArrayList<Offer> {
                         Collectors.summingLong(Offer::getItemsToCollect)));
     }
 
-    JsonArray toJson() {
-        return stream().map(Offer::toJson).collect(JsonArray::new, JsonArray::add, JsonArray::addAll);
+    JsonArray toJson(Gson gson) {
+        List<JsonObject> list = stream()
+                .map(offer -> offer.toJson(gson))
+                .collect(Collectors.toList());
+        JsonArray jsonArray = new JsonArray();
+        list.forEach(jsonArray::add);
+        return jsonArray;
     }
 }
