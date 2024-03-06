@@ -13,14 +13,15 @@ import java.util.function.Consumer;
 public class ApiRequestHandler {
 
     private static final String serverUrl = "https://api.flippingcopilot.com/";
-    private static final OkHttpClient client = new OkHttpClient();
+    private final OkHttpClient client;
     private final Gson gson;
     private String jwtToken = null;
     @Getter
     private LoginResponse loginResponse;
 
-    public ApiRequestHandler(Gson gson) {
+    public ApiRequestHandler(Gson gson, OkHttpClient client) {
         this.gson = gson;
+        this.client = client;
     }
 
     public void onLogout() {

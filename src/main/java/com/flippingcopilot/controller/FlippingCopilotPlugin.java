@@ -21,6 +21,7 @@ import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
+import okhttp3.OkHttpClient;
 
 import javax.inject.Inject;
 import java.awt.image.BufferedImage;
@@ -52,6 +53,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	public OverlayManager overlayManager;
 	@Inject
 	public Gson gson;
+	@Inject
+	public OkHttpClient okHttpClient;
 	public ApiRequestHandler apiRequestHandler;
 	NavigationButton navButton;
 	public AccountStatus accountStatus;
@@ -70,7 +73,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	protected void startUp() throws Exception {
 		Persistance.setUp(gson);
 		flipTracker = new FlipTracker();
-		apiRequestHandler = new ApiRequestHandler(gson);
+		apiRequestHandler = new ApiRequestHandler(gson, okHttpClient);
 		mainPanel = new MainPanel();
 		suggestionHandler = new SuggestionHandler(this);
 		accountStatus = new AccountStatus();
