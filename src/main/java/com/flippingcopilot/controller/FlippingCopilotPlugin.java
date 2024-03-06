@@ -68,7 +68,6 @@ public class FlippingCopilotPlugin extends Plugin {
 		Persistance.setUp();
 		flipTracker = new FlipTracker();
 		apiRequestHandler = new ApiRequestHandler();
-		//mainPanel = injector.getInstance(MainPanel.class);
 		mainPanel = new MainPanel();
 		suggestionHandler = new SuggestionHandler(this);
 		accountStatus = new AccountStatus();

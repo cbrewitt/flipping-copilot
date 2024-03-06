@@ -137,7 +137,8 @@ public class Offer {
 
     JsonObject toJson() {
         Gson gson = new Gson();
-        return JsonParser.parseString(gson.toJson(this)).getAsJsonObject();
+        JsonParser jsonParser = new JsonParser();
+        return jsonParser.parse(gson.toJson(this)).getAsJsonObject();
     }
 
     private boolean isSameOffer(Offer newOffer) {
