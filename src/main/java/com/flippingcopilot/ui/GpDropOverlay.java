@@ -1,9 +1,7 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.FlippingCopilotPlugin;
-import net.runelite.api.Client;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;

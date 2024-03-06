@@ -45,8 +45,8 @@ public class OfferEditor {
             return;
         }
 
-        String chatInputText = client.getWidget(WidgetInfo.CHATBOX_TITLE).getText();
-        String offerText = client.getWidget(WidgetInfo.GRAND_EXCHANGE_OFFER_CONTAINER).getChild(GE_OFFER_INIT_STATE_CHILD_ID).getText();
+        String chatInputText = client.getWidget(ComponentID.CHATBOX_TITLE).getText();
+        String offerText = client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER).getChild(GE_OFFER_INIT_STATE_CHILD_ID).getText();
 
         if ((chatInputText.equals("How many do you wish to buy?") && suggestion.getType().equals("buy"))
                 || (chatInputText.equals("How many do you wish to sell?") && suggestion.getType().equals("sell"))) {
@@ -65,7 +65,7 @@ public class OfferEditor {
         text.setAction(1, "Set quantity");
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
-            client.getWidget(WidgetInfo.CHATBOX_FULL_INPUT).setText(quantity + "*");
+            client.getWidget(ComponentID.CHATBOX_FULL_INPUT).setText(quantity + "*");
             client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(quantity));
         });
     }
@@ -75,13 +75,13 @@ public class OfferEditor {
         text.setAction(0, "Set price");
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
-            client.getWidget(WidgetInfo.CHATBOX_FULL_INPUT).setText(price + "*");
+            client.getWidget(ComponentID.CHATBOX_FULL_INPUT).setText(price + "*");
             client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(price));
         });
     }
 
     private void shiftChatboxWidgetsDown() {
-        Widget chatboxTitle = client.getWidget(WidgetInfo.CHATBOX_TITLE);
+        Widget chatboxTitle = client.getWidget(ComponentID.CHATBOX_TITLE);
         if (chatboxTitle != null) {
             chatboxTitle.setOriginalY(chatboxTitle.getOriginalY() + 7);
             chatboxTitle.revalidate();

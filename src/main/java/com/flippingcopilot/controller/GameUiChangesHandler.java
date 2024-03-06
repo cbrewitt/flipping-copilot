@@ -19,7 +19,7 @@ public class GameUiChangesHandler {
 
         if (event.getIndex() == VarClientInt.INPUT_TYPE
                 && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 14
-                && client.getWidget(WidgetInfo.CHATBOX_GE_SEARCH_RESULTS) != null) {
+                && client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS) != null) {
             plugin.getClientThread().invokeLater(this::showSuggestedItemInSearch);
         }
 
@@ -34,16 +34,16 @@ public class GameUiChangesHandler {
 
         //Check that it was the chat input that got enabled.
         if (event.getIndex() != VarClientInt.INPUT_TYPE
-                || client.getWidget(WidgetInfo.CHATBOX_TITLE) == null
+                || client.getWidget(ComponentID.CHATBOX_TITLE) == null
                 || client.getVarcIntValue(VarClientInt.INPUT_TYPE) != 7
-                || client.getWidget(WidgetInfo.GRAND_EXCHANGE_OFFER_CONTAINER) == null) {
+                || client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER) == null) {
             return;
         }
         quantityOrPriceChatboxOpen = true;
 
         plugin.getClientThread().invokeLater(() ->
         {
-            OfferEditor flippingWidget = new OfferEditor(client.getWidget(WidgetInfo.CHATBOX_CONTAINER), client);
+            OfferEditor flippingWidget = new OfferEditor(client.getWidget(ComponentID.CHATBOX_CONTAINER), client);
             Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
             flippingWidget.showSuggestion(suggestion);
         });
@@ -52,7 +52,7 @@ public class GameUiChangesHandler {
     private void showSuggestedItemInSearch() {
         Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
         Client client = plugin.getClient();
-        Widget searchResults = client.getWidget(WidgetInfo.CHATBOX_GE_SEARCH_RESULTS);
+        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
         Widget previousSearch = searchResults.getChild(0);
 
         if (suggestion.getType().equals("buy") && previousSearch != null) {
