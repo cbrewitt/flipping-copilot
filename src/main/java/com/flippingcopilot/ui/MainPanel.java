@@ -58,12 +58,12 @@ public class MainPanel extends PluginPanel {
 
         JLabel github = buildTopBarUriButton(UIUtilities.githubIcon,
                 "Flipping Copilot Github",
-                "https://github.com/runelite/plugin-hub");
+                "https://github.com/cbrewitt/flipping-copilot");
         topBar.add(github);
 
         JLabel discord = buildTopBarUriButton(UIUtilities.discordIcon,
                 "Flipping Copilot Discord",
-                "https://discord.gg/GgR3dqsv");
+                "https://discord.gg/TR7ECMbZ");
         topBar.add(discord);
 
         JLabel website = buildTopBarUriButton(UIUtilities.internetIcon,
