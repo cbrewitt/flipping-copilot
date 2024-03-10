@@ -63,7 +63,7 @@ public class MainPanel extends PluginPanel {
 
         JLabel discord = buildTopBarUriButton(UIUtilities.discordIcon,
                 "Flipping Copilot Discord",
-                "https://discord.gg/TR7ECMbZ");
+                "https://discord.gg/UyQxA4QJAq");
         topBar.add(discord);
 
         JLabel website = buildTopBarUriButton(UIUtilities.internetIcon,
