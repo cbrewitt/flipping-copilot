@@ -12,6 +12,7 @@ public class OsrsLoginHandler {
     private boolean previouslyLoggedIn;
     @Getter
     private String currentDisplayName;
+    @Getter
     private String previousDisplayName;
     private final FlippingCopilotPlugin plugin;
     private final WorldType[] unSupportedWorlds = {WorldType.BETA_WORLD,

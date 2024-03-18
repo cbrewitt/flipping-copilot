@@ -15,19 +15,19 @@ import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ClientShutdown;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
-import okhttp3.OkHttpClient;
+import okhttp3.*;
 
 import javax.inject.Inject;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
-
 
 @Slf4j
 @PluginDescriptor(
@@ -68,6 +68,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	FlipTracker flipTracker;
 	MainPanel mainPanel;
 	public CopilotLoginController copilotLoginController;
+	WebHookController webHookController;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -83,6 +84,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		osrsLoginHandler = new OsrsLoginHandler(this);
 		gameUiChangesHandler = new GameUiChangesHandler(this);
 		copilotLoginController = new CopilotLoginController(() -> mainPanel.renderLoggedInView(), apiRequestHandler);
+		webHookController = new WebHookController(this);
 		mainPanel.init(this);
 		setUpNavButton();
 		setUpLogin();
@@ -114,8 +116,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	protected void shutDown() throws Exception {
 		clientToolbar.removeNavigation(navButton);
 		Persistance.saveLoginResponse(apiRequestHandler.getLoginResponse());
+		webHookController.sendMessage();
 	}
-
 
 	@Provides
 	FlippingCopilotConfig provideConfig(ConfigManager configManager) {
@@ -131,6 +133,8 @@ public class FlippingCopilotPlugin extends Plugin {
 			}
 		}
 	}
+
+
 
 	//---------------------------- Event Handlers ----------------------------//
 
@@ -171,5 +175,10 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Subscribe
 	public void onVarClientIntChanged(VarClientIntChanged event) {
 		gameUiChangesHandler.onVarClientIntChanged(event);
+	}
+
+	@Subscribe
+	public void onClientShutdown(ClientShutdown clientShutdownEvent) {
+		webHookController.sendMessage();
 	}
 }
