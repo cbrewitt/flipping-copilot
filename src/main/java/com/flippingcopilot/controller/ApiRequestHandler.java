@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 
 public class ApiRequestHandler {
 
-    private static final String serverUrl = "https://api.flippingcopilot.com/";
+    private static final String serverUrl = System.getenv("FLIPPING_COPILOT_HOST") != null ? System.getenv("FLIPPING_COPILOT_HOST")  : "https://api.flippingcopilot.com/";
     private final OkHttpClient client;
     private final Gson gson;
     private String jwtToken = null;
