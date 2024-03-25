@@ -138,7 +138,7 @@ public class SuggestionHandler {
         if (e.getResponseCode() == 401) {
             plugin.copilotLoginController.onLogout();
             plugin.mainPanel.renderLoggedOutView();
-            JOptionPane.showMessageDialog(null, "Unauthorized. Please log in again.");
+            plugin.mainPanel.loginPanel.showLoginErrorMessage("Login timed out. Please log in again");
         } else {
             log.error("Error occurred while getting suggestion: ", e);
             suggestionPanel.setMessage("Error: " + e.getMessage());
