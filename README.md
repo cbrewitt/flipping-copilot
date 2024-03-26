@@ -24,3 +24,4 @@ Icons were created by cbrewitt or sourced from Flaticon. The following attributi
 Some code was used from Runelite Plugins (BSD 2-Clause License):
 - [Flipping Utilities](https://github.com/Flipping-Utilities/rl-plugin?tab=readme-ov-file)
 - [Flipper](https://github.com/OkayestDev/OSRS-Flipper)
+- [Discord Level Notifications](https://github.com/ATremonte/Discord-Level-Notifications)
