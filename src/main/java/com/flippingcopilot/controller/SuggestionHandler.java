@@ -53,12 +53,12 @@ public class SuggestionHandler {
     }
 
     void onGameTick() {
-        if (!plugin.grandExchange.isSlotOpen() && suggestionNeeded) {
+        if (suggestionNeeded && !(plugin.grandExchange.isSlotOpen() && !plugin.accountStatus.isSuggestionSkipped())) {
             getSuggestionAsync();
         }
     }
 
-    private void getSuggestionAsync() {
+    public void getSuggestionAsync() {
         suggestionNeeded = false;
         plugin.executorService.execute(this::getSuggestion);
     }

@@ -33,6 +33,10 @@ public class AccountStatus {
         skipSuggestion = -1;
     }
 
+    public boolean isSuggestionSkipped() {
+        return skipSuggestion != -1;
+    }
+
     public Transaction updateOffers(GrandExchangeOfferChanged event) {
         return offers.update(event);
     }
