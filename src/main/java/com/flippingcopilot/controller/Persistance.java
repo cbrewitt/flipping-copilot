@@ -67,6 +67,13 @@ public class Persistance {
         Files.write(file.toPath(), json.getBytes());
     }
 
+    public static void deleteLoginResponse() {
+        File file = new File(directory, LOGIN_RESPONSE_JSON_FILE);
+        if (file.exists()) {
+            file.delete();
+        }
+    }
+
     private static String getFileContent(String filename) throws IOException {
         Path filePath = Paths.get(directory.getAbsolutePath(), filename);
         byte[] fileBytes = Files.readAllBytes(filePath);

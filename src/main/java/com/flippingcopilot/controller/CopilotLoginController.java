@@ -70,6 +70,7 @@ public class CopilotLoginController {
     public void onLogout() {
         loggedIn = false;
         apiRequestHandler.onLogout();
+        Persistance.deleteLoginResponse();
     }
 
     public void onEmailTextChanged(String newEmail) {
