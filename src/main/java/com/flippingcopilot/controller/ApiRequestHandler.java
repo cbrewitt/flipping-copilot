@@ -89,13 +89,14 @@ public class ApiRequestHandler {
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
+            JsonObject responseJson = gson.fromJson(response.body().string(), JsonObject.class);
             if (!response.isSuccessful()) {
-                throw new HttpResponseException(response.code(), response.message());
+                throw new HttpResponseException(response.code(), responseJson.get("message").getAsString());
             }
-            return gson.fromJson(response.body().string(), JsonObject.class);
+            return responseJson;
         } catch (HttpResponseException e) {
             throw e;
-        } catch (IOException e) {
+        } catch (JsonParseException | IOException e) {
             throw new HttpResponseException(-1, e.getMessage());
         }
     }
