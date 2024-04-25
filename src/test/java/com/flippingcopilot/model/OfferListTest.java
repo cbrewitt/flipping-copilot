@@ -20,9 +20,4 @@ public class OfferListTest {
         assert offerList.isEmptySlotNeeded(suggestion);
     }
 
-    @Test
-    public void testAllAreEmpty() {
-        OfferList offerList = new OfferList();
-        assert offerList.areAllEmpty();
-    }
 }

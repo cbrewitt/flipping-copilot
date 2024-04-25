@@ -112,7 +112,7 @@ public class AccountStatus {
     }
 
     public boolean moreGpNeeded() {
-        return offers.areAllEmpty() && getTotalGp() < Constants.MIN_GP_NEEDED_TO_FLIP;
+        return offers.emptySlotExists() && getTotalGp() < Constants.MIN_GP_NEEDED_TO_FLIP;
     }
 
     private long getTotalGp() {

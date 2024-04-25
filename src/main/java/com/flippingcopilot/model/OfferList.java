@@ -38,10 +38,6 @@ public class OfferList extends ArrayList<Offer> {
         return offers;
     }
 
-    public boolean areAllEmpty() {
-        return stream().allMatch(offer -> offer.getStatus().equals(OfferStatus.EMPTY));
-    }
-
     public boolean missingUncollectedItems() {
         return stream().anyMatch(Offer::missingUncollectedItems);
     }
@@ -51,7 +47,7 @@ public class OfferList extends ArrayList<Offer> {
                 && !emptySlotExists();
     }
 
-    private boolean emptySlotExists() {
+    boolean emptySlotExists() {
         return stream().anyMatch(offer -> offer.getStatus() == OfferStatus.EMPTY);
     }
 
