@@ -97,7 +97,7 @@ public class ApiRequestHandler {
         } catch (HttpResponseException e) {
             throw e;
         } catch (JsonParseException | IOException e) {
-            throw new HttpResponseException(-1, e.getMessage());
+            throw new HttpResponseException(-1, "Unknown server error (possible system update)");
         }
     }
 }
