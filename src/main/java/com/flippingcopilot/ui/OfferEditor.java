@@ -12,7 +12,7 @@ public class OfferEditor {
     private final Client client;
     private Widget text;
     private static final int MOUSE_OFF_TEXT_COLOR = 0x0040FF;
-    private static final int GE_OFFER_INIT_STATE_CHILD_ID = 18;
+    private static final int GE_OFFER_INIT_STATE_CHILD_ID = 20;
 
     public OfferEditor(Widget parent, Client client) {
         this.client = client;
