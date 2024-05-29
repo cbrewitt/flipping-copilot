@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.client.chat.ChatMessageBuilder;
 
-import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
 import java.util.Timer;
@@ -103,8 +102,10 @@ public class SuggestionHandler {
 
     void showNotifications(Suggestion oldSuggestion) {
         if (shouldNotify(currentSuggestion, oldSuggestion)) {
-            plugin.notifier.notify(currentSuggestion.toMessage());
-            if (!plugin.mainPanel.copilotPanel.isShowing()) {
+            if (plugin.config.enableTrayNotifications()) {
+                plugin.notifier.notify(currentSuggestion.toMessage());
+            }
+            if (!plugin.mainPanel.copilotPanel.isShowing() && plugin.config.enableChatNotifications()) {
                 showChatNotifications();
             }
         }
