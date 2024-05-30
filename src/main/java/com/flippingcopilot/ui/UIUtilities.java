@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui;
 
-import net.runelite.client.ui.ColorScheme;
+import com.flippingcopilot.controller.FlippingCopilotConfig;
 import net.runelite.client.util.QuantityFormatter;
 
 import java.awt.*;
@@ -13,7 +13,6 @@ public class UIUtilities {
     public static final String discordIcon = "/discord.png";
     public static final String githubIcon = "/github.png";
     public static final String logoutIcon = "/logout.png";
-    public static final String iconSmall = "/icon-small.png";
     public static final String internetIcon = "/internet.png";
 
     public static final Color OUTDATED_COLOR = new Color(250, 74, 75);
@@ -44,11 +43,11 @@ public class UIUtilities {
                 + new String[] {"", "K", "M", "B", "T"}[(int) (power / 3)];
     }
 
-    public static Color getProfitColor(long profit) {
+    public static Color getProfitColor(long profit, FlippingCopilotConfig config) {
         if (profit > 0) {
-            return ColorScheme.GRAND_EXCHANGE_PRICE;
+            return config.profitAmountColor();
         } else if (profit < 0) {
-            return UIUtilities.OUTDATED_COLOR;
+            return config.lossAmountColor();
         } else {
             return Color.WHITE;
         }

@@ -16,6 +16,7 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ClientShutdown;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -75,7 +76,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		Persistance.setUp(gson);
 		flipTracker = new FlipTracker();
 		apiRequestHandler = new ApiRequestHandler(gson, okHttpClient);
-		mainPanel = new MainPanel();
+		mainPanel = new MainPanel(config);
 		suggestionHandler = new SuggestionHandler(this);
 		accountStatus = new AccountStatus();
 		grandExchange = new GrandExchange(client);
@@ -180,5 +181,14 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Subscribe
 	public void onClientShutdown(ClientShutdown clientShutdownEvent) {
 		webHookController.sendMessage();
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event) {
+		if (event.getGroup().equals("flippingcopilot")) {
+			if (event.getKey().equals("profitAmountColor") || event.getKey().equals("lossAmountColor")) {
+				mainPanel.copilotPanel.statsPanel.updateFlips(flipTracker, client);
+			}
+		}
 	}
 }

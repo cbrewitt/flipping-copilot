@@ -1,6 +1,7 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.FlipTracker;
+import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.model.Flip;
 import net.runelite.api.Client;
 import net.runelite.client.ui.ColorScheme;
@@ -8,9 +9,7 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.QuantityFormatter;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.Collection;
 
 import static com.flippingcopilot.ui.UIUtilities.getProfitColor;
@@ -18,9 +17,11 @@ import static com.flippingcopilot.ui.UIUtilities.getProfitColor;
 
 public class StatsPanel extends JPanel {
     private final JLabel profitText = new JLabel();
-    private JPanel flipLogPanel = new JPanel();
+    private final JPanel flipLogPanel = new JPanel();
+    private final FlippingCopilotConfig config;
 
-    public StatsPanel() {
+    public StatsPanel(FlippingCopilotConfig config) {
+        this.config = config;
         setLayout(new BorderLayout(3, 0));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -51,7 +52,7 @@ public class StatsPanel extends JPanel {
         profitText.setText(((profit >= 0) ? "" : "-")
                 + UIUtilities.quantityToRSDecimalStack(Math.abs(profit), true) + " gp");
         profitText.setToolTipText("Total Profit: " + QuantityFormatter.formatNumber(profit) + " gp");
-        profitText.setForeground(getProfitColor(profit));
+        profitText.setForeground(getProfitColor(profit, config));
     }
 
     private void setupFlipLog() {
@@ -65,7 +66,7 @@ public class StatsPanel extends JPanel {
         flipLogPanel.removeAll();
         for (Flip flip : flips) {
             String itemName = client.getItemDefinition(flip.getItemId()).getName();
-            FlipPanel flipPanel = new FlipPanel(itemName, flip.getProfit());
+            FlipPanel flipPanel = new FlipPanel(itemName, flip.getProfit(), config);
             flipLogPanel.add(flipPanel);
         }
         flipLogPanel.revalidate();

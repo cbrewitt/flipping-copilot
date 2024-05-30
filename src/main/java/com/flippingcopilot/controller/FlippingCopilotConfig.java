@@ -1,8 +1,12 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.ui.UIUtilities;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.ui.ColorScheme;
+
+import java.awt.*;
 
 
 @ConfigGroup("flippingcopilot")
@@ -25,6 +29,22 @@ public interface FlippingCopilotConfig extends Config
     default boolean enableTrayNotifications()
     {
         return true;
+    }
+    @ConfigItem(
+            keyName = "profitAmountColor",
+            name = "Profit amount color",
+            description = "The color of the profit amount text in the flip tracker"
+    )
+    default Color profitAmountColor() {
+        return ColorScheme.GRAND_EXCHANGE_PRICE;
+    }
+    @ConfigItem(
+            keyName = "lossAmountColor",
+            name = "Loss amount color",
+            description = "The color of the loss amount text in the flip tracker"
+    )
+    default Color lossAmountColor() {
+        return UIUtilities.OUTDATED_COLOR;
     }
     @ConfigItem(
             keyName = "webhook",

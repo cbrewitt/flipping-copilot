@@ -1,5 +1,6 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.FlippingCopilotPlugin;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
@@ -14,14 +15,14 @@ import java.awt.image.BufferedImage;
 import java.net.URI;
 
 public class MainPanel extends PluginPanel {
-    private static float BUTTON_HOVER_LUMINANCE = 0.65f;
+    private static final float BUTTON_HOVER_LUMINANCE = 0.65f;
     public LoginPanel loginPanel;
     public CopilotPanel copilotPanel;
     public Runnable onCopilotLogout;
 
-    public MainPanel() {
+    public MainPanel(FlippingCopilotConfig config) {
         setLayout(new BorderLayout());
-        copilotPanel = new CopilotPanel();
+        copilotPanel = new CopilotPanel(config);
     }
 
     public void init(FlippingCopilotPlugin plugin) {
