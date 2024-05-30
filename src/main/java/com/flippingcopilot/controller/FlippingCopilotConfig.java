@@ -14,7 +14,7 @@ public interface FlippingCopilotConfig extends Config
 {
     @ConfigItem(
             keyName = "enableChatNotifications",
-            name = "Enable chat Notifications",
+            name = "Enable chat notifications",
             description = "Show chat notifications for suggested action when the side panel is closed."
     )
     default boolean enableChatNotifications()

@@ -1,9 +1,15 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.FlippingCopilotConfig;
+import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.QuantityFormatter;
 
+import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
+import java.net.URI;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
@@ -14,7 +20,9 @@ public class UIUtilities {
     public static final String githubIcon = "/github.png";
     public static final String logoutIcon = "/logout.png";
     public static final String internetIcon = "/internet.png";
+    public static final String graphIcon = "/graph.png";
 
+    static final float BUTTON_HOVER_LUMINANCE = 0.65f;
     public static final Color OUTDATED_COLOR = new Color(250, 74, 75);
     private static final NumberFormat PRECISE_DECIMAL_FORMATTER = new DecimalFormat(
             "#,###.###",
@@ -62,5 +70,42 @@ public class UIUtilities {
             return string.substring(0, length) + "...";
         }
         return string;
+    }
+
+    static JLabel buildButton(BufferedImage icon, String tooltip, Runnable onClick) {
+        JLabel label = new JLabel();
+        label.setToolTipText(tooltip);
+        label.setHorizontalAlignment(JLabel.CENTER);
+        ImageIcon iconOff = new ImageIcon(icon);
+        ImageIcon iconOn = new ImageIcon(ImageUtil.luminanceScale(icon, BUTTON_HOVER_LUMINANCE));
+        label.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                try {
+                    onClick.run();
+                } catch (Exception error) {}
+            }
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                label.setIcon(iconOn);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                label.setIcon(iconOff);
+            }
+        });
+        label.setIcon(iconOff);
+        return label;
+    }
+
+    static JLabel buildUriButton(BufferedImage icon, String tooltip, String uriString) {
+        return buildButton(icon, tooltip, () -> {
+            try {
+                Desktop desktop = Desktop.getDesktop();
+                URI uri = new URI(uriString);
+                desktop.browse(uri);
+            } catch (Exception error) {}
+        });
     }
 }

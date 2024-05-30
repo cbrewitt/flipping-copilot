@@ -4,13 +4,16 @@ import com.flippingcopilot.controller.FlippingCopilotPlugin;
 import com.flippingcopilot.model.Suggestion;
 import lombok.Setter;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.ImageUtil;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.text.NumberFormat;
 
+import static com.flippingcopilot.ui.UIUtilities.buildUriButton;
 import static com.flippingcopilot.util.Constants.MIN_GP_NEEDED_TO_FLIP;
 
 public class SuggestionPanel extends JPanel {
@@ -18,6 +21,7 @@ public class SuggestionPanel extends JPanel {
     private final JLabel suggestionText = new JLabel();
     public final Spinner spinner = new Spinner();
     private final JLabel skipButton = new JLabel("skip");
+    private final JPanel buttonContainer = new JPanel();
 
     @Setter
     private String serverMessage = "";
@@ -45,13 +49,34 @@ public class SuggestionPanel extends JPanel {
         suggestionText.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         suggestionContainer.add(suggestionText);
         suggestionContainer.add(spinner);
-        setupSkipButton();
+        setupButtonContainer();
         suggestLogin();
     }
 
     public void init(FlippingCopilotPlugin plugin) {
         this.plugin = plugin;
     }
+
+    private void setupButtonContainer() {
+        // this container appears at the bottom of the suggestion panel
+        // It contains the graph button on the left and the skip button on the right
+        buttonContainer.setLayout(new BorderLayout());
+        buttonContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        buttonContainer.setPreferredSize(new Dimension(0, 20));
+        add(buttonContainer, BorderLayout.SOUTH);
+
+        // add the graph button to the left of the button container
+        setupGraphButton();
+        // add the skip button to the right of the button container
+        setupSkipButton();
+    }
+
+    private void setupGraphButton() {
+        BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
+        JLabel graphButton = buildUriButton(graphIcon, "Price graph", "https://prices.runescape.wiki/osrs/item/562");
+        buttonContainer.add(graphButton, BorderLayout.WEST);
+    }
+
 
     private void setupSkipButton() {
         skipButton.setForeground(Color.GRAY);
@@ -74,7 +99,7 @@ public class SuggestionPanel extends JPanel {
         });
 
         skipButton.setHorizontalAlignment(SwingConstants.RIGHT);
-        add(skipButton, BorderLayout.SOUTH);
+        buttonContainer.add(skipButton, BorderLayout.EAST);
     }
 
 

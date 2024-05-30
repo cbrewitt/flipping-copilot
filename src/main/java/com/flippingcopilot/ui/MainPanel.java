@@ -9,13 +9,12 @@ import net.runelite.client.util.ImageUtil;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.net.URI;
 
+import static com.flippingcopilot.ui.UIUtilities.buildButton;
+
 public class MainPanel extends PluginPanel {
-    private static final float BUTTON_HOVER_LUMINANCE = 0.65f;
     public LoginPanel loginPanel;
     public CopilotPanel copilotPanel;
     public Runnable onCopilotLogout;
@@ -73,7 +72,8 @@ public class MainPanel extends PluginPanel {
         topBar.add(website);
 
         if (isLoggedIn) {
-            JLabel logout = buildTopBarButton(UIUtilities.logoutIcon, "Log out", () -> {
+            BufferedImage icon = ImageUtil.loadImageResource(getClass(), UIUtilities.logoutIcon);
+            JLabel logout = buildButton(icon, "Log out", () -> {
                 onCopilotLogout.run();
                 renderLoggedOutView();
             });
@@ -86,41 +86,14 @@ public class MainPanel extends PluginPanel {
     }
 
     private JLabel buildTopBarUriButton(String iconPath, String tooltip, String uriString) {
-        return buildTopBarButton(iconPath, tooltip, () -> {
+        BufferedImage icon = ImageUtil.loadImageResource(getClass(), iconPath);
+        return buildButton(icon, tooltip, () -> {
             try {
                 Desktop desktop = Desktop.getDesktop();
                 URI uri = new URI(uriString);
                 desktop.browse(uri);
             } catch (Exception error) {}
         });
-    }
-
-    private JLabel buildTopBarButton(String iconPath, String tooltip, Runnable onClick) {
-        JLabel label = new JLabel();
-        label.setToolTipText(tooltip);
-        label.setHorizontalAlignment(JLabel.CENTER);
-        BufferedImage icon = ImageUtil.loadImageResource(getClass(), iconPath);
-        ImageIcon iconOff = new ImageIcon(icon);
-        ImageIcon iconOn = new ImageIcon(ImageUtil.luminanceScale(icon, BUTTON_HOVER_LUMINANCE));
-        label.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                try {
-                    onClick.run();
-                } catch (Exception error) {}
-            }
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                label.setIcon(iconOn);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                label.setIcon(iconOff);
-            }
-        });
-        label.setIcon(iconOff);
-        return label;
     }
 
 }
