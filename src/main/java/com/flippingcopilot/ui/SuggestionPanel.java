@@ -32,7 +32,7 @@ public class SuggestionPanel extends JPanel {
         this.config = config;
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
         setPreferredSize(new Dimension(0, 150));
 
         JLabel title = new JLabel("<html><center> <FONT COLOR=white><b>Suggested Action:" +
@@ -61,8 +61,9 @@ public class SuggestionPanel extends JPanel {
     }
 
     private void setupButtonContainer() {
-        buttonContainer.setLayout(new GridLayout(1, 2));
+        buttonContainer.setLayout(new BorderLayout());
         buttonContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        //buttonContainer.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
         add(buttonContainer, BorderLayout.SOUTH);
         setupGraphButton();
         setupSkipButton();
