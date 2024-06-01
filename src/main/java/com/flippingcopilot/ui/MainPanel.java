@@ -5,12 +5,12 @@ import com.flippingcopilot.controller.FlippingCopilotPlugin;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.LinkBrowser;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.net.URI;
 
 import static com.flippingcopilot.ui.UIUtilities.buildButton;
 
@@ -88,11 +88,7 @@ public class MainPanel extends PluginPanel {
     private JLabel buildTopBarUriButton(String iconPath, String tooltip, String uriString) {
         BufferedImage icon = ImageUtil.loadImageResource(getClass(), iconPath);
         return buildButton(icon, tooltip, () -> {
-            try {
-                Desktop desktop = Desktop.getDesktop();
-                URI uri = new URI(uriString);
-                desktop.browse(uri);
-            } catch (Exception error) {}
+            LinkBrowser.browse(uriString);
         });
     }
 

@@ -1,36 +1,39 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.FlippingCopilotPlugin;
 import com.flippingcopilot.model.Suggestion;
 import lombok.Setter;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.LinkBrowser;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.text.NumberFormat;
 
-import static com.flippingcopilot.ui.UIUtilities.buildUriButton;
+import static com.flippingcopilot.ui.UIUtilities.*;
 import static com.flippingcopilot.util.Constants.MIN_GP_NEEDED_TO_FLIP;
 
 public class SuggestionPanel extends JPanel {
     private FlippingCopilotPlugin plugin;
     private final JLabel suggestionText = new JLabel();
     public final Spinner spinner = new Spinner();
-    private final JLabel skipButton = new JLabel("skip");
+    private JLabel skipButton;
     private final JPanel buttonContainer = new JPanel();
+    private JLabel graphButton;
+    private FlippingCopilotConfig config;
 
     @Setter
     private String serverMessage = "";
 
-    public SuggestionPanel() {
+    public SuggestionPanel(FlippingCopilotConfig config) {
+        this.config = config;
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        setPreferredSize(new Dimension(0, 135));
+        setPreferredSize(new Dimension(0, 150));
 
         JLabel title = new JLabel("<html><center> <FONT COLOR=white><b>Suggested Action:" +
                 "</b></FONT></center></html>");
@@ -58,47 +61,30 @@ public class SuggestionPanel extends JPanel {
     }
 
     private void setupButtonContainer() {
-        // this container appears at the bottom of the suggestion panel
-        // It contains the graph button on the left and the skip button on the right
-        buttonContainer.setLayout(new BorderLayout());
+        buttonContainer.setLayout(new GridLayout(1, 2));
         buttonContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        buttonContainer.setPreferredSize(new Dimension(0, 20));
         add(buttonContainer, BorderLayout.SOUTH);
-
-        // add the graph button to the left of the button container
         setupGraphButton();
-        // add the skip button to the right of the button container
         setupSkipButton();
     }
 
     private void setupGraphButton() {
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
-        JLabel graphButton = buildUriButton(graphIcon, "Price graph", "https://prices.runescape.wiki/osrs/item/562");
+        graphButton = buildButton(graphIcon, "Price graph", () -> {
+            Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
+            String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());
+            LinkBrowser.browse(url);
+        });
         buttonContainer.add(graphButton, BorderLayout.WEST);
     }
 
 
     private void setupSkipButton() {
-        skipButton.setForeground(Color.GRAY);
-        skipButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                skipButton.setForeground(Color.WHITE);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                skipButton.setForeground(Color.GRAY);
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                showLoading();
-                plugin.suggestionHandler.skipCurrentSuggestion();
-            }
+        BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/skip.png");
+        skipButton = buildButton(graphIcon, "Skip suggestion", () -> {
+            showLoading();
+            plugin.suggestionHandler.skipCurrentSuggestion();
         });
-
-        skipButton.setHorizontalAlignment(SwingConstants.RIGHT);
         buttonContainer.add(skipButton, BorderLayout.EAST);
     }
 
@@ -130,13 +116,13 @@ public class SuggestionPanel extends JPanel {
         suggestionText.setText(suggestionString);
         suggestionText.setVisible(true);
         if(!suggestion.getType().equals("wait")) {
-            skipButton.setVisible(true);
+            setButtonsVisible(true);
         }
     }
 
     public void suggestCollect() {
         setMessage("Collect items");
-        skipButton.setVisible(false);
+        setButtonsVisible(false);
     }
 
     public void suggestAddGp() {
@@ -148,28 +134,33 @@ public class SuggestionPanel extends JPanel {
 
     public void suggestLogin() {
         setMessage("Log in to the game<br>to get a flip suggestion");
-        skipButton.setVisible(false);
+        setButtonsVisible(false);
     }
 
     public void showConnectionError() {
         setMessage("Failed to connect to server");
-        skipButton.setVisible(false);
+        setButtonsVisible(false);
     }
 
     public void setMessage(String message) {
         suggestionText.setText("<html><center>" + message +  "<br>" + serverMessage + "</center><html>");
-        skipButton.setVisible(false);
+        setButtonsVisible(false);
     }
 
     public void showLoading() {
         suggestionText.setVisible(false);
         setServerMessage("");
         spinner.show();
-        skipButton.setVisible(false);
+        setButtonsVisible(false);
     }
 
     public void hideLoading() {
         spinner.hide();
         suggestionText.setVisible(true);
+    }
+
+    private void setButtonsVisible(boolean visible) {
+        skipButton.setVisible(visible);
+        graphButton.setVisible(visible);
     }
 }

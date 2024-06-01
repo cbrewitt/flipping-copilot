@@ -7,13 +7,15 @@ import java.awt.*;
 
 
 public class CopilotPanel extends JPanel {
-    public final SuggestionPanel suggestionPanel = new SuggestionPanel();
-    private final ControlPanel controlPanel = new ControlPanel();
+    public final SuggestionPanel suggestionPanel;
+    private final ControlPanel controlPanel;
     public final StatsPanel statsPanel;
 
 
 public CopilotPanel(FlippingCopilotConfig config) {
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+    suggestionPanel = new SuggestionPanel(config);
+    controlPanel = new ControlPanel();
     statsPanel = new StatsPanel(config);
     add(suggestionPanel);
     add(Box.createRigidArea(new Dimension(0, 5)));

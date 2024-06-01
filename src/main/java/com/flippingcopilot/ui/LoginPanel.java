@@ -3,6 +3,7 @@ package com.flippingcopilot.ui;
 import net.runelite.client.input.KeyListener;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.LinkBrowser;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -161,13 +162,7 @@ public class LoginPanel extends JPanel {
         createAccountLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                try {
-                    Desktop desktop = Desktop.getDesktop();
-                    URI signupFrontendURI = new URI("https://flippingcopilot.com/signup");
-                    desktop.browse(signupFrontendURI);
-                } catch (Exception error) {
-
-                }
+                LinkBrowser.browse("https://flippingcopilot.com/signup");
             }
 
             @Override
