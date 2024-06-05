@@ -68,10 +68,10 @@ public class SuggestionHandler {
         }
         suggestionPanel.showLoading();
         try {
-            log.info("Getting suggestion");
+            log.debug("Getting suggestion");
             Suggestion oldSuggestion = currentSuggestion;
             currentSuggestion = plugin.apiRequestHandler.getSuggestion(plugin.accountStatus);
-            log.info("Received suggestion: " + currentSuggestion.toString());
+            log.debug("Received suggestion: {}", currentSuggestion.toString());
             plugin.accountStatus.resetSkipSuggestion();
             displaySuggestion();
             showNotifications(oldSuggestion);

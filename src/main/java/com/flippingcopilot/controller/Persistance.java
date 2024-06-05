@@ -39,7 +39,7 @@ public class Persistance {
         File file = new File(directory, filename);
         if (!file.exists()) {
             if (!file.createNewFile()) {
-                log.info("Failed to generate file " + file.getPath());
+                log.info("Failed to generate file {}", file.getPath());
             }
         }
     }

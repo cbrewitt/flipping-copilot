@@ -30,7 +30,7 @@ public class ControlPanel extends JPanel {
         {
             plugin.accountStatus.setSellOnlyMode(sellOnlyModeToggleButton.isSelected());
             plugin.suggestionHandler.setSuggestionNeeded(true);
-            log.info("Sell only mode is now: " + plugin.accountStatus.isSellOnlyMode());
+            log.debug("Sell only mode is now: {}", plugin.accountStatus.isSellOnlyMode());
         });
     }
 }
