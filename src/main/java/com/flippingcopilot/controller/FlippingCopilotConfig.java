@@ -34,7 +34,15 @@ public interface FlippingCopilotConfig extends Config
 
         public String getUrl(String itemName, int itemId)
         {
-            String formattedItemName = itemName.toLowerCase().replace(" ", "-");
+            String formattedItemName = itemName
+                    .toLowerCase()
+                    .replace("'", "")
+                    .replace("(", " ")
+                    .replace(")", "")
+                    .replace("+", " plus")
+                    .replace("  ", " ")
+                    .replace(" ", "-");
+
             switch (this)
             {
                 case OSRS_WIKI:
