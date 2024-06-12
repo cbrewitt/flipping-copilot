@@ -34,23 +34,30 @@ public interface FlippingCopilotConfig extends Config
 
         public String getUrl(String itemName, int itemId)
         {
-            String formattedItemName = itemName
-                    .toLowerCase()
-                    .replace("'", "")
-                    .replace("(", " ")
-                    .replace(")", "")
-                    .replace("+", " plus")
-                    .replace("  ", " ")
-                    .replace(" ", "-");
-
             switch (this)
             {
                 case OSRS_WIKI:
                     return "https://prices.runescape.wiki/osrs/item/" + itemId;
                 case GE_TRACKER:
-                    return "https://www.ge-tracker.com/item/" + formattedItemName;
+                    String geTrackerFormattedName = itemName
+                            .toLowerCase()
+                            .replace("'", " ")
+                            .replace("(", " ")
+                            .replace(")", "")
+                            .replace("+", " plus")
+                            .replace("  ", " ")
+                            .replace(" ", "-");
+                    return "https://www.ge-tracker.com/item/" + geTrackerFormattedName;
                 case PLATINUM_TOKENS:
-                    return "https://platinumtokens.com/item/" + formattedItemName;
+                    String platinumTokensFormattedName = itemName
+                            .toLowerCase()
+                            .replace("'", "")
+                            .replace("(", " ")
+                            .replace(")", "")
+                            .replace("+", " plus")
+                            .replace("  ", " ")
+                            .replace(" ", "-");
+                    return "https://platinumtokens.com/item/" + platinumTokensFormattedName;
                 case GE_DATABASE:
                     return "https://secure.runescape.com/m=itemdb_oldschool/viewitem?obj=" + itemId;
                 case OSRS_CLOUD:
