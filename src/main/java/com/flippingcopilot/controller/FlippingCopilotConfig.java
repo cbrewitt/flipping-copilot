@@ -39,15 +39,7 @@ public interface FlippingCopilotConfig extends Config
                 case OSRS_WIKI:
                     return "https://prices.runescape.wiki/osrs/item/" + itemId;
                 case GE_TRACKER:
-                    String geTrackerFormattedName = itemName
-                            .toLowerCase()
-                            .replace("'", " ")
-                            .replace("(", " ")
-                            .replace(")", "")
-                            .replace("+", " plus")
-                            .replace("  ", " ")
-                            .replace(" ", "-");
-                    return "https://www.ge-tracker.com/item/" + geTrackerFormattedName;
+                    return "https://www.ge-tracker.com/item/" + itemId;
                 case PLATINUM_TOKENS:
                     String platinumTokensFormattedName = itemName
                             .toLowerCase()
