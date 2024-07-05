@@ -7,6 +7,8 @@ import net.runelite.client.config.ConfigItem;
 import net.runelite.client.ui.ColorScheme;
 
 import java.awt.*;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 
 @ConfigGroup("flippingcopilot")
@@ -18,7 +20,8 @@ public interface FlippingCopilotConfig extends Config
         GE_TRACKER("GE Tracker"),
         PLATINUM_TOKENS("PlatinumTokens"),
         GE_DATABASE("GE Database"),
-        OSRS_CLOUD("Osrs.cloud");
+        OSRS_CLOUD("Osrs.cloud"),
+        OSRS_EXCHANGE("OSRS Exchange");
 
         private final String name;
         PriceGraphWebsite(String name)
@@ -52,6 +55,10 @@ public interface FlippingCopilotConfig extends Config
                     return "https://platinumtokens.com/item/" + platinumTokensFormattedName;
                 case GE_DATABASE:
                     return "https://secure.runescape.com/m=itemdb_oldschool/viewitem?obj=" + itemId;
+                case OSRS_EXCHANGE:
+                    String osrsExchangeFormattedName = itemName.toLowerCase().replace(' ','-');
+                    return "https://www.osrs.exchange/item/"
+                            + URLEncoder.encode(osrsExchangeFormattedName, StandardCharsets.UTF_8);
                 case OSRS_CLOUD:
                     return "https://prices.osrs.cloud/item/" + itemId;
                 default:
