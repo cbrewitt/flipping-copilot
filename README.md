@@ -1,4 +1,5 @@
-# Flipping Copilot
+# Flipping Copilot [![Discord](https://img.shields.io/discord/1208453764630057010.svg)](https://discord.gg/UyQxA4QJAq)
+
 Flipping Copilot is an AI-powered assistant designed to enhance your trading experience in Old School RuneScape. With its advanced algorithms and market analysis, Flipping Copilot provides intelligent suggestions on which items to flip, optimal prices and quantities for buying and selling, and when to cancel existing offers to maximize your profit per hour.
 
 ## Community
