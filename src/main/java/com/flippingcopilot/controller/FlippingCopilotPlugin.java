@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
+import net.runelite.api.widgets.InterfaceID;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -166,6 +167,21 @@ public class FlippingCopilotPlugin extends Plugin {
 	public void onMenuOptionClicked(MenuOptionClicked event) {
 		int slot = grandExchange.getOpenSlot();
 		grandExchangeCollectHandler.handleCollect(event, slot);
+	}
+
+	@Subscribe
+	public void onWidgetLoaded(WidgetLoaded event) {
+		gameUiChangesHandler.onWidgetLoaded(event);
+	}
+
+	@Subscribe
+	public void onWidgetClosed(WidgetClosed event) {
+		gameUiChangesHandler.onWidgetClosed(event);
+	}
+
+	@Subscribe
+	public void onVarbitChanged(VarbitChanged event) {
+		gameUiChangesHandler.onVarbitChanged(event);
 	}
 
 	@Subscribe

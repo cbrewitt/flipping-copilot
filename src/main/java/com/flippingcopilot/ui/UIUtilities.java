@@ -24,6 +24,9 @@ public class UIUtilities {
 
     static final float BUTTON_HOVER_LUMINANCE = 0.65f;
     public static final Color OUTDATED_COLOR = new Color(250, 74, 75);
+    public static final Color BLUE_HIGHLIGHT_COLOR =  new Color(27, 173, 255, 79);
+    public static final Color RED_HIGHLIGHT_COLOR = new Color(255, 20, 20, 79);
+
     private static final NumberFormat PRECISE_DECIMAL_FORMATTER = new DecimalFormat(
             "#,###.###",
             DecimalFormatSymbols.getInstance(Locale.ENGLISH)

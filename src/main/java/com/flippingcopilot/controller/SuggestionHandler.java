@@ -98,6 +98,7 @@ public class SuggestionHandler {
         } else {
             suggestionPanel.updateSuggestion(currentSuggestion);
         }
+        plugin.clientThread.invokeLater(() -> plugin.gameUiChangesHandler.redrawSuggestionHighlights());
     }
 
     void showNotifications(Suggestion oldSuggestion) {

@@ -1,6 +1,7 @@
 package com.flippingcopilot.controller;
 
 import net.runelite.api.Client;
+import net.runelite.api.widgets.Widget;
 
 public class GrandExchange {
     private final Client client;
@@ -25,4 +26,9 @@ public class GrandExchange {
     int getOpenSlot() {
         return client.getVarbitValue(CURRENTLY_OPEN_GE_SLOT_VARBIT_ID) - 1;
     }
+
+    Widget getSlotWidget(int slot) {
+        return client.getWidget(465, 7 + slot);
+    }
+
 }
