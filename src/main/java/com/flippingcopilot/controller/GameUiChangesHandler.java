@@ -5,23 +5,24 @@ import com.flippingcopilot.ui.OfferEditor;
 import com.flippingcopilot.ui.WidgetHighlightOverlay;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
-import net.runelite.api.events.VarClientIntChanged;
-import net.runelite.api.events.VarbitChanged;
-import net.runelite.api.events.WidgetClosed;
-import net.runelite.api.events.WidgetLoaded;
+import net.runelite.api.events.*;
 import net.runelite.api.widgets.*;
-import net.runelite.client.util.ColorUtil;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.function.Supplier;
 
+import static com.flippingcopilot.ui.UIUtilities.BLUE_HIGHLIGHT_COLOR;
 import static com.flippingcopilot.ui.UIUtilities.RED_HIGHLIGHT_COLOR;
+import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
+import static net.runelite.api.Varbits.GE_OFFER_CREATION_TYPE;
 
 @Slf4j
 public class GameUiChangesHandler {
     private static final int GE_HISTORY_TAB_WIDGET_ID = 149;
     private final FlippingCopilotPlugin plugin;
     boolean quantityOrPriceChatboxOpen;
+    boolean offerJustPlaced = false;
     private ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
     GameUiChangesHandler(FlippingCopilotPlugin plugin) {
         this.plugin = plugin;
@@ -112,11 +113,12 @@ public class GameUiChangesHandler {
             // can using existing method in GE class to check if GE is closed
             redrawSuggestionHighlights();
         }
+
     }
 
     public void onWidgetClosed(WidgetClosed event) {
         if (event.getGroupId() == InterfaceID.GRAND_EXCHANGE) {
-            removeOverlays();
+            removeHighlights();
         }
     }
 
@@ -126,18 +128,88 @@ public class GameUiChangesHandler {
             log.debug("user has clicked slot or left slot");
             redrawSuggestionHighlights();
         }
+
+        // when the offer item is changed, this triggers
+        if (event.getVarpId() == CURRENT_GE_ITEM) {
+            redrawSuggestionHighlights();
+        }
+
+        // when the price or quantity is changed, this event triggers
+        if(event.getVarbitId() == 4396 || event.getVarbitId() == 4398) {
+            redrawSuggestionHighlights();
+        }
     }
 
+
     void redrawSuggestionHighlights() {
-        removeOverlays();
+        removeHighlights();
+        if (offerJustPlaced) {
+            return;
+        }
         Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
         if (suggestion == null) {
             return;
         }
         if (plugin.grandExchange.isHomeScreenOpen()) {
-            if (suggestion.getType().equals("abort")) {
-                Widget slotWidget = plugin.grandExchange.getSlotWidget(suggestion.getBoxId());
-                addHighlight(slotWidget, RED_HIGHLIGHT_COLOR);
+            drawHomeScreenHighLights(suggestion);
+        } else if (plugin.grandExchange.isSlotOpen()) {
+            drawOfferScreenHighlights(suggestion);
+        }
+    }
+
+    private void drawHomeScreenHighLights(Suggestion suggestion) {
+        if (plugin.suggestionHandler.isCollectNeeded()) {
+            Widget collectButton = plugin.grandExchange.getCollectButton();
+            if (collectButton != null) {
+                addHighlight(collectButton, BLUE_HIGHLIGHT_COLOR);
+            }
+        }
+        else if (suggestion.getType().equals("abort")) {
+            Widget slotWidget = plugin.grandExchange.getSlotWidget(suggestion.getBoxId());
+            addHighlight(slotWidget, RED_HIGHLIGHT_COLOR);
+        }
+        else if (suggestion.getType().equals("buy")) {
+            int slotId = plugin.accountStatus.getOffers().findEmptySlot();
+            if (slotId != -1) {
+                Widget buyButton = plugin.grandExchange.getBuyButton(slotId);
+                if (buyButton != null && !buyButton.isHidden()) {
+                    addHighlight(buyButton, BLUE_HIGHLIGHT_COLOR);
+                }
+            }
+        }
+        else if (suggestion.getType().equals("sell")) {
+            Widget itemWidget = getInventoryItemWidget(suggestion.getItemId());
+            if (itemWidget != null && !itemWidget.isHidden()) {
+                addHighlight(itemWidget, BLUE_HIGHLIGHT_COLOR);
+            }
+        }
+    }
+
+    private void drawOfferScreenHighlights(Suggestion suggestion) {
+        if (plugin.client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
+            Widget offerTypeWidget = plugin.grandExchange.getOfferTypeWidget();
+            String offerType = plugin.client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
+            if (offerTypeWidget != null && offerType.equals(suggestion.getType())) {
+                // check if price and quantity are correct
+                if (plugin.grandExchange.getOfferPrice() == suggestion.getPrice() && plugin.grandExchange.getOfferQuantity() == suggestion.getQuantity()) {
+                    Widget confirmButton = plugin.grandExchange.getConfirmButton();
+                    if (confirmButton != null) {
+                        addHighlight(confirmButton, BLUE_HIGHLIGHT_COLOR);
+                    }
+                } else {
+                    if (plugin.grandExchange.getOfferPrice() != suggestion.getPrice()) {
+                        Widget setPriceButton = plugin.grandExchange.getSetPriceButton();
+                        if (setPriceButton != null) {
+                            addHighlight(setPriceButton, BLUE_HIGHLIGHT_COLOR);
+                        }
+                    }
+                    if (plugin.grandExchange.getOfferQuantity() != suggestion.getQuantity()) {
+                        Widget setQuantityButton = plugin.grandExchange.getSetQuantityButton();
+                        if (setQuantityButton != null) {
+                            addHighlight(setQuantityButton, BLUE_HIGHLIGHT_COLOR);
+                        }
+                    }
+                }
             }
         }
     }
@@ -148,8 +220,37 @@ public class GameUiChangesHandler {
         plugin.overlayManager.add(overlay);
     }
 
-    private void removeOverlays() {
+    void removeHighlights() {
         highlightOverlays.forEach(plugin.overlayManager::remove);
         highlightOverlays.clear();
+    }
+
+    private Widget getInventoryItemWidget(int unnotedItemId) {
+        // Inventory has a different widget if GE is open
+        Widget inventory = plugin.getClient().getWidget(467, 0);
+        if (inventory == null) {
+            inventory = plugin.getClient().getWidget(149, 0);
+            if (inventory == null) {
+                return null;
+            }
+        }
+        for (Widget widget : inventory.getDynamicChildren()) {
+            int itemId = widget.getItemId();
+            ItemComposition itemComposition = plugin.client.getItemDefinition(itemId);
+            if (itemComposition.getNote() != -1) {
+                itemId = itemComposition.getLinkedNoteId();
+            }
+            if (itemId == unnotedItemId) {
+                return widget;
+            }
+        }
+
+        return null;
+    }
+
+    public void handleMenuOptionClicked(MenuOptionClicked event) {
+        if (event.getMenuOption().equals("Confirm") && plugin.grandExchange.isSlotOpen()) {
+            offerJustPlaced = true;
+        }
     }
 }

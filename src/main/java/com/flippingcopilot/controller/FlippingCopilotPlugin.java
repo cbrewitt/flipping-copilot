@@ -167,6 +167,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	public void onMenuOptionClicked(MenuOptionClicked event) {
 		int slot = grandExchange.getOpenSlot();
 		grandExchangeCollectHandler.handleCollect(event, slot);
+		gameUiChangesHandler.handleMenuOptionClicked(event);
 	}
 
 	@Subscribe
