@@ -56,7 +56,6 @@ public class WidgetHighlightOverlay extends Overlay
     @Override
     public Dimension render(Graphics2D graphics)
     {
-
         if (widget == null)
         {
             return null;

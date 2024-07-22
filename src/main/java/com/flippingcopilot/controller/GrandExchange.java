@@ -1,7 +1,6 @@
 package com.flippingcopilot.controller;
 
 import net.runelite.api.Client;
-import net.runelite.api.VarClientInt;
 import net.runelite.api.widgets.Widget;
 
 public class GrandExchange {
@@ -76,6 +75,10 @@ public class GrandExchange {
         return client.getVarbitValue(4398);
     }
 
+    boolean isPreviousSearchSet() {
+        return client.getVarpValue(2674) != -1;
+    }
+
     public Widget getSetQuantityButton() {
         Widget offerContainer = getOfferContainerWidget();
         if (offerContainer == null) {
@@ -90,5 +93,13 @@ public class GrandExchange {
             return null;
         }
         return offerContainer.getChild(54);
+    }
+
+    public Widget getSetQuantityAllButton() {
+        Widget offerContainer = getOfferContainerWidget();
+        if (offerContainer == null) {
+            return null;
+        }
+        return offerContainer.getChild(50);
     }
 }

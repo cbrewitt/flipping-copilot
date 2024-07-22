@@ -10,7 +10,6 @@ import net.runelite.api.widgets.*;
 
 import java.awt.*;
 import java.util.ArrayList;
-import java.util.function.Supplier;
 
 import static com.flippingcopilot.ui.UIUtilities.BLUE_HIGHLIGHT_COLOR;
 import static com.flippingcopilot.ui.UIUtilities.RED_HIGHLIGHT_COLOR;
@@ -22,6 +21,7 @@ public class GameUiChangesHandler {
     private static final int GE_HISTORY_TAB_WIDGET_ID = 149;
     private final FlippingCopilotPlugin plugin;
     boolean quantityOrPriceChatboxOpen;
+    boolean itemSearchChatboxOpen = false;
     boolean offerJustPlaced = false;
     private ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
     GameUiChangesHandler(FlippingCopilotPlugin plugin) {
@@ -34,6 +34,7 @@ public class GameUiChangesHandler {
         if (event.getIndex() == VarClientInt.INPUT_TYPE
                 && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 14
                 && client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS) != null) {
+            itemSearchChatboxOpen = true;
             plugin.getClientThread().invokeLater(this::showSuggestedItemInSearch);
         }
 
@@ -42,7 +43,15 @@ public class GameUiChangesHandler {
                 && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 0
         ) {
             quantityOrPriceChatboxOpen = false;
+            return;
+        }
 
+        if (itemSearchChatboxOpen
+                && event.getIndex() == VarClientInt.INPUT_TYPE
+                && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 0
+        ) {
+            removeHighlights();
+            itemSearchChatboxOpen = false;
             return;
         }
 
@@ -65,27 +74,103 @@ public class GameUiChangesHandler {
 
     private void showSuggestedItemInSearch() {
         Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
+
+        if (suggestion.getType().equals("buy")) {
+            if (plugin.grandExchange.isPreviousSearchSet()) {
+                setPreviousSearch(suggestion.getItemId(), suggestion.getName());
+            } else {
+                createPreviousSearchWidget(suggestion.getItemId(), suggestion.getName());
+                createPreviousSearchItemNameWidget(suggestion.getName());
+                createPreviousSearchItemWidget(suggestion.getItemId());
+                createPreviousSearchTextWidget();
+            }
+            redrawSuggestionHighlights();
+        }
+    }
+
+    private void setPreviousSearch(int itemId, String itemName) {
         Client client = plugin.getClient();
         Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
         Widget previousSearch = searchResults.getChild(0);
+        previousSearch.setOnOpListener(754, itemId, 84);
+        previousSearch.setOnKeyListener(754, itemId, -2147483640);
+        previousSearch.setName("<col=ff9040>" + itemName + "</col>");
+        Widget previousSearchText = searchResults.getChild(1);
+        previousSearchText.setText("Copilot item:");
+        Widget itemNameWidget = searchResults.getChild(2);
+        itemNameWidget.setText(itemName);
+        Widget item = searchResults.getChild(3);
+        item.setItemId(itemId);
+    }
 
-        if (suggestion.getType().equals("buy") && previousSearch != null) {
-            previousSearch.setOnOpListener(754, suggestion.getItemId(), 84);
-            previousSearch.setOnKeyListener(754, suggestion.getItemId(), -2147483640);
-            previousSearch.setName("<col=ff9040>" + suggestion.getName() + "</col>");
+    private void createPreviousSearchWidget(int itemId, String itemName) {
+        Widget parentWidget = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget widget = parentWidget.createChild(WidgetType.RECTANGLE);
+        widget.setTextColor(0xFFFFFF);
+        widget.setOpacity(255);
+        widget.setName("<col=ff9040>" + itemName + "</col>");
+        widget.setHasListener(true);
+        widget.setFilled(true);
+        widget.setOriginalX(114);
+        widget.setOriginalY(0);
+        widget.setOriginalWidth(256);
+        widget.setOriginalHeight(32);
+        widget.setOnOpListener(754, itemId, 84);
+        widget.setOnKeyListener(754, itemId, -2147483640);
+        widget.setHasListener(true);
+        widget.setAction(0, "Select");
+        // set opacity to 200 when mouse is hovering
+        widget.setOnMouseOverListener((JavaScriptCallback) ev -> {
+            widget.setOpacity(200);
+        });
+        // set opacity back to 255 when mouse is not hovering
+        widget.setOnMouseLeaveListener((JavaScriptCallback) ev -> {
+            widget.setOpacity(255);
+        });
 
-            Widget previousSearchText = searchResults.getChild(1);
-            if(previousSearchText == null) {
-                return;
-            }
-            previousSearchText.setText("Copilot item:");
+        widget.revalidate();
+    }
 
-            Widget itemName = searchResults.getChild(2);
-            itemName.setText(suggestion.getName());
+    private void createPreviousSearchItemNameWidget(String itemName) {
+        Widget parentWidget = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget widget = parentWidget.createChild(WidgetType.TEXT);
+        widget.setText(itemName);
+        widget.setFontId(495);
+        widget.setOriginalX(254);
+        widget.setOriginalY(0);
+        widget.setOriginalWidth(116);
+        widget.setOriginalHeight(32);
+        widget.setYTextAlignment(1);
+        widget.revalidate();
+    }
 
-            Widget item = searchResults.getChild(3);
-            item.setItemId(suggestion.getItemId());
-        }
+    private void createPreviousSearchItemWidget(int itemId) {
+        Widget parentWidget = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget widget = parentWidget.createChild(WidgetType.GRAPHIC);
+        widget.setItemId(itemId);
+        widget.setItemQuantity(1);
+        widget.setItemQuantityMode(0);
+        widget.setRotationX(550);
+        widget.setModelZoom(1031);
+        widget.setBorderType(1);
+        widget.setOriginalX(214);
+        widget.setOriginalY(0);
+        widget.setOriginalWidth(36);
+        widget.setOriginalHeight(32);
+        widget.revalidate();
+    }
+
+    private void createPreviousSearchTextWidget() {
+        Widget parentWidget = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget widget = parentWidget.createChild(WidgetType.TEXT);
+        widget.setText("Copilot item:");
+        widget.setFontId(495);
+        widget.setOriginalX(114);
+        widget.setOriginalY(0);
+        widget.setOriginalWidth(95);
+        widget.setOriginalHeight(32);
+        widget.setYTextAlignment(1);
+        widget.revalidate();
     }
 
     public void onWidgetLoaded(WidgetLoaded event) {
@@ -101,6 +186,10 @@ public class GameUiChangesHandler {
         if (event.getGroupId() == InterfaceID.GRAND_EXCHANGE || event.getGroupId() == 213) {
             log.debug("Grand Exchange widget loaded");
             redrawSuggestionHighlights();
+            plugin.clientThread.invoke(() -> {
+                plugin.client.setVarbitValue(plugin.client.getVarps(), 2674, 560);
+                plugin.client.queueChangedVarp(2674);
+            });
         }
 
         //remove highlighted item
@@ -139,7 +228,6 @@ public class GameUiChangesHandler {
             redrawSuggestionHighlights();
         }
     }
-
 
     void redrawSuggestionHighlights() {
         removeHighlights();
@@ -186,30 +274,67 @@ public class GameUiChangesHandler {
     }
 
     private void drawOfferScreenHighlights(Suggestion suggestion) {
-        if (plugin.client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
-            Widget offerTypeWidget = plugin.grandExchange.getOfferTypeWidget();
-            String offerType = plugin.client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
-            if (offerTypeWidget != null && offerType.equals(suggestion.getType())) {
-                // check if price and quantity are correct
-                if (plugin.grandExchange.getOfferPrice() == suggestion.getPrice() && plugin.grandExchange.getOfferQuantity() == suggestion.getQuantity()) {
+        Widget offerTypeWidget = plugin.grandExchange.getOfferTypeWidget();
+        String offerType = plugin.client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
+        if (offerTypeWidget != null && offerType.equals(suggestion.getType())) {
+            if (plugin.client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
+                if (offerDetailsCorrect(suggestion)) {
                     Widget confirmButton = plugin.grandExchange.getConfirmButton();
                     if (confirmButton != null) {
                         addHighlight(confirmButton, BLUE_HIGHLIGHT_COLOR);
                     }
                 } else {
-                    if (plugin.grandExchange.getOfferPrice() != suggestion.getPrice()) {
-                        Widget setPriceButton = plugin.grandExchange.getSetPriceButton();
-                        if (setPriceButton != null) {
-                            addHighlight(setPriceButton, BLUE_HIGHLIGHT_COLOR);
-                        }
-                    }
-                    if (plugin.grandExchange.getOfferQuantity() != suggestion.getQuantity()) {
-                        Widget setQuantityButton = plugin.grandExchange.getSetQuantityButton();
-                        if (setQuantityButton != null) {
-                            addHighlight(setQuantityButton, BLUE_HIGHLIGHT_COLOR);
-                        }
-                    }
+                    highlightPrice(suggestion);
+                    highlightQuantity(suggestion);
                 }
+            }
+            else {
+                highlightItemInSearch(suggestion);
+            }
+        }
+    }
+
+    private void highlightItemInSearch(Suggestion suggestion) {
+        Widget searchResults = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        if (searchResults == null) {
+            return;
+        }
+        for (Widget widget : searchResults.getDynamicChildren()) {
+            if (widget.getName().equals("<col=ff9040>" + suggestion.getName() + "</col>")) {
+                addHighlight(widget, BLUE_HIGHLIGHT_COLOR);
+                return;
+            }
+        }
+        Widget itemWidget = searchResults.getChild(3);
+        if (itemWidget != null && itemWidget.getItemId() == suggestion.getItemId()) {
+            addHighlight(itemWidget, BLUE_HIGHLIGHT_COLOR);
+        }
+    }
+
+    private boolean offerDetailsCorrect(Suggestion suggestion) {
+        return plugin.grandExchange.getOfferPrice() == suggestion.getPrice()
+                && plugin.grandExchange.getOfferQuantity() == suggestion.getQuantity();
+    }
+
+    private void highlightPrice(Suggestion suggestion) {
+        if (plugin.grandExchange.getOfferPrice() != suggestion.getPrice()) {
+            Widget setPriceButton = plugin.grandExchange.getSetPriceButton();
+            if (setPriceButton != null) {
+                addHighlight(setPriceButton, BLUE_HIGHLIGHT_COLOR);
+            }
+        }
+    }
+
+    private void highlightQuantity(Suggestion suggestion) {
+        if (plugin.grandExchange.getOfferQuantity() != suggestion.getQuantity()) {
+            Widget setQuantityButton;
+            if (plugin.accountStatus.getInventory().getTotalAmount(suggestion.getItemId()) == suggestion.getQuantity()) {
+                setQuantityButton = plugin.grandExchange.getSetQuantityAllButton();
+            } else {
+                setQuantityButton = plugin.grandExchange.getSetQuantityButton();
+            }
+            if (setQuantityButton != null) {
+                addHighlight(setQuantityButton, BLUE_HIGHLIGHT_COLOR);
             }
         }
     }
@@ -234,18 +359,23 @@ public class GameUiChangesHandler {
                 return null;
             }
         }
+
+        Widget notedWidget = null;
+        Widget unnotedWidget = null;
+
         for (Widget widget : inventory.getDynamicChildren()) {
             int itemId = widget.getItemId();
             ItemComposition itemComposition = plugin.client.getItemDefinition(itemId);
+
             if (itemComposition.getNote() != -1) {
-                itemId = itemComposition.getLinkedNoteId();
-            }
-            if (itemId == unnotedItemId) {
-                return widget;
+                if (itemComposition.getLinkedNoteId() == unnotedItemId) {
+                    notedWidget = widget;
+                }
+            } else if (itemId == unnotedItemId) {
+                unnotedWidget = widget;
             }
         }
-
-        return null;
+        return notedWidget != null ? notedWidget : unnotedWidget;
     }
 
     public void handleMenuOptionClicked(MenuOptionClicked event) {
