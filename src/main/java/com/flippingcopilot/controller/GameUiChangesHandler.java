@@ -2,14 +2,22 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.ui.OfferEditor;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
-import net.runelite.api.events.VarClientIntChanged;
+import net.runelite.api.events.*;
 import net.runelite.api.widgets.*;
 
+import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
+@Slf4j
 public class GameUiChangesHandler {
-    FlippingCopilotPlugin plugin;
+    private static final int GE_HISTORY_TAB_WIDGET_ID = 149;
+    private final FlippingCopilotPlugin plugin;
     boolean quantityOrPriceChatboxOpen;
+    boolean itemSearchChatboxOpen = false;
+    @Getter
+    boolean offerJustPlaced = false;
     GameUiChangesHandler(FlippingCopilotPlugin plugin) {
         this.plugin = plugin;
     }
@@ -20,7 +28,8 @@ public class GameUiChangesHandler {
         if (event.getIndex() == VarClientInt.INPUT_TYPE
                 && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 14
                 && client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS) != null) {
-            plugin.getClientThread().invokeLater(this::showSuggestedItemInSearch);
+            itemSearchChatboxOpen = true;
+            plugin.getClientThread().invokeLater(plugin.gePreviousSearch::showSuggestedItemInSearch);
         }
 
         if (quantityOrPriceChatboxOpen
@@ -28,7 +37,15 @@ public class GameUiChangesHandler {
                 && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 0
         ) {
             quantityOrPriceChatboxOpen = false;
+            return;
+        }
 
+        if (itemSearchChatboxOpen
+                && event.getIndex() == VarClientInt.INPUT_TYPE
+                && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 0
+        ) {
+            plugin.highlightController.removeAll();
+            itemSearchChatboxOpen = false;
             return;
         }
 
@@ -49,28 +66,33 @@ public class GameUiChangesHandler {
         });
     }
 
-    private void showSuggestedItemInSearch() {
-        Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
-        Client client = plugin.getClient();
-        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
-        Widget previousSearch = searchResults.getChild(0);
+    public void onWidgetLoaded(WidgetLoaded event) {
+        if (event.getGroupId() == 383
+                || event.getGroupId() == InterfaceID.GRAND_EXCHANGE
+                || event.getGroupId() == 213
+                || event.getGroupId() == GE_HISTORY_TAB_WIDGET_ID) {
+            plugin.highlightController.redraw();
+        }
+    }
 
-        if (suggestion.getType().equals("buy") && previousSearch != null) {
-            previousSearch.setOnOpListener(754, suggestion.getItemId(), 84);
-            previousSearch.setOnKeyListener(754, suggestion.getItemId(), -2147483640);
-            previousSearch.setName("<col=ff9040>" + suggestion.getName() + "</col>");
+    public void onWidgetClosed(WidgetClosed event) {
+        if (event.getGroupId() == InterfaceID.GRAND_EXCHANGE) {
+            plugin.highlightController.removeAll();
+        }
+    }
 
-            Widget previousSearchText = searchResults.getChild(1);
-            if(previousSearchText == null) {
-                return;
-            }
-            previousSearchText.setText("Copilot item:");
+    public void onVarbitChanged(VarbitChanged event) {
+        if (event.getVarpId() == 375
+                || event.getVarpId() == CURRENT_GE_ITEM
+                || event.getVarbitId() == 4396
+                || event.getVarbitId() == 4398) {
+            plugin.highlightController.redraw();
+        }
+    }
 
-            Widget itemName = searchResults.getChild(2);
-            itemName.setText(suggestion.getName());
-
-            Widget item = searchResults.getChild(3);
-            item.setItemId(suggestion.getItemId());
+    public void handleMenuOptionClicked(MenuOptionClicked event) {
+        if (event.getMenuOption().equals("Confirm") && plugin.grandExchange.isSlotOpen()) {
+            offerJustPlaced = true;
         }
     }
 }

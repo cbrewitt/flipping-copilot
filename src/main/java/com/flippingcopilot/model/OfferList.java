@@ -80,4 +80,13 @@ public class OfferList extends ArrayList<Offer> {
         list.forEach(jsonArray::add);
         return jsonArray;
     }
+
+    public int findEmptySlot() {
+        for (int i = 0; i < NUM_SLOTS; i++) {
+            if (get(i).getStatus() == OfferStatus.EMPTY) {
+                return i;
+            }
+        }
+        return -1;
+    }
 }

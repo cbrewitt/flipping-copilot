@@ -23,11 +23,13 @@ public class SuggestionHandler {
     private Suggestion currentSuggestion;
     private FlippingCopilotPlugin plugin;
     private SuggestionPanel suggestionPanel;
+    private boolean collectNeeded;
 
     public SuggestionHandler(FlippingCopilotPlugin plugin) {
         this.plugin = plugin;
         this.suggestionPanel = plugin.mainPanel.copilotPanel.suggestionPanel;
         suggestionNeeded = false;
+        collectNeeded = false;
         resetTimer();
     }
 
@@ -73,6 +75,7 @@ public class SuggestionHandler {
             currentSuggestion = plugin.apiRequestHandler.getSuggestion(plugin.accountStatus);
             log.debug("Received suggestion: {}", currentSuggestion.toString());
             plugin.accountStatus.resetSkipSuggestion();
+            plugin.gameUiChangesHandler.offerJustPlaced = false;
             displaySuggestion();
             showNotifications(oldSuggestion);
         } catch (HttpResponseException e) {
@@ -91,13 +94,16 @@ public class SuggestionHandler {
             return;
         }
         suggestionPanel.setServerMessage(currentSuggestion.getMessage());
+        collectNeeded = false;
         if (plugin.accountStatus.isCollectNeeded(currentSuggestion)) {
+            collectNeeded = true;
             suggestionPanel.suggestCollect();
         } else if (currentSuggestion.getType().equals("wait") && plugin.accountStatus.moreGpNeeded()) {
             suggestionPanel.suggestAddGp();
         } else {
             suggestionPanel.updateSuggestion(currentSuggestion);
         }
+        plugin.clientThread.invokeLater(() -> plugin.highlightController.redraw());
     }
 
     void showNotifications(Suggestion oldSuggestion) {

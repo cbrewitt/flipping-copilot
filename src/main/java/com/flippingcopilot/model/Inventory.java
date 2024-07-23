@@ -24,7 +24,7 @@ public class Inventory extends ArrayList<RSItem> {
         return getTotalAmount(ItemID.COINS_995) + PLATINUM_TOKEN_VALUE * getTotalAmount(ItemID.PLATINUM_TOKEN);
     }
 
-    long getTotalAmount(long itemId) {
+    public long getTotalAmount(long itemId) {
         long amount = 0;
         for (RSItem item : this) {
             if (item.getId() == itemId) {

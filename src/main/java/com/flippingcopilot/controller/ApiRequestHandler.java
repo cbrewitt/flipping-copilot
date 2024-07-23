@@ -6,10 +6,12 @@ import com.flippingcopilot.model.LoginResponse;
 import com.flippingcopilot.model.Suggestion;
 import com.google.gson.*;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import java.io.IOException;
 import java.util.function.Consumer;
 
+@Slf4j
 public class ApiRequestHandler {
 
     private static final String serverUrl = System.getenv("FLIPPING_COPILOT_HOST") != null ? System.getenv("FLIPPING_COPILOT_HOST")  : "https://api.flippingcopilot.com/";
@@ -87,17 +89,24 @@ public class ApiRequestHandler {
                 .addHeader("Authorization", "Bearer " + jwtToken)
                 .post(body)
                 .build();
-
+        String responseBody = null;
         try (Response response = client.newCall(request).execute()) {
-            JsonObject responseJson = gson.fromJson(response.body().string(), JsonObject.class);
+            responseBody = response.body().string();
+            JsonObject responseJson = gson.fromJson(responseBody, JsonObject.class);
             if (!response.isSuccessful()) {
                 throw new HttpResponseException(response.code(), responseJson.get("message").getAsString());
             }
             return responseJson;
         } catch (HttpResponseException e) {
             throw e;
-        } catch (JsonParseException | IOException e) {
+        } catch (JsonParseException e) {
+            log.error("Error occurred while parsing JSON response: " + e.getMessage());
+            log.error("Response body: " + responseBody);
+            throw new HttpResponseException(-1, "Unknown server error (possible system update)");
+        } catch (IOException e) {
+            log.error("Error occurred while posting json: ", e);
             throw new HttpResponseException(-1, "Unknown server error (possible system update)");
         }
     }
+
 }
