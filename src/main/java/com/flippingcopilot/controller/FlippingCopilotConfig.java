@@ -111,10 +111,19 @@ public interface FlippingCopilotConfig extends Config
     @ConfigItem(
             keyName = "priceGraphWebsite",
             name = "Price graph site",
-            description = "The website to open for price graphs."
+            description = "The website to open when the graph button is clicked."
     )
     default PriceGraphWebsite priceGraphWebsite()
     {
         return PriceGraphWebsite.OSRS_WIKI;
+    }
+    @ConfigItem(
+            keyName = "suggestionHighlights",
+            name = "Highlight suggested actions",
+            description = "Show highlight overlays on the GE interface for suggested actions."
+    )
+    default boolean suggestionHighlights()
+    {
+        return true;
     }
 }

@@ -24,6 +24,9 @@ public class HighlightController {
 
     public void redraw() {
         removeAll();
+        if(!plugin.config.suggestionHighlights()) {
+            return;
+        }
         if (plugin.gameUiChangesHandler.isOfferJustPlaced()) {
             return;
         }

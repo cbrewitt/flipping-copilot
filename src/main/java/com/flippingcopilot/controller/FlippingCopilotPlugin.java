@@ -209,6 +209,9 @@ public class FlippingCopilotPlugin extends Plugin {
 			if (event.getKey().equals("profitAmountColor") || event.getKey().equals("lossAmountColor")) {
 				mainPanel.copilotPanel.statsPanel.updateFlips(flipTracker, client);
 			}
+			if (event.getKey().equals("suggestionHighlights")) {
+				clientThread.invokeLater(() -> highlightController.redraw());
+			}
 		}
 	}
 }
