@@ -86,6 +86,5 @@ public class OfferEditor {
             chatboxTitle.setOriginalY(chatboxTitle.getOriginalY() + 7);
             chatboxTitle.revalidate();
         }
-
     }
 }

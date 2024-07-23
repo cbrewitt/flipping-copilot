@@ -3,6 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.model.AccountStatus;
 import com.flippingcopilot.model.LoginResponse;
 import com.flippingcopilot.model.Transaction;
+import com.flippingcopilot.ui.GePreviousSearch;
 import com.flippingcopilot.ui.GpDropOverlay;
 import com.flippingcopilot.ui.MainPanel;
 import com.google.gson.Gson;
@@ -11,7 +12,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
-import net.runelite.api.widgets.InterfaceID;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -61,7 +61,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	NavigationButton navButton;
 	public AccountStatus accountStatus;
 	public SuggestionHandler suggestionHandler;
-	GrandExchange grandExchange;
+	public GrandExchange grandExchange;
 	public OsrsLoginHandler osrsLoginHandler;
 
 	GameUiChangesHandler gameUiChangesHandler;
@@ -71,6 +71,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	MainPanel mainPanel;
 	public CopilotLoginController copilotLoginController;
 	WebHookController webHookController;
+	public HighlightController highlightController;
+	GePreviousSearch gePreviousSearch;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -87,6 +89,8 @@ public class FlippingCopilotPlugin extends Plugin {
 		gameUiChangesHandler = new GameUiChangesHandler(this);
 		copilotLoginController = new CopilotLoginController(() -> mainPanel.renderLoggedInView(), apiRequestHandler);
 		webHookController = new WebHookController(this);
+		highlightController = new HighlightController(this);
+		gePreviousSearch = new GePreviousSearch(this);
 		mainPanel.init(this);
 		setUpNavButton();
 		setUpLogin();
@@ -135,7 +139,6 @@ public class FlippingCopilotPlugin extends Plugin {
 			}
 		}
 	}
-
 
 
 	//---------------------------- Event Handlers ----------------------------//

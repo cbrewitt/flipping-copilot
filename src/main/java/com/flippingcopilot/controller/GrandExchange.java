@@ -75,7 +75,7 @@ public class GrandExchange {
         return client.getVarbitValue(4398);
     }
 
-    boolean isPreviousSearchSet() {
+    public boolean isPreviousSearchSet() {
         return client.getVarpValue(2674) != -1;
     }
 
