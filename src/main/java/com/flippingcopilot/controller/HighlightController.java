@@ -45,7 +45,7 @@ public class HighlightController {
         if (plugin.suggestionHandler.isCollectNeeded()) {
             Widget collectButton = plugin.grandExchange.getCollectButton();
             if (collectButton != null) {
-                add(collectButton, BLUE_HIGHLIGHT_COLOR);
+                add(collectButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(2, 1, 81, 18));
             }
         }
         else if (suggestion.getType().equals("abort")) {
@@ -57,7 +57,7 @@ public class HighlightController {
             if (slotId != -1) {
                 Widget buyButton = plugin.grandExchange.getBuyButton(slotId);
                 if (buyButton != null && !buyButton.isHidden()) {
-                    add(buyButton, BLUE_HIGHLIGHT_COLOR);
+                    add(buyButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(0, 0, 45, 44));
                 }
             }
         }
@@ -77,7 +77,7 @@ public class HighlightController {
                 if (offerDetailsCorrect(suggestion)) {
                     Widget confirmButton = plugin.grandExchange.getConfirmButton();
                     if (confirmButton != null) {
-                        add(confirmButton, BLUE_HIGHLIGHT_COLOR);
+                        add(confirmButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 1, 150, 38));
                     }
                 } else {
                     highlightPrice(suggestion);
@@ -116,7 +116,7 @@ public class HighlightController {
         if (plugin.grandExchange.getOfferPrice() != suggestion.getPrice()) {
             Widget setPriceButton = plugin.grandExchange.getSetPriceButton();
             if (setPriceButton != null) {
-                add(setPriceButton, BLUE_HIGHLIGHT_COLOR);
+                add(setPriceButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 6, 33, 23));
             }
         }
     }
@@ -130,15 +130,19 @@ public class HighlightController {
                 setQuantityButton = plugin.grandExchange.getSetQuantityButton();
             }
             if (setQuantityButton != null) {
-                add(setQuantityButton, BLUE_HIGHLIGHT_COLOR);
+                add(setQuantityButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 6, 33, 23));
             }
         }
     }
 
-    private void add(Widget widget, Color color) {
-        WidgetHighlightOverlay overlay = new WidgetHighlightOverlay(widget, color);
+    private void add(Widget widget, Color color, Rectangle adjustedBounds) {
+        WidgetHighlightOverlay overlay = new WidgetHighlightOverlay(widget, color, adjustedBounds);
         highlightOverlays.add(overlay);
         plugin.overlayManager.add(overlay);
+    }
+
+    private void add(Widget widget, Color color) {
+        add(widget, color, new Rectangle(0, 0, widget.getWidth(), widget.getHeight()));
     }
 
     void removeAll() {

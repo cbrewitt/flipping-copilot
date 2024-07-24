@@ -41,12 +41,15 @@ public class WidgetHighlightOverlay extends Overlay
 {
     private final Widget widget;
     private final Color color;
+    private final Rectangle relativeBounds;
 
     @Inject
-    public WidgetHighlightOverlay(final Widget widget, Color color)
+    public WidgetHighlightOverlay(final Widget widget, Color color, Rectangle relativeBounds)
     {
         this.widget = widget;
         this.color = color;
+        this.relativeBounds = relativeBounds;
+
         setPosition(OverlayPosition.DYNAMIC);
         setLayer(OverlayLayer.ABOVE_WIDGETS);
         setPriority(PRIORITY_HIGH);
@@ -61,21 +64,25 @@ public class WidgetHighlightOverlay extends Overlay
             return null;
         }
 
-        Rectangle bounds = widget.getBounds();
+        Rectangle highlightBounds = widget.getBounds();
 
-        if (bounds == null)
+        if (highlightBounds == null)
         {
             return null;
         }
-        drawHighlight(graphics, bounds);
+
+        highlightBounds.x += relativeBounds.x;
+        highlightBounds.y += relativeBounds.y;
+        highlightBounds.width = relativeBounds.width;
+        highlightBounds.height = relativeBounds.height;
+
+        drawHighlight(graphics, highlightBounds);
         return null;
     }
 
     private void drawHighlight(Graphics2D graphics, Rectangle bounds)
     {
-        //draw the fill
         graphics.setColor(color);
         graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-        graphics.draw(bounds);
     }
 }
