@@ -120,6 +120,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void shutDown() throws Exception {
+		highlightController.removeAll();
 		clientToolbar.removeNavigation(navButton);
 		Persistance.saveLoginResponse(apiRequestHandler.getLoginResponse());
 		webHookController.sendMessage();
@@ -139,7 +140,6 @@ public class FlippingCopilotPlugin extends Plugin {
 			}
 		}
 	}
-
 
 	//---------------------------- Event Handlers ----------------------------//
 
