@@ -64,7 +64,7 @@ public class HighlightController {
         else if (suggestion.getType().equals("sell")) {
             Widget itemWidget = getInventoryItemWidget(suggestion.getItemId());
             if (itemWidget != null && !itemWidget.isHidden()) {
-                add(itemWidget, BLUE_HIGHLIGHT_COLOR);
+                add(itemWidget, BLUE_HIGHLIGHT_COLOR, new Rectangle(0, 0, 32, 32));
             }
         }
     }
