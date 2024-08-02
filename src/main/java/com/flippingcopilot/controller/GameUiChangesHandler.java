@@ -44,7 +44,7 @@ public class GameUiChangesHandler {
                 && event.getIndex() == VarClientInt.INPUT_TYPE
                 && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 0
         ) {
-            plugin.highlightController.removeAll();
+            plugin.getClientThread().invokeLater(plugin.highlightController::redraw);
             itemSearchChatboxOpen = false;
             return;
         }
@@ -66,18 +66,24 @@ public class GameUiChangesHandler {
         });
     }
 
+    public void onVarClientStrChanged(VarClientStrChanged event) {
+        if (event.getIndex() == VarClientStr.INPUT_TEXT && itemSearchChatboxOpen) {
+            plugin.getClientThread().invokeLater(plugin.highlightController::redraw);
+        }
+    }
+
     public void onWidgetLoaded(WidgetLoaded event) {
         if (event.getGroupId() == 383
                 || event.getGroupId() == InterfaceID.GRAND_EXCHANGE
                 || event.getGroupId() == 213
                 || event.getGroupId() == GE_HISTORY_TAB_WIDGET_ID) {
-            plugin.highlightController.redraw();
+            plugin.getClientThread().invokeLater(plugin.highlightController::redraw);
         }
     }
 
     public void onWidgetClosed(WidgetClosed event) {
         if (event.getGroupId() == InterfaceID.GRAND_EXCHANGE) {
-            plugin.highlightController.removeAll();
+            plugin.getClientThread().invokeLater(plugin.highlightController::removeAll);
         }
     }
 
@@ -85,8 +91,9 @@ public class GameUiChangesHandler {
         if (event.getVarpId() == 375
                 || event.getVarpId() == CURRENT_GE_ITEM
                 || event.getVarbitId() == 4396
-                || event.getVarbitId() == 4398) {
-            plugin.highlightController.redraw();
+                || event.getVarbitId() == 4398
+                || event.getVarbitId() == 4439) {
+            plugin.getClientThread().invokeLater(plugin.highlightController::redraw);
         }
     }
 

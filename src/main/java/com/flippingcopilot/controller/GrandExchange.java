@@ -6,6 +6,7 @@ import net.runelite.api.widgets.Widget;
 public class GrandExchange {
     private final Client client;
     private final static int CURRENTLY_OPEN_GE_SLOT_VARBIT_ID = 4439;
+    final static int SHOW_LAST_SEARCHED_VARBIT_ID = 10295;
 
     GrandExchange(Client client) {
         this.client = client;
@@ -77,6 +78,10 @@ public class GrandExchange {
 
     public boolean isPreviousSearchSet() {
         return client.getVarpValue(2674) != -1;
+    }
+
+    public boolean showLastSearchEnabled() {
+        return client.getVarbitValue(SHOW_LAST_SEARCHED_VARBIT_ID) == 0;
     }
 
     public Widget getSetQuantityButton() {

@@ -189,6 +189,11 @@ public class FlippingCopilotPlugin extends Plugin {
 	}
 
 	@Subscribe
+	public void onVarClientStrChanged(VarClientStrChanged event) {
+		gameUiChangesHandler.onVarClientStrChanged(event);
+	}
+
+	@Subscribe
 	public void onGameStateChanged(GameStateChanged event) {
 		osrsLoginHandler.handleGameStateChanged(event);
 	}

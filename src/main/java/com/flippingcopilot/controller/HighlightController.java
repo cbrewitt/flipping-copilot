@@ -3,6 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.ui.WidgetHighlightOverlay;
 import net.runelite.api.ItemComposition;
+import net.runelite.api.VarClientStr;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
 
@@ -64,7 +65,7 @@ public class HighlightController {
         else if (suggestion.getType().equals("sell")) {
             Widget itemWidget = getInventoryItemWidget(suggestion.getItemId());
             if (itemWidget != null && !itemWidget.isHidden()) {
-                add(itemWidget, BLUE_HIGHLIGHT_COLOR, new Rectangle(0, 0, 32, 32));
+                add(itemWidget, BLUE_HIGHLIGHT_COLOR, new Rectangle(0, 0, 34, 32));
             }
         }
     }
@@ -91,6 +92,9 @@ public class HighlightController {
     }
 
     private void highlightItemInSearch(Suggestion suggestion) {
+        if (!plugin.client.getVarcStrValue(VarClientStr.INPUT_TEXT).isEmpty()) {
+            return;
+        }
         Widget searchResults = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
         if (searchResults == null) {
             return;
