@@ -22,22 +22,24 @@ public class CopilotLoginController {
     private String password;
     private final Runnable changeToLoggedInViewRunnable;
     private final ApiRequestHandler apiRequestHandler;
+    private final FlippingCopilotPlugin plugin;
     @Setter
     @Getter
     private boolean loggedIn = false;
 
 
-    public CopilotLoginController(Runnable changeToLoggedInViewRunnable, ApiRequestHandler apiRequestHandler) {
+    public CopilotLoginController(Runnable changeToLoggedInViewRunnable, FlippingCopilotPlugin plugin) {
         this.changeToLoggedInViewRunnable = changeToLoggedInViewRunnable;
-        Consumer<String> onEmailTextChangedListener = text -> onEmailTextChanged(text);
-        Consumer<String> onPasswordTextChangedListener = text -> onPasswordTextChanged(text);
-        ActionListener onLoginPressedListener = (ActionEvent event) -> onLoginPressed(event);
+        Consumer<String> onEmailTextChangedListener = this::onEmailTextChanged;
+        Consumer<String> onPasswordTextChangedListener = this::onPasswordTextChanged;
+        ActionListener onLoginPressedListener = this::onLoginPressed;
         this.panel = new LoginPanel(
                 onEmailTextChangedListener,
                 onPasswordTextChangedListener,
                 onLoginPressedListener
         );
-        this.apiRequestHandler = apiRequestHandler;
+        this.plugin = plugin;
+        this.apiRequestHandler = plugin.apiRequestHandler;
     }
 
     public void onLoginPressed(ActionEvent event) {
@@ -45,6 +47,9 @@ public class CopilotLoginController {
             if (loginResponse != null && !loginResponse.error) {
                 changeToLoggedInViewRunnable.run();
                 loggedIn = true;
+                if (plugin.osrsLoginHandler.isLoggedIn()) {
+                    plugin.suggestionHandler.setSuggestionNeeded(true);
+                }
             } else {
                 String message = "Login failed";
                 if(loginResponse != null) {
@@ -71,6 +76,8 @@ public class CopilotLoginController {
         loggedIn = false;
         apiRequestHandler.onLogout();
         Persistance.deleteLoginResponse();
+        plugin.suggestionHandler.setCurrentSuggestion(null);
+        plugin.highlightController.removeAll();
     }
 
     public void onEmailTextChanged(String newEmail) {

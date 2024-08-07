@@ -87,7 +87,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		offerEventFilter = new OfferEventFilter();
 		osrsLoginHandler = new OsrsLoginHandler(this);
 		gameUiChangesHandler = new GameUiChangesHandler(this);
-		copilotLoginController = new CopilotLoginController(() -> mainPanel.renderLoggedInView(), apiRequestHandler);
+		copilotLoginController = new CopilotLoginController(() -> mainPanel.renderLoggedInView(), this);
 		webHookController = new WebHookController(this);
 		highlightController = new HighlightController(this);
 		gePreviousSearch = new GePreviousSearch(this);

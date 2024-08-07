@@ -18,7 +18,7 @@ public class GePreviousSearch {
     public void showSuggestedItemInSearch() {
         Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
 
-        if (suggestion.getType().equals("buy")) {
+        if (suggestion != null && suggestion.getType().equals("buy")) {
             if (plugin.grandExchange.isPreviousSearchSet() && plugin.grandExchange.showLastSearchEnabled()) {
                 setPreviousSearch(suggestion.getItemId(), suggestion.getName());
             } else {

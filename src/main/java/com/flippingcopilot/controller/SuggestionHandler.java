@@ -49,8 +49,8 @@ public class SuggestionHandler {
     public void skipCurrentSuggestion() {
         if (currentSuggestion != null) {
             plugin.accountStatus.setSkipSuggestion(currentSuggestion.getId());
-            suggestionNeeded = true;
         }
+        suggestionNeeded = true;
     }
 
     void onGameTick() {
