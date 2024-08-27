@@ -30,9 +30,9 @@ public class KeybindHandler {
 
             @Override
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() != plugin.config.quickSetKeybind().getKeyCode()) {
-                    return;
-                }
+                // Prevent enter as a keybind as that will also submit the value
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) return;
+                if (e.getKeyCode() != plugin.config.quickSetKeybind().getKeyCode()) return;
 
                 plugin.getClientThread().invokeLater(this::handleKeybind);
             }
