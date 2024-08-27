@@ -130,8 +130,8 @@ public interface FlippingCopilotConfig extends Config
     }
     @ConfigItem(
             keyName = "quickSetKeybind",
-            name = "Quick set keybind",
-            description = "Keybind to quickly set the price or quantity of the GE offer to the suggested value"
+            name = "Price/Quantity set keybind",
+            description = "Keybind to quickly set the price or quantity of a GE offer to the suggested value"
     )
     default Keybind quickSetKeybind()
     {
