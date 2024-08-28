@@ -32,24 +32,19 @@ class PauseButton extends JButton
         this.plugin = plugin;
         setToolTipText("Pause suggestions");
         addActionListener(e -> {
-            plugin.isPaused = !plugin.isPaused;
-            if (plugin.isPaused) {
-                plugin.suggestionHandler.getSuggestionPanel().setIsPausedMessage();
-                plugin.suggestionHandler.setCurrentSuggestion(null);
-                plugin.highlightController.removeAll();
-            }
+            plugin.suggestionHandler.togglePause();
             update();
         });
 
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                setIcon(plugin.isPaused ? PLAY_ICON_HOVER : PAUSE_ICON_HOVER);
+                setIcon(plugin.suggestionHandler.isPaused() ? PLAY_ICON_HOVER : PAUSE_ICON_HOVER);
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                setIcon(plugin.isPaused ? PLAY_ICON : PAUSE_ICON);
+                setIcon(plugin.suggestionHandler.isPaused() ? PLAY_ICON : PAUSE_ICON);
             }
         });
 
@@ -60,7 +55,7 @@ class PauseButton extends JButton
 
     private void update()
     {
-        setIcon(plugin.isPaused ? PLAY_ICON : PAUSE_ICON);
-        setToolTipText(plugin.isPaused ? "Unpause suggestions" :  "Pause suggestions");
+        setIcon(plugin.suggestionHandler.isPaused() ? PLAY_ICON : PAUSE_ICON);
+        setToolTipText(plugin.suggestionHandler.isPaused() ? "Unpause suggestions" :  "Pause suggestions");
     }
 }
