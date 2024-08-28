@@ -80,8 +80,6 @@ public class FlippingCopilotPlugin extends Plugin {
 	KeybindHandler keybindHandler;
 	public OfferHandler offerHandler;
 
-	public boolean isPaused = false;
-
 	@Override
 	protected void startUp() throws Exception {
 		Persistance.setUp(gson);
