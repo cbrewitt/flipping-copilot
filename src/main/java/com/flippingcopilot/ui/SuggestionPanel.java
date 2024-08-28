@@ -92,7 +92,11 @@ public class SuggestionPanel extends JPanel {
 
     private void setupPauseButton() {
         PauseButton pauseButton = new PauseButton(plugin);
-        buttonContainer.add(pauseButton, BorderLayout.CENTER);
+        Box box = Box.createHorizontalBox();
+        box.add(Box.createHorizontalGlue());
+        box.add(pauseButton);
+        box.add(Box.createHorizontalGlue());
+        buttonContainer.add(box, BorderLayout.CENTER);
     }
 
 
