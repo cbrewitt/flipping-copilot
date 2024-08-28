@@ -60,7 +60,7 @@ public class GameUiChangesHandler {
 
         plugin.getClientThread().invokeLater(() ->
         {
-            OfferEditor flippingWidget = new OfferEditor(client.getWidget(ComponentID.CHATBOX_CONTAINER), client);
+            OfferEditor flippingWidget = new OfferEditor(client.getWidget(ComponentID.CHATBOX_CONTAINER), plugin);
             Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
             flippingWidget.showSuggestion(suggestion);
         });

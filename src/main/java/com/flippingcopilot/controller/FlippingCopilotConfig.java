@@ -4,9 +4,11 @@ import com.flippingcopilot.ui.UIUtilities;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.Keybind;
 import net.runelite.client.ui.ColorScheme;
 
 import java.awt.*;
+import java.awt.event.KeyEvent;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
@@ -125,5 +127,14 @@ public interface FlippingCopilotConfig extends Config
     default boolean suggestionHighlights()
     {
         return true;
+    }
+    @ConfigItem(
+            keyName = "quickSetKeybind",
+            name = "Price/Quantity set keybind",
+            description = "Keybind to quickly set the price or quantity of a GE offer to the suggested value"
+    )
+    default Keybind quickSetKeybind()
+    {
+        return new Keybind(KeyEvent.VK_E, 0);
     }
 }

@@ -6,6 +6,7 @@ import com.flippingcopilot.model.Transaction;
 import com.flippingcopilot.ui.GePreviousSearch;
 import com.flippingcopilot.ui.GpDropOverlay;
 import com.flippingcopilot.ui.MainPanel;
+import com.flippingcopilot.util.OfferHandler;
 import com.google.gson.Gson;
 import com.google.inject.Provides;
 import lombok.Getter;
@@ -18,6 +19,7 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ClientShutdown;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -44,7 +46,9 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Getter
 	ClientThread clientThread;
 	@Inject
-	FlippingCopilotConfig config;
+	public KeyManager keyManager;
+	@Inject
+	public FlippingCopilotConfig config;
 	@Inject
 	ScheduledExecutorService executorService;
 	@Inject
@@ -73,6 +77,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	WebHookController webHookController;
 	public HighlightController highlightController;
 	GePreviousSearch gePreviousSearch;
+	KeybindHandler keybindHandler;
+	public OfferHandler offerHandler;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -91,6 +97,8 @@ public class FlippingCopilotPlugin extends Plugin {
 		webHookController = new WebHookController(this);
 		highlightController = new HighlightController(this);
 		gePreviousSearch = new GePreviousSearch(this);
+		keybindHandler = new KeybindHandler(this);
+		offerHandler = new OfferHandler(this);
 		mainPanel.init(this);
 		setUpNavButton();
 		setUpLogin();
@@ -124,6 +132,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		clientToolbar.removeNavigation(navButton);
 		Persistance.saveLoginResponse(apiRequestHandler.getLoginResponse());
 		webHookController.sendMessage();
+		keybindHandler.unregister();
 	}
 
 	@Provides

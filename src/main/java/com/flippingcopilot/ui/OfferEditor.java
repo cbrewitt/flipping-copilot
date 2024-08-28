@@ -1,22 +1,21 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.controller.FlippingCopilotPlugin;
 import com.flippingcopilot.model.Suggestion;
-import net.runelite.api.Client;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.FontID;
-import net.runelite.api.VarClientStr;
 import net.runelite.api.widgets.*;
 
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
+@Slf4j
 public class OfferEditor {
-    private final Client client;
+    private FlippingCopilotPlugin plugin;
     private Widget text;
     private static final int MOUSE_OFF_TEXT_COLOR = 0x0040FF;
-    private static final int GE_OFFER_INIT_STATE_CHILD_ID = 20;
 
-    public OfferEditor(Widget parent, Client client) {
-        this.client = client;
-
+    public OfferEditor(Widget parent, FlippingCopilotPlugin plugin) {
+        this.plugin = plugin;
         if (parent == null) {
             return;
         }
@@ -41,20 +40,14 @@ public class OfferEditor {
     }
 
     public void showSuggestion(Suggestion suggestion) {
-        if (client.getVarpValue(CURRENT_GE_ITEM) != suggestion.getItemId()) {
+        if (plugin.client.getVarpValue(CURRENT_GE_ITEM) != suggestion.getItemId()) {
             return;
         }
 
-        String chatInputText = client.getWidget(ComponentID.CHATBOX_TITLE).getText();
-        String offerText = client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER).getChild(GE_OFFER_INIT_STATE_CHILD_ID).getText();
-
-        if ((chatInputText.equals("How many do you wish to buy?") && suggestion.getType().equals("buy"))
-                || (chatInputText.equals("How many do you wish to sell?") && suggestion.getType().equals("sell"))) {
+        if (plugin.offerHandler.isSettingQuantity(suggestion)) {
             shiftChatboxWidgetsDown();
             showQuantity(suggestion.getQuantity());
-        } else if (chatInputText.equals("Set a price for each item:")
-                && ((offerText.equals("Buy offer") && suggestion.getType().equals("buy"))
-                || (offerText.equals("Sell offer") && suggestion.getType().equals("sell")))) {
+        } else if (plugin.offerHandler.isSettingPrice(suggestion)) {
             shiftChatboxWidgetsDown();
             showPrice(suggestion.getPrice());
         }
@@ -65,8 +58,7 @@ public class OfferEditor {
         text.setAction(1, "Set quantity");
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
-            client.getWidget(ComponentID.CHATBOX_FULL_INPUT).setText(quantity + "*");
-            client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(quantity));
+            plugin.offerHandler.setChatboxValue(quantity);
         });
     }
 
@@ -75,13 +67,12 @@ public class OfferEditor {
         text.setAction(0, "Set price");
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
-            client.getWidget(ComponentID.CHATBOX_FULL_INPUT).setText(price + "*");
-            client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(price));
+            plugin.offerHandler.setChatboxValue(price);
         });
     }
 
     private void shiftChatboxWidgetsDown() {
-        Widget chatboxTitle = client.getWidget(ComponentID.CHATBOX_TITLE);
+        Widget chatboxTitle = plugin.client.getWidget(ComponentID.CHATBOX_TITLE);
         if (chatboxTitle != null) {
             chatboxTitle.setOriginalY(chatboxTitle.getOriginalY() + 7);
             chatboxTitle.revalidate();
