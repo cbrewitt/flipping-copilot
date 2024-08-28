@@ -60,6 +60,10 @@ public class SuggestionHandler {
     }
 
     public void getSuggestionAsync() {
+        if (plugin.isPaused) {
+            suggestionPanel.setIsPausedMessage();
+            return;
+        }
         suggestionNeeded = false;
         plugin.executorService.execute(this::getSuggestion);
     }
