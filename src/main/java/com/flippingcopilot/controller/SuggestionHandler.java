@@ -25,12 +25,37 @@ public class SuggestionHandler {
     private SuggestionPanel suggestionPanel;
     private boolean collectNeeded;
 
+    private boolean isPaused = false;
+
     public SuggestionHandler(FlippingCopilotPlugin plugin) {
         this.plugin = plugin;
         this.suggestionPanel = plugin.mainPanel.copilotPanel.suggestionPanel;
         suggestionNeeded = false;
         collectNeeded = false;
         resetTimer();
+    }
+
+    public void togglePause() {
+        if (isPaused) {
+            unpause();
+        } else {
+            pause();
+        }
+    }
+
+    public void pause() {
+        isPaused = true;
+        suggestionPanel.setIsPausedMessage();
+        currentSuggestion = null;
+        plugin.highlightController.removeAll();
+    }
+
+    public void unpause() {
+        isPaused = false;
+        suggestionNeeded = true;
+        if (!plugin.osrsLoginHandler.isLoggedIn()) {
+            suggestionPanel.suggestLogin();
+        }
     }
 
     public void resetTimer() {
@@ -60,6 +85,10 @@ public class SuggestionHandler {
     }
 
     public void getSuggestionAsync() {
+        if (isPaused) {
+            suggestionPanel.setIsPausedMessage();
+            return;
+        }
         suggestionNeeded = false;
         plugin.executorService.execute(this::getSuggestion);
     }

@@ -58,6 +58,7 @@ public class SuggestionPanel extends JPanel {
 
     public void init(FlippingCopilotPlugin plugin) {
         this.plugin = plugin;
+        setupPauseButton();
     }
 
     private void setupButtonContainer() {
@@ -87,6 +88,15 @@ public class SuggestionPanel extends JPanel {
             plugin.suggestionHandler.skipCurrentSuggestion();
         });
         buttonContainer.add(skipButton, BorderLayout.EAST);
+    }
+
+    private void setupPauseButton() {
+        PauseButton pauseButton = new PauseButton(plugin);
+        Box box = Box.createHorizontalBox();
+        box.add(Box.createHorizontalGlue());
+        box.add(pauseButton);
+        box.add(Box.createHorizontalGlue());
+        buttonContainer.add(box, BorderLayout.CENTER);
     }
 
 
@@ -135,6 +145,11 @@ public class SuggestionPanel extends JPanel {
 
     public void suggestLogin() {
         setMessage("Log in to the game<br>to get a flip suggestion");
+        setButtonsVisible(false);
+    }
+
+    public void setIsPausedMessage() {
+        setMessage("Suggestions are paused");
         setButtonsVisible(false);
     }
 

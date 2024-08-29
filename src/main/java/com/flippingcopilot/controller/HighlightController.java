@@ -149,7 +149,7 @@ public class HighlightController {
         add(widget, color, new Rectangle(0, 0, widget.getWidth(), widget.getHeight()));
     }
 
-    void removeAll() {
+    public void removeAll() {
         highlightOverlays.forEach(plugin.overlayManager::remove);
         highlightOverlays.clear();
     }
