@@ -47,12 +47,12 @@ public class SuggestionHandler {
         isPaused = true;
         suggestionPanel.setIsPausedMessage();
         currentSuggestion = null;
-        suggestionNeeded = true;
         plugin.highlightController.removeAll();
     }
 
     public void unpause() {
         isPaused = false;
+        suggestionNeeded = true;
         if (!plugin.osrsLoginHandler.isLoggedIn()) {
             suggestionPanel.suggestLogin();
         }
