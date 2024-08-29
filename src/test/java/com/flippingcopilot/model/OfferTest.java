@@ -10,7 +10,7 @@ public class OfferTest {
     public void testTransactionFromNewOffer() {
         Offer oldOffer = Offer.getEmptyOffer(0);
         Offer newOffer = new Offer(OfferStatus.BUY, 560, 100, 50, 1000,
-                10, 10, 0, 0, true);
+                10, 10, 0, 0, true, false);
         Transaction expectedTransaction = new Transaction(OfferStatus.BUY, 560, 100, 10, 0, 1000, null);
         Transaction actualTransaction = newOffer.getTransaction(oldOffer);
         assert expectedTransaction.equals(actualTransaction);
@@ -19,9 +19,9 @@ public class OfferTest {
     @Test
     public void testTransactionFromProgressingSell() {
         Offer oldOffer = new Offer(OfferStatus.SELL, 560, 100, 50, 1000,
-                10, 0, 1000, 0, true);
+                10, 0, 1000, 0, true, false);
         Offer newOffer = new Offer(OfferStatus.SELL, 560, 100, 50, 4000,
-                40, 0, 4000, 0, true);
+                40, 0, 4000, 0, true, false);
         Transaction expectedTransaction = new Transaction(OfferStatus.SELL, 560, 100, 30, 0, 3000, null);
         Transaction actualTransaction = newOffer.getTransaction(oldOffer);
         assert expectedTransaction.equals(actualTransaction);
@@ -30,9 +30,9 @@ public class OfferTest {
     @Test
     public void testNoTransaction() {
         Offer oldOffer = new Offer(OfferStatus.SELL, 560, 100, 50, 1000,
-                10, 0, 1000, 0, true);
+                10, 0, 1000, 0, true, false);
         Offer newOffer = new Offer(OfferStatus.SELL, 560, 100, 50, 1000,
-                10, 0, 1000, 0, true);
+                10, 0, 1000, 0, true, false);
         Transaction actualTransaction = newOffer.getTransaction(oldOffer);
         assert actualTransaction == null;
     }

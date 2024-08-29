@@ -1,9 +1,6 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.model.AccountStatus;
-import com.flippingcopilot.model.HttpResponseException;
-import com.flippingcopilot.model.LoginResponse;
-import com.flippingcopilot.model.Suggestion;
+import com.flippingcopilot.model.*;
 import com.google.gson.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +47,7 @@ public class ApiRequestHandler {
             }
             @Override
             public void onResponse(Call call, Response response) {
+                // todo: this response can be a non 200 in which case we deserialize a null jwt
                 handleLoginResponse(response, callback);
             }
         });
@@ -76,6 +74,23 @@ public class ApiRequestHandler {
         JsonObject status = accountStatus.toJson(gson);
         JsonObject suggestionJson = postJson(status, "/suggestion");
         return Suggestion.fromJson(suggestionJson, gson);
+    }
+
+    public ItemPrice getItemPrice(int itemId, String displayName) {
+        JsonObject respObj = null;
+        try {
+            JsonObject body = new JsonObject();
+            body.add("item_id", new JsonPrimitive(itemId));
+            body.add("display_name", new JsonPrimitive(displayName));
+            respObj = postJson(body, "/prices");
+            return ItemPrice.fromJson(respObj, gson);
+        } catch (HttpResponseException e) {
+            log.error("error fetching copilot price for item " + itemId, e);
+            return new ItemPrice(0, 0, "Unable to fetch price copilot price (possible server update)");
+        } catch (JsonSyntaxException e) {
+            log.error("unable to parse prices response object: " + gson.toJson(respObj), e);
+            return new ItemPrice(0, 0, "Unable to fetch price copilot price (possible server update)");
+        }
     }
 
     private JsonObject postJson(JsonObject json, String route) throws HttpResponseException {
