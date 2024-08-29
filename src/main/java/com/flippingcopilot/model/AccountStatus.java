@@ -23,7 +23,7 @@ public class AccountStatus {
     @Setter private boolean isMember = false;
     @Setter private int skipSuggestion = -1;
     @Setter private String displayName;
-
+    @Setter private Boolean suggestionsPaused;
     public AccountStatus() {
         offers = new OfferList();
         inventory = new Inventory();
@@ -75,6 +75,9 @@ public class AccountStatus {
         statusJson.addProperty("sell_only", sellOnlyMode);
         statusJson.addProperty("is_member", isMember);
         statusJson.addProperty("skip_suggestion", skipSuggestion);
+        if (suggestionsPaused != null) {
+            statusJson.addProperty("suggestions_paused", suggestionsPaused);
+        }
         JsonArray offersJsonArray = offers.toJson(gson);
         JsonArray itemsJsonArray = getItemsJson();
         statusJson.add("offers", offersJsonArray);

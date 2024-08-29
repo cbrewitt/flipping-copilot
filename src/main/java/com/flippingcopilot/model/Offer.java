@@ -46,8 +46,11 @@ public class Offer {
 
     private boolean active;
 
+    @SerializedName("copilot_price_used")
+    private boolean copilotPriceUsed;
+
     public static Offer getEmptyOffer(int slotId) {
-        return new Offer(OfferStatus.EMPTY, 0, 0, 0, 0, 0, 0, 0, slotId, false);
+        return new Offer(OfferStatus.EMPTY, 0, 0, 0, 0, 0, 0, 0, slotId, false, false);
     }
 
     void removeCollectables() {
@@ -114,7 +117,8 @@ public class Offer {
                 0,
                 0,
                 slotId,
-                active);
+                active,
+                false);
     }
 
     public Transaction getTransaction(Offer oldOffer) {

@@ -118,7 +118,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	private void setUpLogin() throws IOException {
 		LoginResponse loginResponse = Persistance.loadLoginResponse();
-		boolean isLoggedIn = loginResponse != null && !loginResponse.error;
+		boolean isLoggedIn = loginResponse != null && !loginResponse.error && loginResponse.jwt != null;
 		if (isLoggedIn) {
 			apiRequestHandler.setLoginResponse(loginResponse);
 			mainPanel.renderLoggedInView();
