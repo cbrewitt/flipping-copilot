@@ -95,6 +95,10 @@ public class GameUiChangesHandler {
                 || event.getVarbitId() == 4439) {
             plugin.getClientThread().invokeLater(plugin.highlightController::redraw);
         }
+
+        if (event.getVarpId() == CURRENT_GE_ITEM) {
+            plugin.getClientThread().invokeLater(() -> plugin.offerHandler.fetchSlotItemPrice(event.getValue() > -1));
+        }
     }
 
     public void handleMenuOptionClicked(MenuOptionClicked event) {
