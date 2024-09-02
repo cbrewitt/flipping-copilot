@@ -50,6 +50,7 @@ public class OfferEditor {
             int price = -1;
             if (currentItemId != suggestion.getItemId()) {
                 if (plugin.offerHandler.getViewedSlotPriceErrorText() != null) {
+                    shiftChatboxWidgetsDown();
                     setErrorText(plugin.offerHandler.getViewedSlotPriceErrorText());
                     return;
                 }
