@@ -47,6 +47,7 @@ public class OfferHandler {
             }
 
             viewedSlotItemPrice = isSelling() ? fetchedPrice.getSellPrice() : fetchedPrice.getBuyPrice();
+            viewedSlotPriceErrorText = null;
             log.info("Fetched price: " + viewedSlotItemPrice);
         } else {
             viewedSlotItemPrice = -1;
