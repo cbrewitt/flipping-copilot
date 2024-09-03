@@ -48,6 +48,7 @@ public class SuggestionHandler {
         suggestionPanel.setIsPausedMessage();
         currentSuggestion = null;
         plugin.highlightController.removeAll();
+        plugin.accountStatus.setSuggestionsPaused(true);
     }
 
     public void unpause() {
@@ -56,6 +57,7 @@ public class SuggestionHandler {
         if (!plugin.osrsLoginHandler.isLoggedIn()) {
             suggestionPanel.suggestLogin();
         }
+        plugin.accountStatus.setSuggestionsPaused(false);
     }
 
     public void resetTimer() {
@@ -85,10 +87,6 @@ public class SuggestionHandler {
     }
 
     public void getSuggestionAsync() {
-        if (isPaused) {
-            suggestionPanel.setIsPausedMessage();
-            return;
-        }
         suggestionNeeded = false;
         plugin.executorService.execute(this::getSuggestion);
     }
@@ -102,6 +100,14 @@ public class SuggestionHandler {
             log.debug("Getting suggestion");
             Suggestion oldSuggestion = currentSuggestion;
             currentSuggestion = plugin.apiRequestHandler.getSuggestion(plugin.accountStatus);
+
+            // We moved isPaused check to here so the client would still send suggestion requests to the server
+            // This way the server would still know about the offers to keep the server accurate
+            if (isPaused) {
+                suggestionPanel.setIsPausedMessage();
+                return;
+            }
+
             log.debug("Received suggestion: {}", currentSuggestion.toString());
             plugin.accountStatus.resetSkipSuggestion();
             plugin.gameUiChangesHandler.offerJustPlaced = false;
