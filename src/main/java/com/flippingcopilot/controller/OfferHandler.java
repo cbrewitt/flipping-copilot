@@ -1,6 +1,5 @@
-package com.flippingcopilot.util;
+package com.flippingcopilot.controller;
 
-import com.flippingcopilot.controller.FlippingCopilotPlugin;
 import com.flippingcopilot.model.Suggestion;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
