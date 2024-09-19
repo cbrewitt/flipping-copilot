@@ -47,25 +47,26 @@ public class OfferEditor {
             shiftChatboxWidgetsDown();
             showQuantity(suggestion.getQuantity());
         } else if (plugin.offerHandler.isSettingPrice()) {
-            int price = -1;
             if (currentItemId != suggestion.getItemId()) {
-                if (plugin.offerHandler.getViewedSlotPriceErrorText() != null) {
+                int price = plugin.offerHandler.getViewedSlotItemPrice();
+                if (plugin.offerHandler.getViewedSlotPriceErrorText() != null && price <= 0) {
                     shiftChatboxWidgetsDown();
                     setErrorText(plugin.offerHandler.getViewedSlotPriceErrorText());
                     return;
                 }
 
                 if (plugin.offerHandler.getViewedSlotItemId() == currentItemId) {
-                    price = plugin.offerHandler.getViewedSlotItemPrice();
+                    shiftChatboxWidgetsDown();
+                    if (plugin.offerHandler.getViewedSlotPriceErrorText() != null) {
+                        showPriceWithWarning(price, plugin.offerHandler.getViewedSlotPriceErrorText());
+                    } else {
+                        showPrice(price);
+                    }
                 }
             } else {
-                price = suggestion.getPrice();
+                shiftChatboxWidgetsDown();
+                showPrice(suggestion.getPrice());
             }
-
-            if (price == -1) return;
-
-            shiftChatboxWidgetsDown();
-            showPrice(price);
         }
     }
 
@@ -81,6 +82,16 @@ public class OfferEditor {
 
     private void showPrice(int price) {
         text.setText("set to Copilot price: " + String.format("%,d", price) + " gp");
+        text.setAction(0, "Set price");
+        setHoverListeners(text);
+        text.setOnOpListener((JavaScriptCallback) ev ->
+        {
+            plugin.offerHandler.setChatboxValue(price);
+        });
+    }
+
+    private void showPriceWithWarning(int price, String warning) {
+        text.setText("set to Copilot price: " + String.format("%,d", price) + " gp. " + warning);
         text.setAction(0, "Set price");
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->

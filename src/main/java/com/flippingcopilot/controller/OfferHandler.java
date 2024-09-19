@@ -40,13 +40,16 @@ public class OfferHandler {
 
             var fetchedPrice = plugin.apiRequestHandler.getItemPrice(currentItemId, plugin.osrsLoginHandler.getCurrentDisplayName());
 
-            if (fetchedPrice == null || (fetchedPrice.getMessage() != null && !fetchedPrice.getMessage().isEmpty())) {
-                viewedSlotPriceErrorText = fetchedPrice == null ? "Unknown error" : fetchedPrice.getMessage();
+            if (fetchedPrice == null) {
+                viewedSlotPriceErrorText = "Unknown error";
                 return;
             }
 
+            if (fetchedPrice.getMessage() != null && !fetchedPrice.getMessage().isEmpty()) {
+                viewedSlotPriceErrorText = fetchedPrice.getMessage();
+            }
+
             viewedSlotItemPrice = isSelling() ? fetchedPrice.getSellPrice() : fetchedPrice.getBuyPrice();
-            viewedSlotPriceErrorText = null;
             log.info("Fetched price: " + viewedSlotItemPrice);
         } else {
             viewedSlotItemPrice = -1;
