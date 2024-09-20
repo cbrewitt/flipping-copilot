@@ -7,6 +7,8 @@ import net.runelite.api.VarClientStr;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
 
+import java.util.Objects;
+
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
 @Slf4j
@@ -34,7 +36,9 @@ public class OfferHandler {
             if (currentItemId == -1) return;
 
             var suggestion = plugin.suggestionHandler.getCurrentSuggestion();
-            if (suggestion != null && suggestion.getItemId() == currentItemId) {
+            if (suggestion != null && suggestion.getItemId() == currentItemId &&
+                    ((Objects.equals(suggestion.getType(), "sell") && isSelling()) ||
+                            Objects.equals(suggestion.getType(), "buy") && isBuying())) {
                 return;
             }
 
