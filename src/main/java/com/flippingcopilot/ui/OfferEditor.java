@@ -13,6 +13,7 @@ public class OfferEditor {
     private FlippingCopilotPlugin plugin;
     private Widget text;
     private static final int MOUSE_OFF_TEXT_COLOR = 0x0040FF;
+    private static final int MOUSE_OFF_ERROR_TEXT_COLOR = 0xAA2222;
 
     public OfferEditor(Widget parent, FlippingCopilotPlugin plugin) {
         this.plugin = plugin;
@@ -33,29 +34,46 @@ public class OfferEditor {
         widget.setOriginalHeight(20);
         widget.setXTextAlignment(xAlignment);
         widget.setWidthMode(WidgetSizeMode.MINUS);
-        widget.setHasListener(true);
-        widget.setOnMouseRepeatListener((JavaScriptCallback) ev -> widget.setTextColor(0xFFFFFF));
-        widget.setOnMouseLeaveListener((JavaScriptCallback) ev -> widget.setTextColor(MOUSE_OFF_TEXT_COLOR));
         widget.revalidate();
     }
 
     public void showSuggestion(Suggestion suggestion) {
-        if (plugin.client.getVarpValue(CURRENT_GE_ITEM) != suggestion.getItemId()) {
-            return;
-        }
+        var currentItemId = plugin.client.getVarpValue(CURRENT_GE_ITEM);
+        if (plugin.offerHandler.isSettingQuantity()) {
+            if (currentItemId != suggestion.getItemId()) {
+                return;
+            }
 
-        if (plugin.offerHandler.isSettingQuantity(suggestion)) {
             shiftChatboxWidgetsDown();
             showQuantity(suggestion.getQuantity());
-        } else if (plugin.offerHandler.isSettingPrice(suggestion)) {
-            shiftChatboxWidgetsDown();
-            showPrice(suggestion.getPrice());
+        } else if (plugin.offerHandler.isSettingPrice()) {
+            if (currentItemId != suggestion.getItemId()) {
+                int price = plugin.offerHandler.getViewedSlotItemPrice();
+                if (plugin.offerHandler.getViewedSlotPriceErrorText() != null && price <= 0) {
+                    shiftChatboxWidgetsDown();
+                    setErrorText(plugin.offerHandler.getViewedSlotPriceErrorText());
+                    return;
+                }
+
+                if (plugin.offerHandler.getViewedSlotItemId() == currentItemId) {
+                    shiftChatboxWidgetsDown();
+                    if (plugin.offerHandler.getViewedSlotPriceErrorText() != null) {
+                        showPriceWithWarning(price, plugin.offerHandler.getViewedSlotPriceErrorText());
+                    } else {
+                        showPrice(price);
+                    }
+                }
+            } else {
+                shiftChatboxWidgetsDown();
+                showPrice(suggestion.getPrice());
+            }
         }
     }
 
     private void showQuantity(int quantity) {
         text.setText("set to Copilot quantity: " + quantity);
         text.setAction(1, "Set quantity");
+        setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
             plugin.offerHandler.setChatboxValue(quantity);
@@ -65,10 +83,33 @@ public class OfferEditor {
     private void showPrice(int price) {
         text.setText("set to Copilot price: " + String.format("%,d", price) + " gp");
         text.setAction(0, "Set price");
+        setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
             plugin.offerHandler.setChatboxValue(price);
         });
+    }
+
+    private void showPriceWithWarning(int price, String warning) {
+        text.setText("set to Copilot price: " + String.format("%,d", price) + " gp. " + warning);
+        text.setAction(0, "Set price");
+        setHoverListeners(text);
+        text.setOnOpListener((JavaScriptCallback) ev ->
+        {
+            plugin.offerHandler.setChatboxValue(price);
+        });
+    }
+
+    private void setHoverListeners(Widget widget) {
+        widget.setHasListener(true);
+        widget.setOnMouseRepeatListener((JavaScriptCallback) ev -> widget.setTextColor(0xFFFFFF));
+        widget.setOnMouseLeaveListener((JavaScriptCallback) ev -> widget.setTextColor(MOUSE_OFF_TEXT_COLOR));
+    }
+
+    private void setErrorText(String message) {
+        text.setText(message);
+        text.setTextColor(MOUSE_OFF_ERROR_TEXT_COLOR);
+        text.revalidate();
     }
 
     private void shiftChatboxWidgetsDown() {

@@ -6,7 +6,6 @@ import com.flippingcopilot.model.Transaction;
 import com.flippingcopilot.ui.GePreviousSearch;
 import com.flippingcopilot.ui.GpDropOverlay;
 import com.flippingcopilot.ui.MainPanel;
-import com.flippingcopilot.util.OfferHandler;
 import com.google.gson.Gson;
 import com.google.inject.Provides;
 import lombok.Getter;

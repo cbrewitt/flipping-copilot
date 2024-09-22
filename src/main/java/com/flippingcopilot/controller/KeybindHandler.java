@@ -44,7 +44,6 @@ public class KeybindHandler {
 
             private void handleKeybind() {
                 var suggestion = plugin.suggestionHandler.getCurrentSuggestion();
-                if (suggestion == null) return;
 
                 var inputType = plugin.client.getVarcIntValue(VarClientInt.INPUT_TYPE);
 
