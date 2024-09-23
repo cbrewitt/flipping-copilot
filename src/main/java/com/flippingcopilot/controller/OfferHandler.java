@@ -4,6 +4,7 @@ import com.flippingcopilot.model.Suggestion;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.VarClientStr;
+import net.runelite.api.Varbits;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
 
@@ -52,7 +53,6 @@ public class OfferHandler {
             if (fetchedPrice.getMessage() != null && !fetchedPrice.getMessage().isEmpty()) {
                 viewedSlotPriceErrorText = fetchedPrice.getMessage();
             }
-
             viewedSlotItemPrice = isSelling() ? fetchedPrice.getSellPrice() : fetchedPrice.getBuyPrice();
             log.info("Fetched price: " + viewedSlotItemPrice);
         } else {
@@ -92,19 +92,21 @@ public class OfferHandler {
     }
 
     public boolean isSelling() {
-        var offerTextWidget = getOfferTextWidget();
-        if (offerTextWidget == null) return false;
-        String offerText = offerTextWidget.getText();
-
-        return offerText.equals("Sell offer");
+        return plugin.client.getVarbitValue(Varbits.GE_OFFER_CREATION_TYPE) == 1;
     }
 
     public boolean isBuying() {
-        var offerTextWidget = getOfferTextWidget();
-        if (offerTextWidget == null) return false;
-        String offerText = offerTextWidget.getText();
+        return plugin.client.getVarbitValue(Varbits.GE_OFFER_CREATION_TYPE) == 0;
+    }
 
-        return offerText.equals("Buy offer");
+    public String getOfferType() {
+        if (isBuying()) {
+            return "buy";
+        } else if (isSelling()) {
+            return "sell";
+        } else {
+            return null;
+        }
     }
 
     public void setSuggestedAction(Suggestion suggestion) {

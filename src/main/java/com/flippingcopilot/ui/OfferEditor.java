@@ -43,11 +43,15 @@ public class OfferEditor {
             if (currentItemId != suggestion.getItemId()) {
                 return;
             }
+            if (!suggestion.getType().equals(plugin.offerHandler.getOfferType())) {
+                return;
+            }
 
             shiftChatboxWidgetsDown();
             showQuantity(suggestion.getQuantity());
         } else if (plugin.offerHandler.isSettingPrice()) {
-            if (currentItemId != suggestion.getItemId()) {
+            if (currentItemId != suggestion.getItemId()
+                    || !suggestion.getType().equals(plugin.offerHandler.getOfferType())) {
                 int price = plugin.offerHandler.getViewedSlotItemPrice();
                 if (plugin.offerHandler.getViewedSlotPriceErrorText() != null && price <= 0) {
                     shiftChatboxWidgetsDown();
