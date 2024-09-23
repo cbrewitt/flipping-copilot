@@ -112,7 +112,7 @@ public interface FlippingCopilotConfig extends Config
     String webhook();
     @ConfigItem(
             keyName = "priceGraphWebsite",
-            name = "Price graph site",
+            name = "Graph button site",
             description = "The website to open when the graph button is clicked."
     )
     default PriceGraphWebsite priceGraphWebsite()
