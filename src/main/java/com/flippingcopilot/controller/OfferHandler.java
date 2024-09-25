@@ -52,6 +52,8 @@ public class OfferHandler {
 
             if (fetchedPrice.getMessage() != null && !fetchedPrice.getMessage().isEmpty()) {
                 viewedSlotPriceErrorText = fetchedPrice.getMessage();
+            } else {
+                viewedSlotPriceErrorText = null;
             }
             viewedSlotItemPrice = isSelling() ? fetchedPrice.getSellPrice() : fetchedPrice.getBuyPrice();
             log.info("Fetched price: " + viewedSlotItemPrice);
