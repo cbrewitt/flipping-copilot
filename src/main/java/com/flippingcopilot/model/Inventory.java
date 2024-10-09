@@ -20,7 +20,7 @@ public class Inventory extends ArrayList<RSItem> {
                 || getTotalAmount(suggestion.getItemId()) >= suggestion.getQuantity();
     }
 
-    long getTotalGp() {
+    public long getTotalGp() {
         return getTotalAmount(ItemID.COINS_995) + PLATINUM_TOKEN_VALUE * getTotalAmount(ItemID.PLATINUM_TOKEN);
     }
 

@@ -7,6 +7,8 @@ import net.runelite.api.Player;
 import net.runelite.api.WorldType;
 import net.runelite.api.events.GameStateChanged;
 
+import static com.flippingcopilot.util.AtomicReferenceUtils.ifPresent;
+
 @Slf4j
 public class OsrsLoginHandler {
     private boolean previouslyLoggedIn;
@@ -92,6 +94,21 @@ public class OsrsLoginHandler {
     }
 
     public void handleLogin(String displayName) {
+
+        SessionManager sm = new SessionManager(displayName, () -> plugin.mainPanel.copilotPanel.statsPanel.updateStatsAndFlips(false));
+        plugin.sessionManager.set(sm);
+        ifPresent(plugin.flipManager, i -> {
+            i.setIntervalDisplayName(sm.getDisplayName());
+            i.setIntervalStartTime(sm.getData().startTime);
+        });
+        ifPresent(plugin.transactionManager, TransactionManger::cancelOngoingSync);
+        TransactionManger tm = new TransactionManger(plugin.flipManager, plugin.executorService, plugin.apiRequestHandler, displayName);
+        plugin.transactionManager.set(tm);
+
+        plugin.mainPanel.copilotPanel.statsPanel.isLoggedOut = false;
+        plugin.mainPanel.copilotPanel.statsPanel.resetIntervalDropdownToSession();
+        plugin.mainPanel.copilotPanel.statsPanel.updateStatsAndFlips(true);
+
         for (WorldType worldType : unSupportedWorlds) {
             if (plugin.client.getWorldType().contains(worldType)) {
                 log.info("World is a {}", worldType);
@@ -107,22 +124,19 @@ public class OsrsLoginHandler {
             invalidState = true;
             return;
         }
-
         plugin.accountStatus.setMember(plugin.client.getWorldType().contains(WorldType.MEMBERS));
         plugin.accountStatus.setDisplayName(displayName);
         currentDisplayName = displayName;
-        if (previousDisplayName != null && !previousDisplayName.equals(displayName)) {
-            plugin.flipTracker = new FlipTracker();
-            plugin.mainPanel.copilotPanel.statsPanel.updateFlips(plugin.flipTracker, plugin.client);
-        }
         previousDisplayName = displayName;
         invalidState = false;
     }
+
     public void handleLogout() {
         log.info("{} is logging out", currentDisplayName);
         currentDisplayName = null;
+        plugin.mainPanel.copilotPanel.statsPanel.isLoggedOut = true;
+        plugin.mainPanel.copilotPanel.statsPanel.updateStatsAndFlips(true);
         plugin.offerEventFilter.onLogout();
         plugin.mainPanel.copilotPanel.suggestionPanel.suggestLogin();
     }
-
 }

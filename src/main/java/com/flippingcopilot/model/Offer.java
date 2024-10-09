@@ -91,6 +91,18 @@ public class Offer {
         }
     }
 
+    public long cashStackGpValue() {
+        if (status == OfferStatus.SELL) {
+            return (long) (amountTotal - amountTraded) * price + gpToCollect;
+        } else if (status == OfferStatus.BUY){
+            // for a buy just take the full amount even if they have collected
+            // we assume they won't start selling any collected items until their buy offer is finished
+            return (long) amountTotal * price;
+        } else {
+            return 0;
+        }
+    }
+
     public void addUncollectedItemsOnAbort(GrandExchangeOfferChanged event) {
         GrandExchangeOffer runeliteOffer = event.getOffer();
         if (runeliteOffer.getState().equals(GrandExchangeOfferState.CANCELLED_BUY)) {
@@ -130,7 +142,7 @@ public class Offer {
         int quantityDiff = isNewOffer ? amountTraded : amountTraded - oldOffer.amountTraded;
         int amountSpentDiff = isNewOffer ? amountSpent : amountSpent - oldOffer.amountSpent;
         if (quantityDiff > 0 && amountSpentDiff > 0) {
-            return new Transaction(status, itemId, price, quantityDiff, boxId, amountSpentDiff, Instant.now());
+            return new Transaction(null, status, itemId, price, quantityDiff, boxId, amountSpentDiff, Instant.now());
         }
         return null;
     }

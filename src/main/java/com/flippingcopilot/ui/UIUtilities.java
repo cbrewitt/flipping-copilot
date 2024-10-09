@@ -1,6 +1,8 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.FlippingCopilotConfig;
+import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.QuantityFormatter;
 
@@ -26,6 +28,8 @@ public class UIUtilities {
     public static final Color OUTDATED_COLOR = new Color(250, 74, 75);
     public static final Color BLUE_HIGHLIGHT_COLOR =  new Color(27, 173, 255, 79);
     public static final Color RED_HIGHLIGHT_COLOR = new Color(255, 20, 20, 79);
+    public static final Color TOMATO = new Color(255,99,71);
+    public static final Color DARK_GRAY = new Color(27, 27, 27);
 
     private static final NumberFormat PRECISE_DECIMAL_FORMATTER = new DecimalFormat(
             "#,###.###",
@@ -66,6 +70,10 @@ public class UIUtilities {
 
     public static String formatProfit(long profit) {
         return (profit >= 0 ? "" : "-") + quantityToRSDecimalStack(Math.abs(profit), true) + " gp";
+    }
+
+    public static String formatProfitWithoutGp(long profit) {
+        return (profit >= 0 ? "" : "-") + quantityToRSDecimalStack(Math.abs(profit), true);
     }
 
     public static String truncateString(String string, int length) {
@@ -110,5 +118,11 @@ public class UIUtilities {
                 desktop.browse(uri);
             } catch (Exception error) {}
         });
+    }
+
+    public static JPanel newVerticalBoxLayoutJPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        return panel;
     }
 }

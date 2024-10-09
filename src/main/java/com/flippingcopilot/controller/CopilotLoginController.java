@@ -1,6 +1,5 @@
 package com.flippingcopilot.controller;
 
-import java.io.IOException;
 import java.util.function.Consumer;
 
 import java.awt.event.ActionListener;
@@ -12,7 +11,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.swing.JOptionPane;
+import static com.flippingcopilot.util.AtomicReferenceUtils.ifPresent;
 
 @Slf4j
 public class CopilotLoginController {
@@ -49,6 +48,13 @@ public class CopilotLoginController {
                 loggedIn = true;
                 if (plugin.osrsLoginHandler.isLoggedIn()) {
                     plugin.suggestionHandler.setSuggestionNeeded(true);
+                    ifPresent(plugin.flipManager, FlipManager::cancelFlipLoading);
+                    FlipManager fm = new FlipManager(plugin.apiRequestHandler, plugin.executorService, () -> plugin.mainPanel.copilotPanel.statsPanel.updateStatsAndFlips(true));
+                    plugin.flipManager.set(fm);
+                    ifPresent(plugin.sessionManager, i -> {
+                        fm.setIntervalDisplayName(i.getDisplayName());
+                        fm.setIntervalStartTime(i.getData().startTime);
+                    });
                 }
             } else {
                 String message = "Login failed";
@@ -57,11 +63,7 @@ public class CopilotLoginController {
                 }
                 panel.showLoginErrorMessage(message);
             }
-            try {
-                Persistance.saveLoginResponse(loginResponse);
-            } catch (IOException e) {
-                log.error("Failed to save login response");
-            }
+            Persistance.saveLoginResponse(loginResponse);
             panel.endLoading();
         };
 

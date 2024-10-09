@@ -31,6 +31,11 @@ import javax.inject.Inject;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static com.flippingcopilot.util.AtomicReferenceUtils.ifBothPresent;
+import static com.flippingcopilot.util.AtomicReferenceUtils.ifPresent;
 
 @Slf4j
 @PluginDescriptor(
@@ -62,7 +67,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	public OkHttpClient okHttpClient;
 	public ApiRequestHandler apiRequestHandler;
 	NavigationButton navButton;
-	public AccountStatus accountStatus;
+	public final AccountStatus accountStatus = new AccountStatus();
 	public SuggestionHandler suggestionHandler;
 	public GrandExchange grandExchange;
 	public OsrsLoginHandler osrsLoginHandler;
@@ -70,10 +75,17 @@ public class FlippingCopilotPlugin extends Plugin {
 	GameUiChangesHandler gameUiChangesHandler;
 	GrandExchangeCollectHandler grandExchangeCollectHandler;
 	OfferEventFilter offerEventFilter;
-	FlipTracker flipTracker;
+
+	public final AtomicReference<FlipManager> flipManager = new AtomicReference<>(null);
+	public final AtomicReference<TransactionManger> transactionManager = new AtomicReference<>(null);
+	public final AtomicReference<SessionManager> sessionManager = new AtomicReference<>(null);
+
 	MainPanel mainPanel;
 	public CopilotLoginController copilotLoginController;
-	WebHookController webHookController;
+
+	@Inject
+	private WebHookController webHookController;
+
 	public HighlightController highlightController;
 	GePreviousSearch gePreviousSearch;
 	KeybindHandler keybindHandler;
@@ -82,18 +94,15 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Override
 	protected void startUp() throws Exception {
 		Persistance.setUp(gson);
-		flipTracker = new FlipTracker();
 		apiRequestHandler = new ApiRequestHandler(gson, okHttpClient);
-		mainPanel = new MainPanel(config);
+		mainPanel = new MainPanel(config, flipManager, sessionManager, webHookController);
 		suggestionHandler = new SuggestionHandler(this);
-		accountStatus = new AccountStatus();
 		grandExchange = new GrandExchange(client);
 		grandExchangeCollectHandler = new GrandExchangeCollectHandler(accountStatus, suggestionHandler);
 		offerEventFilter = new OfferEventFilter();
 		osrsLoginHandler = new OsrsLoginHandler(this);
 		gameUiChangesHandler = new GameUiChangesHandler(this);
 		copilotLoginController = new CopilotLoginController(() -> mainPanel.renderLoggedInView(), this);
-		webHookController = new WebHookController(this);
 		highlightController = new HighlightController(this);
 		gePreviousSearch = new GePreviousSearch(this);
 		keybindHandler = new KeybindHandler(this);
@@ -102,6 +111,10 @@ public class FlippingCopilotPlugin extends Plugin {
 		setUpNavButton();
 		setUpLogin();
 		osrsLoginHandler.init();
+		executorService.scheduleAtFixedRate(() -> {
+			boolean isFlipping = osrsLoginHandler.isLoggedIn() && accountStatus.currentlyFlipping();
+			ifPresent(sessionManager, s -> s.updateSessionStats(isFlipping, accountStatus.currentCashStack()));
+		}, 2000, 1000, TimeUnit.MILLISECONDS);
 	}
 
 	private void setUpNavButton() {
@@ -122,31 +135,39 @@ public class FlippingCopilotPlugin extends Plugin {
 			apiRequestHandler.setLoginResponse(loginResponse);
 			mainPanel.renderLoggedInView();
 			copilotLoginController.setLoggedIn(true);
+			ifPresent(this.flipManager, FlipManager::cancelFlipLoading);
+			FlipManager fm = new FlipManager(this.apiRequestHandler, this.executorService, () -> this.mainPanel.copilotPanel.statsPanel.updateStatsAndFlips(true));
+			this.flipManager.set(fm);
+			ifPresent(this.sessionManager, i -> {
+				fm.setIntervalDisplayName(i.getDisplayName());
+				fm.setIntervalStartTime(i.getData().startTime);
+			});
 		}
 	}
+
 
 	@Override
 	protected void shutDown() throws Exception {
 		highlightController.removeAll();
 		clientToolbar.removeNavigation(navButton);
-		Persistance.saveLoginResponse(apiRequestHandler.getLoginResponse());
-		webHookController.sendMessage();
+		ifBothPresent(sessionManager, flipManager, (sm, fm) -> {
+			webHookController.sendMessage(fm.calculateStats(sm.getData().startTime, sm.getDisplayName()), sm.getData(), sm.getDisplayName(), false);
+		});
 		keybindHandler.unregister();
 	}
 
 	@Provides
-	FlippingCopilotConfig provideConfig(ConfigManager configManager) {
+	public FlippingCopilotConfig provideConfig(ConfigManager configManager) {
 		return configManager.getConfig(FlippingCopilotConfig.class);
 	}
 
 	private void processTransaction(Transaction transaction) {
-		long transactionProfit = flipTracker.addTransaction(transaction);
-		if (transactionProfit != 0) {
-			mainPanel.copilotPanel.statsPanel.updateFlips(flipTracker, client);
-			if (grandExchange.isHomeScreenOpen()) {
-				new GpDropOverlay(this, transactionProfit, transaction.getBoxId());
+		ifPresent(transactionManager, i -> {
+			long profit = i.addTransaction(transaction);
+			if (grandExchange.isHomeScreenOpen() && profit != 0) {
+				new GpDropOverlay(this, profit, transaction.getBoxId());
 			}
-		}
+		});
 	}
 
 	//---------------------------- Event Handlers ----------------------------//
@@ -213,14 +234,18 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onClientShutdown(ClientShutdown clientShutdownEvent) {
-		webHookController.sendMessage();
+		log.debug("client shutdown event received");
+		ifBothPresent(sessionManager, flipManager, (sm, fm) -> {
+			webHookController.sendMessage(fm.calculateStats(sm.getData().startTime, sm.getDisplayName()), sm.getData(), sm.getDisplayName(), false);
+		});
 	}
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event) {
 		if (event.getGroup().equals("flippingcopilot")) {
+			log.debug("copilot config changed event received");
 			if (event.getKey().equals("profitAmountColor") || event.getKey().equals("lossAmountColor")) {
-				mainPanel.copilotPanel.statsPanel.updateFlips(flipTracker, client);
+				mainPanel.copilotPanel.statsPanel.updateStatsAndFlips(true);
 			}
 			if (event.getKey().equals("suggestionHighlights")) {
 				clientThread.invokeLater(() -> highlightController.redraw());

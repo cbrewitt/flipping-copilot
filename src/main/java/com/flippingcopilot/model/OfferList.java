@@ -63,6 +63,10 @@ public class OfferList extends ArrayList<Offer> {
         return itemsAmount;
     }
 
+    public long getGpOnMarket() {
+        return stream().mapToLong(Offer::cashStackGpValue).sum();
+    }
+
     public long getTotalGpToCollect() {
         return stream().mapToLong(Offer::getGpToCollect).sum();
     }
