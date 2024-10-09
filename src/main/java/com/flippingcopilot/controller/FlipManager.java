@@ -59,6 +59,7 @@ public class FlipManager {
             displayNameToAccountId.put(displayName, flips.get(0).getAccountId());
         }
         flips.forEach(this::mergeFlip_);
+        flipsChangedCallback.run();
     }
 
     public synchronized Stats getIntervalStats() {
