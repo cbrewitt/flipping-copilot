@@ -2,6 +2,7 @@ package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.FlippingCopilotPlugin;
+import com.flippingcopilot.controller.WebHookController;
 import com.flippingcopilot.model.Suggestion;
 import lombok.Setter;
 import net.runelite.client.ui.ColorScheme;
@@ -22,13 +23,14 @@ public class SuggestionPanel extends JPanel {
     public final Spinner spinner = new Spinner();
     private JLabel skipButton;
     private final JPanel buttonContainer = new JPanel();
+    public PauseButton pauseButton;
     private JLabel graphButton;
     private FlippingCopilotConfig config;
 
     @Setter
     private String serverMessage = "";
 
-    public SuggestionPanel(FlippingCopilotConfig config) {
+    public SuggestionPanel(FlippingCopilotConfig config, WebHookController webHookController) {
         this.config = config;
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -91,7 +93,7 @@ public class SuggestionPanel extends JPanel {
     }
 
     private void setupPauseButton() {
-        PauseButton pauseButton = new PauseButton(plugin);
+        pauseButton = new PauseButton(plugin);
         Box box = Box.createHorizontalBox();
         box.add(Box.createHorizontalGlue());
         box.add(pauseButton);

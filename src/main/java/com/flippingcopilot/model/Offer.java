@@ -7,11 +7,13 @@ import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.Setter;
 import net.runelite.api.GrandExchangeOffer;
 import net.runelite.api.GrandExchangeOfferState;
 import net.runelite.api.events.GrandExchangeOfferChanged;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import static net.runelite.api.ItemID.COINS_995;
 
@@ -46,6 +48,7 @@ public class Offer {
 
     private boolean active;
 
+    @Setter
     @SerializedName("copilot_price_used")
     private boolean copilotPriceUsed;
 
@@ -70,12 +73,17 @@ public class Offer {
         return new RSItem(itemId, amountCollected);
     }
 
-    Offer getUpdatedOffer(GrandExchangeOfferChanged event) {
+    Offer getUpdatedOffer(GrandExchangeOfferChanged event, int lastViewedSlotItemId, int lastViewedSlotItemPrice, int lastViewSlotTime) {
         Offer newOffer = Offer.fromRuneliteEvent(event);
         if (isSameOffer(newOffer)) {
             newOffer.addUncollectedItems(this);
+            newOffer.setCopilotPriceUsed(copilotPriceUsed);
             if (active) {
                 newOffer.addUncollectedItemsOnAbort(event);
+            }
+        } else {
+            if(newOffer.getItemId() == lastViewedSlotItemId && newOffer.getPrice() == lastViewedSlotItemPrice && Instant.now().minusSeconds(30).getEpochSecond() < lastViewSlotTime) {
+                newOffer.setCopilotPriceUsed(true);
             }
         }
         return newOffer;
@@ -88,6 +96,18 @@ public class Offer {
             itemsToCollect += amountTraded - oldOffer.amountTraded;
         } else if (status == OfferStatus.SELL) {
             gpToCollect += amountSpent - oldOffer.amountSpent;
+        }
+    }
+
+    public long cashStackGpValue() {
+        if (status == OfferStatus.SELL) {
+            return (long) (amountTotal - amountTraded) * price + gpToCollect;
+        } else if (status == OfferStatus.BUY){
+            // for a buy just take the full amount even if they have collected
+            // we assume they won't start selling any collected items until their buy offer is finished
+            return (long) amountTotal * price;
+        } else {
+            return 0;
         }
     }
 
@@ -130,7 +150,7 @@ public class Offer {
         int quantityDiff = isNewOffer ? amountTraded : amountTraded - oldOffer.amountTraded;
         int amountSpentDiff = isNewOffer ? amountSpent : amountSpent - oldOffer.amountSpent;
         if (quantityDiff > 0 && amountSpentDiff > 0) {
-            return new Transaction(status, itemId, price, quantityDiff, boxId, amountSpentDiff, Instant.now());
+            return new Transaction(UUID.randomUUID(), status, itemId, price, quantityDiff, boxId, amountSpentDiff, Instant.now(), oldOffer.copilotPriceUsed);
         }
         return null;
     }

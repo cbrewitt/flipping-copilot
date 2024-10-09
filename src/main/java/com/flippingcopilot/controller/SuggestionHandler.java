@@ -49,6 +49,7 @@ public class SuggestionHandler {
         currentSuggestion = null;
         plugin.highlightController.removeAll();
         plugin.accountStatus.setSuggestionsPaused(true);
+        Persistance.storeIsPaused(plugin.osrsLoginHandler.getCurrentDisplayName(), true);
     }
 
     public void unpause() {
@@ -58,6 +59,7 @@ public class SuggestionHandler {
             suggestionPanel.suggestLogin();
         }
         plugin.accountStatus.setSuggestionsPaused(false);
+        Persistance.storeIsPaused(plugin.osrsLoginHandler.getCurrentDisplayName(), false);
     }
 
     public void resetTimer() {

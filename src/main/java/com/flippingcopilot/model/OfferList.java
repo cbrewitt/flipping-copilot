@@ -16,6 +16,11 @@ import java.util.stream.Collectors;
 public class OfferList extends ArrayList<Offer> {
     public static final int NUM_SLOTS = 8;
 
+    public OfferList(List<Offer> offers) {
+        super();
+        addAll(offers);
+    }
+
     public OfferList() {
         super(NUM_SLOTS);
         for (int i = 0; i < NUM_SLOTS; i++) {
@@ -23,9 +28,9 @@ public class OfferList extends ArrayList<Offer> {
         }
     }
 
-    public Transaction update(GrandExchangeOfferChanged event) {
+    public Transaction update(GrandExchangeOfferChanged event, int lastViewedSlotItemId, int lastViewedSlotItemPrice, int lastViewSlotTime) {
         Offer oldOffer = get(event.getSlot());
-        Offer newOffer = oldOffer.getUpdatedOffer(event);
+        Offer newOffer = oldOffer.getUpdatedOffer(event, lastViewedSlotItemId, lastViewedSlotItemPrice, lastViewSlotTime);
         set(event.getSlot(), newOffer);
         return newOffer.getTransaction(oldOffer);
     }
@@ -61,6 +66,10 @@ public class OfferList extends ArrayList<Offer> {
         itemsAmount.merge(COINS_995, totalGpToCollect, Long::sum);
         itemsAmount.entrySet().removeIf(entry -> entry.getValue() == 0);
         return itemsAmount;
+    }
+
+    public long getGpOnMarket() {
+        return stream().mapToLong(Offer::cashStackGpValue).sum();
     }
 
     public long getTotalGpToCollect() {

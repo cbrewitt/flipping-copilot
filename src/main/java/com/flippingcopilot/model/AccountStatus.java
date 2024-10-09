@@ -1,5 +1,6 @@
 package com.flippingcopilot.model;
 
+import com.flippingcopilot.controller.Persistance;
 import com.flippingcopilot.util.Constants;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -15,6 +16,9 @@ import net.runelite.api.events.ItemContainerChanged;
 import java.util.List;
 import java.util.Map;
 
+
+// note: we synchronize all public methods of this class as they read/modify its state and may
+// be called by multiple threads at the same time
 @Getter
 public class AccountStatus {
     private OfferList offers;
@@ -29,47 +33,47 @@ public class AccountStatus {
         inventory = new Inventory();
     }
 
-    public void resetSkipSuggestion() {
+    public synchronized void resetSkipSuggestion() {
         skipSuggestion = -1;
     }
 
-    public boolean isSuggestionSkipped() {
+    public synchronized boolean isSuggestionSkipped() {
         return skipSuggestion != -1;
     }
 
-    public Transaction updateOffers(GrandExchangeOfferChanged event) {
-        return offers.update(event);
+    public synchronized Transaction updateOffers(GrandExchangeOfferChanged event, int lastViewedSlotItemId, int lastViewedSlotItemPrice, int lastViewSlotTime) {
+        return offers.update(event, lastViewedSlotItemId, lastViewedSlotItemPrice, lastViewSlotTime);
     }
 
-    public void setOffers(GrandExchangeOffer[] runeliteOffers) {
+    public synchronized void setOffers(GrandExchangeOffer[] runeliteOffers) {
         offers = OfferList.fromRunelite(runeliteOffers);
     }
 
-    public void handleInventoryChanged(ItemContainerChanged event, Client client) {
+    public synchronized void handleInventoryChanged(ItemContainerChanged event, Client client) {
         if (event.getContainerId() == InventoryID.INVENTORY.getId()) {
             inventory = Inventory.fromRunelite(event.getItemContainer(), client);
         }
     }
 
-    public boolean isCollectNeeded(Suggestion suggestion) {
+    public synchronized boolean isCollectNeeded(Suggestion suggestion) {
         return offers.isEmptySlotNeeded(suggestion)
                 || !inventory.hasSufficientGp(suggestion)
                 || !inventory.hasSufficientItems(suggestion)
                 || offers.missingUncollectedItems();
     }
 
-    public void moveAllCollectablesToInventory() {
+    public synchronized void moveAllCollectablesToInventory() {
         Map<Integer, Long> uncollectedItemAmounts = offers.getUncollectedItemAmounts();
         List<RSItem> uncollectedItems = Inventory.fromItemAmounts(uncollectedItemAmounts);
         inventory.addAll(uncollectedItems);
         removeCollectables();
     }
 
-    public void removeCollectables() {
+    public synchronized void removeCollectables() {
         offers.removeCollectables();
     }
 
-    public JsonObject toJson(Gson gson) {
+    public synchronized JsonObject toJson(Gson gson) {
         JsonObject statusJson = new JsonObject();
         statusJson.addProperty("display_name", displayName);
         statusJson.addProperty("sell_only", sellOnlyMode);
@@ -85,7 +89,7 @@ public class AccountStatus {
         return statusJson;
     }
 
-    JsonArray getItemsJson() {
+    private JsonArray getItemsJson() {
         Map<Integer, Long> itemsAmount = getItemAmounts();
         JsonArray itemsJsonArray = new JsonArray();
         for(Map.Entry<Integer, Long> entry : itemsAmount.entrySet()) {
@@ -97,7 +101,7 @@ public class AccountStatus {
         return itemsJsonArray;
     }
 
-    Map<Integer, Long> getItemAmounts() {
+    private Map<Integer, Long> getItemAmounts() {
         Map<Integer, Long> itemsAmount = inventory.getItemAmounts();
         Map<Integer, Long> uncollectedItemAmounts = offers.getUncollectedItemAmounts();
         uncollectedItemAmounts.forEach((key, value) -> itemsAmount.merge(key, value, Long::sum));
@@ -105,20 +109,43 @@ public class AccountStatus {
         return itemsAmount;
     }
 
-    public void moveCollectedItemToInventory(int slot, int itemId) {
+    public synchronized void moveCollectedItemToInventory(int slot, int itemId) {
         RSItem collectedItem = offers.get(slot).removeCollectedItem(itemId);
         inventory.add(collectedItem);
     }
 
-    public void removeCollectedItem(int slot, int itemId) {
+    public synchronized void removeCollectedItem(int slot, int itemId) {
         offers.get(slot).removeCollectedItem(itemId);
     }
 
-    public boolean moreGpNeeded() {
+    public synchronized boolean moreGpNeeded() {
         return offers.emptySlotExists() && getTotalGp() < Constants.MIN_GP_NEEDED_TO_FLIP;
     }
 
     private long getTotalGp() {
         return inventory.getTotalGp() + offers.getTotalGpToCollect();
+    }
+
+    public synchronized boolean currentlyFlipping() {
+        return offers.stream().anyMatch(Offer::isActive);
+    }
+
+    public synchronized long currentCashStack() {
+        // the cash stack is the gp in their inventory + the value on the market
+        // todo: when a buy offer has fully finished its value will not count towards the cash stack
+        //  size until they start selling it. We should probably track items that where recently bought
+        //  and they should still count towards the cash stack size for some period of time
+        return offers.getGpOnMarket() + inventory.getTotalGp();
+    }
+
+    public synchronized void onLogout(String currentDisplayName) {
+        Persistance.storeGeOfferEvents(offers, currentDisplayName);
+    }
+
+    public synchronized void loadPreviousOffers(String currentDisplayName) {
+        OfferList previousOffers = Persistance.loadPreviousGeOfferEvents(currentDisplayName);
+        if (previousOffers != null && previousOffers.size() == OfferList.NUM_SLOTS) {
+            this.offers = previousOffers;
+        }
     }
 }

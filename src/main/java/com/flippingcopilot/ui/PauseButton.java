@@ -9,7 +9,7 @@ import java.awt.event.MouseEvent;
 
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
 
-class PauseButton extends JButton
+public class PauseButton extends JButton
 {
     private final FlippingCopilotPlugin plugin;
 
@@ -51,6 +51,17 @@ class PauseButton extends JButton
         setFocusPainted(false);
         setBorderPainted(false);
         setContentAreaFilled(false);
+
+    }
+
+    public void setPausedState(boolean paused) {
+        if(paused) {
+            plugin.suggestionHandler.pause();
+            update();
+        } else {
+            plugin.suggestionHandler.unpause();
+            update();
+        }
     }
 
     private void update()

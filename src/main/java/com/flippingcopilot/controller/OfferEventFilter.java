@@ -13,11 +13,12 @@ public class OfferEventFilter {
         }
     }
 
-    boolean shouldProcess(GrandExchangeOfferChanged event) {
+    public boolean shouldProcess(GrandExchangeOfferChanged event) {
+
         return slotOfferEventFilters[event.getSlot()].shouldProcess(event);
     }
 
-    void onLogout() {
+    void setExpectEmptyOffers() {
         for(SlotOfferEventFilter slotOfferEventFilter : slotOfferEventFilters) {
             slotOfferEventFilter.onLogout();
         }
