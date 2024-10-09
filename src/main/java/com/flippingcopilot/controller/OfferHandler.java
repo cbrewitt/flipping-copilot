@@ -62,6 +62,7 @@ public class OfferHandler {
             viewedSlotItemId = -1;
             viewedSlotPriceErrorText = null;
         }
+        plugin.highlightController.redraw();
     }
 
     public boolean isSettingQuantity() {
