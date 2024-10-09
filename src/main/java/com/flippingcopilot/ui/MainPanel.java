@@ -1,7 +1,6 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.FlippingCopilotConfig;
-import com.flippingcopilot.controller.FlippingCopilotPlugin;
+import com.flippingcopilot.controller.*;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
@@ -11,6 +10,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.flippingcopilot.ui.UIUtilities.buildButton;
 
@@ -19,9 +19,11 @@ public class MainPanel extends PluginPanel {
     public CopilotPanel copilotPanel;
     public Runnable onCopilotLogout;
 
-    public MainPanel(FlippingCopilotConfig config) {
+    public MainPanel(FlippingCopilotConfig config, AtomicReference<FlipManager> flipManager, AtomicReference<SessionManager> sessionManager, WebHookController webHookController) {
+        super(false);
         setLayout(new BorderLayout());
-        copilotPanel = new CopilotPanel(config);
+        setBorder(BorderFactory.createEmptyBorder(5, 6, 5, 6));
+        copilotPanel = new CopilotPanel(config, flipManager, sessionManager, webHookController);
     }
 
     public void init(FlippingCopilotPlugin plugin) {
@@ -35,14 +37,14 @@ public class MainPanel extends PluginPanel {
         removeAll();
         add(constructTopBar(false), BorderLayout.NORTH);
         loginPanel.showLoginErrorMessage("");
-        add(loginPanel);
+        add(loginPanel, BorderLayout.CENTER);
         revalidate();
     }
 
     public void renderLoggedInView() {
         removeAll();
         add(constructTopBar(true), BorderLayout.NORTH);
-        add(copilotPanel);
+        add(copilotPanel, BorderLayout.CENTER);
         revalidate();
     }
 
@@ -50,7 +52,6 @@ public class MainPanel extends PluginPanel {
         JPanel container = new JPanel();
         container.setBackground(ColorScheme.DARK_GRAY_COLOR);
         container.setLayout(new BorderLayout());
-        container.setBorder(new EmptyBorder(0, 0, 5, 0));
         JPanel topBar = new JPanel();
         topBar.setBackground(ColorScheme.DARK_GRAY_COLOR);
         int columns = isLoggedIn ? 4 : 3;

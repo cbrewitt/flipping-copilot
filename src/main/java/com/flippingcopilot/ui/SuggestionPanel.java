@@ -2,6 +2,7 @@ package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.FlippingCopilotPlugin;
+import com.flippingcopilot.controller.WebHookController;
 import com.flippingcopilot.model.Suggestion;
 import lombok.Setter;
 import net.runelite.client.ui.ColorScheme;
@@ -28,7 +29,7 @@ public class SuggestionPanel extends JPanel {
     @Setter
     private String serverMessage = "";
 
-    public SuggestionPanel(FlippingCopilotConfig config) {
+    public SuggestionPanel(FlippingCopilotConfig config, WebHookController webHookController) {
         this.config = config;
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
