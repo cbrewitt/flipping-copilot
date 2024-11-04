@@ -73,20 +73,32 @@ public class HighlightController {
     private void drawOfferScreenHighlights(Suggestion suggestion) {
         Widget offerTypeWidget = plugin.grandExchange.getOfferTypeWidget();
         String offerType = plugin.client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
-        if (offerTypeWidget != null && offerType.equals(suggestion.getType())) {
-            if (plugin.client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
-                if (offerDetailsCorrect(suggestion)) {
-                    Widget confirmButton = plugin.grandExchange.getConfirmButton();
-                    if (confirmButton != null) {
-                        add(confirmButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 1, 150, 38));
+        if (offerTypeWidget != null) {
+            if (offerType.equals(suggestion.getType())) {
+                if (plugin.client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
+                    if (offerDetailsCorrect(suggestion)) {
+                        highlightConfirm();
+                    } else {
+                        if (plugin.grandExchange.getOfferPrice() != suggestion.getPrice()) {
+                            highlightPrice();
+                        }
+                        highlightQuantity(suggestion);
                     }
-                } else {
-                    highlightPrice(suggestion);
-                    highlightQuantity(suggestion);
+                } else if (plugin.client.getVarpValue(CURRENT_GE_ITEM ) == -1){
+                    highlightItemInSearch(suggestion);
                 }
             }
-            else {
-                highlightItemInSearch(suggestion);
+            // Check if unsuggested item/offer type is selected
+            if (plugin.client.getVarpValue(CURRENT_GE_ITEM) != -1
+                    && (plugin.client.getVarpValue(CURRENT_GE_ITEM) != suggestion.getItemId()
+                        || !offerType.equals(suggestion.getType()))
+                    && plugin.client.getVarpValue(CURRENT_GE_ITEM) == plugin.offerHandler.getViewedSlotItemId()
+                    && plugin.offerHandler.getViewedSlotItemPrice() > 0) {
+                if (plugin.grandExchange.getOfferPrice() == plugin.offerHandler.getViewedSlotItemPrice()) {
+                    highlightConfirm();
+                } else {
+                    highlightPrice();
+                }
             }
         }
     }
@@ -116,12 +128,10 @@ public class HighlightController {
                 && plugin.grandExchange.getOfferQuantity() == suggestion.getQuantity();
     }
 
-    private void highlightPrice(Suggestion suggestion) {
-        if (plugin.grandExchange.getOfferPrice() != suggestion.getPrice()) {
-            Widget setPriceButton = plugin.grandExchange.getSetPriceButton();
-            if (setPriceButton != null) {
-                add(setPriceButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 6, 33, 23));
-            }
+    private void highlightPrice() {
+        Widget setPriceButton = plugin.grandExchange.getSetPriceButton();
+        if (setPriceButton != null) {
+            add(setPriceButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 6, 33, 23));
         }
     }
 
@@ -136,6 +146,13 @@ public class HighlightController {
             if (setQuantityButton != null) {
                 add(setQuantityButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 6, 33, 23));
             }
+        }
+    }
+
+    private void highlightConfirm() {
+        Widget confirmButton = plugin.grandExchange.getConfirmButton();
+        if (confirmButton != null) {
+            add(confirmButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 1, 150, 38));
         }
     }
 
