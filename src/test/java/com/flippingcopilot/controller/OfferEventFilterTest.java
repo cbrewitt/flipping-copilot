@@ -81,7 +81,7 @@ public class OfferEventFilterTest {
         GrandExchangeOfferChanged event = mockOfferEvent(2, 379, 0, 223, 207, 0, GrandExchangeOfferState.BUYING);
         assert filter.shouldProcess(event);
 
-        filter.onLogout();
+        filter.setExpectEmptyOffers();
 
         for (int i = 0; i < 8; i++) {
             event = mockOfferEvent(i, 0, 0, 0, 0, 0, GrandExchangeOfferState.EMPTY);

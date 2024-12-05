@@ -1,24 +1,35 @@
 package com.flippingcopilot.controller;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.GrandExchangeOffer;
 import net.runelite.api.GrandExchangeOfferState;
 import net.runelite.api.events.GrandExchangeOfferChanged;
 
+@Slf4j
 public class SlotOfferEventFilter {
+    @Getter
     private GrandExchangeOfferChanged slotPreviousEvent;
     private boolean emptyLoginEventReceived = false;
 
     boolean shouldProcess(GrandExchangeOfferChanged event) {
-        boolean shouldProcess = false;
         boolean isEmpty = event.getOffer().getState().equals(GrandExchangeOfferState.EMPTY);
-        boolean isEmptyLoginEvent = !emptyLoginEventReceived && isEmpty;
 
-        if (!isEmptyLoginEvent && (slotPreviousEvent == null || !eventsEqual(slotPreviousEvent, event))) {
-            shouldProcess = true;
-            slotPreviousEvent = event;
+        if (!emptyLoginEventReceived && isEmpty) {
+            log.debug("skipping event because its the empty login event: {}", event);
+            emptyLoginEventReceived = true;
+            return false;
         }
+        if (slotPreviousEvent != null && eventsEqual(slotPreviousEvent, event)) {
+            log.debug("skipping event because it is equal to previous event: {}", event);
+            return false;
+        }
+
         emptyLoginEventReceived = true;
-        return shouldProcess;
+        slotPreviousEvent = event;
+        log.debug("processing event {}", event);
+
+        return true;
     }
 
     private static boolean eventsEqual(GrandExchangeOfferChanged event1, GrandExchangeOfferChanged event2) {

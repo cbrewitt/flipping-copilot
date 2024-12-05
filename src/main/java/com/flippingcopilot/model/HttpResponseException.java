@@ -15,4 +15,9 @@ public class HttpResponseException extends IOException {
         this.responseMessage = message;
     }
 
+    public HttpResponseException(int responseCode, String message, Throwable cause) {
+        super(message, cause);
+        this.responseCode = responseCode;
+        this.responseMessage = message;
+    }
 }

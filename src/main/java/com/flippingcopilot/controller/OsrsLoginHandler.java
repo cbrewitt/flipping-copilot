@@ -7,6 +7,8 @@ import net.runelite.api.Player;
 import net.runelite.api.WorldType;
 import net.runelite.api.events.GameStateChanged;
 
+import static com.flippingcopilot.util.AtomicReferenceUtils.ifPresent;
+
 @Slf4j
 public class OsrsLoginHandler {
     private boolean previouslyLoggedIn;
@@ -47,9 +49,13 @@ public class OsrsLoginHandler {
     }
 
     void handleGameStateChanged(GameStateChanged event) {
-        if (event.getGameState() == GameState.LOGGED_IN) {
+        log.debug("handling logged in game state {}", plugin.client.getGameState());
+        if (event.getGameState() == GameState.HOPPING) {
+            log.debug("setting expect empty offers due to hopping world");
+            plugin.offerEventFilter.setExpectEmptyOffers();
+        } else if (event.getGameState() == GameState.LOGGED_IN) {
             onLoggedInGameState();
-        } else if (event.getGameState() == GameState.LOGIN_SCREEN && previouslyLoggedIn) {
+        }  else if (event.getGameState() == GameState.LOGIN_SCREEN && previouslyLoggedIn) {
             //this randomly fired at night hours after i had logged off...so i'm adding this guard here.
             if (currentDisplayName != null && plugin.client.getGameState() != GameState.LOGGED_IN) {
                 handleLogout();
@@ -57,41 +63,63 @@ public class OsrsLoginHandler {
         }
     }
 
-    private void onLoggedInGameState() {
-        //keep scheduling this task until it returns true (when we have access to a display name)
-        plugin.clientThread.invokeLater(() ->
-        {
-            //we return true in this case as something went wrong and somehow the state isn't logged in, so we don't
-            //want to keep scheduling this task.
-            if (plugin.client.getGameState() != GameState.LOGGED_IN) {
-                return true;
-            }
-
-            final Player player = plugin.client.getLocalPlayer();
-
-            //player is null, so we can't get the display name so, return false, which will schedule
-            //the task on the client thread again.
-            if (player == null) {
-                return false;
-            }
-
+    private String loadPlayerDisplayName() {
+        final Player player = plugin.client.getLocalPlayer();
+        if (player != null) {
             final String name = player.getName();
-
-            if (name == null) {
-                return false;
+            if (name != null && !name.isEmpty()) {
+                return name;
             }
+        }
+        return null;
+    }
 
-            if (name.equals("")) {
-                return false;
-            }
+    private void onLoggedInGameState() {
+        if (plugin.client.getGameState() != GameState.LOGGED_IN) {
+            return;
+        }
+        String name = loadPlayerDisplayName();
+        if (name != null) {
             previouslyLoggedIn = true;
-
             handleLogin(name);
-            return true;
-        });
+        } else {
+            log.debug("unable to get player display name immediately after login");
+            // note: for some reason when the LOGGED_IN event is received the local player may not be set yet
+            //keep scheduling this task until it returns true (when we have access to a display name)
+            plugin.clientThread.invokeLater(() ->
+            {
+                if (plugin.client.getGameState() != GameState.LOGGED_IN) {
+                    return true;
+                }
+                final String name2 = loadPlayerDisplayName();
+                if(name2 == null) {
+                    return false;
+                }
+                previouslyLoggedIn = true;
+                handleLogin(name2);
+                return true;
+            });
+        }
+
     }
 
     public void handleLogin(String displayName) {
+        log.debug("{} logging in", displayName);
+        SessionManager sm = new SessionManager(displayName, () -> plugin.mainPanel.copilotPanel.statsPanel.updateStatsAndFlips(false));
+        plugin.sessionManager.set(sm);
+        ifPresent(plugin.flipManager, i -> {
+            i.setIntervalDisplayName(sm.getDisplayName());
+            i.setIntervalStartTime(sm.getData().startTime);
+        });
+        ifPresent(plugin.transactionManager, TransactionManger::cancelOngoingSync);
+        TransactionManger tm = new TransactionManger(plugin.flipManager, plugin.executorService, plugin.apiRequestHandler, displayName);
+        plugin.transactionManager.set(tm);
+
+        plugin.mainPanel.copilotPanel.statsPanel.isLoggedOut = false;
+        plugin.mainPanel.copilotPanel.statsPanel.resetIntervalDropdownToSession();
+        plugin.mainPanel.copilotPanel.statsPanel.resetRsAccountDropdown();
+        plugin.mainPanel.copilotPanel.statsPanel.updateStatsAndFlips(true);
+
         for (WorldType worldType : unSupportedWorlds) {
             if (plugin.client.getWorldType().contains(worldType)) {
                 log.info("World is a {}", worldType);
@@ -107,22 +135,30 @@ public class OsrsLoginHandler {
             invalidState = true;
             return;
         }
-
         plugin.accountStatus.setMember(plugin.client.getWorldType().contains(WorldType.MEMBERS));
         plugin.accountStatus.setDisplayName(displayName);
         currentDisplayName = displayName;
-        if (previousDisplayName != null && !previousDisplayName.equals(displayName)) {
-            plugin.flipTracker = new FlipTracker();
-            plugin.mainPanel.copilotPanel.statsPanel.updateFlips(plugin.flipTracker, plugin.client);
+        if (!currentDisplayName.equals(previousDisplayName)) {
+            plugin.accountStatus.loadPreviousOffers(currentDisplayName);
         }
         previousDisplayName = displayName;
+        log.debug("setting expect empty offers due to osrs login");
+        plugin.offerEventFilter.setExpectEmptyOffers();
+        plugin.mainPanel.copilotPanel.suggestionPanel.pauseButton.setPausedState(Persistance.loadIsPaused(displayName));
+
         invalidState = false;
-    }
-    public void handleLogout() {
-        log.info("{} is logging out", currentDisplayName);
-        currentDisplayName = null;
-        plugin.offerEventFilter.onLogout();
-        plugin.mainPanel.copilotPanel.suggestionPanel.suggestLogin();
+        plugin.processQueuedOfferEvents();
     }
 
+    public void handleLogout() {
+        log.debug("{} is logging out", currentDisplayName);
+        plugin.mainPanel.copilotPanel.statsPanel.isLoggedOut = true;
+        log.debug("setting expect empty offers due to osrs logout");
+        plugin.offerEventFilter.setExpectEmptyOffers();
+        plugin.accountStatus.onLogout(currentDisplayName);
+        currentDisplayName = null;
+        plugin.mainPanel.copilotPanel.statsPanel.updateStatsAndFlips(true);
+        plugin.mainPanel.copilotPanel.suggestionPanel.suggestLogin();
+        invalidState = true;
+    }
 }

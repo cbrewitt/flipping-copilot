@@ -8,6 +8,7 @@ import net.runelite.api.Varbits;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
 
+import java.time.Instant;
 import java.util.Objects;
 
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
@@ -18,6 +19,13 @@ public class OfferHandler {
     private static final int GE_OFFER_INIT_STATE_CHILD_ID = 20;
 
     private FlippingCopilotPlugin plugin;
+
+    @Getter
+    private int lastViewedSlotItemId = -1;
+    @Getter
+    private int lastViewedSlotItemPrice = -1;
+    @Getter
+    private int lastViewedSlotPriceTime = 0;
 
     @Getter
     private int viewedSlotItemId = -1;
@@ -34,12 +42,15 @@ public class OfferHandler {
         if (isViewingSlot) {
             var currentItemId = plugin.client.getVarpValue(CURRENT_GE_ITEM);
             viewedSlotItemId = currentItemId;
-            if (currentItemId == -1) return;
+            if (currentItemId == -1 || currentItemId == 0) return;
 
             var suggestion = plugin.suggestionHandler.getCurrentSuggestion();
             if (suggestion != null && suggestion.getItemId() == currentItemId &&
                     ((Objects.equals(suggestion.getType(), "sell") && isSelling()) ||
                             Objects.equals(suggestion.getType(), "buy") && isBuying())) {
+                lastViewedSlotItemId = suggestion.getItemId();
+                lastViewedSlotItemPrice = suggestion.getPrice();
+                lastViewedSlotPriceTime = (int) Instant.now().getEpochSecond();
                 return;
             }
 
@@ -56,7 +67,11 @@ public class OfferHandler {
                 viewedSlotPriceErrorText = null;
             }
             viewedSlotItemPrice = isSelling() ? fetchedPrice.getSellPrice() : fetchedPrice.getBuyPrice();
-            log.info("Fetched price: " + viewedSlotItemPrice);
+            lastViewedSlotItemId = viewedSlotItemId;
+            lastViewedSlotItemPrice = viewedSlotItemPrice;
+            lastViewedSlotPriceTime = (int) Instant.now().getEpochSecond();
+
+            log.debug("fetched item {} price: {}", viewedSlotItemId,  viewedSlotItemPrice);
         } else {
             viewedSlotItemPrice = -1;
             viewedSlotItemId = -1;
