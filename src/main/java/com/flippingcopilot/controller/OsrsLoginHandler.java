@@ -75,32 +75,21 @@ public class OsrsLoginHandler {
     }
 
     private void onLoggedInGameState() {
-        if (plugin.client.getGameState() != GameState.LOGGED_IN) {
-            return;
-        }
-        String name = loadPlayerDisplayName();
-        if (name != null) {
+        // note: for some reason when the LOGGED_IN event is received the local player may not be set yet
+        //keep scheduling this task until it returns true (when we have access to a display name)
+        plugin.clientThread.invokeLater(() ->
+        {
+            if (plugin.client.getGameState() != GameState.LOGGED_IN) {
+                return true;
+            }
+            final String name = loadPlayerDisplayName();
+            if(name == null) {
+                return false;
+            }
             previouslyLoggedIn = true;
             handleLogin(name);
-        } else {
-            log.debug("unable to get player display name immediately after login");
-            // note: for some reason when the LOGGED_IN event is received the local player may not be set yet
-            //keep scheduling this task until it returns true (when we have access to a display name)
-            plugin.clientThread.invokeLater(() ->
-            {
-                if (plugin.client.getGameState() != GameState.LOGGED_IN) {
-                    return true;
-                }
-                final String name2 = loadPlayerDisplayName();
-                if(name2 == null) {
-                    return false;
-                }
-                previouslyLoggedIn = true;
-                handleLogin(name2);
-                return true;
-            });
-        }
-
+            return true;
+        });
     }
 
     public void handleLogin(String displayName) {
