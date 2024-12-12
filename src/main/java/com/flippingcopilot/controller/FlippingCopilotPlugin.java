@@ -216,8 +216,13 @@ public class FlippingCopilotPlugin extends Plugin {
 			suggestionHandler.setSuggestionNeeded(true);
 		}
 	}
+
 	@Subscribe
 	public void onGameTick(GameTick event) {
+		int gameTick = client.getTickCount();
+		if (gameTick % 2 == 0 && gameTick > osrsLoginHandler.getValidStateGameTick()+5) {
+			accountStatus.selfCorrectOfferStates(client.getGrandExchangeOffers());
+		}
 		suggestionHandler.onGameTick();
 	}
 

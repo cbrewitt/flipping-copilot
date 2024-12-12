@@ -28,6 +28,8 @@ public class OsrsLoginHandler {
 
     @Getter
     private boolean invalidState = true;
+    @Getter
+    private int validStateGameTick = 0;
 
     OsrsLoginHandler(FlippingCopilotPlugin plugin) {
         this.plugin = plugin;
@@ -138,6 +140,7 @@ public class OsrsLoginHandler {
         }
         plugin.mainPanel.copilotPanel.suggestionPanel.pauseButton.setPausedState(Persistance.loadIsPaused(displayName));
 
+        validStateGameTick = plugin.client.getTickCount();
         invalidState = false;
         plugin.processQueuedOfferEvents();
     }
