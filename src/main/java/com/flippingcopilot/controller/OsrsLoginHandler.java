@@ -28,6 +28,8 @@ public class OsrsLoginHandler {
 
     @Getter
     private boolean invalidState = true;
+    @Getter
+    private int validStateGameTick = 0;
 
     OsrsLoginHandler(FlippingCopilotPlugin plugin) {
         this.plugin = plugin;
@@ -42,9 +44,8 @@ public class OsrsLoginHandler {
 
     void init() {
         if (plugin.client.getGameState() == GameState.LOGGED_IN) {
-            onLoggedInGameState();
+            onLoggedInGameState(false);
             plugin.offerEventFilter.setToLoggedIn();
-            plugin.accountStatus.setOffers(plugin.client.getGrandExchangeOffers());
         }
     }
 
@@ -54,7 +55,7 @@ public class OsrsLoginHandler {
             log.debug("setting expect empty offers due to hopping world");
             plugin.offerEventFilter.setExpectEmptyOffers();
         } else if (event.getGameState() == GameState.LOGGED_IN) {
-            onLoggedInGameState();
+            onLoggedInGameState(true);
         }  else if (event.getGameState() == GameState.LOGIN_SCREEN && previouslyLoggedIn) {
             //this randomly fired at night hours after i had logged off...so i'm adding this guard here.
             if (currentDisplayName != null && plugin.client.getGameState() != GameState.LOGGED_IN) {
@@ -74,7 +75,7 @@ public class OsrsLoginHandler {
         return null;
     }
 
-    private void onLoggedInGameState() {
+    private void onLoggedInGameState(boolean resetExpectEmptyOffers) {
         // note: for some reason when the LOGGED_IN event is received the local player may not be set yet
         //keep scheduling this task until it returns true (when we have access to a display name)
         plugin.clientThread.invokeLater(() ->
@@ -87,12 +88,12 @@ public class OsrsLoginHandler {
                 return false;
             }
             previouslyLoggedIn = true;
-            handleLogin(name);
+            handleLogin(name, resetExpectEmptyOffers);
             return true;
         });
     }
 
-    public void handleLogin(String displayName) {
+    public void handleLogin(String displayName, boolean resetExpectEmptyOffers) {
         log.debug("{} logging in", displayName);
         SessionManager sm = new SessionManager(displayName, () -> plugin.mainPanel.copilotPanel.statsPanel.updateStatsAndFlips(false));
         plugin.sessionManager.set(sm);
@@ -132,9 +133,14 @@ public class OsrsLoginHandler {
         }
         previousDisplayName = displayName;
         log.debug("setting expect empty offers due to osrs login");
-        plugin.offerEventFilter.setExpectEmptyOffers();
+        if(resetExpectEmptyOffers) {
+            plugin.offerEventFilter.setExpectEmptyOffers();
+        } else {
+            plugin.accountStatus.setOffers(plugin.client.getGrandExchangeOffers());
+        }
         plugin.mainPanel.copilotPanel.suggestionPanel.pauseButton.setPausedState(Persistance.loadIsPaused(displayName));
 
+        validStateGameTick = plugin.client.getTickCount();
         invalidState = false;
         plugin.processQueuedOfferEvents();
     }

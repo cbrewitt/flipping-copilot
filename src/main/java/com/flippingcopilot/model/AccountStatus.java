@@ -7,6 +7,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GrandExchangeOffer;
 import net.runelite.api.InventoryID;
@@ -20,6 +21,7 @@ import java.util.Map;
 // note: we synchronize all public methods of this class as they read/modify its state and may
 // be called by multiple threads at the same time
 @Getter
+@Slf4j
 public class AccountStatus {
     private OfferList offers;
     private Inventory inventory;
@@ -147,5 +149,37 @@ public class AccountStatus {
         if (previousOffers != null && previousOffers.size() == OfferList.NUM_SLOTS) {
             this.offers = previousOffers;
         }
+    }
+
+    public synchronized void selfCorrectOfferStates(GrandExchangeOffer[] grandExchangeOffers) {
+        if(!offerStatesAreCorrect(grandExchangeOffers)) {
+            log.warn("offer states are out of sync, resetting");
+            setOffers(grandExchangeOffers);
+        } else {
+            log.debug("offer states are in sync");
+        }
+    }
+
+    private boolean offerStatesAreCorrect(GrandExchangeOffer[] grandExchangeOffers) {
+        for (int i=0; i < grandExchangeOffers.length; i++) {
+            GrandExchangeOffer actualState = grandExchangeOffers[i];
+            Offer ourState  = offers.get(i);
+            if (ourState.getPrice() != actualState.getPrice()) {
+                return false;
+            }
+            if (ourState.getItemId() != actualState.getItemId()) {
+                return false;
+            }
+            if (ourState.getAmountSpent() != actualState.getSpent()) {
+                return false;
+            }
+            if (ourState.getAmountTotal() != actualState.getTotalQuantity()) {
+                return false;
+            }
+            if (ourState.getAmountTraded() != actualState.getQuantitySold()) {
+                return false;
+            }
+        }
+        return true;
     }
 }
