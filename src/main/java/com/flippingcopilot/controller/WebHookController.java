@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.io.IOException;
 import java.time.Instant;
 
@@ -16,6 +17,7 @@ import static com.flippingcopilot.ui.FlipPanel.formatEpoch;
 import static net.runelite.http.api.RuneLiteAPI.GSON;
 
 @Slf4j
+@Singleton
 public class WebHookController {
 
     @Inject

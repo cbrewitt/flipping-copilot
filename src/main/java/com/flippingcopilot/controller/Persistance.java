@@ -2,7 +2,7 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.LoginResponse;
 import com.flippingcopilot.model.Offer;
-import com.flippingcopilot.model.OfferList;
+import com.flippingcopilot.model.StatusOfferList;
 import com.flippingcopilot.model.SessionData;
 import com.flippingcopilot.model.Transaction;
 import com.google.gson.Gson;
@@ -184,34 +184,6 @@ public class Persistance {
         }
     }
 
-
-    public static OfferList loadPreviousGeOfferEvents(String displayName) {
-        File file = new File(PARENT_DIRECTORY, String.format(PREVIOUS_GE_OFFER_EVENTS, hashDisplayName(displayName)));
-        if (!file.exists()) {
-            return null;
-        }
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            List<Offer> regularList = gson.fromJson(reader, new TypeToken<List<Offer>>(){}.getType());
-            return new OfferList(regularList);
-        } catch (JsonSyntaxException | JsonIOException | IOException e) {
-            log.warn("error loading session data json file {}", file, e);
-        }
-        return null;
-    }
-
-    public static void storeGeOfferEvents(OfferList data, String displayName) {
-        File file = new File(PARENT_DIRECTORY, String.format(PREVIOUS_GE_OFFER_EVENTS, hashDisplayName(displayName)));
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, false))) {
-            String json = gson.toJson(data);
-            writer.write(json);
-            writer.newLine();
-        } catch (IOException e) {
-            log.warn("error storing session data to file {}", file, e);
-        }
-        log.debug("stored {} current GE offers", displayName);
-    }
-
-
     public static String hashDisplayName(String displayName) {
         if(displayName == null) {
             return "null";
@@ -231,29 +203,6 @@ public class Persistance {
             return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 algorithm not available", e);
-        }
-    }
-
-    public static void storeIsPaused(String displayName, boolean isPaused) {
-        File file = new File(PARENT_DIRECTORY, String.format("%s_paused.json", hashDisplayName(displayName)));
-        String text = isPaused ? "{\"isPaused\":true}" : "{\"isPaused\":false}";
-        try {
-            Files.write(file.toPath(), text.getBytes());
-        } catch(IOException e) {
-            log.warn("error storing paused.json file {}", file, e);
-        }
-    }
-
-    public static boolean loadIsPaused(String displayName) {
-        File file = new File(PARENT_DIRECTORY, String.format("%s_paused.json", hashDisplayName(displayName)));
-        try {
-            String text = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-            return text.contains("true");
-        } catch (NoSuchFileException e){
-            return false;
-        } catch(IOException e) {
-            log.warn("error loading paused.json file {}", file, e);
-            return false;
         }
     }
 }

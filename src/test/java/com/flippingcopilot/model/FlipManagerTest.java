@@ -1,7 +1,6 @@
-package com.flippingcopilot.controller;
+package com.flippingcopilot.model;
 
-import com.flippingcopilot.model.FlipV2;
-import com.flippingcopilot.model.Stats;
+import com.flippingcopilot.controller.DoesNothingExecutorService;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,7 +26,8 @@ public class FlipManagerTest {
         List<FlipV2> flips = generateFlipsBetween(sixMonthsAgo, now, 10_000, List.of(0));
 
         // create and populate the flip cache
-        FlipManager flipManager = new FlipManager(null, new DoesNothingExecutorService(), () -> {});
+        FlipManager flipManager = new FlipManager(null, new DoesNothingExecutorService());
+        flipManager.setFlipsChangedCallback(() -> {});
         flipManager.displayNameToAccountId.putAll(displayNameToAccountId);
         flipManager.mergeFlips(flips, null);
         flipManager.setIntervalDisplayName(DISPLAY_NAME_1);
@@ -75,7 +75,8 @@ public class FlipManagerTest {
         List<FlipV2> flips = generateFlipsBetween(sixMonthsAgo, now, 5_000, List.of(0, 1, 2));
 
         // create and populate the flip cache
-        FlipManager flipManager = new FlipManager(null, new DoesNothingExecutorService(), () -> {});
+        FlipManager flipManager = new FlipManager(null, new DoesNothingExecutorService());
+        flipManager.setFlipsChangedCallback(() -> {});
         flipManager.displayNameToAccountId.putAll(displayNameToAccountId);
         flipManager.mergeFlips(flips, null);
         verifyflipManagerStoredOrder(flipManager);

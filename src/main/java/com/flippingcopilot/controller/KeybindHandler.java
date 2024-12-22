@@ -1,23 +1,44 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.model.SuggestionManager;
+import net.runelite.api.Client;
 import net.runelite.api.VarClientInt;
 import net.runelite.api.widgets.ComponentID;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.input.KeyListener;
+import net.runelite.client.input.KeyManager;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.awt.event.KeyEvent;
 
+
+@Singleton
 public class KeybindHandler {
 
-    FlippingCopilotPlugin plugin;
+    private final KeyManager keyManager;
+    private final FlippingCopilotConfig config;
+    private final ClientThread clientThread;
+    private final SuggestionManager suggestionManager;
+    private final Client client;
+    private final GrandExchange grandExchange;
+    private final OfferHandler offerHandler;
 
-    public KeybindHandler(FlippingCopilotPlugin plugin) {
-        this.plugin = plugin;
-        plugin.keyManager.registerKeyListener(offerEditorKeyListener());
 
+    @Inject
+    public KeybindHandler(KeyManager keyManager, FlippingCopilotConfig config, ClientThread clientThread, SuggestionManager suggestionManager, Client client, GrandExchange grandExchange, OfferHandler offerHandler) {
+        this.keyManager = keyManager;
+        this.config = config;
+        this.clientThread = clientThread;
+        this.suggestionManager = suggestionManager;
+        this.client = client;
+        this.grandExchange = grandExchange;
+        this.offerHandler = offerHandler;
+        keyManager.registerKeyListener(offerEditorKeyListener());
     }
 
     public void unregister() {
-        plugin.keyManager.unregisterKeyListener(offerEditorKeyListener());
+        keyManager.unregisterKeyListener(offerEditorKeyListener());
     }
 
 
@@ -32,9 +53,9 @@ public class KeybindHandler {
             public void keyPressed(KeyEvent e) {
                 // Prevent enter as a keybind as that will also submit the value
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) return;
-                if (e.getKeyCode() != plugin.config.quickSetKeybind().getKeyCode()) return;
+                if (e.getKeyCode() !=config.quickSetKeybind().getKeyCode()) return;
 
-                plugin.getClientThread().invokeLater(this::handleKeybind);
+               clientThread.invokeLater(this::handleKeybind);
             }
 
             @Override
@@ -43,17 +64,17 @@ public class KeybindHandler {
             }
 
             private void handleKeybind() {
-                var suggestion = plugin.suggestionHandler.getCurrentSuggestion();
+                var suggestion = suggestionManager.getSuggestion();
 
-                var inputType = plugin.client.getVarcIntValue(VarClientInt.INPUT_TYPE);
+                var inputType = client.getVarcIntValue(VarClientInt.INPUT_TYPE);
 
-                var isPriceOrQuantityBoxOpen = plugin.client.getWidget(ComponentID.CHATBOX_TITLE) != null
+                var isPriceOrQuantityBoxOpen =client.getWidget(ComponentID.CHATBOX_TITLE) != null
                         && inputType == 7
-                        && plugin.client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER) != null
-                        && plugin.grandExchange.isSlotOpen();
+                        &&client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER) != null
+                        &&grandExchange.isSlotOpen();
 
                 if (isPriceOrQuantityBoxOpen) {
-                    plugin.offerHandler.setSuggestedAction(suggestion);
+                   offerHandler.setSuggestedAction(suggestion);
                 }
             }
         };

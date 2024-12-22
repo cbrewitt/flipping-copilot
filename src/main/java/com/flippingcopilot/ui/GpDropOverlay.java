@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.FlippingCopilotPlugin;
+import net.runelite.api.Client;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
@@ -13,17 +13,15 @@ import java.awt.*;
 
 public class GpDropOverlay extends Overlay {
     private final OverlayManager overlayManager;
-    private final long profit;
     private final long startTime;
     private final Point startPosition = new Point(); // Starting position of the text
     final TextComponent textComponent = new TextComponent();
 
-    public GpDropOverlay(FlippingCopilotPlugin plugin, long profit, int slot) {
-        this.profit = profit;
-        this.overlayManager = plugin.overlayManager;
+    public GpDropOverlay(OverlayManager overlayManager, Client client, long profit, int slot) {
+        this.overlayManager = overlayManager;
         this.startTime = System.currentTimeMillis();
 
-        Widget slotWidget =  plugin.client.getWidget(465, slot + 7);
+        Widget slotWidget = client.getWidget(465, slot + 7);
         if (slotWidget == null) {
             return;
         }
@@ -42,8 +40,7 @@ public class GpDropOverlay extends Overlay {
         } else {
             textComponent.setColor(Color.GREEN);
         }
-
-        plugin.overlayManager.add(this);
+        overlayManager.add(this);
     }
 
 
