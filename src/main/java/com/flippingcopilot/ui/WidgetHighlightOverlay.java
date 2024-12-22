@@ -30,7 +30,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import javax.inject.Inject;
 
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.ui.overlay.Overlay;
@@ -43,7 +42,6 @@ public class WidgetHighlightOverlay extends Overlay
     private final Color color;
     private final Rectangle relativeBounds;
 
-    @Inject
     public WidgetHighlightOverlay(final Widget widget, Color color, Rectangle relativeBounds)
     {
         this.widget = widget;

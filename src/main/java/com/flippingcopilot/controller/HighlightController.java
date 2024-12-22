@@ -1,12 +1,16 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.model.Suggestion;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.WidgetHighlightOverlay;
+import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.VarClientStr;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.ui.overlay.OverlayManager;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.awt.*;
 import java.util.ArrayList;
 
@@ -15,48 +19,71 @@ import static com.flippingcopilot.ui.UIUtilities.RED_HIGHLIGHT_COLOR;
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 import static net.runelite.api.Varbits.GE_OFFER_CREATION_TYPE;
 
+
+@Singleton
 public class HighlightController {
-    FlippingCopilotPlugin plugin;
+
+    // dependencies
+    private final FlippingCopilotConfig config;
+    private final SuggestionManager suggestionManager;
+    private final GrandExchange grandExchange;
+    private final AccountStatusManager accountStatusManager;
+    private final Client client;
+    private final OfferManager offerManager;
+    private final OverlayManager overlayManager;
+
+    // state
     private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
 
-    public HighlightController(FlippingCopilotPlugin plugin) {
-        this.plugin = plugin;
+    @Inject
+    public HighlightController(FlippingCopilotConfig config,  SuggestionManager suggestionManager, GrandExchange grandExchange, AccountStatusManager accountStatusManager, Client client, OfferManager offerManager, OverlayManager overlayManager) {
+        this.config = config;
+        this.suggestionManager = suggestionManager;
+        this.grandExchange = grandExchange;
+        this.accountStatusManager = accountStatusManager;
+        this.client = client;
+        this.offerManager = offerManager;
+        this.overlayManager = overlayManager;
     }
 
     public void redraw() {
         removeAll();
-        if(!plugin.config.suggestionHighlights()) {
+        if(!config.suggestionHighlights()) {
             return;
         }
-        if (plugin.gameUiChangesHandler.isOfferJustPlaced()) {
+        if (offerManager.isOfferJustPlaced()) {
             return;
         }
-        Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
+        if(suggestionManager.getSuggestionError() != null) {
+            return;
+        }
+        Suggestion suggestion = suggestionManager.getSuggestion();
         if (suggestion == null) {
             return;
         }
-        if (plugin.grandExchange.isHomeScreenOpen()) {
+        if (grandExchange.isHomeScreenOpen()) {
             drawHomeScreenHighLights(suggestion);
-        } else if (plugin.grandExchange.isSlotOpen()) {
+        } else if (grandExchange.isSlotOpen()) {
             drawOfferScreenHighlights(suggestion);
         }
     }
 
     private void drawHomeScreenHighLights(Suggestion suggestion) {
-        if (plugin.suggestionHandler.isCollectNeeded()) {
-            Widget collectButton = plugin.grandExchange.getCollectButton();
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus(false);
+        if (accountStatus.isCollectNeeded(suggestion)) {
+            Widget collectButton = grandExchange.getCollectButton();
             if (collectButton != null) {
                 add(collectButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(2, 1, 81, 18));
             }
         }
         else if (suggestion.getType().equals("abort")) {
-            Widget slotWidget = plugin.grandExchange.getSlotWidget(suggestion.getBoxId());
+            Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
             add(slotWidget, RED_HIGHLIGHT_COLOR);
         }
         else if (suggestion.getType().equals("buy")) {
-            int slotId = plugin.accountStatus.getOffers().findEmptySlot();
+            int slotId = accountStatus.getOffers().findEmptySlot();
             if (slotId != -1) {
-                Widget buyButton = plugin.grandExchange.getBuyButton(slotId);
+                Widget buyButton = grandExchange.getBuyButton(slotId);
                 if (buyButton != null && !buyButton.isHidden()) {
                     add(buyButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(0, 0, 45, 44));
                 }
@@ -71,30 +98,30 @@ public class HighlightController {
     }
 
     private void drawOfferScreenHighlights(Suggestion suggestion) {
-        Widget offerTypeWidget = plugin.grandExchange.getOfferTypeWidget();
-        String offerType = plugin.client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
+        Widget offerTypeWidget = grandExchange.getOfferTypeWidget();
+        String offerType = client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
         if (offerTypeWidget != null) {
             if (offerType.equals(suggestion.getType())) {
-                if (plugin.client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
+                if (client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
                     if (offerDetailsCorrect(suggestion)) {
                         highlightConfirm();
                     } else {
-                        if (plugin.grandExchange.getOfferPrice() != suggestion.getPrice()) {
+                        if (grandExchange.getOfferPrice() != suggestion.getPrice()) {
                             highlightPrice();
                         }
                         highlightQuantity(suggestion);
                     }
-                } else if (plugin.client.getVarpValue(CURRENT_GE_ITEM ) == -1){
+                } else if (client.getVarpValue(CURRENT_GE_ITEM ) == -1){
                     highlightItemInSearch(suggestion);
                 }
             }
             // Check if unsuggested item/offer type is selected
-            if (plugin.client.getVarpValue(CURRENT_GE_ITEM) != -1
-                    && (plugin.client.getVarpValue(CURRENT_GE_ITEM) != suggestion.getItemId()
+            if (client.getVarpValue(CURRENT_GE_ITEM) != -1
+                    && (client.getVarpValue(CURRENT_GE_ITEM) != suggestion.getItemId()
                         || !offerType.equals(suggestion.getType()))
-                    && plugin.client.getVarpValue(CURRENT_GE_ITEM) == plugin.offerHandler.getViewedSlotItemId()
-                    && plugin.offerHandler.getViewedSlotItemPrice() > 0) {
-                if (plugin.grandExchange.getOfferPrice() == plugin.offerHandler.getViewedSlotItemPrice()) {
+                    && client.getVarpValue(CURRENT_GE_ITEM) == offerManager.getViewedSlotItemId()
+                    && offerManager.getViewedSlotItemPrice() > 0) {
+                if (grandExchange.getOfferPrice() == offerManager.getViewedSlotItemPrice()) {
                     highlightConfirm();
                 } else {
                     highlightPrice();
@@ -104,10 +131,10 @@ public class HighlightController {
     }
 
     private void highlightItemInSearch(Suggestion suggestion) {
-        if (!plugin.client.getVarcStrValue(VarClientStr.INPUT_TEXT).isEmpty()) {
+        if (!client.getVarcStrValue(VarClientStr.INPUT_TEXT).isEmpty()) {
             return;
         }
-        Widget searchResults = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
         if (searchResults == null) {
             return;
         }
@@ -124,24 +151,25 @@ public class HighlightController {
     }
 
     private boolean offerDetailsCorrect(Suggestion suggestion) {
-        return plugin.grandExchange.getOfferPrice() == suggestion.getPrice()
-                && plugin.grandExchange.getOfferQuantity() == suggestion.getQuantity();
+        return grandExchange.getOfferPrice() == suggestion.getPrice()
+                && grandExchange.getOfferQuantity() == suggestion.getQuantity();
     }
 
     private void highlightPrice() {
-        Widget setPriceButton = plugin.grandExchange.getSetPriceButton();
+        Widget setPriceButton = grandExchange.getSetPriceButton();
         if (setPriceButton != null) {
             add(setPriceButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 6, 33, 23));
         }
     }
 
     private void highlightQuantity(Suggestion suggestion) {
-        if (plugin.grandExchange.getOfferQuantity() != suggestion.getQuantity()) {
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus(false);
+        if (grandExchange.getOfferQuantity() != suggestion.getQuantity()) {
             Widget setQuantityButton;
-            if (plugin.accountStatus.getInventory().getTotalAmount(suggestion.getItemId()) == suggestion.getQuantity()) {
-                setQuantityButton = plugin.grandExchange.getSetQuantityAllButton();
+            if (accountStatus.getInventory().getTotalAmount(suggestion.getItemId()) == suggestion.getQuantity()) {
+                setQuantityButton = grandExchange.getSetQuantityAllButton();
             } else {
-                setQuantityButton = plugin.grandExchange.getSetQuantityButton();
+                setQuantityButton = grandExchange.getSetQuantityButton();
             }
             if (setQuantityButton != null) {
                 add(setQuantityButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 6, 33, 23));
@@ -150,7 +178,7 @@ public class HighlightController {
     }
 
     private void highlightConfirm() {
-        Widget confirmButton = plugin.grandExchange.getConfirmButton();
+        Widget confirmButton = grandExchange.getConfirmButton();
         if (confirmButton != null) {
             add(confirmButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 1, 150, 38));
         }
@@ -159,7 +187,7 @@ public class HighlightController {
     private void add(Widget widget, Color color, Rectangle adjustedBounds) {
         WidgetHighlightOverlay overlay = new WidgetHighlightOverlay(widget, color, adjustedBounds);
         highlightOverlays.add(overlay);
-        plugin.overlayManager.add(overlay);
+        overlayManager.add(overlay);
     }
 
     private void add(Widget widget, Color color) {
@@ -167,15 +195,15 @@ public class HighlightController {
     }
 
     public void removeAll() {
-        highlightOverlays.forEach(plugin.overlayManager::remove);
+        highlightOverlays.forEach(overlayManager::remove);
         highlightOverlays.clear();
     }
 
     private Widget getInventoryItemWidget(int unnotedItemId) {
         // Inventory has a different widget if GE is open
-        Widget inventory = plugin.getClient().getWidget(467, 0);
+        Widget inventory = client.getWidget(467, 0);
         if (inventory == null) {
-            inventory = plugin.getClient().getWidget(149, 0);
+            inventory = client.getWidget(149, 0);
             if (inventory == null) {
                 return null;
             }
@@ -186,7 +214,7 @@ public class HighlightController {
 
         for (Widget widget : inventory.getDynamicChildren()) {
             int itemId = widget.getItemId();
-            ItemComposition itemComposition = plugin.client.getItemDefinition(itemId);
+            ItemComposition itemComposition = client.getItemDefinition(itemId);
 
             if (itemComposition.getNote() != -1) {
                 if (itemComposition.getLinkedNoteId() == unnotedItemId) {

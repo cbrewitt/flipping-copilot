@@ -1,16 +1,16 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.FlipManager;
-import com.flippingcopilot.controller.FlippingCopilotConfig;
-import com.flippingcopilot.controller.SessionManager;
-import com.flippingcopilot.controller.WebHookController;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.model.*;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.ImageUtil;
 
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.basic.BasicComboBoxEditor;
@@ -21,14 +21,12 @@ import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.flippingcopilot.util.AtomicReferenceUtils.ifBothPresent;
-import static com.flippingcopilot.util.AtomicReferenceUtils.ifPresent;
-
 @Slf4j
+@Singleton
 public class StatsPanelV2 extends JPanel {
 
 
@@ -52,20 +50,22 @@ public class StatsPanelV2 extends JPanel {
     private static final Pattern INTERVAL_PATTERN = Pattern.compile("^-?(\\d+)([hdwmy])[()\\w\\s]*");
 
     // dependencies
+    private final LoginResponseManager loginResponseManager;
+    private final OsrsLoginManager osrsLoginManager;
     private final FlippingCopilotConfig config;
-    private final AtomicReference<FlipManager> flipManager;
-    private final AtomicReference<SessionManager> sessionManager;
+    private final FlipManager flipManager;
+    private final SessionManager sessionManager;
     private final WebHookController webHookController;
+    private final ClientThread clientThread;
 
     // state
-    public boolean isLoggedOut = false;
     private JComboBox<String> timeIntervalDropdown;
     private final DefaultComboBoxModel<String> rsAccountDropdownModel = new DefaultComboBoxModel<>();
     private final JComboBox<String> rsAccountDropdown = new JComboBox<>(rsAccountDropdownModel);
     private final JButton sessionResetButton = new JButton("  reset  ");
     private JPanel profitAndSubInfoPanel;
     private JPanel subInfoPanel;
-    private final JPanel flipsPanel;
+    private final JPanel flipsPanel = new JPanel();
     private final JLabel totalProfitVal = new JLabel("0 gp");
     private final JLabel roiVal = new JLabel("-0.00%");
     private final JLabel flipsMadeVal = new JLabel("0");
@@ -73,24 +73,33 @@ public class StatsPanelV2 extends JPanel {
     private final JLabel sessionTimeVal = new JLabel("00:00:00");
     private final JLabel hourlyProfitVal = new JLabel("0 gp/hr");
     private final JLabel avgCashVal = new JLabel("0 gp");
-    private final Paginator paginator = new Paginator(() -> this.updateStatsAndFlips(true));
+    private final Paginator paginator;
 
     private IntervalTimeUnit selectedIntervalTimeUnit = IntervalTimeUnit.SESSION;
     private int selectedIntervalValue = -1;
+    private volatile boolean lastValidState = false;
 
-    public StatsPanelV2(FlippingCopilotConfig config, AtomicReference<FlipManager> FlipManager, AtomicReference<SessionManager> sessionManager, WebHookController webHookController) {
+    @Inject
+    public StatsPanelV2(LoginResponseManager loginResponseManager,
+                        OsrsLoginManager osrsLoginManager,
+                        FlippingCopilotConfig config,
+                        FlipManager FlipManager,
+                        SessionManager sessionManager,
+                        WebHookController webHookController,
+                        ClientThread clientThread) {
+        this.loginResponseManager = loginResponseManager;
+        this.osrsLoginManager = osrsLoginManager;
         this.sessionManager = sessionManager;
         this.webHookController = webHookController;
         this.config = config;
         this.flipManager = FlipManager;
-
+        this.clientThread = clientThread;
         setLayout(new BorderLayout());
 
         setupTimeIntervalDropdown();
         setupProfitAndSubInfoPanel();
         setupSessionResetButton();
 
-        flipsPanel = new JPanel();
         flipsPanel.setLayout(new BoxLayout(flipsPanel, BoxLayout.Y_AXIS));
         flipsPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         flipsPanel.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
@@ -120,9 +129,9 @@ public class StatsPanelV2 extends JPanel {
             log.info("selected rs account is: {}", value);
             if(value != null) {
                 if (ALL_ACCOUNTS_DROPDOWN_OPTION.equals(value)) {
-                    ifPresent(flipManager, fm -> fm.setIntervalDisplayName(null));
+                    flipManager.setIntervalDisplayName(null);
                 } else {
-                    ifPresent(flipManager, fm -> fm.setIntervalDisplayName(value));
+                    flipManager.setIntervalDisplayName(value);
                 }
             }
         });
@@ -134,18 +143,10 @@ public class StatsPanelV2 extends JPanel {
 
         add(mainPanel, BorderLayout.CENTER);
 
+        paginator = new Paginator(() -> refresh(true, lastValidState));
         add(paginator, BorderLayout.SOUTH);
-    }
 
-    public void resetRsAccountDropdown() {
-        rsAccountDropdownModel.removeAllElements();
-        rsAccountDropdown.setVisible(false);
-    }
-
-    public void resetIntervalDropdownToSession() {
-        timeIntervalDropdown.setSelectedItem("Session");
-        selectedIntervalTimeUnit = IntervalTimeUnit.SESSION;
-        selectedIntervalValue = -1;
+        flipManager.setFlipsChangedCallback(() -> refresh(true, loginResponseManager.isLoggedIn() && osrsLoginManager.isValidLoginState()));
     }
 
     private void setupSessionResetButton() {
@@ -156,16 +157,26 @@ public class StatsPanelV2 extends JPanel {
                     "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
                     null, new String[]{"Yes", "No"}, "No");
             if (result == JOptionPane.YES_OPTION) {
-                ifBothPresent(sessionManager, flipManager, (sm, fm) -> {
-                        // send discord message before resetting session stats
-                        webHookController.sendMessage(fm.calculateStats(sm.getData().startTime, sm.getDisplayName()), sm.getData(), sm.getDisplayName(), true);
-                        sm.resetSession();
-                        if(IntervalTimeUnit.SESSION.equals(selectedIntervalTimeUnit)) {
-                            fm.setIntervalStartTime(sm.getData().startTime);
+                // send discord message before resetting session stats
+                clientThread.invoke(() -> {
+                    if (osrsLoginManager.isValidLoginState()) {
+                        String displayName = osrsLoginManager.getPlayerDisplayName();
+                        webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, displayName), sessionManager.getCachedSessionData(), displayName, true);
+                        sessionManager.resetSession();
+                        if (IntervalTimeUnit.SESSION.equals(selectedIntervalTimeUnit)) {
+                            flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
                         }
-                }).orElse(() -> ifPresent(sessionManager, SessionManager::resetSession));
+                        refresh(true, loginResponseManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
+                    }
+                });
             }
         });
+    }
+
+    public void resetIntervalDropdownToSession() {
+        timeIntervalDropdown.setSelectedItem("Session");
+        selectedIntervalTimeUnit = IntervalTimeUnit.SESSION;
+        selectedIntervalValue = -1;
     }
 
     private boolean extractAndUpdateTimeInterval(String value) {
@@ -206,7 +217,7 @@ public class StatsPanelV2 extends JPanel {
                 if (item != null) {
                     String value = item.toString();
                     if (extractAndUpdateTimeInterval(value)) {
-                        updateFlipTrackerAndStats();
+                        updateFlipManagerAndStats();
                     }
                 }
             }
@@ -217,26 +228,24 @@ public class StatsPanelV2 extends JPanel {
         timeIntervalDropdown.addActionListener(e -> {
             String value = (String) timeIntervalDropdown.getSelectedItem();
             if (extractAndUpdateTimeInterval(value)) {
-                updateFlipTrackerAndStats();
+                updateFlipManagerAndStats();
             }
         });
     }
 
-    private void updateFlipTrackerAndStats() {
+    private void updateFlipManagerAndStats() {
         log.debug("selection interval value updated to {} {}", selectedIntervalValue, selectedIntervalTimeUnit);
-        ifPresent(flipManager, fm -> {
-            switch (selectedIntervalTimeUnit) {
-                case ALL:
-                    fm.setIntervalStartTime(1);
-                    break;
-                case SESSION:
-                    ifPresent(sessionManager, sm -> fm.setIntervalStartTime(sm.getData().startTime));
-                    break;
-                default:
-                    int startTime = (int) Instant.now().getEpochSecond() - selectedIntervalValue * selectedIntervalTimeUnit.getSeconds();
-                    fm.setIntervalStartTime(startTime);
-            }
-        });
+        switch (selectedIntervalTimeUnit) {
+            case ALL:
+                flipManager.setIntervalStartTime(1);
+                break;
+            case SESSION:
+                flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+                break;
+            default:
+                int startTime = (int) Instant.now().getEpochSecond() - selectedIntervalValue * selectedIntervalTimeUnit.getSeconds();
+                flipManager.setIntervalStartTime(startTime);
+        }
     }
 
     private JPanel buildSubInfoPanelItem(String key, JLabel value, Color valueColor) {
@@ -359,15 +368,14 @@ public class StatsPanelV2 extends JPanel {
     // - page changed (Swing EDT thread)
     //
 
-    public void updateStatsAndFlips(boolean flipsMaybeChanged) {
+    public void refresh(boolean flipsMaybeChanged, boolean validLoginState) {
         if(!SwingUtilities.isEventDispatchThread()) {
             // we always execute this in the Swing EDT thread
-            SwingUtilities.invokeLater(() -> updateStatsAndFlips(flipsMaybeChanged));
+            SwingUtilities.invokeLater(() -> refresh(flipsMaybeChanged, validLoginState));
             return;
         }
-        FlipManager fm = flipManager.get();
-        SessionManager sm = sessionManager.get();
-        if (isLoggedOut || fm == null || sm == null) {
+        lastValidState = validLoginState;
+        if (!validLoginState) {
             totalProfitVal.setText("0 gp");
             roiVal.setText("-0.00%");
             flipsMadeVal.setText("0");
@@ -384,8 +392,8 @@ public class StatsPanelV2 extends JPanel {
             return;
         }
 
-        java.util.List<String> displayNameOptions = fm.getDisplayNameOptions();
-        String selectedDisplayName = fm.getIntervalDisplayName();
+        java.util.List<String> displayNameOptions = flipManager.getDisplayNameOptions();
+        String selectedDisplayName = flipManager.getIntervalDisplayName();
         if (displayNameOptionsOutOfDate(displayNameOptions) || selectedDisplayNameOutOfDate(selectedDisplayName)) {
             rsAccountDropdownModel.removeAllElements();
             rsAccountDropdownModel.addAll(displayNameOptions);
@@ -400,13 +408,13 @@ public class StatsPanelV2 extends JPanel {
             }
         }
 
-        SessionData sd = sm.getData();
-        Stats stats = fm.getIntervalStats();
+        SessionData sd = sessionManager.getCachedSessionData();
+        Stats stats = flipManager.getIntervalStats();
         paginator.setTotalPages(1 + stats.flipsMade / 50);
         long s = System.nanoTime();
         if (flipsMaybeChanged) {
             flipsPanel.removeAll();
-            fm.getPageFlips(paginator.getPageNumber(), 50).forEach(f -> flipsPanel.add(new FlipPanel(f, config)));
+            flipManager.getPageFlips(paginator.getPageNumber(), 50).forEach(f -> flipsPanel.add(new FlipPanel(f, config)));
             // labels displayed to the user
             roiVal.setText(String.format("%.3f%%", stats.calculateRoi() * 100));
             roiVal.setForeground(UIUtilities.getProfitColor(stats.profit, config));
@@ -423,7 +431,8 @@ public class StatsPanelV2 extends JPanel {
             long seconds = sd.durationMillis / 1000;
             float hoursFloat = (((float) seconds) / 3600.0f);
             long hourlyProfit = hoursFloat == 0 ? 0 : (long) (stats.profit / hoursFloat);
-            sessionTimeVal.setText(String.format("%02d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60));
+            String sessionTime = String.format("%02d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60);
+            sessionTimeVal.setText(sessionTime);
             hourlyProfitVal.setText(UIUtilities.formatProfitWithoutGp(hourlyProfit) + " gp/hr");
             hourlyProfitVal.setForeground(UIUtilities.getProfitColor(hourlyProfit, config));
             avgCashVal.setText(UIUtilities.quantityToRSDecimalStack(Math.abs(sd.averageCash), false) + " gp");
@@ -437,7 +446,7 @@ public class StatsPanelV2 extends JPanel {
         if (ALL_ACCOUNTS_DROPDOWN_OPTION.equals(oldSelectedDisplayName) && selectedDisplayName == null) {
             return false;
         }
-        return !oldSelectedDisplayName.equals(selectedDisplayName);
+        return !Objects.equals(oldSelectedDisplayName, selectedDisplayName);
     }
 
     private boolean displayNameOptionsOutOfDate(List<String> displayNameOptions) {

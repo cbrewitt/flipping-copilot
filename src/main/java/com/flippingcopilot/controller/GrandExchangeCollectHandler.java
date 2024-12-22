@@ -1,20 +1,34 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.model.AccountStatus;
-import lombok.AllArgsConstructor;
+import com.flippingcopilot.model.GrandExchangeUncollectedManager;
+import com.flippingcopilot.model.OsrsLoginManager;
+import com.flippingcopilot.ui.SuggestionPanel;
+import com.google.inject.Singleton;
+import lombok.Setter;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
 
+import javax.inject.Inject;
 
-@AllArgsConstructor
+@Singleton
 public class GrandExchangeCollectHandler {
-    AccountStatus accountStatus;
-    SuggestionHandler suggestionHandler;
 
-    void handleCollect(MenuOptionClicked event, int slot) {
+    // dependencies
+    private final OsrsLoginManager osrsLoginManager;
+    private final GrandExchangeUncollectedManager geUncollected;
+    @Setter
+    private SuggestionPanel suggestionPanel;
+
+    @Inject
+    public GrandExchangeCollectHandler(OsrsLoginManager osrsLoginManager, GrandExchangeUncollectedManager geUncollected) {
+        this.osrsLoginManager = osrsLoginManager;
+        this.geUncollected = geUncollected;
+    }
+
+
+    public void handleCollect(MenuOptionClicked event, int slot) {
         String menuOption = event.getMenuOption();
         Widget widget = event.getWidget();
-
         if (widget != null) {
             handleCollectAll(menuOption, widget);
             handleCollectWithSlotOpen(menuOption, widget, slot);
@@ -26,53 +40,45 @@ public class GrandExchangeCollectHandler {
     private void handleCollectAll(String menuOption, Widget widget) {
         if (widget.getId() == 30474246) {
             if (menuOption.equals("Collect to inventory")) {
-                accountStatus.moveAllCollectablesToInventory();
+                geUncollected.clearAllUncollected(osrsLoginManager.getAccountHash());
             } else if (menuOption.equals("Collect to bank")) {
-                accountStatus.removeCollectables();
+                geUncollected.clearAllUncollected(osrsLoginManager.getAccountHash());
             }
-            else {
-                return;
-            }
-            suggestionHandler.displaySuggestion();
+            suggestionPanel.refresh();
         }
     }
 
     private void handleCollectWithSlotOpen(String menuOption, Widget widget, int slot) {
         if (widget.getId() == 30474264 ) {
             if (menuOption.contains("Collect")) {
-                accountStatus.moveCollectedItemToInventory(slot, widget.getItemId());
+                geUncollected.clearSlotUncollected(osrsLoginManager.getAccountHash(), slot);
             } else if (menuOption.contains("Bank")) {
-                accountStatus.removeCollectedItem(slot, widget.getItemId());
-            } else {
-                return;
+                geUncollected.clearSlotUncollected(osrsLoginManager.getAccountHash(), slot);
             }
-            suggestionHandler.displaySuggestion();
+            suggestionPanel.refresh();
         }
     }
 
     private void handleCollectionBoxCollectAll(String menuOption, Widget widget) {
         if (widget.getId() == 26345476 && menuOption.equals("Collect to bank")) {
-            accountStatus.removeCollectables();
+            geUncollected.clearAllUncollected(osrsLoginManager.getAccountHash());
+            suggestionPanel.refresh();
+            
         } else if (widget.getId() == 26345475 && menuOption.equals("Collect to inventory")) {
-            accountStatus.moveAllCollectablesToInventory();
-        } else {
-            return;
+            geUncollected.clearAllUncollected(osrsLoginManager.getAccountHash());
+            suggestionPanel.refresh();
         }
-        suggestionHandler.displaySuggestion();
     }
 
     private void handleCollectionBoxCollectItem(String menuOption, Widget widget) {
         int slot = widget.getId() - 26345477;
         if (slot >= 0 && slot <= 7) {
             if (menuOption.contains("Collect")) {
-                accountStatus.moveCollectedItemToInventory(slot, widget.getItemId());
+                geUncollected.clearSlotUncollected(osrsLoginManager.getAccountHash(), slot);
             } else if (menuOption.contains("Bank")) {
-                accountStatus.removeCollectedItem(slot, widget.getItemId());
-            } else {
-                return;
+                geUncollected.clearSlotUncollected(osrsLoginManager.getAccountHash(), slot);
             }
-            suggestionHandler.displaySuggestion();
+            suggestionPanel.refresh();
         }
     }
-
 }

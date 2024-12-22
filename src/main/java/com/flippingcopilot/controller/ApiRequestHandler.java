@@ -6,12 +6,14 @@ import com.google.gson.reflect.TypeToken;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.callback.ClientThread;
 import okhttp3.*;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,28 +29,21 @@ public class ApiRequestHandler {
     // dependencies
     private final OkHttpClient client;
     private final Gson gson;
+    private final LoginResponseManager loginResponseManager;
+    private final ClientThread clientThread;
 
-    // state todo: would be cleaner if this class was stateless
-    private String jwtToken = null;
-    private LoginResponse loginResponse = null;
+    // state
+    private Instant lastDebugMessageSent = Instant.now();
 
     @Inject
-    public ApiRequestHandler(Gson gson, OkHttpClient client) {
-        this.gson = gson;
+    public ApiRequestHandler(OkHttpClient client, Gson gson, LoginResponseManager loginResponseManager, ClientThread clientThread) {
         this.client = client;
+        this.gson = gson;
+        this.loginResponseManager = loginResponseManager;
+        this.clientThread = clientThread;
     }
 
-    public void onLogout() {
-        jwtToken = null;
-        loginResponse = null;
-    }
-
-    public void setLoginResponse(LoginResponse loginResponse) {
-        this.loginResponse = loginResponse;
-        this.jwtToken = loginResponse.jwt;
-    }
-
-    public void authenticate(String username, String password, Consumer<LoginResponse> callback) {
+    public void authenticate(String username, String password, Runnable callback) {
         Request request = new Request.Builder()
                 .url(serverUrl + "/login")
                 .addHeader("Authorization", Credentials.basic(username, password))
@@ -58,37 +53,74 @@ public class ApiRequestHandler {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                callback.accept(null);
+                callback.run();
             }
             @Override
             public void onResponse(Call call, Response response) {
-                // todo: this response can be a non 200 in which case we deserialize a null jwt
-                handleLoginResponse(response, callback);
+                try {
+                    if (!response.isSuccessful()) {
+                        log.warn("login failed with http status code {}", response.code());
+                    }
+                    String body = response.body() == null ? "" : response.body().string();
+                    LoginResponse loginResponse = gson.fromJson(body, LoginResponse.class);
+                    loginResponseManager.setLoginResponse(loginResponse);
+                } catch (IOException e) {
+                    log.warn("error reading/decoding login response body", e);
+                } catch (JsonParseException e) {
+                    loginResponseManager.setLoginResponse(new LoginResponse(true, response.message(), null, -1));
+                } finally {
+                    callback.run();
+                }
             }
         });
     }
 
-    private void handleLoginResponse(Response response, Consumer<LoginResponse> callback) {
-        try {
-            JsonObject responseJson = gson.fromJson(response.body().string(), JsonObject.class);
-            loginResponse = gson.fromJson(responseJson, LoginResponse.class);
-            if (response.isSuccessful()) {
-                jwtToken = responseJson.get("jwt").getAsString();
+    public void getSuggestionAsync(JsonObject status, Consumer<Suggestion> onSuccess, Consumer<HttpResponseException>  onFailure) {
+        log.debug("sending status {}", status.toString());
+        Request request = new Request.Builder()
+            .url(serverUrl + "/suggestion")
+            .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
+            .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), status.toString()))
+            .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.warn("call to get suggestion failed", e);
+                clientThread.invoke(() -> onFailure.accept(new HttpResponseException(-1, "Unknown Error")));
             }
-            callback.accept(loginResponse);
-        } catch (IOException e) {
-            callback.accept(null);
-        }
-        catch (JsonParseException e) {
-            loginResponse = new LoginResponse(true, response.message(), null, -1);
-            callback.accept(loginResponse);
-        }
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        log.warn("get suggestion failed with http status code {}", response.code());
+                        clientThread.invoke(() -> onFailure.accept(new HttpResponseException(response.code(), extractErrorMessage(response))));
+                        return;
+                    }
+                    String body = response.body() == null ? "" : response.body().string();
+                    Suggestion suggestion = gson.fromJson(body, Suggestion.class);
+                    clientThread.invoke(() -> onSuccess.accept(suggestion));
+                } catch (IOException | JsonParseException e) {
+                    log.warn("error reading/parsing suggestion response body", e);
+                    clientThread.invoke(() -> onFailure.accept(new HttpResponseException(-1, "Unknown Error")));
+                }
+            }
+        });
     }
 
-    public Suggestion getSuggestion(AccountStatus accountStatus) throws IOException {
-        JsonObject status = accountStatus.toJson(gson);
-        JsonObject suggestionJson = doHttpRequest("POST", status, "/suggestion", JsonObject.class);
-        return Suggestion.fromJson(suggestionJson, gson);
+    private String extractErrorMessage(Response response) {
+        if (response.body() != null) {
+            try {
+                String bodyStr = response.body().string();
+                JsonObject errorJson = gson.fromJson(bodyStr, JsonObject.class);
+                if (errorJson.has("message")) {
+                    return errorJson.get("message").getAsString();
+                }
+            } catch (JsonSyntaxException | IOException e) {
+                log.warn("failed reading/parsing error message from http {} response body", response.code(), e);
+            }
+        }
+        return "Unknown Error";
     }
 
     public ItemPrice getItemPrice(int itemId, String displayName) {
@@ -127,6 +159,7 @@ public class ApiRequestHandler {
     }
 
     public <T> T doHttpRequest(String method, JsonElement bodyJson, String route, Type responseType) throws HttpResponseException {
+        String jwtToken = loginResponseManager.getJwtToken();
         if (jwtToken == null) {
             throw new IllegalStateException("Not authenticated");
         }
@@ -146,22 +179,34 @@ public class ApiRequestHandler {
                 String responseBody = response.body().string();
                 return gson.fromJson(responseBody, responseType);
             } else {
-                String errorMessage = "Unknown error";
-                if (response.body() != null) {
-                    String bodyStr = response.body().string();
-                    try {
-                        JsonObject errorJson = gson.fromJson(bodyStr, JsonObject.class);
-                        if (errorJson.has("message")) {
-                            errorMessage = errorJson.get("message").getAsString();
-                        }
-                    } catch (JsonSyntaxException e) {
-                        log.warn("Unable to parse http {} response body ({}): {}", response.code(), e.getMessage(), bodyStr);
-                    }
-                }
-                throw new HttpResponseException(response.code(), errorMessage);
+                throw new HttpResponseException(response.code(), extractErrorMessage(response));
             }
         } catch (JsonSyntaxException | IOException e) {
             throw new HttpResponseException(-1, "Unknown server error (possible system update)", e);
         }
+    }
+
+    public void sendDebugData(JsonObject bodyJson) {
+        String jwtToken = loginResponseManager.getJwtToken();
+        Instant now = Instant.now();
+        if (now.minusSeconds(5).isBefore(lastDebugMessageSent)){
+            // we don't want to spam
+            return;
+        }
+        RequestBody body = RequestBody.create(MediaType.get("application/json; charset=utf-8"), bodyJson.toString());
+        Request request = new Request.Builder()
+                .url(serverUrl + "/debug-data")
+                .addHeader("Authorization", "Bearer " + jwtToken)
+                .method("POST", body)
+                .build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+               log.debug("failed to send debug data", e);
+            }
+            @Override
+            public void onResponse(Call call, Response response) {}
+        });
+        lastDebugMessageSent = Instant.now();
     }
 }
