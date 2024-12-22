@@ -1,18 +1,10 @@
 package com.flippingcopilot.model;
-
-import com.flippingcopilot.controller.Persistance;
 import com.flippingcopilot.util.Constants;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.api.GrandExchangeOffer;
-import net.runelite.api.InventoryID;
-import net.runelite.api.events.GrandExchangeOfferChanged;
-import net.runelite.api.events.ItemContainerChanged;
 
 import java.util.List;
 import java.util.Map;
@@ -20,59 +12,41 @@ import java.util.Map;
 
 // note: we synchronize all public methods of this class as they read/modify its state and may
 // be called by multiple threads at the same time
-@Getter
+
 @Slf4j
+@Data
 public class AccountStatus {
-    private OfferList offers;
+
+    private StatusOfferList offers;
     private Inventory inventory;
-    @Setter private boolean sellOnlyMode = false;
-    @Setter private boolean isMember = false;
-    @Setter private int skipSuggestion = -1;
-    @Setter private String displayName;
-    @Setter private Boolean suggestionsPaused;
+    private Map<Integer, Long> uncollected;
+    private boolean isMember = false;
+    private int skipSuggestion = -1;
+    private String displayName;
+    private Long rsAccountHash;
+    private Boolean suggestionsPaused;
+    private boolean sellOnlyMode = false;
+    private List<Integer> blockedItems;
+
     public AccountStatus() {
-        offers = new OfferList();
+        offers = new StatusOfferList();
         inventory = new Inventory();
     }
 
-    public synchronized void resetSkipSuggestion() {
-        skipSuggestion = -1;
-    }
-
-    public synchronized boolean isSuggestionSkipped() {
-        return skipSuggestion != -1;
-    }
-
-    public synchronized Transaction updateOffers(GrandExchangeOfferChanged event, int lastViewedSlotItemId, int lastViewedSlotItemPrice, int lastViewSlotTime) {
-        return offers.update(event, lastViewedSlotItemId, lastViewedSlotItemPrice, lastViewSlotTime);
-    }
-
-    public synchronized void setOffers(GrandExchangeOffer[] runeliteOffers) {
-        offers = OfferList.fromRunelite(runeliteOffers);
-    }
-
-    public synchronized void handleInventoryChanged(ItemContainerChanged event, Client client) {
-        if (event.getContainerId() == InventoryID.INVENTORY.getId()) {
-            inventory = Inventory.fromRunelite(event.getItemContainer(), client);
-        }
-    }
-
     public synchronized boolean isCollectNeeded(Suggestion suggestion) {
-        return offers.isEmptySlotNeeded(suggestion)
-                || !inventory.hasSufficientGp(suggestion)
-                || !inventory.hasSufficientItems(suggestion)
-                || offers.missingUncollectedItems();
-    }
-
-    public synchronized void moveAllCollectablesToInventory() {
-        Map<Integer, Long> uncollectedItemAmounts = offers.getUncollectedItemAmounts();
-        List<RSItem> uncollectedItems = Inventory.fromItemAmounts(uncollectedItemAmounts);
-        inventory.addAll(uncollectedItems);
-        removeCollectables();
-    }
-
-    public synchronized void removeCollectables() {
-        offers.removeCollectables();
+        if (offers.isEmptySlotNeeded(suggestion)) {
+            log.debug("collected needed isEmptySlotNeeded");
+            return true;
+        }
+        if (!inventory.hasSufficientGp(suggestion)) {
+            log.debug("collected needed hasSufficientGp");
+            return true;
+        }
+        if (!inventory.hasSufficientItems(suggestion)) {
+            log.debug("collected needed hasSufficientItems");
+            return true;
+        }
+        return false;
     }
 
     public synchronized JsonObject toJson(Gson gson) {
@@ -88,6 +62,11 @@ public class AccountStatus {
         JsonArray itemsJsonArray = getItemsJson();
         statusJson.add("offers", offersJsonArray);
         statusJson.add("items", itemsJsonArray);
+        JsonArray blockItemsArray = new JsonArray();
+        if(blockedItems != null) {
+            blockedItems.forEach(blockItemsArray::add);
+        }
+        statusJson.add("blocked_items", blockItemsArray);
         return statusJson;
     }
 
@@ -105,19 +84,9 @@ public class AccountStatus {
 
     private Map<Integer, Long> getItemAmounts() {
         Map<Integer, Long> itemsAmount = inventory.getItemAmounts();
-        Map<Integer, Long> uncollectedItemAmounts = offers.getUncollectedItemAmounts();
-        uncollectedItemAmounts.forEach((key, value) -> itemsAmount.merge(key, value, Long::sum));
+        uncollected.forEach((key, value) -> itemsAmount.merge(key, value, Long::sum));
         itemsAmount.entrySet().removeIf(entry -> entry.getValue() == 0);
         return itemsAmount;
-    }
-
-    public synchronized void moveCollectedItemToInventory(int slot, int itemId) {
-        RSItem collectedItem = offers.get(slot).removeCollectedItem(itemId);
-        inventory.add(collectedItem);
-    }
-
-    public synchronized void removeCollectedItem(int slot, int itemId) {
-        offers.get(slot).removeCollectedItem(itemId);
     }
 
     public synchronized boolean moreGpNeeded() {
@@ -138,48 +107,5 @@ public class AccountStatus {
         //  size until they start selling it. We should probably track items that where recently bought
         //  and they should still count towards the cash stack size for some period of time
         return offers.getGpOnMarket() + inventory.getTotalGp();
-    }
-
-    public synchronized void onLogout(String currentDisplayName) {
-        Persistance.storeGeOfferEvents(offers, currentDisplayName);
-    }
-
-    public synchronized void loadPreviousOffers(String currentDisplayName) {
-        OfferList previousOffers = Persistance.loadPreviousGeOfferEvents(currentDisplayName);
-        if (previousOffers != null && previousOffers.size() == OfferList.NUM_SLOTS) {
-            this.offers = previousOffers;
-        }
-    }
-
-    public synchronized void selfCorrectOfferStates(GrandExchangeOffer[] grandExchangeOffers) {
-        if(!offerStatesAreCorrect(grandExchangeOffers)) {
-            log.warn("offer states are out of sync, resetting");
-            setOffers(grandExchangeOffers);
-        } else {
-            log.debug("offer states are in sync");
-        }
-    }
-
-    private boolean offerStatesAreCorrect(GrandExchangeOffer[] grandExchangeOffers) {
-        for (int i=0; i < grandExchangeOffers.length; i++) {
-            GrandExchangeOffer actualState = grandExchangeOffers[i];
-            Offer ourState  = offers.get(i);
-            if (ourState.getPrice() != actualState.getPrice()) {
-                return false;
-            }
-            if (ourState.getItemId() != actualState.getItemId()) {
-                return false;
-            }
-            if (ourState.getAmountSpent() != actualState.getSpent()) {
-                return false;
-            }
-            if (ourState.getAmountTotal() != actualState.getTotalQuantity()) {
-                return false;
-            }
-            if (ourState.getAmountTraded() != actualState.getQuantitySold()) {
-                return false;
-            }
-        }
-        return true;
     }
 }
