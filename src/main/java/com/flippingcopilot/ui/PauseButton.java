@@ -1,17 +1,22 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.FlippingCopilotPlugin;
+import com.flippingcopilot.controller.SuggestionController;
+import com.flippingcopilot.model.PausedManager;
 import net.runelite.client.util.ImageUtil;
 
-import javax.swing.*;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
 
-public class PauseButton extends JButton
-{
-    private final FlippingCopilotPlugin plugin;
+@Singleton
+public class PauseButton extends JButton {
+
+    private final PausedManager pausedManager;
 
     private static final ImageIcon PLAY_ICON;
     private static final ImageIcon PAUSE_ICON;
@@ -27,46 +32,37 @@ public class PauseButton extends JButton
         PAUSE_ICON_HOVER = new ImageIcon(ImageUtil.luminanceScale(pause, BUTTON_HOVER_LUMINANCE));
     }
 
-    public PauseButton(FlippingCopilotPlugin plugin) {
+    @Inject
+    public PauseButton(PausedManager pausedManager,
+                       SuggestionController suggestionController) {
         super(PAUSE_ICON);
-        this.plugin = plugin;
+        this.pausedManager = pausedManager;
         setToolTipText("Pause suggestions");
         addActionListener(e -> {
-            plugin.suggestionHandler.togglePause();
+            suggestionController.togglePause();
             update();
         });
 
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                setIcon(plugin.suggestionHandler.isPaused() ? PLAY_ICON_HOVER : PAUSE_ICON_HOVER);
+                setIcon(pausedManager.isPaused() ? PLAY_ICON_HOVER : PAUSE_ICON_HOVER);
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                setIcon(plugin.suggestionHandler.isPaused() ? PLAY_ICON : PAUSE_ICON);
+                setIcon(pausedManager.isPaused() ? PLAY_ICON : PAUSE_ICON);
             }
         });
 
         setFocusPainted(false);
         setBorderPainted(false);
         setContentAreaFilled(false);
-
     }
 
-    public void setPausedState(boolean paused) {
-        if(paused) {
-            plugin.suggestionHandler.pause();
-            update();
-        } else {
-            plugin.suggestionHandler.unpause();
-            update();
-        }
-    }
-
-    private void update()
-    {
-        setIcon(plugin.suggestionHandler.isPaused() ? PLAY_ICON : PAUSE_ICON);
-        setToolTipText(plugin.suggestionHandler.isPaused() ? "Unpause suggestions" :  "Pause suggestions");
+    private void update() {
+        boolean isPaused = pausedManager.isPaused();
+        setIcon(isPaused ? PLAY_ICON : PAUSE_ICON);
+        setToolTipText(isPaused ? "Unpause suggestions" :  "Pause suggestions");
     }
 }

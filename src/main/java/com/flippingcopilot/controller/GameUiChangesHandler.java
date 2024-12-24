@@ -1,35 +1,58 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.Suggestion;
+import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.OfferEditor;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
 import net.runelite.api.widgets.*;
+import net.runelite.client.callback.ClientThread;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
 @Slf4j
+@Singleton
 public class GameUiChangesHandler {
     private static final int GE_HISTORY_TAB_WIDGET_ID = 149;
-    private final FlippingCopilotPlugin plugin;
+
+    // dependencies
+    private final ClientThread clientThread;
+    private final Client client;
+    private final GePreviousSearch gePreviousSearch;
+    private final HighlightController highlightController;
+    private final SuggestionManager suggestionManager;
+    private final GrandExchange grandExchange;
+    private final OfferManager offerManager;
+    private final OfferHandler offerHandler;
+
+    // state
     boolean quantityOrPriceChatboxOpen;
     boolean itemSearchChatboxOpen = false;
-    @Getter
-    boolean offerJustPlaced = false;
-    GameUiChangesHandler(FlippingCopilotPlugin plugin) {
-        this.plugin = plugin;
+
+    @Inject
+    public GameUiChangesHandler(ClientThread clientThread, Client client, GePreviousSearch gePreviousSearch, HighlightController highlightController, SuggestionManager suggestionManager, GrandExchange grandExchange, OfferHandler offerHandler, OfferManager offerManager) {
+        this.clientThread = clientThread;
+        this.client = client;
+        this.gePreviousSearch = gePreviousSearch;
+        this.highlightController = highlightController;
+        this.suggestionManager = suggestionManager;
+        this.grandExchange = grandExchange;
+        this.offerHandler = offerHandler;
+        this.offerManager = offerManager;
     }
 
-    public void onVarClientIntChanged(VarClientIntChanged event) {
-        Client client = plugin.getClient();
 
+    public void onVarClientIntChanged(VarClientIntChanged event) {
         if (event.getIndex() == VarClientInt.INPUT_TYPE
                 && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 14
                 && client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS) != null) {
             itemSearchChatboxOpen = true;
-            plugin.getClientThread().invokeLater(plugin.gePreviousSearch::showSuggestedItemInSearch);
+            clientThread.invokeLater(gePreviousSearch::showSuggestedItemInSearch);
         }
 
         if (quantityOrPriceChatboxOpen
@@ -44,7 +67,7 @@ public class GameUiChangesHandler {
                 && event.getIndex() == VarClientInt.INPUT_TYPE
                 && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 0
         ) {
-            plugin.getClientThread().invokeLater(plugin.highlightController::redraw);
+            clientThread.invokeLater(highlightController::redraw);
             itemSearchChatboxOpen = false;
             return;
         }
@@ -58,17 +81,17 @@ public class GameUiChangesHandler {
         }
         quantityOrPriceChatboxOpen = true;
 
-        plugin.getClientThread().invokeLater(() ->
+        clientThread.invokeLater(() ->
         {
-            OfferEditor flippingWidget = new OfferEditor(client.getWidget(ComponentID.CHATBOX_CONTAINER), plugin);
-            Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
+            OfferEditor flippingWidget = new OfferEditor(offerManager, client.getWidget(ComponentID.CHATBOX_CONTAINER), offerHandler, client);
+            Suggestion suggestion = suggestionManager.getSuggestion();
             flippingWidget.showSuggestion(suggestion);
         });
     }
 
     public void onVarClientStrChanged(VarClientStrChanged event) {
         if (event.getIndex() == VarClientStr.INPUT_TEXT && itemSearchChatboxOpen) {
-            plugin.getClientThread().invokeLater(plugin.highlightController::redraw);
+            clientThread.invokeLater(highlightController::redraw);
         }
     }
 
@@ -77,13 +100,13 @@ public class GameUiChangesHandler {
                 || event.getGroupId() == InterfaceID.GRAND_EXCHANGE
                 || event.getGroupId() == 213
                 || event.getGroupId() == GE_HISTORY_TAB_WIDGET_ID) {
-            plugin.getClientThread().invokeLater(plugin.highlightController::redraw);
+            clientThread.invokeLater(highlightController::redraw);
         }
     }
 
     public void onWidgetClosed(WidgetClosed event) {
         if (event.getGroupId() == InterfaceID.GRAND_EXCHANGE) {
-            plugin.getClientThread().invokeLater(plugin.highlightController::removeAll);
+            clientThread.invokeLater(highlightController::removeAll);
         }
     }
 
@@ -93,17 +116,20 @@ public class GameUiChangesHandler {
                 || event.getVarbitId() == 4396
                 || event.getVarbitId() == 4398
                 || event.getVarbitId() == 4439) {
-            plugin.getClientThread().invokeLater(plugin.highlightController::redraw);
+            clientThread.invokeLater(highlightController::redraw);
         }
 
         if (event.getVarpId() == CURRENT_GE_ITEM) {
-            plugin.getClientThread().invokeLater(() -> plugin.offerHandler.fetchSlotItemPrice(event.getValue() > -1));
+            clientThread.invokeLater(() -> offerHandler.fetchSlotItemPrice(event.getValue() > -1));
         }
     }
 
     public void handleMenuOptionClicked(MenuOptionClicked event) {
-        if (event.getMenuOption().equals("Confirm") && plugin.grandExchange.isSlotOpen()) {
-            offerJustPlaced = true;
+        if (event.getMenuOption().equals("Confirm") && grandExchange.isSlotOpen()) {
+            log.debug("offer confirmed tick {}", client.getTickCount());
+            offerManager.setOfferJustPlaced(true);
+            suggestionManager.setLastOfferSubmittedTick(client.getTickCount());
+            suggestionManager.setSuggestionNeeded(true);
         }
     }
 }

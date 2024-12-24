@@ -3,18 +3,20 @@ package com.flippingcopilot.model;
 import com.google.gson.JsonObject;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.UUID;
 
 
 @Getter
 @AllArgsConstructor
+@NoArgsConstructor
+@Setter
 public class Transaction {
 
-    @Setter private UUID id;
+    private UUID id;
     private OfferStatus type;
     private int itemId;
     private int price;
@@ -23,6 +25,10 @@ public class Transaction {
     private int amountSpent;
     private Instant timestamp;
     private boolean copilotPriceUsed;
+    private int offerTotalQuantity;
+    private boolean login;
+    private String machineID;
+    private boolean consistent;
 
     public boolean equals(Transaction other) {
         return this.type == other.type &&
@@ -43,7 +49,15 @@ public class Transaction {
         jsonObject.addProperty("amount_spent", amountSpent);
         jsonObject.addProperty("time", timestamp.getEpochSecond());
         jsonObject.addProperty("copilot_price_used", copilotPriceUsed);
+        jsonObject.addProperty("consistent_previous_offer", consistent);
+        jsonObject.addProperty("machine_id", machineID);
+        jsonObject.addProperty("login", login);
         return jsonObject;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s %d %d on slot %d", type, quantity, itemId, boxId);
     }
 }
 

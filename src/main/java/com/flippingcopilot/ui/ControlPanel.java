@@ -1,36 +1,42 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.FlippingCopilotPlugin;
-import lombok.extern.slf4j.Slf4j;
+import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.model.SuggestionPreferencesManager;
 import net.runelite.client.ui.ColorScheme;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.swing.*;
 import java.awt.*;
 
-@Slf4j
+
+@Singleton
 public class ControlPanel extends JPanel {
-    SellOnlyModeToggleButton sellOnlyModeToggleButton = new SellOnlyModeToggleButton();
-    public ControlPanel() {
+
+    @Inject
+    public ControlPanel(SuggestionPreferencesManager suggestionPreferencesManager,
+                        SuggestionManager suggestionManager,
+                        BlacklistDropdownPanel blocklistDropdownPanel) {
+        SellOnlyModeToggleButton sellOnlyModeToggleButton = new SellOnlyModeToggleButton();
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        setLayout(new BorderLayout(3, 0));
-        setBorder(BorderFactory.createEmptyBorder(5, 50, 5, 50));
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(BorderFactory.createEmptyBorder(5, 2, 5, 2));
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new BorderLayout());
         buttonPanel.setOpaque(false);
-        add(buttonPanel, BorderLayout.CENTER);
+        add(buttonPanel);
 
         JLabel buttonText = new JLabel("Sell-only Mode");
         buttonPanel.add(buttonText, BorderLayout.LINE_START);
         buttonPanel.add(sellOnlyModeToggleButton, BorderLayout.LINE_END);
-    }
+        add(Box.createRigidArea(new Dimension(0, 3)));
 
-    public void init(FlippingCopilotPlugin plugin) {
+        add(blocklistDropdownPanel);
         sellOnlyModeToggleButton.addItemListener(i ->
         {
-            plugin.accountStatus.setSellOnlyMode(sellOnlyModeToggleButton.isSelected());
-            plugin.suggestionHandler.setSuggestionNeeded(true);
-            log.debug("Sell only mode is now: {}", plugin.accountStatus.isSellOnlyMode());
+            suggestionPreferencesManager.setSellOnlyMode(sellOnlyModeToggleButton.isSelected());
+            suggestionManager.setSuggestionNeeded(true);
         });
     }
 }

@@ -3,12 +3,20 @@ package com.flippingcopilot.controller;
 import net.runelite.api.Client;
 import net.runelite.api.widgets.Widget;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
+
+@Singleton
 public class GrandExchange {
-    private final Client client;
+
     private final static int CURRENTLY_OPEN_GE_SLOT_VARBIT_ID = 4439;
     final static int SHOW_LAST_SEARCHED_VARBIT_ID = 10295;
 
-    GrandExchange(Client client) {
+    private final Client client;
+
+    @Inject
+    public GrandExchange(Client client) {
         this.client = client;
     }
 
