@@ -6,7 +6,7 @@ import org.junit.Test;
 public class OfferListTest {
     @Test
     public void testIsEmptySlotNeededWithExistingOfferInSlot() {
-        OfferList offerList = new OfferList();
+        StatusOfferList offerList = new StatusOfferList();
         offerList.set(0, new Offer(OfferStatus.BUY, 565, 200, 10, 0, 0, 0, 0, 0, false, false));
         Suggestion suggestion = new Suggestion("buy", 0, 560, 200, 10, "Death rune", 0, "");
         assert !offerList.isEmptySlotNeeded(suggestion);
@@ -14,7 +14,7 @@ public class OfferListTest {
 
     @Test
     public void testIsEmptySlotNeededWithNoEmptySlots() {
-        OfferList offerList = new OfferList();
+        StatusOfferList offerList = new StatusOfferList();
         offerList.replaceAll(ignored -> new Offer(OfferStatus.BUY, 565, 200, 10, 0, 0, 0, 0, 0, false, false));
         Suggestion suggestion = new Suggestion("buy", 0, 560, 200, 10, "Death rune", 0, "");
         assert offerList.isEmptySlotNeeded(suggestion);

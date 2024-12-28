@@ -1,8 +1,10 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.FlippingCopilotPlugin;
+import com.flippingcopilot.controller.OfferHandler;
+import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.Suggestion;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 import net.runelite.api.FontID;
 import net.runelite.api.widgets.*;
 
@@ -10,13 +12,18 @@ import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
 @Slf4j
 public class OfferEditor {
-    private FlippingCopilotPlugin plugin;
+    private final OfferManager offerManager;
+    private final OfferHandler offerHandler;
+    private final Client client;
+
     private Widget text;
     private static final int MOUSE_OFF_TEXT_COLOR = 0x0040FF;
     private static final int MOUSE_OFF_ERROR_TEXT_COLOR = 0xAA2222;
 
-    public OfferEditor(Widget parent, FlippingCopilotPlugin plugin) {
-        this.plugin = plugin;
+    public OfferEditor(OfferManager offerManager, Widget parent, OfferHandler offerHandler, Client client) {
+        this.offerManager = offerManager;
+        this.offerHandler = offerHandler;
+        this.client = client;
         if (parent == null) {
             return;
         }
@@ -38,31 +45,31 @@ public class OfferEditor {
     }
 
     public void showSuggestion(Suggestion suggestion) {
-        var currentItemId = plugin.client.getVarpValue(CURRENT_GE_ITEM);
-        if (plugin.offerHandler.isSettingQuantity()) {
+        var currentItemId = client.getVarpValue(CURRENT_GE_ITEM);
+        if (offerHandler.isSettingQuantity()) {
             if (currentItemId != suggestion.getItemId()) {
                 return;
             }
-            if (!suggestion.getType().equals(plugin.offerHandler.getOfferType())) {
+            if (!suggestion.getType().equals(offerHandler.getOfferType())) {
                 return;
             }
 
             shiftChatboxWidgetsDown();
             showQuantity(suggestion.getQuantity());
-        } else if (plugin.offerHandler.isSettingPrice()) {
+        } else if (offerHandler.isSettingPrice()) {
             if (currentItemId != suggestion.getItemId()
-                    || !suggestion.getType().equals(plugin.offerHandler.getOfferType())) {
-                int price = plugin.offerHandler.getViewedSlotItemPrice();
-                if (plugin.offerHandler.getViewedSlotPriceErrorText() != null && price <= 0) {
+                    || !suggestion.getType().equals(offerHandler.getOfferType())) {
+                int price = offerManager.getViewedSlotItemPrice();
+                if (offerHandler.getViewedSlotPriceErrorText() != null && price <= 0) {
                     shiftChatboxWidgetsDown();
-                    setErrorText(plugin.offerHandler.getViewedSlotPriceErrorText());
+                    setErrorText(offerHandler.getViewedSlotPriceErrorText());
                     return;
                 }
 
-                if (plugin.offerHandler.getViewedSlotItemId() == currentItemId) {
+                if (offerManager.getViewedSlotItemId() == currentItemId) {
                     shiftChatboxWidgetsDown();
-                    if (plugin.offerHandler.getViewedSlotPriceErrorText() != null) {
-                        showPriceWithWarning(price, plugin.offerHandler.getViewedSlotPriceErrorText());
+                    if (offerHandler.getViewedSlotPriceErrorText() != null) {
+                        showPriceWithWarning(price, offerHandler.getViewedSlotPriceErrorText());
                     } else {
                         showPrice(price);
                     }
@@ -80,7 +87,7 @@ public class OfferEditor {
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
-            plugin.offerHandler.setChatboxValue(quantity);
+            offerHandler.setChatboxValue(quantity);
         });
     }
 
@@ -90,7 +97,7 @@ public class OfferEditor {
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
-            plugin.offerHandler.setChatboxValue(price);
+            offerHandler.setChatboxValue(price);
         });
     }
 
@@ -100,7 +107,7 @@ public class OfferEditor {
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
-            plugin.offerHandler.setChatboxValue(price);
+            offerHandler.setChatboxValue(price);
         });
     }
 
@@ -117,7 +124,7 @@ public class OfferEditor {
     }
 
     private void shiftChatboxWidgetsDown() {
-        Widget chatboxTitle = plugin.client.getWidget(ComponentID.CHATBOX_TITLE);
+        Widget chatboxTitle = client.getWidget(ComponentID.CHATBOX_TITLE);
         if (chatboxTitle != null) {
             chatboxTitle.setOriginalY(chatboxTitle.getOriginalY() + 7);
             chatboxTitle.revalidate();

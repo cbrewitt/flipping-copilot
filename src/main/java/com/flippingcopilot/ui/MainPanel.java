@@ -1,36 +1,59 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.*;
+import com.flippingcopilot.controller.CopilotLoginController;
+import com.flippingcopilot.model.LoginResponseManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.util.concurrent.atomic.AtomicReference;
+import java.awt.image.BufferedImage;;
 
 import static com.flippingcopilot.ui.UIUtilities.buildButton;
 
+@Singleton
 public class MainPanel extends PluginPanel {
-    public LoginPanel loginPanel;
-    public CopilotPanel copilotPanel;
-    public Runnable onCopilotLogout;
 
-    public MainPanel(FlippingCopilotConfig config, AtomicReference<FlipManager> flipManager, AtomicReference<SessionManager> sessionManager, WebHookController webHookController) {
+    // dependencies
+    public final LoginPanel loginPanel;
+    public final CopilotPanel copilotPanel;
+    private final LoginResponseManager loginResponseManager;
+    private final CopilotLoginController copilotLoginController;
+
+    private Boolean isLoggedInView;
+
+    @Inject
+    public MainPanel(CopilotPanel copilotPanel,
+                     LoginPanel loginPanel,
+                     LoginResponseManager loginResponseManager,
+                     CopilotLoginController copilotLoginController) {
         super(false);
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(5, 6, 5, 6));
-        copilotPanel = new CopilotPanel(config, flipManager, sessionManager, webHookController);
+        this.loginResponseManager = loginResponseManager;
+        this.copilotPanel = copilotPanel;
+        this.loginPanel = loginPanel;
+        this.copilotLoginController = copilotLoginController;
     }
 
-    public void init(FlippingCopilotPlugin plugin) {
-        copilotPanel.init(plugin);
-        this.loginPanel = plugin.copilotLoginController.getPanel();
-        this.onCopilotLogout = plugin.copilotLoginController::onLogout;
-        renderLoggedOutView();
+    public void refresh() {
+        boolean shouldBeLoggedInView = loginResponseManager.isLoggedIn();
+        if(shouldBeLoggedInView) {
+            if (isLoggedInView == null || !isLoggedInView) {
+                renderLoggedInView();
+            }
+            copilotPanel.refresh();
+        } else {
+            if (isLoggedInView == null || isLoggedInView) {
+                renderLoggedOutView();
+            }
+            loginPanel.refresh();
+        }
     }
 
     public void renderLoggedOutView() {
@@ -39,6 +62,7 @@ public class MainPanel extends PluginPanel {
         loginPanel.showLoginErrorMessage("");
         add(loginPanel, BorderLayout.CENTER);
         revalidate();
+        isLoggedInView = false;
     }
 
     public void renderLoggedInView() {
@@ -46,6 +70,7 @@ public class MainPanel extends PluginPanel {
         add(constructTopBar(true), BorderLayout.NORTH);
         add(copilotPanel, BorderLayout.CENTER);
         revalidate();
+        isLoggedInView = true;
     }
 
     private JPanel constructTopBar(boolean isLoggedIn) {
@@ -75,7 +100,7 @@ public class MainPanel extends PluginPanel {
         if (isLoggedIn) {
             BufferedImage icon = ImageUtil.loadImageResource(getClass(), UIUtilities.logoutIcon);
             JLabel logout = buildButton(icon, "Log out", () -> {
-                onCopilotLogout.run();
+                copilotLoginController.onLogout();
                 renderLoggedOutView();
             });
             topBar.add(logout);

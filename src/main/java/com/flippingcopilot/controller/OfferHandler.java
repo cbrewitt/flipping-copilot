@@ -1,60 +1,69 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.model.OfferManager;
+import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.model.Suggestion;
+import com.flippingcopilot.model.SuggestionManager;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 import net.runelite.api.VarClientStr;
 import net.runelite.api.Varbits;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.time.Instant;
 import java.util.Objects;
 
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
 @Slf4j
+@Getter
+@Singleton
 public class OfferHandler {
 
     private static final int GE_OFFER_INIT_STATE_CHILD_ID = 20;
 
-    private FlippingCopilotPlugin plugin;
+    // dependencies
+    private final Client client;
+    private final SuggestionManager suggestionManager;
+    private final ApiRequestHandler apiRequestHandler;
+    private final OsrsLoginManager osrsLoginManager;
+    private final OfferManager offerManager;
+    private final HighlightController highlightController;
 
-    @Getter
-    private int lastViewedSlotItemId = -1;
-    @Getter
-    private int lastViewedSlotItemPrice = -1;
-    @Getter
-    private int lastViewedSlotPriceTime = 0;
-
-    @Getter
-    private int viewedSlotItemId = -1;
-    @Getter
-    private int viewedSlotItemPrice = -1;
-    @Getter
+    // state
     private String viewedSlotPriceErrorText = null;
 
-    public OfferHandler(FlippingCopilotPlugin plugin) {
-        this.plugin = plugin;
+    @Inject
+    public OfferHandler(Client client, SuggestionManager suggestionManager, ApiRequestHandler apiRequestHandler, OsrsLoginManager osrsLoginManager, OfferManager offerManager, HighlightController highlightController) {
+        this.client = client;
+        this.suggestionManager = suggestionManager;
+        this.apiRequestHandler = apiRequestHandler;
+        this.osrsLoginManager = osrsLoginManager;
+        this.offerManager = offerManager;
+        this.highlightController = highlightController;
     }
 
     public void fetchSlotItemPrice(boolean isViewingSlot) {
         if (isViewingSlot) {
-            var currentItemId = plugin.client.getVarpValue(CURRENT_GE_ITEM);
-            viewedSlotItemId = currentItemId;
+            var currentItemId = client.getVarpValue(CURRENT_GE_ITEM);
+            offerManager.setViewedSlotItemId(currentItemId);
             if (currentItemId == -1 || currentItemId == 0) return;
 
-            var suggestion = plugin.suggestionHandler.getCurrentSuggestion();
+            var suggestion = suggestionManager.getSuggestion();
             if (suggestion != null && suggestion.getItemId() == currentItemId &&
                     ((Objects.equals(suggestion.getType(), "sell") && isSelling()) ||
                             Objects.equals(suggestion.getType(), "buy") && isBuying())) {
-                lastViewedSlotItemId = suggestion.getItemId();
-                lastViewedSlotItemPrice = suggestion.getPrice();
-                lastViewedSlotPriceTime = (int) Instant.now().getEpochSecond();
+                offerManager.setLastViewedSlotItemId(suggestion.getItemId());
+                offerManager.setLastViewedSlotItemPrice(suggestion.getPrice());
+                offerManager.setLastViewedSlotItemPrice((int) Instant.now().getEpochSecond());
                 return;
             }
 
-            var fetchedPrice = plugin.apiRequestHandler.getItemPrice(currentItemId, plugin.osrsLoginHandler.getCurrentDisplayName());
+            var fetchedPrice = apiRequestHandler.getItemPrice(currentItemId, osrsLoginManager.getPlayerDisplayName());
 
             if (fetchedPrice == null) {
                 viewedSlotPriceErrorText = "Unknown error";
@@ -66,18 +75,18 @@ public class OfferHandler {
             } else {
                 viewedSlotPriceErrorText = null;
             }
-            viewedSlotItemPrice = isSelling() ? fetchedPrice.getSellPrice() : fetchedPrice.getBuyPrice();
-            lastViewedSlotItemId = viewedSlotItemId;
-            lastViewedSlotItemPrice = viewedSlotItemPrice;
-            lastViewedSlotPriceTime = (int) Instant.now().getEpochSecond();
+            offerManager.setViewedSlotItemPrice(isSelling() ? fetchedPrice.getSellPrice() : fetchedPrice.getBuyPrice());
+            offerManager.setLastViewedSlotItemId(offerManager.getViewedSlotItemId());
+            offerManager.setLastViewedSlotItemPrice(offerManager.getViewedSlotItemPrice());
+            offerManager.setLastViewedSlotItemPrice((int) Instant.now().getEpochSecond());
 
-            log.debug("fetched item {} price: {}", viewedSlotItemId,  viewedSlotItemPrice);
+            log.debug("fetched item {} price: {}", offerManager.getViewedSlotItemId(),  offerManager.getViewedSlotItemPrice());
         } else {
-            viewedSlotItemPrice = -1;
-            viewedSlotItemId = -1;
+            offerManager.setViewedSlotItemPrice(-1);
+            offerManager.setViewedSlotItemId(-1);
             viewedSlotPriceErrorText = null;
         }
-        plugin.highlightController.redraw();
+        highlightController.redraw();
     }
 
     public boolean isSettingQuantity() {
@@ -100,21 +109,21 @@ public class OfferHandler {
 
 
     private Widget getChatboxTitleWidget() {
-        return plugin.client.getWidget(ComponentID.CHATBOX_TITLE);
+        return client.getWidget(ComponentID.CHATBOX_TITLE);
     }
 
     private Widget getOfferTextWidget() {
-        var offerContainerWidget = plugin.client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER);
+        var offerContainerWidget = client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER);
         if (offerContainerWidget == null) return null;
         return offerContainerWidget.getChild(GE_OFFER_INIT_STATE_CHILD_ID);
     }
 
     public boolean isSelling() {
-        return plugin.client.getVarbitValue(Varbits.GE_OFFER_CREATION_TYPE) == 1;
+        return client.getVarbitValue(Varbits.GE_OFFER_CREATION_TYPE) == 1;
     }
 
     public boolean isBuying() {
-        return plugin.client.getVarbitValue(Varbits.GE_OFFER_CREATION_TYPE) == 0;
+        return client.getVarbitValue(Varbits.GE_OFFER_CREATION_TYPE) == 0;
     }
 
     public String getOfferType() {
@@ -128,7 +137,7 @@ public class OfferHandler {
     }
 
     public void setSuggestedAction(Suggestion suggestion) {
-        var currentItemId = plugin.client.getVarpValue(CURRENT_GE_ITEM);
+        var currentItemId = client.getVarpValue(CURRENT_GE_ITEM);
 
         if (isSettingQuantity()) {
             if (suggestion == null || currentItemId != suggestion.getItemId()) {
@@ -138,10 +147,10 @@ public class OfferHandler {
         } else if (isSettingPrice()) {
             int price = -1;
             if (suggestion == null || currentItemId != suggestion.getItemId()) {
-                if (viewedSlotItemId != currentItemId) {
+                if (offerManager.getViewedSlotItemId() != currentItemId) {
                     return;
                 }
-                price = viewedSlotItemPrice;
+                price = offerManager.getViewedSlotItemPrice();
             } else {
                 price = suggestion.getPrice();
             }
@@ -153,9 +162,9 @@ public class OfferHandler {
     }
 
     public void setChatboxValue(int value) {
-        var chatboxInputWidget = plugin.client.getWidget(ComponentID.CHATBOX_FULL_INPUT);
+        var chatboxInputWidget = client.getWidget(ComponentID.CHATBOX_FULL_INPUT);
         if (chatboxInputWidget == null) return;
         chatboxInputWidget.setText(value + "*");
-        plugin.client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(value));
+        client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(value));
     }
 }

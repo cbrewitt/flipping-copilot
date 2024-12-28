@@ -1,48 +1,45 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.controller.CopilotLoginController;
+import lombok.Setter;
 import net.runelite.client.input.KeyListener;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import java.awt.*;
-import java.awt.event.ActionListener;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.GridLayout;
+import java.awt.Image;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.net.URI;
-import java.util.function.Consumer;
 
+
+@Singleton
 public class LoginPanel extends JPanel {
     private final static int PAGE_WIDTH = 225;
 
-    JPanel loginContainer;
+    private final CopilotLoginController copilotLoginController;
 
+    private JPanel loginContainer;
     private JButton loginButton;
     private JTextField emailTextField;
     private JTextField passwordTextField;
     private JLabel errorMessageLabel;
 
-    public Spinner spinner;
+    public final Spinner spinner = new Spinner();
 
-    Consumer<String> onEmailTextChangedListener;
-    Consumer<String> onPasswordTextChangedListener;
-    ActionListener onLoginPressedListener;
-
-    public LoginPanel(
-        Consumer<String> onEmailTextChangedListener,
-        Consumer<String> onPasswordTextChangedListener,
-        ActionListener onLoginPressedListener
-    ) {
+    @Inject
+    public LoginPanel(CopilotLoginController copilotLoginController) {
+        this.copilotLoginController = copilotLoginController;
         this.setLayout(new BorderLayout());
         this.setBackground(ColorScheme.DARK_GRAY_COLOR);
         this.setSize(PAGE_WIDTH, 250);
-
-        this.onEmailTextChangedListener = onEmailTextChangedListener;
-        this.onPasswordTextChangedListener = onPasswordTextChangedListener;
-        this.onLoginPressedListener = onLoginPressedListener;
 
         loginContainer = new JPanel();
         loginContainer.setLayout(new BoxLayout(loginContainer, BoxLayout.PAGE_AXIS));
@@ -71,7 +68,6 @@ public class LoginPanel extends JPanel {
 
     public void createSpinner() {
         JPanel container = new JPanel();
-        spinner = new Spinner();
         container.add(spinner, BorderLayout.CENTER);
         loginContainer.add(container, BorderLayout.CENTER);
     }
@@ -113,14 +109,14 @@ public class LoginPanel extends JPanel {
             public void keyReleased(KeyEvent event) {
                 JTextField textField = (JTextField) event.getSource();
                 String text = textField.getText();
-                onEmailTextChangedListener.accept(text);
+                copilotLoginController.onEmailTextChanged(text);
             }
 
             @Override
             public void keyPressed(KeyEvent event) {
             }
         });
-        emailTextField.addActionListener(e -> onLoginPressedListener.actionPerformed(e));
+        emailTextField.addActionListener(copilotLoginController::onLoginPressed);
         JLabel emailLabel = new JLabel("Email address");
         container.add(emailLabel, BorderLayout.WEST);
         container.add(emailTextField);
@@ -141,14 +137,14 @@ public class LoginPanel extends JPanel {
             public void keyReleased(KeyEvent event) {
                 JTextField textField = (JTextField) event.getSource();
                 String text = textField.getText();
-                onPasswordTextChangedListener.accept(text);
+                copilotLoginController.onPasswordTextChanged(text);
             }
 
             @Override
             public void keyPressed(KeyEvent event) {
             }
         });
-        passwordTextField.addActionListener(e -> onLoginPressedListener.actionPerformed(e));
+        passwordTextField.addActionListener(copilotLoginController::onLoginPressed);
         JLabel passwordLabel = new JLabel("Password");
         container.add(passwordLabel);
         container.add(passwordTextField);
@@ -182,7 +178,7 @@ public class LoginPanel extends JPanel {
     public void createLoginButton() {
         JPanel container = new JPanel();
         loginButton = new JButton("Login");
-        loginButton.addActionListener(this.onLoginPressedListener);
+        loginButton.addActionListener(copilotLoginController::onLoginPressed);
         container.add(loginButton);
         loginContainer.add(container, BorderLayout.CENTER);
     }
@@ -190,5 +186,9 @@ public class LoginPanel extends JPanel {
     public void showLoginErrorMessage(String message) {
         errorMessageLabel.setText("<html><p>" + message + "</p></html>");
         errorMessageLabel.setVisible(true);
+    }
+
+    public void refresh() {
+
     }
 }

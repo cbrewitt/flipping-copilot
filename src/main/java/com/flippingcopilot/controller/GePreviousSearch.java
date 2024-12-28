@@ -1,25 +1,37 @@
-package com.flippingcopilot.ui;
+package com.flippingcopilot.controller;
 
-import com.flippingcopilot.controller.FlippingCopilotPlugin;
 import com.flippingcopilot.model.Suggestion;
+import com.flippingcopilot.model.SuggestionManager;
 import net.runelite.api.Client;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.JavaScriptCallback;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetType;
 
-public class GePreviousSearch {
-    FlippingCopilotPlugin plugin;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
-    public GePreviousSearch(FlippingCopilotPlugin plugin) {
-        this.plugin = plugin;
+@Singleton
+public class GePreviousSearch {
+
+    private final SuggestionManager suggestionManager;
+    private final GrandExchange grandExchange;
+    private final HighlightController highlightController;
+    private final Client client;
+
+    @Inject
+    public GePreviousSearch(SuggestionManager suggestionManager, GrandExchange grandExchange, HighlightController highlightController, Client client) {
+        this.suggestionManager = suggestionManager;
+        this.grandExchange = grandExchange;
+        this.highlightController = highlightController;
+        this.client = client;
     }
 
-    public void showSuggestedItemInSearch() {
-        Suggestion suggestion = plugin.suggestionHandler.getCurrentSuggestion();
 
+    public void showSuggestedItemInSearch() {
+        Suggestion suggestion = suggestionManager.getSuggestion();
         if (suggestion != null && suggestion.getType().equals("buy")) {
-            if (plugin.grandExchange.isPreviousSearchSet() && plugin.grandExchange.showLastSearchEnabled()) {
+            if (grandExchange.isPreviousSearchSet() && grandExchange.showLastSearchEnabled()) {
                 setPreviousSearch(suggestion.getItemId(), suggestion.getName());
             } else {
                 createPreviousSearchWidget(suggestion.getItemId(), suggestion.getName());
@@ -27,12 +39,11 @@ public class GePreviousSearch {
                 createPreviousSearchItemWidget(suggestion.getItemId());
                 createPreviousSearchTextWidget();
             }
-            plugin.highlightController.redraw();
+            highlightController.redraw();
         }
     }
 
     private void setPreviousSearch(int itemId, String itemName) {
-        Client client = plugin.getClient();
         Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
         Widget previousSearch = searchResults.getChild(0);
         previousSearch.setOnOpListener(754, itemId, 84);
@@ -47,7 +58,7 @@ public class GePreviousSearch {
     }
 
     private void createPreviousSearchWidget(int itemId, String itemName) {
-        Widget parentWidget = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
         Widget widget = parentWidget.createChild(WidgetType.RECTANGLE);
         widget.setTextColor(0xFFFFFF);
         widget.setOpacity(255);
@@ -75,7 +86,7 @@ public class GePreviousSearch {
     }
 
     private void createPreviousSearchItemNameWidget(String itemName) {
-        Widget parentWidget = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
         Widget widget = parentWidget.createChild(WidgetType.TEXT);
         widget.setText(itemName);
         widget.setFontId(495);
@@ -88,7 +99,7 @@ public class GePreviousSearch {
     }
 
     private void createPreviousSearchItemWidget(int itemId) {
-        Widget parentWidget = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
         Widget widget = parentWidget.createChild(WidgetType.GRAPHIC);
         widget.setItemId(itemId);
         widget.setItemQuantity(1);
@@ -104,7 +115,7 @@ public class GePreviousSearch {
     }
 
     private void createPreviousSearchTextWidget() {
-        Widget parentWidget = plugin.client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
         Widget widget = parentWidget.createChild(WidgetType.TEXT);
         widget.setText("Copilot item:");
         widget.setFontId(495);

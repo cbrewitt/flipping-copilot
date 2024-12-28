@@ -1,8 +1,11 @@
-package com.flippingcopilot.controller;
+package com.flippingcopilot.model;
 
-import com.flippingcopilot.model.*;
+import com.flippingcopilot.controller.ApiRequestHandler;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
@@ -19,6 +22,7 @@ import java.util.stream.Collectors;
  * weeks on the boundaries of the time range. Have tested the UI experience with >100k flips.
  */
 @Slf4j
+@Singleton
 public class FlipManager {
 
     private static final int WEEK_SECS = 7 * 24 * 60 * 60;
@@ -26,7 +30,8 @@ public class FlipManager {
     // dependencies
     private final ApiRequestHandler api;
     private final ScheduledExecutorService executorService;
-    private final Runnable flipsChangedCallback;
+    @Setter
+    private Runnable flipsChangedCallback = () -> {};
 
     // state
     private String intervalDisplayName;
@@ -38,18 +43,13 @@ public class FlipManager {
     final Map<UUID, Integer> existingCloseTimes = new HashMap<>();
     final List<WeekAggregate> weeks = new ArrayList<>(365*5);
 
-    private volatile boolean cancelFlipLoadingSignalled;
+    private int resetSeq = 0;
     public volatile boolean flipsLoaded;
 
-    public FlipManager(ApiRequestHandler api, ScheduledExecutorService executorService, Runnable flipsChangedCallback) {
+    @Inject
+    public FlipManager(ApiRequestHandler api, ScheduledExecutorService executorService) {
         this.api = api;
         this.executorService = executorService;
-        this.flipsChangedCallback = flipsChangedCallback;
-        executorService.execute(this::loadFlips);
-    }
-
-    public void cancelFlipLoading() {
-        this.cancelFlipLoadingSignalled = true;
     }
 
     public synchronized String getIntervalDisplayName() {
@@ -173,26 +173,52 @@ public class FlipManager {
         return resultFlips;
     }
 
-    private void loadFlips() {
+    public void loadFlipsAsync() {
+        executorService.execute(() -> this.loadFlips(resetSeq));
+    }
+
+    private void loadFlips(int seq) {
         try {
             long s = System.nanoTime();
             Map<String, Integer> names = api.loadUserDisplayNames();
-            displayNameToAccountId.putAll(names);
+            synchronized (this) {
+                if(seq != resetSeq) {
+                    return;
+                }
+                displayNameToAccountId.putAll(names);
+            }
             log.debug("loading account names took {}ms", (System.nanoTime() - s) / 1000_000);
             s = System.nanoTime();
             List<FlipV2> flips = api.LoadFlips();
-            log.debug("loading flips took {}ms", (System.nanoTime() - s) / 1000_000);
+            log.debug("loading {} flips took {}ms", flips.size(), (System.nanoTime() - s) / 1000_000);
             s = System.nanoTime();
-            mergeFlips(flips, null);
-            log.debug("merging flips to took {}ms", (System.nanoTime() - s) / 1000_000);
-            flipsLoaded = true;
+            synchronized (this) {
+                if(seq != resetSeq) {
+                    return;
+                }
+                mergeFlips(flips, null);
+                log.debug("merging flips to took {}ms", (System.nanoTime() - s) / 1000_000);
+                flipsLoaded = true;
+            }
             flipsChangedCallback.run();
         } catch (Exception e) {
-            if (!cancelFlipLoadingSignalled) {
+            if (this.resetSeq == seq) {
                 log.warn("failed to load historical flips from server {} try again in 10s", e.getMessage(), e);
-                executorService.schedule(this::loadFlips, 10, TimeUnit.SECONDS);
+                executorService.schedule(() -> this.loadFlips(seq), 10, TimeUnit.SECONDS);
             }
         }
+    }
+
+    public synchronized void reset() {
+        intervalDisplayName = null;
+        intervalStartTime = 0;
+        intervalStats = new Stats();
+        displayNameToAccountId.clear();
+        lastOpenFLipByItemId.clear();
+        existingCloseTimes.clear();
+        weeks.clear();
+        flipsLoaded = false;
+        resetSeq += 1;
     }
 
     private void mergeFlip_(FlipV2 flip) {

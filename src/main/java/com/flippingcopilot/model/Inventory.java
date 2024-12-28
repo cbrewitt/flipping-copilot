@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 
 public class Inventory extends ArrayList<RSItem> {
+
     boolean hasSufficientGp(Suggestion suggestion) {
         return !suggestion.getType().equals("buy")
                 || getTotalGp() >= (long) suggestion.getPrice() * suggestion.getQuantity();
@@ -35,7 +36,7 @@ public class Inventory extends ArrayList<RSItem> {
     }
 
 
-    static Inventory fromRunelite(ItemContainer inventory, Client client) {
+    public static Inventory fromRunelite(ItemContainer inventory, Client client) {
         Inventory unnotedItems = new Inventory();
         Item[] items = inventory.getItems();
         for (Item item : items) {
@@ -52,12 +53,27 @@ public class Inventory extends ArrayList<RSItem> {
                         Collectors.summingLong(RSItem::getAmount)));
     }
 
-    static Inventory fromItemAmounts(Map<Integer, Long> itemAmounts) {
-        Inventory inventory = new Inventory();
-        for (Map.Entry<Integer, Long> entry : itemAmounts.entrySet()) {
-            inventory.add(new RSItem(entry.getKey(), entry.getValue()));
+    public void mergeItem(RSItem i) {
+        for(RSItem item : this) {
+            if(item.id == i.id) {
+                item.amount += i.amount;
+                return;
+            }
         }
-        return inventory;
+        add(i);
     }
 
+     public boolean missingJustCollected( Map<Integer, Long> inLimboItems) {
+         for (Map.Entry<Integer, Long> entry : inLimboItems.entrySet()) {
+             Integer itemId = entry.getKey();
+             Long qty = entry.getValue();
+             if (qty > 0) {
+                 long inventoryQty = getTotalAmount(itemId);
+                 if (inventoryQty < qty) {
+                     return true;
+                 }
+             }
+         }
+         return false;
+    }
 }

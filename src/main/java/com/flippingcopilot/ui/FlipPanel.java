@@ -4,10 +4,13 @@ import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.model.FlipV2;
 import net.runelite.client.ui.ColorScheme;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
