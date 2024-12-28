@@ -140,8 +140,15 @@ public class GrandExchangeOfferEventHandler {
             case CANCELLED_SELL:
                 uncollectedItems = o.getTotalQuantity() - o.getQuantitySold();
                 break;
+            case EMPTY:
+                // if the slot is empty we want to ensure that the un collected manager doesn't think there is something to collect
+                // this can happen due to race conditions between the collection and offer fills timing
+                grandExchangeUncollectedManager.ensureSlotClear(accountHash, slot);
+                suggestionManager.setSuggestionNeeded(true);
+                return;
         }
         grandExchangeUncollectedManager.addUncollected(accountHash, slot, o.getItemId(), uncollectedItems, uncollectedGp);
+
     }
 
     private void processTransaction(Transaction transaction) {
