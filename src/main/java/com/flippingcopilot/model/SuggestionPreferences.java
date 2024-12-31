@@ -8,6 +8,7 @@ import java.util.List;
 @Data
 public class SuggestionPreferences {
 
+    private boolean f2pOnlyMode = false;
     private boolean sellOnlyMode = false;
     private List<Integer> blockedItemIds = new ArrayList<>();
 }

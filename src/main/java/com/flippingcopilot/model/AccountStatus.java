@@ -26,6 +26,7 @@ public class AccountStatus {
     private Long rsAccountHash;
     private Boolean suggestionsPaused;
     private boolean sellOnlyMode = false;
+    private boolean f2pOnlyMode = false;
     private List<Integer> blockedItems;
 
     public AccountStatus() {
@@ -53,6 +54,7 @@ public class AccountStatus {
         JsonObject statusJson = new JsonObject();
         statusJson.addProperty("display_name", displayName);
         statusJson.addProperty("sell_only", sellOnlyMode);
+        statusJson.addProperty("f2p_only", f2pOnlyMode);
         statusJson.addProperty("is_member", isMember);
         statusJson.addProperty("skip_suggestion", skipSuggestion);
         if (suggestionsPaused != null) {
