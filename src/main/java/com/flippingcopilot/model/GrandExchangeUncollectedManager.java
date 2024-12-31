@@ -70,6 +70,11 @@ public class GrandExchangeUncollectedManager {
         }
     }
 
+    public synchronized void ensureSlotClear(Long accountHash, int slot) {
+        Map<Integer, Long> slotUncollected = loadSlotUncollected(accountHash, slot);
+        slotUncollected.remove(slot);
+    }
+
     public synchronized void clearSlotUncollected(Long accountHash, int slot) {
         Map<Integer, Long> slotUncollected = loadSlotUncollected(accountHash, slot);
         int tick = client.getTickCount();
