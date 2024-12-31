@@ -53,6 +53,7 @@ public class MainPanel extends PluginPanel {
                 renderLoggedOutView();
             }
             loginPanel.refresh();
+            copilotPanel.suggestionPanel.refresh();
         }
     }
 

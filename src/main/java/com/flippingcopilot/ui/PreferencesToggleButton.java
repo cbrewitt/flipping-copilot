@@ -9,7 +9,7 @@ import javax.swing.JToggleButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.SwingUtil;
 
-class SellOnlyModeToggleButton extends JToggleButton
+class PreferencesToggleButton extends JToggleButton
 {
     private static final ImageIcon ON_SWITCHER;
     private static final ImageIcon OFF_SWITCHER;
@@ -28,7 +28,7 @@ class SellOnlyModeToggleButton extends JToggleButton
         ));
     }
 
-    public SellOnlyModeToggleButton()
+    public PreferencesToggleButton()
     {
         super(OFF_SWITCHER);
         setSelectedIcon(ON_SWITCHER);
