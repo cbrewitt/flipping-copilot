@@ -54,6 +54,7 @@ public class AccountStatusManager {
         status.setRsAccountHash(accountHash);
         status.setSkipSuggestion(skipSuggestion);
         status.setSellOnlyMode(suggestionPreferencesManager.getPreferences().isSellOnlyMode());
+        status.setF2pOnlyMode(suggestionPreferencesManager.getPreferences().isF2pOnlyMode());
         status.setMember(osrsLoginManager.isMembersWorld());
         status.setSuggestionsPaused(pausedManager.isPaused());
         status.setBlockedItems(suggestionPreferencesManager.blockedItems());

@@ -30,16 +30,18 @@ public class ApiRequestHandler {
     private final OkHttpClient client;
     private final Gson gson;
     private final LoginResponseManager loginResponseManager;
+    private final SuggestionPreferencesManager preferencesManager;
     private final ClientThread clientThread;
 
     // state
     private Instant lastDebugMessageSent = Instant.now();
 
     @Inject
-    public ApiRequestHandler(OkHttpClient client, Gson gson, LoginResponseManager loginResponseManager, ClientThread clientThread) {
+    public ApiRequestHandler(OkHttpClient client, Gson gson, LoginResponseManager loginResponseManager, SuggestionPreferencesManager preferencesManager, ClientThread clientThread) {
         this.client = client;
         this.gson = gson;
         this.loginResponseManager = loginResponseManager;
+        this.preferencesManager = preferencesManager;
         this.clientThread = clientThread;
     }
 
@@ -129,6 +131,7 @@ public class ApiRequestHandler {
             JsonObject body = new JsonObject();
             body.add("item_id", new JsonPrimitive(itemId));
             body.add("display_name", new JsonPrimitive(displayName));
+            body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
             return doHttpRequest("POST", body, "/prices", ItemPrice.class);
         } catch (HttpResponseException e) {
             log.error("error fetching copilot price for item {}, resp code {}", itemId, e.getResponseCode(), e);

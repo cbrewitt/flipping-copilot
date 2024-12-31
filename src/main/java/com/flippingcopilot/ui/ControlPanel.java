@@ -17,7 +17,7 @@ public class ControlPanel extends JPanel {
     public ControlPanel(SuggestionPreferencesManager suggestionPreferencesManager,
                         SuggestionManager suggestionManager,
                         BlacklistDropdownPanel blocklistDropdownPanel) {
-        SellOnlyModeToggleButton sellOnlyModeToggleButton = new SellOnlyModeToggleButton();
+        PreferencesToggleButton sellOnlyModeToggleButton = new PreferencesToggleButton();
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(5, 2, 5, 2));

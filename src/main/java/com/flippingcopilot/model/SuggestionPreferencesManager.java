@@ -57,6 +57,13 @@ public class SuggestionPreferencesManager {
         save(accountHash, preferences);
         log.debug("Sell only mode is now: {}", sellOnlyMode);
     }
+    public synchronized void setF2pOnlyMode(boolean f2pOnlyMode) {
+        Long accountHash = osrsLoginManager.getAccountHash();
+        SuggestionPreferences preferences = cached.computeIfAbsent(accountHash, this::load);
+        preferences.setF2pOnlyMode(f2pOnlyMode);
+        save(accountHash, preferences);
+        log.debug("F2p only mode is now: {}", f2pOnlyMode);
+    }
 
     public synchronized void blockItem(int itemId) {
         Long accountHash = osrsLoginManager.getAccountHash();
