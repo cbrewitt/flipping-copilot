@@ -1,5 +1,6 @@
 package com.flippingcopilot.model;
 
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
@@ -11,6 +12,7 @@ import java.util.Map;
 
 @Slf4j
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class AccountStatusManager {
 
     // dependencies
@@ -23,15 +25,6 @@ public class AccountStatusManager {
     // state
     @Setter
     private int skipSuggestion = -1;
-
-    @Inject
-    public AccountStatusManager(Client client, OsrsLoginManager osrsLoginManager, GrandExchangeUncollectedManager geUncollected, SuggestionPreferencesManager suggestionPreferencesManager, PausedManager pausedManager) {
-        this.client = client;
-        this.osrsLoginManager = osrsLoginManager;
-        this.geUncollected = geUncollected;
-        this.suggestionPreferencesManager = suggestionPreferencesManager;
-        this.pausedManager = pausedManager;
-    }
 
     public synchronized AccountStatus getAccountStatus(boolean includeJustCollected) {
         Long accountHash =  osrsLoginManager.getAccountHash();

@@ -42,6 +42,11 @@ public class MainPanel extends PluginPanel {
     }
 
     public void refresh() {
+        if(!SwingUtilities.isEventDispatchThread()) {
+            // we always execute this in the Swing EDT thread
+            SwingUtilities.invokeLater(this::refresh);
+            return;
+        }
         boolean shouldBeLoggedInView = loginResponseManager.isLoggedIn();
         if(shouldBeLoggedInView) {
             if (isLoggedInView == null || !isLoggedInView) {

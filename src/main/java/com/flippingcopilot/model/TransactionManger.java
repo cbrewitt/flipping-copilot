@@ -3,7 +3,9 @@ package com.flippingcopilot.model;
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.Persistance;
 import com.flippingcopilot.util.MutableReference;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -13,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class TransactionManger {
 
     // dependencies
@@ -21,43 +24,51 @@ public class TransactionManger {
     private final ApiRequestHandler api;
     private final LoginResponseManager loginResponseManager;
     private final OsrsLoginManager osrsLoginManager;
+    private final OkHttpClient okHttpClient;
 
     // state
-    private final Map<String, List<Transaction>> cachedUnAckedTransactions;
+    private final Map<String, List<Transaction>> cachedUnAckedTransactions = new HashMap<>();
     private final Map<String, Boolean> transactionSyncScheduled = new HashMap<>();
-
-    @Inject
-    public TransactionManger(FlipManager flipManager, ScheduledExecutorService executorService, ApiRequestHandler api, LoginResponseManager loginResponseManager, OsrsLoginManager osrsLoginManager) {
-        this.flipManager = flipManager;
-        this.executorService = executorService;
-        this.loginResponseManager = loginResponseManager;
-        this.osrsLoginManager = osrsLoginManager;
-        this.cachedUnAckedTransactions = new HashMap<>();
-        this.api = api;
-    }
 
     public void syncUnAckedTransactions(String displayName) {
         List<Transaction> unAckedTransactions = getUnAckedTransactions(displayName);
-        if(!unAckedTransactions.isEmpty()){
+        synchronized (this) {
+            if(unAckedTransactions.isEmpty()) {
+                transactionSyncScheduled.put(displayName, false);
+                return;
+            }
+        }
+        // ScheduledExecutorService only has one thread, we don't really want to block it. Need to
+        // refactor the API call to be async style but until then just run in okHttpClient's executor
+        okHttpClient.dispatcher().executorService().submit(() -> {
             try {
                 long s = System.nanoTime();
                 List<Transaction> toSend = new ArrayList<>(getUnAckedTransactions(displayName));
                 log.debug("sending {} transactions to server", toSend.size());
                 List<FlipV2> flips = api.SendTransactions(toSend, displayName);
-                for(FlipV2 f : flips) {
+                for (FlipV2 f : flips) {
                     log.debug("server updated flip for {} closed qty {}, profit {}", f.getItemName(), f.getClosedQuantity(), f.getProfit());
                 }
                 flipManager.mergeFlips(flips, displayName);
                 log.info("sending {} transactions took {}ms", toSend.size(), (System.nanoTime() - s) / 1000_000);
-                toSend.forEach(unAckedTransactions::remove);
+                synchronized (this) {
+                    transactionSyncScheduled.put(displayName, false);
+                    toSend.forEach(unAckedTransactions::remove);
+                    if(!unAckedTransactions.isEmpty()) {
+                        scheduleSyncIn(0, displayName);
+                    }
+                }
             } catch (Exception e) {
+                synchronized (this) {
+                    transactionSyncScheduled.put(displayName, false);
+                }
                 String currentDisplayName = osrsLoginManager.getPlayerDisplayName();
-                if(loginResponseManager.isLoggedIn() && (currentDisplayName == null || currentDisplayName.equals(displayName))) {
+                if (loginResponseManager.isLoggedIn() && (currentDisplayName == null || currentDisplayName.equals(displayName))) {
                     log.warn("failed to send transactions to copilot server {}", e.getMessage(), e);
                     scheduleSyncIn(10, displayName);
                 }
             }
-        }
+        });
     }
 
     public long addTransaction(Transaction transaction, String displayName) {
@@ -82,7 +93,6 @@ public class TransactionManger {
             log.info("scheduling attempt to sync {} transactions in {}s", displayName, seconds);
             transactionSyncScheduled.put(displayName, true);
             executorService.schedule(() ->  {
-                transactionSyncScheduled.put(displayName, false);
                 this.syncUnAckedTransactions(displayName);
             }, seconds, TimeUnit.SECONDS);
         }

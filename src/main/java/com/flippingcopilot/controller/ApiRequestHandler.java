@@ -5,6 +5,7 @@ import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 import okhttp3.*;
@@ -22,6 +23,7 @@ import java.util.function.Consumer;
 
 @Slf4j
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @javax.inject.Inject)
 public class ApiRequestHandler {
 
     private static final String serverUrl = System.getenv("FLIPPING_COPILOT_HOST") != null ? System.getenv("FLIPPING_COPILOT_HOST")  : "https://api.flippingcopilot.com";
@@ -36,14 +38,6 @@ public class ApiRequestHandler {
     // state
     private Instant lastDebugMessageSent = Instant.now();
 
-    @Inject
-    public ApiRequestHandler(OkHttpClient client, Gson gson, LoginResponseManager loginResponseManager, SuggestionPreferencesManager preferencesManager, ClientThread clientThread) {
-        this.client = client;
-        this.gson = gson;
-        this.loginResponseManager = loginResponseManager;
-        this.preferencesManager = preferencesManager;
-        this.clientThread = clientThread;
-    }
 
     public void authenticate(String username, String password, Runnable callback) {
         Request request = new Request.Builder()

@@ -4,6 +4,7 @@ import com.flippingcopilot.model.GrandExchangeUncollectedManager;
 import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.ui.SuggestionPanel;
 import com.google.inject.Singleton;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
@@ -11,6 +12,7 @@ import net.runelite.api.widgets.Widget;
 import javax.inject.Inject;
 
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GrandExchangeCollectHandler {
 
     // dependencies
@@ -18,13 +20,6 @@ public class GrandExchangeCollectHandler {
     private final GrandExchangeUncollectedManager geUncollected;
     @Setter
     private SuggestionPanel suggestionPanel;
-
-    @Inject
-    public GrandExchangeCollectHandler(OsrsLoginManager osrsLoginManager, GrandExchangeUncollectedManager geUncollected) {
-        this.osrsLoginManager = osrsLoginManager;
-        this.geUncollected = geUncollected;
-    }
-
 
     public void handleCollect(MenuOptionClicked event, int slot) {
         String menuOption = event.getMenuOption();

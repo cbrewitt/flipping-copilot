@@ -5,6 +5,7 @@ import com.flippingcopilot.model.SessionData;
 import com.flippingcopilot.model.Stats;
 import com.flippingcopilot.ui.UIUtilities;
 import joptsimple.internal.Strings;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 
@@ -18,12 +19,11 @@ import static net.runelite.http.api.RuneLiteAPI.GSON;
 
 @Slf4j
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class WebHookController {
 
-    @Inject
-    private FlippingCopilotConfig config;
-    @Inject
-    private OkHttpClient okHttpClient;
+    private final FlippingCopilotConfig config;
+    private final OkHttpClient okHttpClient;
 
     private void sendWebHook(DiscordWebhookBody discordWebhookBody) {
         String configURL = config.webhook();

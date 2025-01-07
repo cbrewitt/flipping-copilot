@@ -311,6 +311,11 @@ public class SuggestionPanel extends JPanel {
 
     public void refresh() {
         log.debug("refreshing suggestion panel {}", client.getGameState());
+        if(!SwingUtilities.isEventDispatchThread()) {
+            // we always execute this in the Swing EDT thread
+            SwingUtilities.invokeLater(this::refresh);
+            return;
+        }
         if(isPreferencesPanelVisible) {
             preferencesPanel.refresh();
         }
