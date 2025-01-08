@@ -4,6 +4,7 @@ import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.*;
 import com.google.gson.Gson;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
@@ -22,8 +23,10 @@ import java.util.function.Consumer;
 @Getter
 @Setter
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class SuggestionController {
 
+    // dependencies
     private final PausedManager pausedManager;
     private final Client client;
     private final Gson gson;
@@ -40,45 +43,10 @@ public class SuggestionController {
     private final SuggestionManager suggestionManager;
     private final AccountStatusManager accountStatusManager;
     private final GrandExchangeUncollectedManager uncollectedManager;
-
     private MainPanel mainPanel;
     private LoginPanel loginPanel;
     private CopilotPanel copilotPanel;
     private SuggestionPanel suggestionPanel;
-
-    @Inject
-    public SuggestionController(PausedManager pausedManager,
-                                Client client,
-                                Gson gson,
-                                OsrsLoginManager osrsLoginManager,
-                                HighlightController highlightController,
-                                GrandExchange grandExchange,
-                                ScheduledExecutorService executorService,
-                                ApiRequestHandler apiRequestHandler,
-                                Notifier notifier, OfferManager offerManager,
-                                LoginResponseManager loginResponseManager,
-                                ClientThread clientThread,
-                                FlippingCopilotConfig config,
-                                SuggestionManager suggestionManager,
-                                AccountStatusManager accountStatusManager, GrandExchangeUncollectedManager uncollectedManager) {
-        this.pausedManager = pausedManager;
-        this.client = client;
-        this.gson = gson;
-        this.osrsLoginManager = osrsLoginManager;
-        this.highlightController = highlightController;
-        this.grandExchange = grandExchange;
-        this.executorService = executorService;
-        this.apiRequestHandler = apiRequestHandler;
-        this.notifier = notifier;
-        this.offerManager = offerManager;
-        this.loginResponseManager = loginResponseManager;
-        this.clientThread = clientThread;
-        this.config = config;
-        this.suggestionManager = suggestionManager;
-        this.accountStatusManager = accountStatusManager;
-        this.uncollectedManager = uncollectedManager;
-        suggestionManager.setSuggestionNeeded(true);
-    }
 
     public void togglePause() {
         if (pausedManager.isPaused()) {
@@ -93,10 +61,6 @@ public class SuggestionController {
     }
 
     void onGameTick() {
-//        // if we have just confirmed an offer wait one tick as the account state may not be fully correct till then
-//        if (suggestionManager.getLastOfferSubmittedTick() >= client.getTickCount()) {
-//            return;
-//        }
         if ((suggestionManager.isSuggestionNeeded() || suggestionManager.suggestionOutOfDate()) && !(grandExchange.isSlotOpen() && !accountStatusManager.isSuggestionSkipped())) {
             getSuggestionAsync();
         }

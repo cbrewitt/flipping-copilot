@@ -4,6 +4,7 @@ package com.flippingcopilot.model;
 import com.flippingcopilot.controller.Persistance;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.inject.Inject;
@@ -14,23 +15,22 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 
 @Singleton
 @Slf4j
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class PausedManager {
 
     private static final String PAUSED_FILE_TEMPLATE = "acc_%d_paused.json";
 
     // dependencies
     private final OsrsLoginManager osrsLoginManager;
+    private final ScheduledExecutorService executorService;
 
     // state
     private final Map<Long, Boolean> cachedPaused = new HashMap<>();
-
-    @Inject
-    public PausedManager(OsrsLoginManager osrsLoginManager) {
-        this.osrsLoginManager = osrsLoginManager;
-    }
+    private final Map<Long, File> accountHashToFile = new HashMap<>();
 
     public synchronized boolean isPaused() {
         Long accountHash = osrsLoginManager.getAccountHash();
@@ -39,7 +39,7 @@ public class PausedManager {
             try {
                 String text = Files.readString(file.toPath(), StandardCharsets.UTF_8);
                 return text.contains("true");
-            }catch (NoSuchFileException e ){
+            } catch (NoSuchFileException e ){
                 return false;
             } catch (JsonSyntaxException | JsonIOException | IOException e) {
                 log.warn("error loading stored paused state file {}", file, e);
@@ -50,17 +50,27 @@ public class PausedManager {
 
     public synchronized void setPaused(boolean isPaused) {
         Long accountHash = osrsLoginManager.getAccountHash();
-        String text = isPaused ? "{\"isPaused\":true}" : "{\"isPaused\":false}";
-        File file = getFile(accountHash);
         cachedPaused.put(accountHash, isPaused);
-        try {
-            Files.write(file.toPath(), text.getBytes());
-        } catch(IOException e) {
-            log.warn("error storing paused.json file {}", file, e);
-        }
+        saveAsync(accountHash);
+    }
+
+    private void saveAsync(Long accountHash) {
+        executorService.submit(() -> {
+            File file = getFile(accountHash);
+            synchronized (file) {
+                boolean isPaused = cachedPaused.getOrDefault(accountHash, false);
+                String text = isPaused ? "{\"isPaused\":true}" : "{\"isPaused\":false}";
+                try {
+                    Files.write(file.toPath(), text.getBytes());
+                } catch (IOException e) {
+                    log.warn("error storing paused.json file {}", file, e);
+                }
+            }
+        });
     }
 
     private File getFile(Long accountHash) {
-        return new File(Persistance.PARENT_DIRECTORY, String.format(PAUSED_FILE_TEMPLATE, accountHash));
+        return accountHashToFile.computeIfAbsent(accountHash,
+                (k) -> new File(Persistance.PARENT_DIRECTORY, String.format(PAUSED_FILE_TEMPLATE, accountHash)));
     }
 }

@@ -1,5 +1,6 @@
 package com.flippingcopilot.model;
 
+import lombok.RequiredArgsConstructor;
 import net.runelite.api.*;
 
 import javax.inject.Inject;
@@ -7,6 +8,7 @@ import javax.inject.Singleton;
 import java.util.EnumSet;
 
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class OsrsLoginManager {
 
     public static String LOGIN_TO_GET_SUGGESTION_MESSAGE = "Log in to the game<br>to get a flip suggestion";
@@ -19,8 +21,7 @@ public class OsrsLoginManager {
             WorldType.QUEST_SPEEDRUNNING,
             WorldType.TOURNAMENT_WORLD};
 
-    @Inject
-    private Client client;
+    private final Client client;
 
     private String cachedDisplayName;
     private long lastAccountHash;

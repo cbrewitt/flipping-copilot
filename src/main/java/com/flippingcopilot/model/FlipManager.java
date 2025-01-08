@@ -1,8 +1,10 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class FlipManager {
 
     private static final int WEEK_SECS = 7 * 24 * 60 * 60;
@@ -30,6 +33,8 @@ public class FlipManager {
     // dependencies
     private final ApiRequestHandler api;
     private final ScheduledExecutorService executorService;
+    private final OkHttpClient okHttpClient;
+
     @Setter
     private Runnable flipsChangedCallback = () -> {};
 
@@ -45,12 +50,6 @@ public class FlipManager {
 
     private int resetSeq = 0;
     public volatile boolean flipsLoaded;
-
-    @Inject
-    public FlipManager(ApiRequestHandler api, ScheduledExecutorService executorService) {
-        this.api = api;
-        this.executorService = executorService;
-    }
 
     public synchronized String getIntervalDisplayName() {
         return intervalDisplayName;
@@ -178,36 +177,41 @@ public class FlipManager {
     }
 
     private void loadFlips(int seq) {
-        try {
-            long s = System.nanoTime();
-            Map<String, Integer> names = api.loadUserDisplayNames();
-            synchronized (this) {
-                if(seq != resetSeq) {
-                    return;
+        // ScheduledExecutorService only has one thread, we don't really want to block it. Need to
+        // refactor the API call to be async style but until then just run in okHttpClient's executor
+        okHttpClient.dispatcher().executorService().submit(() -> {
+            try {
+                long s = System.nanoTime();
+                Map<String, Integer> names = api.loadUserDisplayNames();
+                synchronized (this) {
+                    if (seq != resetSeq) {
+                        return;
+                    }
+                    displayNameToAccountId.putAll(names);
                 }
-                displayNameToAccountId.putAll(names);
-            }
-            log.debug("loading account names took {}ms", (System.nanoTime() - s) / 1000_000);
-            s = System.nanoTime();
-            List<FlipV2> flips = api.LoadFlips();
-            log.debug("loading {} flips took {}ms", flips.size(), (System.nanoTime() - s) / 1000_000);
-            s = System.nanoTime();
-            synchronized (this) {
-                if(seq != resetSeq) {
-                    return;
+                log.debug("loading account names took {}ms", (System.nanoTime() - s) / 1000_000);
+                s = System.nanoTime();
+                List<FlipV2> flips = api.LoadFlips();
+                log.debug("loading {} flips took {}ms", flips.size(), (System.nanoTime() - s) / 1000_000);
+                s = System.nanoTime();
+                synchronized (this) {
+                    if (seq != resetSeq) {
+                        return;
+                    }
+                    mergeFlips(flips, null);
+                    log.debug("merging flips to took {}ms", (System.nanoTime() - s) / 1000_000);
+                    flipsLoaded = true;
                 }
-                mergeFlips(flips, null);
-                log.debug("merging flips to took {}ms", (System.nanoTime() - s) / 1000_000);
-                flipsLoaded = true;
+                flipsChangedCallback.run();
+            } catch (Exception e) {
+                if (this.resetSeq == seq) {
+                    log.warn("failed to load historical flips from server {} try again in 10s", e.getMessage(), e);
+                    executorService.schedule(() -> this.loadFlips(seq), 10, TimeUnit.SECONDS);
+                }
             }
-            flipsChangedCallback.run();
-        } catch (Exception e) {
-            if (this.resetSeq == seq) {
-                log.warn("failed to load historical flips from server {} try again in 10s", e.getMessage(), e);
-                executorService.schedule(() -> this.loadFlips(seq), 10, TimeUnit.SECONDS);
-            }
-        }
+        });
     }
+
 
     public synchronized void reset() {
         intervalDisplayName = null;

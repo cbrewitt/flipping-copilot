@@ -4,6 +4,7 @@ import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.OfferEditor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
@@ -17,6 +18,7 @@ import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
 @Slf4j
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GameUiChangesHandler {
     private static final int GE_HISTORY_TAB_WIDGET_ID = 149;
 
@@ -33,19 +35,6 @@ public class GameUiChangesHandler {
     // state
     boolean quantityOrPriceChatboxOpen;
     boolean itemSearchChatboxOpen = false;
-
-    @Inject
-    public GameUiChangesHandler(ClientThread clientThread, Client client, GePreviousSearch gePreviousSearch, HighlightController highlightController, SuggestionManager suggestionManager, GrandExchange grandExchange, OfferHandler offerHandler, OfferManager offerManager) {
-        this.clientThread = clientThread;
-        this.client = client;
-        this.gePreviousSearch = gePreviousSearch;
-        this.highlightController = highlightController;
-        this.suggestionManager = suggestionManager;
-        this.grandExchange = grandExchange;
-        this.offerHandler = offerHandler;
-        this.offerManager = offerManager;
-    }
-
 
     public void onVarClientIntChanged(VarClientIntChanged event) {
         if (event.getIndex() == VarClientInt.INPUT_TYPE

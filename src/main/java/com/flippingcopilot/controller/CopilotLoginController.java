@@ -5,6 +5,7 @@ import java.awt.event.ActionEvent;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.LoginPanel;
 import com.flippingcopilot.ui.MainPanel;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,6 +14,7 @@ import javax.inject.Singleton;
 
 @Slf4j
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class CopilotLoginController {
 
     // dependencies
@@ -31,23 +33,6 @@ public class CopilotLoginController {
     // state
     private String email;
     private String password;
-
-    @Inject
-    public CopilotLoginController(
-            ApiRequestHandler apiRequestHandler,
-            HighlightController highlightController,
-            FlipManager flipManager,
-            LoginResponseManager loginResponseManager,
-            SuggestionManager suggestionManager, OsrsLoginManager osrsLoginManager, SessionManager sessionManager
-    ) {
-        this.flipManager = flipManager;
-        this.apiRequestHandler = apiRequestHandler;
-        this.highlightController = highlightController;
-        this.suggestionManager = suggestionManager;
-        this.loginResponseManager = loginResponseManager;
-        this.osrsLoginManager = osrsLoginManager;
-        this.sessionManager = sessionManager;
-    }
 
     public void onLoginPressed(ActionEvent event) {
         Runnable loginCallback = () -> {

@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 import net.runelite.api.widgets.Widget;
 
@@ -8,17 +9,13 @@ import javax.inject.Singleton;
 
 
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GrandExchange {
 
     private final static int CURRENTLY_OPEN_GE_SLOT_VARBIT_ID = 4439;
     final static int SHOW_LAST_SEARCHED_VARBIT_ID = 10295;
 
     private final Client client;
-
-    @Inject
-    public GrandExchange(Client client) {
-        this.client = client;
-    }
 
     boolean isHomeScreenOpen() {
         return isOpen() && !isSlotOpen();

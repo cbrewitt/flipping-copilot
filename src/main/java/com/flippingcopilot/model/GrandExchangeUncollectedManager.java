@@ -3,6 +3,7 @@ package com.flippingcopilot.model;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ItemID;
@@ -12,6 +13,7 @@ import java.util.*;
 
 @Slf4j
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @javax.inject.Inject)
 public class GrandExchangeUncollectedManager {
 
     // dependencies
@@ -23,11 +25,6 @@ public class GrandExchangeUncollectedManager {
     private final List<Integer> lastClearedSlots = new ArrayList<>();
     // accountId -> [slot -> [itemID -> quantity]]
     private final Map<Long, Map<Integer, Map<Integer, Long>>> uncollected = new HashMap<>();
-
-    @Inject
-    public GrandExchangeUncollectedManager(Client client) {
-        this.client = client;
-    }
 
     public synchronized boolean HasUncollected(Long accountHash) {
         Map<Integer, Map<Integer, Long>> slotToUncollected = this.uncollected.computeIfAbsent(accountHash, (k) -> new HashMap<>());

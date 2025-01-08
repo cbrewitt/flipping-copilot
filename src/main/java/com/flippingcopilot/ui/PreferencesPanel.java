@@ -93,6 +93,11 @@ public class PreferencesPanel extends JPanel {
     }
 
     public void refresh() {
+        if(!SwingUtilities.isEventDispatchThread()) {
+            // we always execute this in the Swing EDT thread
+            SwingUtilities.invokeLater(this::refresh);
+            return;
+        }
         if(osrsLoginManager.getPlayerDisplayName() != null && client.getGameState() == GameState.LOGGED_IN) {
             sellOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isSellOnlyMode());
             sellOnlyButton.setVisible(true);

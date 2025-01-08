@@ -1,7 +1,6 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.CopilotLoginController;
-import lombok.Setter;
 import net.runelite.client.input.KeyListener;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.ImageUtil;

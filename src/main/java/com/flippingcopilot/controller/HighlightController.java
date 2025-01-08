@@ -2,6 +2,7 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.WidgetHighlightOverlay;
+import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.VarClientStr;
@@ -11,6 +12,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 
@@ -21,6 +23,7 @@ import static net.runelite.api.Varbits.GE_OFFER_CREATION_TYPE;
 
 
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class HighlightController {
 
     // dependencies
@@ -35,19 +38,8 @@ public class HighlightController {
     // state
     private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
 
-    @Inject
-    public HighlightController(FlippingCopilotConfig config,  SuggestionManager suggestionManager, GrandExchange grandExchange, AccountStatusManager accountStatusManager, Client client, OfferManager offerManager, OverlayManager overlayManager) {
-        this.config = config;
-        this.suggestionManager = suggestionManager;
-        this.grandExchange = grandExchange;
-        this.accountStatusManager = accountStatusManager;
-        this.client = client;
-        this.offerManager = offerManager;
-        this.overlayManager = overlayManager;
-    }
-
     public void redraw() {
-        removeAll();
+        SwingUtilities.invokeLater(this::removeAll);
         if(!config.suggestionHighlights()) {
             return;
         }
@@ -185,9 +177,11 @@ public class HighlightController {
     }
 
     private void add(Widget widget, Color color, Rectangle adjustedBounds) {
-        WidgetHighlightOverlay overlay = new WidgetHighlightOverlay(widget, color, adjustedBounds);
-        highlightOverlays.add(overlay);
-        overlayManager.add(overlay);
+        SwingUtilities.invokeLater(() -> {
+            WidgetHighlightOverlay overlay = new WidgetHighlightOverlay(widget, color, adjustedBounds);
+            highlightOverlays.add(overlay);
+            overlayManager.add(overlay);
+        });
     }
 
     private void add(Widget widget, Color color) {

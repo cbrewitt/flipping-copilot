@@ -5,6 +5,7 @@ import com.flippingcopilot.ui.FuzzySearchScorer;
 import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
@@ -15,6 +16,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -22,6 +24,7 @@ import java.util.stream.IntStream;
 
 @Singleton
 @Slf4j
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class SuggestionPreferencesManager {
 
     private static final String SUGGESTION_PREFERENCES_FILE_TEMPLATE = "acc_%d_preferences.json";
@@ -32,19 +35,12 @@ public class SuggestionPreferencesManager {
     private final FuzzySearchScorer fuzzySearchScorer;
     private final Client client;
     private final ItemManager itemManager;
+    private final ScheduledExecutorService executorService;
 
     // state
     private final Map<Long, SuggestionPreferences> cached = new HashMap<>();
-
-    @Inject
-    public SuggestionPreferencesManager(Gson gson, OsrsLoginManager osrsLoginManager, FuzzySearchScorer fuzzySearchScorer, Client client, ItemManager itemManager) {
-        this.gson = gson;
-        this.osrsLoginManager = osrsLoginManager;
-        this.fuzzySearchScorer = fuzzySearchScorer;
-        this.client = client;
-        this.itemManager = itemManager;
-    }
-
+    private final Map<Long, File> accountHashToFile = new HashMap<>();
+    
     public synchronized SuggestionPreferences getPreferences() {
         Long accountHash = osrsLoginManager.getAccountHash();
         return cached.computeIfAbsent(accountHash, this::load);
@@ -54,14 +50,14 @@ public class SuggestionPreferencesManager {
         Long accountHash = osrsLoginManager.getAccountHash();
         SuggestionPreferences preferences = cached.computeIfAbsent(accountHash, this::load);
         preferences.setSellOnlyMode(sellOnlyMode);
-        save(accountHash, preferences);
+        saveAsync(accountHash);
         log.debug("Sell only mode is now: {}", sellOnlyMode);
     }
     public synchronized void setF2pOnlyMode(boolean f2pOnlyMode) {
         Long accountHash = osrsLoginManager.getAccountHash();
         SuggestionPreferences preferences = cached.computeIfAbsent(accountHash, this::load);
         preferences.setF2pOnlyMode(f2pOnlyMode);
-        save(accountHash, preferences);
+        saveAsync(accountHash);
         log.debug("F2p only mode is now: {}", f2pOnlyMode);
     }
 
@@ -76,7 +72,7 @@ public class SuggestionPreferencesManager {
             blockedList.add(itemId);
         }
         preferences.setBlockedItemIds(blockedList);
-        save(accountHash, preferences);
+        saveAsync(accountHash);
         log.debug("blocked item {}", itemId);
     }
 
@@ -89,7 +85,7 @@ public class SuggestionPreferencesManager {
         }
         blockedList.removeIf(i -> i==itemId);
         preferences.setBlockedItemIds(blockedList);
-        save(accountHash, preferences);
+        saveAsync(accountHash);
         log.debug("unblocked item {}", itemId);
     }
 
@@ -140,18 +136,24 @@ public class SuggestionPreferencesManager {
         }
     }
 
-    private void save(Long accountHash, SuggestionPreferences p) {
-        File file = getFile(accountHash);
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, false))) {
-            String json = gson.toJson(p);
-            writer.write(json);
-            writer.newLine();
-        } catch (IOException e) {
-            log.warn("error saving preferences json file {}", file, e);
-        }
+    private void saveAsync(Long accountHash) {
+        executorService.submit(() -> {
+            File file = getFile(accountHash);
+            synchronized (file) {
+                SuggestionPreferences p = cached.computeIfAbsent(accountHash, this::load);
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, false))) {
+                    String json = gson.toJson(p);
+                    writer.write(json);
+                    writer.newLine();
+                } catch (IOException e) {
+                    log.warn("error saving preferences json file {}", file, e);
+                }
+            }
+        });
     }
 
     private File getFile(Long accountHash) {
-        return new File(Persistance.PARENT_DIRECTORY, String.format(SUGGESTION_PREFERENCES_FILE_TEMPLATE, accountHash));
+        return accountHashToFile.computeIfAbsent(accountHash,
+                (k) -> new File(Persistance.PARENT_DIRECTORY, String.format(SUGGESTION_PREFERENCES_FILE_TEMPLATE, accountHash)));
     }
 }

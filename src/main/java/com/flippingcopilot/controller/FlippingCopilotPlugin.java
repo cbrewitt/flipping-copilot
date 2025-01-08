@@ -81,6 +81,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	private GrandExchangeUncollectedManager grandExchangeUncollectedManager;
 	@Inject
 	private TransactionManger transactionManger;
+	@Inject
+	private OfferManager offerManager;
 
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
@@ -112,7 +114,6 @@ public class FlippingCopilotPlugin extends Plugin {
 
 		mainPanel.refresh();
 		if(loginResponseManager.isLoggedIn()) {
-
 			flipManager.loadFlipsAsync();
 		}
 		if(osrsLoginManager.getInvalidStateDisplayMessage() == null) {
@@ -135,6 +136,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void shutDown() throws Exception {
+		offerManager.saveAll();
 		highlightController.removeAll();
 		clientToolbar.removeNavigation(navButton);
 		if(loginResponseManager.isLoggedIn()) {
@@ -244,6 +246,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Subscribe
 	public void onClientShutdown(ClientShutdown clientShutdownEvent) {
 		log.debug("client shutdown event received");
+		offerManager.saveAll();
 		if(loginResponseManager.isLoggedIn()) {
 			String displayName = osrsLoginManager.getLastDisplayName();
 			webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, displayName), sessionManager.getCachedSessionData(), displayName, false);

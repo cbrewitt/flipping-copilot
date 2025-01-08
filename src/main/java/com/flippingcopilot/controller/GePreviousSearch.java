@@ -2,6 +2,7 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
+import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.JavaScriptCallback;
@@ -12,20 +13,13 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GePreviousSearch {
 
     private final SuggestionManager suggestionManager;
     private final GrandExchange grandExchange;
     private final HighlightController highlightController;
     private final Client client;
-
-    @Inject
-    public GePreviousSearch(SuggestionManager suggestionManager, GrandExchange grandExchange, HighlightController highlightController, Client client) {
-        this.suggestionManager = suggestionManager;
-        this.grandExchange = grandExchange;
-        this.highlightController = highlightController;
-        this.client = client;
-    }
 
 
     public void showSuggestedItemInSearch() {

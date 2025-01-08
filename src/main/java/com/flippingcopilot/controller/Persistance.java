@@ -1,14 +1,11 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.LoginResponse;
-import com.flippingcopilot.model.Offer;
-import com.flippingcopilot.model.StatusOfferList;
 import com.flippingcopilot.model.SessionData;
 import com.flippingcopilot.model.Transaction;
 import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.RuneLite;
 
@@ -21,7 +18,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
@@ -36,8 +32,6 @@ public class Persistance {
     public static final File PARENT_DIRECTORY = new File(RuneLite.RUNELITE_DIR, "flipping-copilot");
     public static final String UN_ACKED_TRANSACTIONS_FILE_TEMPLATE = "%s_un_acked.jsonl";
     public static final String ALL_TRANSACTIONS_FILE_TEMPLATE = "%s_all_transactions.jsonl";
-    public static final String SESSION_DATA_FILE_TEMPLATE = "%s_session_data.jsonl";
-    public static final String PREVIOUS_GE_OFFER_EVENTS = "%s_ge_offer_events.jsonl";
     public static final String LOGIN_RESPONSE_JSON_FILE = "login-response.json";
     public static File directory;
 
@@ -157,30 +151,6 @@ public class Persistance {
             }
         } catch (IOException e) {
             log.warn("error storing un acked transactions to file {}", unackedTransactionsFile, e);
-        }
-    }
-
-    public static SessionData loadSessionData(String displayName) {
-        File file = new File(PARENT_DIRECTORY, String.format(SESSION_DATA_FILE_TEMPLATE, hashDisplayName(displayName)));
-        if (!file.exists()) {
-            return new SessionData((int) Instant.now().getEpochSecond(), 0 ,0);
-        }
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            return gson.fromJson(reader, SessionData.class);
-        } catch (JsonSyntaxException | JsonIOException | IOException e) {
-            log.warn("error loading session data json file {}", file, e);
-        }
-        return new SessionData((int) Instant.now().getEpochSecond(), 0 ,0);
-    }
-
-    public static void storeSessionData(SessionData data, String displayName) {
-        File file = new File(PARENT_DIRECTORY, String.format(SESSION_DATA_FILE_TEMPLATE, hashDisplayName(displayName)));
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, false))) {
-            String json = gson.toJson(data);
-            writer.write(json);
-            writer.newLine();
-        } catch (IOException e) {
-            log.warn("error storing session data to file {}", file, e);
         }
     }
 

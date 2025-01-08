@@ -5,6 +5,7 @@ import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.VarClientStr;
@@ -22,6 +23,7 @@ import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 @Slf4j
 @Getter
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class OfferHandler {
 
     private static final int GE_OFFER_INIT_STATE_CHILD_ID = 20;
@@ -36,16 +38,6 @@ public class OfferHandler {
 
     // state
     private String viewedSlotPriceErrorText = null;
-
-    @Inject
-    public OfferHandler(Client client, SuggestionManager suggestionManager, ApiRequestHandler apiRequestHandler, OsrsLoginManager osrsLoginManager, OfferManager offerManager, HighlightController highlightController) {
-        this.client = client;
-        this.suggestionManager = suggestionManager;
-        this.apiRequestHandler = apiRequestHandler;
-        this.osrsLoginManager = osrsLoginManager;
-        this.offerManager = offerManager;
-        this.highlightController = highlightController;
-    }
 
     public void fetchSlotItemPrice(boolean isViewingSlot) {
         if (isViewingSlot) {

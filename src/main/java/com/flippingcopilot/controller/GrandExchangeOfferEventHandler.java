@@ -11,6 +11,7 @@ import java.util.*;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -24,6 +25,7 @@ import net.runelite.http.api.worlds.WorldType;
 
 @Slf4j
 @Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GrandExchangeOfferEventHandler {
     private static final int GE_LOGIN_BURST_WINDOW = 2; // ticks
 
@@ -44,24 +46,10 @@ public class GrandExchangeOfferEventHandler {
     private String machineUuid;
     private long lastAccountHash;
 
-    @Inject
-    public GrandExchangeOfferEventHandler(Client client, OfferManager offerPersistence, GrandExchange grandExchange, TransactionManger transactionManager, OsrsLoginManager osrsLoginManager, OverlayManager overlayManager, GrandExchangeUncollectedManager grandExchangeUncollectedManager, OfferManager offerManager, SuggestionManager suggestionManager) {
-        this.client = client;
-        this.offerPersistence = offerPersistence;
-        this.grandExchange = grandExchange;
-        this.transactionManager = transactionManager;
-        this.osrsLoginManager = osrsLoginManager;
-        this.overlayManager = overlayManager;
-        this.grandExchangeUncollectedManager = grandExchangeUncollectedManager;
-        this.offerManager = offerManager;
-        this.suggestionManager = suggestionManager;
-    }
 
     public void onGameTick() {
         if(!transactionsToProcess.isEmpty()) {
-            List<Transaction> temp = new ArrayList<>(transactionsToProcess);
-            transactionsToProcess.clear();
-            temp.forEach(this::processTransaction);
+            processTransactions();
         }
     }
 
@@ -99,7 +87,8 @@ public class GrandExchangeOfferEventHandler {
 
         Transaction t = inferTransaction( slot, o, prev, consistent);
         if(t != null) {
-            processTransaction(t);
+            transactionsToProcess.add(t);
+            processTransactions();
             suggestionManager.setSuggestionNeeded(true);
             log.debug("inferred transaction {}", t);
         }
@@ -151,15 +140,16 @@ public class GrandExchangeOfferEventHandler {
 
     }
 
-    private void processTransaction(Transaction transaction) {
+    private void processTransactions() {
         String displayName = osrsLoginManager.getPlayerDisplayName();
-        if(displayName == null) {
-            transactionsToProcess.add(transaction);
-        } else {
-            long profit = transactionManager.addTransaction(transaction, displayName);
-            if (grandExchange.isHomeScreenOpen() && profit != 0) {
-                new GpDropOverlay(overlayManager, client, profit, transaction.getBoxId());
+        if(displayName != null) {
+            for (Transaction transaction: transactionsToProcess) {
+                long profit = transactionManager.addTransaction(transaction, displayName);
+                if (grandExchange.isHomeScreenOpen() && profit != 0) {
+                    new GpDropOverlay(overlayManager, client, profit, transaction.getBoxId());
+                }
             }
+            transactionsToProcess.clear();
         }
     }
 
