@@ -171,7 +171,7 @@ public class GrandExchangeOfferEventHandler {
             t.setCopilotPriceUsed(true);
             t.setOfferTotalQuantity(offer.getTotalQuantity());
             t.setLogin(login);
-            t.setMachineID(getMachineUuid());
+            t.setMachineID("");
             t.setConsistent(consistent);
             return t;
         }
@@ -217,48 +217,6 @@ public class GrandExchangeOfferEventHandler {
                 lastLoginTick = client.getTickCount();
                 break;
             case LOGGED_IN:
-        }
-    }
-
-    private String getMachineUuid() {
-        long accountHash = client.getAccountHash();
-        if (lastAccountHash == accountHash)
-        {
-            return machineUuid;
-        }
-
-        lastAccountHash = accountHash;
-
-        try
-        {
-            Hasher hasher = Hashing.sha256().newHasher();
-            Runtime runtime = Runtime.getRuntime();
-
-            hasher.putByte((byte) OSType.getOSType().ordinal());
-            hasher.putByte((byte) runtime.availableProcessors());
-            hasher.putUnencodedChars(System.getProperty("os.arch", ""));
-            hasher.putUnencodedChars(System.getProperty("os.version", ""));
-            hasher.putUnencodedChars(System.getProperty("user.name", ""));
-
-            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
-            while (networkInterfaces.hasMoreElements())
-            {
-                NetworkInterface networkInterface = networkInterfaces.nextElement();
-                byte[] hardwareAddress = networkInterface.getHardwareAddress();
-                if (hardwareAddress != null)
-                {
-                    hasher.putBytes(hardwareAddress);
-                }
-            }
-            hasher.putLong(accountHash);
-            machineUuid = hasher.hash().toString();
-            return machineUuid;
-        }
-        catch (SocketException ex)
-        {
-            log.debug("unable to generate machine id", ex);
-            machineUuid = null;
-            return null;
         }
     }
 }
