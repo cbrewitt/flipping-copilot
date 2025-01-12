@@ -171,7 +171,6 @@ public class GrandExchangeOfferEventHandler {
             t.setCopilotPriceUsed(true);
             t.setOfferTotalQuantity(offer.getTotalQuantity());
             t.setLogin(login);
-            t.setMachineID("");
             t.setConsistent(consistent);
             return t;
         }
