@@ -27,7 +27,6 @@ public class Transaction {
     private boolean copilotPriceUsed;
     private int offerTotalQuantity;
     private boolean login;
-    private String machineID;
     private boolean consistent;
 
     public boolean equals(Transaction other) {
@@ -50,7 +49,6 @@ public class Transaction {
         jsonObject.addProperty("time", timestamp.getEpochSecond());
         jsonObject.addProperty("copilot_price_used", copilotPriceUsed);
         jsonObject.addProperty("consistent_previous_offer", consistent);
-        jsonObject.addProperty("machine_id", machineID);
         jsonObject.addProperty("login", login);
         return jsonObject;
     }
