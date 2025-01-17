@@ -1,5 +1,6 @@
 package com.flippingcopilot.model;
 
+import com.flippingcopilot.util.MutableReference;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.Getter;
@@ -20,6 +21,8 @@ public class GrandExchangeUncollectedManager {
     private final Client client;
 
     // state
+    @Getter
+    private int lastUncollectedAddedTick = -1;
     private int lastClearedTick = -1;
     private final Map<Integer, Long> lastClearedUncollected = new HashMap<>();
     private final List<Integer> lastClearedSlots = new ArrayList<>();
@@ -28,14 +31,16 @@ public class GrandExchangeUncollectedManager {
 
     public synchronized boolean HasUncollected(Long accountHash) {
         Map<Integer, Map<Integer, Long>> slotToUncollected = this.uncollected.computeIfAbsent(accountHash, (k) -> new HashMap<>());
-        for(Map<Integer, Long> u : slotToUncollected.values()) {
-            for(Long v : u.values()) {
-                if(v > 0) {
-                    return true;
+        MutableReference<Boolean> hasUncollected = new MutableReference<>(false);
+        slotToUncollected.forEach((slot, itemToQty) -> {
+            itemToQty.forEach((i, q) -> {
+                if(q > 0) {
+                    log.debug("{} slot {} item {} uncollected {}", accountHash, slot, i, q);
+                    hasUncollected.setValue(true);
                 }
-            }
-        }
-        return false;
+            });
+        });
+        return hasUncollected.getValue();
     }
 
     public synchronized Map<Integer, Long> loadAllUncollected(Long accountHash) {
@@ -51,6 +56,7 @@ public class GrandExchangeUncollectedManager {
     }
 
     public synchronized void addUncollected(Long accountHash, Integer slot, int itemId, long quantity, long gp) {
+        lastUncollectedAddedTick = client.getTickCount();
         Map<Integer, Map<Integer, Long>> slotToUncollected = this.uncollected.computeIfAbsent(accountHash, (k) -> new HashMap<>());
         Map<Integer, Long> itemIdToQuantity = slotToUncollected.computeIfAbsent(slot, (k) -> new HashMap<>());
         if (!itemIdToQuantity.containsKey(itemId)) {
@@ -120,6 +126,7 @@ public class GrandExchangeUncollectedManager {
     public void reset() {
         lastClearedUncollected.clear();
         lastClearedTick = -1;
+        lastUncollectedAddedTick = -1;
         uncollected.clear();
     }
 }

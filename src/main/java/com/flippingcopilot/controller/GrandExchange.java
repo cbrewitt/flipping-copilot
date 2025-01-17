@@ -1,13 +1,15 @@
 package com.flippingcopilot.controller;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.widgets.Widget;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.Arrays;
 
-
+@Slf4j
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GrandExchange {
@@ -27,6 +29,18 @@ public class GrandExchange {
 
     boolean isOpen() {
         return client.getWidget(465, 7) != null;
+    }
+
+    boolean isCollectButtonVisible() {
+        Widget w = client.getWidget(465, 6);
+        if (w == null) {
+            return false;
+        }
+        Widget[] children = w.getChildren();
+        if(children == null) {
+            return false;
+        }
+        return Arrays.stream(children).anyMatch(c -> !c.isHidden() && "Collect".equals(c.getText()));
     }
 
     int getOpenSlot() {

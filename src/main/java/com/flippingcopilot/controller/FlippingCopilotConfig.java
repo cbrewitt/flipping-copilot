@@ -105,6 +105,14 @@ public interface FlippingCopilotConfig extends Config
         return UIUtilities.OUTDATED_COLOR;
     }
     @ConfigItem(
+            keyName = "chatTextColor",
+            name = "Chat text color",
+            description = "The color of the text for copilot messages in the chat."
+    )
+    default Color chatTextColor() {
+        return new Color(0x0040FF);
+    }
+    @ConfigItem(
             keyName = "webhook",
             name = "Webhook URL",
             description = "The Discord Webhook URL for sending display name and profit."

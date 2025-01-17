@@ -61,9 +61,35 @@ public class SuggestionController {
     }
 
     void onGameTick() {
+        // There is a race condition when the collect button is hit at the same time as offers fill.
+        // In such a case we can end up with the uncollectedManager falsely thinking there is items to collect.
+        // We identify if this has happened here by checking if the collect button is actually visible.
+        if(isUncollectedOutOfSync()) {
+            log.warn("uncollectedManager manager is out of sync, it thinks there are items to collect but the GE is open and the Collect button not visible");
+            uncollectedManager.clearAllUncollected(osrsLoginManager.getAccountHash());
+            suggestionManager.setSuggestionNeeded(true);
+        }
+
         if ((suggestionManager.isSuggestionNeeded() || suggestionManager.suggestionOutOfDate()) && !(grandExchange.isSlotOpen() && !accountStatusManager.isSuggestionSkipped())) {
             getSuggestionAsync();
         }
+    }
+
+    private boolean isUncollectedOutOfSync() {
+        if (client.getTickCount() <= uncollectedManager.getLastUncollectedAddedTick() + 2) {
+            return false;
+        }
+        if(!grandExchange.isOpen() || grandExchange.isCollectButtonVisible()) {
+            return false;
+        }
+        if(uncollectedManager.HasUncollected(osrsLoginManager.getAccountHash())) {
+            return true;
+        }
+        if(suggestionPanel.isCollectItemsSuggested()) {
+            log.debug("inner suggestion text is collect items");
+            return true;
+        }
+        return false;
     }
 
     public void getSuggestionAsync() {
@@ -103,7 +129,7 @@ public class SuggestionController {
         };
         suggestionPanel.refresh();
         log.debug("tick {} getting suggestion", client.getTickCount());
-        apiRequestHandler.getSuggestionAsync(accountStatus.toJson(gson), onSuccess, onFailure);
+        apiRequestHandler.getSuggestionAsync(accountStatus.toJson(gson, grandExchange.isOpen()), onSuccess, onFailure);
     }
 
 
@@ -137,7 +163,7 @@ public class SuggestionController {
 
     private void showChatNotification(String message) {
         String chatMessage = new ChatMessageBuilder()
-                .append(new Color(0x0040FF), message)
+                .append(config.chatTextColor(), message)
                 .build();
         client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", chatMessage, "");
     }

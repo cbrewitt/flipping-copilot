@@ -43,9 +43,6 @@ public class GrandExchangeOfferEventHandler {
     // state
     private final List<Transaction> transactionsToProcess = new ArrayList<>();
     private int lastLoginTick;
-    private String machineUuid;
-    private long lastAccountHash;
-
 
     public void onGameTick() {
         if(!transactionsToProcess.isEmpty()) {

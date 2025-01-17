@@ -52,6 +52,7 @@ public class SuggestionPanel extends JPanel {
     private final JLayeredPane layeredPane = new JLayeredPane();
     private boolean isPreferencesPanelVisible = false;
     private final JLabel gearButton;
+    private String innerSuggestionMessage;
 
     @Setter
     private String serverMessage = "";
@@ -242,6 +243,7 @@ public class SuggestionPanel extends JPanel {
         }
         suggestionString += suggestion.getMessage();
         suggestionString += "</center><html>";
+        innerSuggestionMessage = "";
         suggestionText.setText(suggestionString);
         suggestionText.setVisible(true);
         if(!suggestion.getType().equals("wait")) {
@@ -267,8 +269,13 @@ public class SuggestionPanel extends JPanel {
     }
 
     public void setMessage(String message) {
-        suggestionText.setText("<html><center>" + message +  "<br>" + serverMessage + "</center><html>");
+        innerSuggestionMessage = message;
+        suggestionText.setText("<html><center>" + innerSuggestionMessage +  "<br>" + serverMessage + "</center><html>");
         setButtonsVisible(false);
+    }
+
+    public boolean isCollectItemsSuggested() {
+        return suggestionText.isVisible() && "Collect items".equals(innerSuggestionMessage);
     }
 
     public void showLoading() {
