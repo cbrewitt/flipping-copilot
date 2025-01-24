@@ -94,11 +94,11 @@ public class GrandExchangeOfferEventHandler {
     }
 
     private boolean hasSlotBecomeFree(SavedOffer offer, SavedOffer prev, boolean consistent) {
-        return offer.isFreeSlot() && (!consistent || !prev.isFreeSlot());
+        return offer.isFreeSlot() && (prev == null || !consistent || !prev.isFreeSlot());
     }
 
     private boolean wasCopilotPriceUsed(SavedOffer o, SavedOffer prev) {
-        if(isNewOffer(o, prev)){
+        if(isNewOffer(prev, o)){
             return o.getItemId() == offerManager.getLastViewedSlotItemId() && o.getPrice() == offerManager.getLastViewedSlotItemPrice() && Instant.now().minusSeconds(30).getEpochSecond() < offerManager.getLastViewedSlotPriceTime();
         } else {
             return prev.isCopilotPriceUsed();

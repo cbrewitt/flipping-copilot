@@ -38,7 +38,7 @@ public class HighlightController {
     private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
 
     public void redraw() {
-        SwingUtilities.invokeLater(this::removeAll);
+        removeAll();
         if(!config.suggestionHighlights()) {
             return;
         }
@@ -188,8 +188,10 @@ public class HighlightController {
     }
 
     public void removeAll() {
-        highlightOverlays.forEach(overlayManager::remove);
-        highlightOverlays.clear();
+        SwingUtilities.invokeLater(() -> {
+            highlightOverlays.forEach(overlayManager::remove);
+            highlightOverlays.clear();
+        });
     }
 
     private Widget getInventoryItemWidget(int unnotedItemId) {
