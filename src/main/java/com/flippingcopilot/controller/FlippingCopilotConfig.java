@@ -23,7 +23,8 @@ public interface FlippingCopilotConfig extends Config
         PLATINUM_TOKENS("PlatinumTokens"),
         GE_DATABASE("GE Database"),
         OSRS_CLOUD("Osrs.cloud"),
-        OSRS_EXCHANGE("OSRS Exchange");
+        OSRS_EXCHANGE("OSRS Exchange"),
+        FLIPPING_GG("Flipping.gg");
 
         private final String name;
         PriceGraphWebsite(String name)
@@ -63,6 +64,8 @@ public interface FlippingCopilotConfig extends Config
                             + URLEncoder.encode(osrsExchangeFormattedName, StandardCharsets.UTF_8);
                 case OSRS_CLOUD:
                     return "https://prices.osrs.cloud/item/" + itemId;
+                case FLIPPING_GG:
+                    return "https://www.flipping.gg/items/" + itemId;
                 default:
                     return "";
             }
