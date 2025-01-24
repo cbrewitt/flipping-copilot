@@ -6,8 +6,10 @@ import com.google.gson.JsonObject;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 // note: we synchronize all public methods of this class as they read/modify its state and may
@@ -50,7 +52,7 @@ public class AccountStatus {
         return false;
     }
 
-    public synchronized JsonObject toJson(Gson gson) {
+    public synchronized JsonObject toJson(Gson gson, boolean geOpen) {
         JsonObject statusJson = new JsonObject();
         statusJson.addProperty("display_name", displayName);
         statusJson.addProperty("sell_only", sellOnlyMode);
@@ -69,6 +71,21 @@ public class AccountStatus {
             blockedItems.forEach(blockItemsArray::add);
         }
         statusJson.add("blocked_items", blockItemsArray);
+
+        Set<String> requestedSuggestionTypes = new HashSet<>();
+        if (!geOpen) {
+            requestedSuggestionTypes.add("abort");
+            requestedSuggestionTypes.add("sell");
+        }
+        if(sellOnlyMode) {
+            requestedSuggestionTypes.clear();
+            requestedSuggestionTypes.add("abort");
+        }
+        if(!requestedSuggestionTypes.isEmpty()) {
+           JsonArray rstArray = new JsonArray();
+           requestedSuggestionTypes.forEach(rstArray::add);
+           statusJson.add("requestedSuggestionTypes", rstArray);
+        }
         return statusJson;
     }
 

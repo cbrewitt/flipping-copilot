@@ -159,7 +159,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event) {
-		if (event.getContainerId() == InventoryID.INVENTORY.getId()) {
+		if (event.getContainerId() == InventoryID.INVENTORY.getId() && grandExchange.isOpen()) {
 			suggestionManager.setSuggestionNeeded(true);
 		}
 	}

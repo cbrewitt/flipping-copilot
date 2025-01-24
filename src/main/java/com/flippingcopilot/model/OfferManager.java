@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -28,6 +29,7 @@ public class OfferManager {
     // dependencies
     private final Gson gson;
     private final ScheduledExecutorService executorService;
+    private final Client client;
 
     // state
     @Getter

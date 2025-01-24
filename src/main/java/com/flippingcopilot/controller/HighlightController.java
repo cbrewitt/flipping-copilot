@@ -16,8 +16,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 
-import static com.flippingcopilot.ui.UIUtilities.BLUE_HIGHLIGHT_COLOR;
-import static com.flippingcopilot.ui.UIUtilities.RED_HIGHLIGHT_COLOR;
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 import static net.runelite.api.Varbits.GE_OFFER_CREATION_TYPE;
 
@@ -34,12 +32,13 @@ public class HighlightController {
     private final Client client;
     private final OfferManager offerManager;
     private final OverlayManager overlayManager;
+    private final HighlightColorController highlightColorController;
 
     // state
     private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
 
     public void redraw() {
-        SwingUtilities.invokeLater(this::removeAll);
+        removeAll();
         if(!config.suggestionHighlights()) {
             return;
         }
@@ -65,26 +64,26 @@ public class HighlightController {
         if (accountStatus.isCollectNeeded(suggestion)) {
             Widget collectButton = grandExchange.getCollectButton();
             if (collectButton != null) {
-                add(collectButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(2, 1, 81, 18));
+                add(collectButton, highlightColorController.getBlueColor(), new Rectangle(2, 1, 81, 18));
             }
         }
         else if (suggestion.getType().equals("abort")) {
             Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
-            add(slotWidget, RED_HIGHLIGHT_COLOR);
+            add(slotWidget, highlightColorController.getRedColor());
         }
         else if (suggestion.getType().equals("buy")) {
             int slotId = accountStatus.getOffers().findEmptySlot();
             if (slotId != -1) {
                 Widget buyButton = grandExchange.getBuyButton(slotId);
                 if (buyButton != null && !buyButton.isHidden()) {
-                    add(buyButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(0, 0, 45, 44));
+                    add(buyButton, highlightColorController.getBlueColor(), new Rectangle(0, 0, 45, 44));
                 }
             }
         }
         else if (suggestion.getType().equals("sell")) {
             Widget itemWidget = getInventoryItemWidget(suggestion.getItemId());
             if (itemWidget != null && !itemWidget.isHidden()) {
-                add(itemWidget, BLUE_HIGHLIGHT_COLOR, new Rectangle(0, 0, 34, 32));
+                add(itemWidget, highlightColorController.getBlueColor(), new Rectangle(0, 0, 34, 32));
             }
         }
     }
@@ -132,13 +131,13 @@ public class HighlightController {
         }
         for (Widget widget : searchResults.getDynamicChildren()) {
             if (widget.getName().equals("<col=ff9040>" + suggestion.getName() + "</col>")) {
-                add(widget, BLUE_HIGHLIGHT_COLOR);
+                add(widget, highlightColorController.getBlueColor());
                 return;
             }
         }
         Widget itemWidget = searchResults.getChild(3);
         if (itemWidget != null && itemWidget.getItemId() == suggestion.getItemId()) {
-            add(itemWidget, BLUE_HIGHLIGHT_COLOR);
+            add(itemWidget, highlightColorController.getBlueColor());
         }
     }
 
@@ -150,7 +149,7 @@ public class HighlightController {
     private void highlightPrice() {
         Widget setPriceButton = grandExchange.getSetPriceButton();
         if (setPriceButton != null) {
-            add(setPriceButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 6, 33, 23));
+            add(setPriceButton, highlightColorController.getBlueColor(), new Rectangle(1, 6, 33, 23));
         }
     }
 
@@ -164,7 +163,7 @@ public class HighlightController {
                 setQuantityButton = grandExchange.getSetQuantityButton();
             }
             if (setQuantityButton != null) {
-                add(setQuantityButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 6, 33, 23));
+                add(setQuantityButton, highlightColorController.getBlueColor(), new Rectangle(1, 6, 33, 23));
             }
         }
     }
@@ -172,7 +171,7 @@ public class HighlightController {
     private void highlightConfirm() {
         Widget confirmButton = grandExchange.getConfirmButton();
         if (confirmButton != null) {
-            add(confirmButton, BLUE_HIGHLIGHT_COLOR, new Rectangle(1, 1, 150, 38));
+            add(confirmButton, highlightColorController.getBlueColor(), new Rectangle(1, 1, 150, 38));
         }
     }
 
@@ -189,8 +188,10 @@ public class HighlightController {
     }
 
     public void removeAll() {
-        highlightOverlays.forEach(overlayManager::remove);
-        highlightOverlays.clear();
+        SwingUtilities.invokeLater(() -> {
+            highlightOverlays.forEach(overlayManager::remove);
+            highlightOverlays.clear();
+        });
     }
 
     private Widget getInventoryItemWidget(int unnotedItemId) {
