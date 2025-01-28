@@ -15,7 +15,6 @@ import net.runelite.client.chat.ChatMessageBuilder;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.awt.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
@@ -69,7 +68,10 @@ public class SuggestionController {
             uncollectedManager.clearAllUncollected(osrsLoginManager.getAccountHash());
             suggestionManager.setSuggestionNeeded(true);
         }
-
+        // on initial login the state of the GE offers isn't correct we need to wait a couple ticks before requesting a suggestion
+        if (osrsLoginManager.hasJustLoggedIn()) {
+            return;
+        }
         if ((suggestionManager.isSuggestionNeeded() || suggestionManager.suggestionOutOfDate()) && !(grandExchange.isSlotOpen() && !accountStatusManager.isSuggestionSkipped())) {
             getSuggestionAsync();
         }
@@ -100,7 +102,7 @@ public class SuggestionController {
         if (suggestionManager.isSuggestionRequestInProgress()) {
             return;
         }
-        AccountStatus accountStatus = accountStatusManager.getAccountStatus(false);
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (accountStatus == null) {
             return;
         }

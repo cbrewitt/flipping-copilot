@@ -300,7 +300,7 @@ public class SuggestionPanel extends JPanel {
         if (suggestion == null) {
             return;
         }
-        AccountStatus accountStatus = accountStatusManager.getAccountStatus(true);
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         setServerMessage(suggestion.getMessage());
         boolean collectNeeded = accountStatus.isCollectNeeded(suggestion);
         if(collectNeeded && !uncollectedManager.HasUncollected(osrsLoginManager.getAccountHash())) {

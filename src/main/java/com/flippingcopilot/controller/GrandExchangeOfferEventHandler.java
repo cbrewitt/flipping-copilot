@@ -23,11 +23,12 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.OSType;
 import net.runelite.http.api.worlds.WorldType;
 
+import static com.flippingcopilot.model.OsrsLoginManager.GE_LOGIN_BURST_WINDOW;
+
 @Slf4j
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GrandExchangeOfferEventHandler {
-    private static final int GE_LOGIN_BURST_WINDOW = 2; // ticks
 
     // dependencies
     private final Client client;
@@ -42,7 +43,6 @@ public class GrandExchangeOfferEventHandler {
 
     // state
     private final List<Transaction> transactionsToProcess = new ArrayList<>();
-    private int lastLoginTick;
 
     public void onGameTick() {
         if(!transactionsToProcess.isEmpty()) {
@@ -60,7 +60,7 @@ public class GrandExchangeOfferEventHandler {
             return;
         }
 
-        log.debug("tick {} GE offer updated: state: {}, slot: {}, item: {}, qty: {}, lastLoginTick: {}", client.getTickCount(), offer.getState(), slot, offer.getItemId(), offer.getQuantitySold(), lastLoginTick);
+        log.debug("tick {} GE offer updated: state: {}, slot: {}, item: {}, qty: {}, lastLoginTick: {}", client.getTickCount(), offer.getState(), slot, offer.getItemId(), offer.getQuantitySold(), osrsLoginManager.getLastLoginTick());
 
         SavedOffer o = SavedOffer.fromGrandExchangeOffer(offer);
 
@@ -151,7 +151,7 @@ public class GrandExchangeOfferEventHandler {
     }
 
     public Transaction inferTransaction(int slot, SavedOffer offer, SavedOffer prev, boolean consistent) {
-        boolean login = client.getTickCount() <= lastLoginTick + GE_LOGIN_BURST_WINDOW;
+        boolean login = client.getTickCount() <= osrsLoginManager.getLastLoginTick() + GE_LOGIN_BURST_WINDOW;
         boolean isNewOffer = isNewOffer(prev, offer);
         int quantityDiff = isNewOffer ? offer.getQuantitySold() : offer.getQuantitySold() - prev.getQuantitySold();
         int amountSpentDiff = isNewOffer ? offer.getSpent() : offer.getSpent() - prev.getSpent();
@@ -200,19 +200,5 @@ public class GrandExchangeOfferEventHandler {
                 || prev.getTotalQuantity() != updated.getTotalQuantity()
                 || prev.getQuantitySold() > updated.getQuantitySold()
                 || prev.getSpent() > updated.getSpent();
-    }
-
-    public void onGameStateChanged(GameStateChanged gameStateChanged) {
-        switch (gameStateChanged.getGameState())
-        {
-            case LOGIN_SCREEN:
-                break;
-            case LOGGING_IN:
-            case HOPPING:
-            case CONNECTION_LOST:
-                lastLoginTick = client.getTickCount();
-                break;
-            case LOGGED_IN:
-        }
     }
 }

@@ -60,7 +60,7 @@ public class HighlightController {
     }
 
     private void drawHomeScreenHighLights(Suggestion suggestion) {
-        AccountStatus accountStatus = accountStatusManager.getAccountStatus(false);
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (accountStatus.isCollectNeeded(suggestion)) {
             Widget collectButton = grandExchange.getCollectButton();
             if (collectButton != null) {
@@ -154,7 +154,7 @@ public class HighlightController {
     }
 
     private void highlightQuantity(Suggestion suggestion) {
-        AccountStatus accountStatus = accountStatusManager.getAccountStatus(false);
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (grandExchange.getOfferQuantity() != suggestion.getQuantity()) {
             Widget setQuantityButton;
             if (accountStatus.getInventory().getTotalAmount(suggestion.getItemId()) == suggestion.getQuantity()) {
