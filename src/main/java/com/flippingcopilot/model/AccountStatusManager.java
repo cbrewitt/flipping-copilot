@@ -26,7 +26,7 @@ public class AccountStatusManager {
     @Setter
     private int skipSuggestion = -1;
 
-    public synchronized AccountStatus getAccountStatus(boolean includeJustCollected) {
+    public synchronized AccountStatus getAccountStatus() {
         Long accountHash =  osrsLoginManager.getAccountHash();
         ItemContainer itemContainer = client.getItemContainer(InventoryID.INVENTORY);
         if(itemContainer == null) {

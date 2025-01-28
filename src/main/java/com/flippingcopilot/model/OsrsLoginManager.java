@@ -1,6 +1,8 @@
 package com.flippingcopilot.model;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import net.runelite.api.*;
 
 import javax.inject.Inject;
@@ -10,6 +12,8 @@ import java.util.EnumSet;
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class OsrsLoginManager {
+
+    public static final int GE_LOGIN_BURST_WINDOW = 2; // ticks
 
     public static String LOGIN_TO_GET_SUGGESTION_MESSAGE = "Log in to the game<br>to get a flip suggestion";
     private static final WorldType[] COPILOT_UNSUPPORTED_WORLDS = {WorldType.BETA_WORLD,
@@ -25,6 +29,10 @@ public class OsrsLoginManager {
 
     private String cachedDisplayName;
     private long lastAccountHash;
+
+    @Getter
+    @Setter
+    private int lastLoginTick;
 
     private boolean lastIsIronman = false;
 
@@ -86,5 +94,9 @@ public class OsrsLoginManager {
 
     public void reset() {
 
+    }
+
+    public boolean hasJustLoggedIn() {
+        return client.getTickCount() <= lastLoginTick + GE_LOGIN_BURST_WINDOW;
     }
 }

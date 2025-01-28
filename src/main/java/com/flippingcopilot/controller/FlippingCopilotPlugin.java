@@ -124,7 +124,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			clientThread.invoke(() -> {
 				boolean loginValid = osrsLoginManager.isValidLoginState();
 				if (loginValid) {
-					AccountStatus accStatus = accountStatusManager.getAccountStatus(false);
+					AccountStatus accStatus = accountStatusManager.getAccountStatus();
 					boolean isFlipping = accStatus != null && accStatus.currentlyFlipping();
 					long cashStack = accStatus == null ? 0 : accStatus.currentCashStack();
 					sessionManager.updateSessionStats(isFlipping, cashStack);
@@ -199,7 +199,6 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event) {
-		offerEventHandler.onGameStateChanged(event);
 		switch (event.getGameState())
 		{
 			case LOGIN_SCREEN:
@@ -214,6 +213,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			case LOGGING_IN:
 			case HOPPING:
 			case CONNECTION_LOST:
+				osrsLoginManager.setLastLoginTick(client.getTickCount());
 				break;
 			case LOGGED_IN:
 				// we want to update the flips panel on login but unfortunately the display name
