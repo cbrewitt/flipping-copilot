@@ -1,13 +1,10 @@
 package com.flippingcopilot.controller;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.GpDropOverlay;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
 
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -17,11 +14,8 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.GrandExchangeOffer;
 import net.runelite.api.GrandExchangeOfferState;
-import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GrandExchangeOfferChanged;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.util.OSType;
-import net.runelite.http.api.worlds.WorldType;
 
 import static com.flippingcopilot.model.OsrsLoginManager.GE_LOGIN_BURST_WINDOW;
 
@@ -42,7 +36,7 @@ public class GrandExchangeOfferEventHandler {
     private final SuggestionManager suggestionManager;
 
     // state
-    private final List<Transaction> transactionsToProcess = new ArrayList<>();
+    private final Queue<Transaction> transactionsToProcess = new ConcurrentLinkedQueue<>();
 
     public void onGameTick() {
         if(!transactionsToProcess.isEmpty()) {
@@ -89,7 +83,7 @@ public class GrandExchangeOfferEventHandler {
             suggestionManager.setSuggestionNeeded(true);
             log.debug("inferred transaction {}", t);
         }
-        updatedUncollected(accountHash, slot, o, prev, consistent);
+        updateUncollected(accountHash, slot, o, prev, consistent);
         offerPersistence.saveOffer(accountHash, slot, o);
     }
 
@@ -105,7 +99,7 @@ public class GrandExchangeOfferEventHandler {
         }
     }
 
-    private void updatedUncollected(Long accountHash, int slot, SavedOffer o, SavedOffer prev, boolean consistent) {
+    private void updateUncollected(Long accountHash, int slot, SavedOffer o, SavedOffer prev, boolean consistent) {
         if(!consistent) {
             return;
         }
@@ -140,13 +134,13 @@ public class GrandExchangeOfferEventHandler {
     private void processTransactions() {
         String displayName = osrsLoginManager.getPlayerDisplayName();
         if(displayName != null) {
-            for (Transaction transaction: transactionsToProcess) {
+            Transaction transaction;
+            while ((transaction = transactionsToProcess.poll()) != null) {
                 long profit = transactionManager.addTransaction(transaction, displayName);
                 if (grandExchange.isHomeScreenOpen() && profit != 0) {
                     new GpDropOverlay(overlayManager, client, profit, transaction.getBoxId());
                 }
             }
-            transactionsToProcess.clear();
         }
     }
 

@@ -3,7 +3,6 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.model.*;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
-import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -104,6 +103,45 @@ public class ApiRequestHandler {
         });
     }
 
+    public void sendTransactionsAsync(List<Transaction> transactions, String displayName, Consumer<List<FlipV2>> onSuccess, Consumer<HttpResponseException> onFailure) {
+        log.debug("sending {} transactions for display name {}", transactions.size(), displayName);
+        JsonArray body = new JsonArray();
+        for (Transaction transaction : transactions) {
+            body.add(transaction.toJsonObject());
+        }
+        String encodedDisplayName = URLEncoder.encode(displayName, StandardCharsets.UTF_8);
+        Request request = new Request.Builder()
+                .url(serverUrl + "/profit-tracking/client-transactions?display_name=" + encodedDisplayName)
+                .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.warn("call to sync transactions failed", e);
+                onFailure.accept(new HttpResponseException(-1, "Unknown Error"));
+            }
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        String errorMessage = extractErrorMessage(response);
+                        log.warn("call to sync transactions failed status code {}, error message {}", response.code(), errorMessage);
+                        onFailure.accept(new HttpResponseException(response.code(), errorMessage));
+                        return;
+                    }
+                    String body = response.body() == null ? "" : response.body().string();
+                    List<FlipV2> changedFlips = gson.fromJson(body, new TypeToken<List<FlipV2>>(){}.getType());
+                    onSuccess.accept(changedFlips);
+                } catch (IOException | JsonParseException e) {
+                    log.warn("error reading/parsing sync transactions response body", e);
+                    onFailure.accept(new HttpResponseException(-1, "Unknown Error"));
+                }
+            }
+        });
+    }
+
     private String extractErrorMessage(Response response) {
         if (response.body() != null) {
             try {
@@ -131,16 +169,6 @@ public class ApiRequestHandler {
             log.error("error fetching copilot price for item {}, resp code {}", itemId, e.getResponseCode(), e);
             return new ItemPrice(0, 0, "Unable to fetch price copilot price (possible server update)");
         }
-    }
-
-    public List<FlipV2> SendTransactions(List<Transaction> transactions, String displayName) throws HttpResponseException {
-        JsonArray body = new JsonArray();
-        for (Transaction transaction : transactions) {
-            body.add(transaction.toJsonObject());
-        }
-        String encodedDisplayName = URLEncoder.encode(displayName, StandardCharsets.UTF_8);
-        Type respType = new TypeToken<List<FlipV2>>(){}.getType();
-        return doHttpRequest("POST", body, "/profit-tracking/client-transactions?display_name=" + encodedDisplayName, respType);
     }
 
     public Map<String, Integer> loadUserDisplayNames() throws HttpResponseException {

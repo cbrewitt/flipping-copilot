@@ -20,8 +20,7 @@ public class GrandExchangeUncollectedManager {
     // dependencies
     private final Client client;
 
-    // state
-    @Getter
+    // stated
     private int lastUncollectedAddedTick = -1;
     private int lastClearedTick = -1;
     private final Map<Integer, Long> lastClearedUncollected = new HashMap<>();
@@ -123,7 +122,11 @@ public class GrandExchangeUncollectedManager {
         return lastClearedSlots;
     }
 
-    public void reset() {
+    public synchronized int getLastUncollectedAddedTick() {
+        return lastUncollectedAddedTick;
+    }
+
+    public synchronized void reset() {
         lastClearedUncollected.clear();
         lastClearedTick = -1;
         lastUncollectedAddedTick = -1;

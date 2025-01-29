@@ -60,6 +60,9 @@ public class SuggestionController {
     }
 
     void onGameTick() {
+        if(suggestionManager.isSuggestionRequestInProgress()) {
+            return;
+        }
         // There is a race condition when the collect button is hit at the same time as offers fill.
         // In such a case we can end up with the uncollectedManager falsely thinking there is items to collect.
         // We identify if this has happened here by checking if the collect button is actually visible.
