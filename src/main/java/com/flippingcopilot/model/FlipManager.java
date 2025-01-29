@@ -60,8 +60,8 @@ public class FlipManager {
     }
 
     public synchronized long estimateTransactionProfit(String displayName, Transaction t) {
-        int accountId = displayNameToAccountId.get(displayName);
-        if (lastOpenFLipByItemId.containsKey(accountId)) {
+        Integer accountId = displayNameToAccountId.get(displayName);
+        if (accountId != null && lastOpenFLipByItemId.containsKey(accountId)) {
             FlipV2 flip = lastOpenFLipByItemId.get(accountId).get(t.getItemId());
             if(flip != null) {
                 return flip.calculateProfit(t);

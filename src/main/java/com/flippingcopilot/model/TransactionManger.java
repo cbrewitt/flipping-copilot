@@ -10,8 +10,12 @@ import okhttp3.OkHttpClient;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 @Slf4j
 @Singleton
@@ -24,58 +28,58 @@ public class TransactionManger {
     private final ApiRequestHandler api;
     private final LoginResponseManager loginResponseManager;
     private final OsrsLoginManager osrsLoginManager;
-    private final OkHttpClient okHttpClient;
 
     // state
-    private final Map<String, List<Transaction>> cachedUnAckedTransactions = new HashMap<>();
-    private final Map<String, Boolean> transactionSyncScheduled = new HashMap<>();
+    private final ConcurrentMap<String, List<Transaction>> cachedUnAckedTransactions = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, AtomicBoolean> transactionSyncScheduled = new ConcurrentHashMap<>();
 
     public void syncUnAckedTransactions(String displayName) {
-        List<Transaction> unAckedTransactions = getUnAckedTransactions(displayName);
+
+        long s = System.nanoTime();
+        List<Transaction> toSend;
         synchronized (this) {
-            if(unAckedTransactions.isEmpty()) {
-                transactionSyncScheduled.put(displayName, false);
+            toSend = new ArrayList<>(getUnAckedTransactions(displayName));
+            if(toSend.isEmpty()) {
+                transactionSyncScheduled.get(displayName).set(false);
                 return;
             }
         }
-        // ScheduledExecutorService only has one thread, we don't really want to block it. Need to
-        // refactor the API call to be async style but until then just run in okHttpClient's executor
-        okHttpClient.dispatcher().executorService().submit(() -> {
-            try {
-                long s = System.nanoTime();
-                List<Transaction> toSend = new ArrayList<>(getUnAckedTransactions(displayName));
-                log.debug("sending {} transactions to server", toSend.size());
-                List<FlipV2> flips = api.SendTransactions(toSend, displayName);
-                for (FlipV2 f : flips) {
-                    log.debug("server updated flip for {} closed qty {}, profit {}", f.getItemName(), f.getClosedQuantity(), f.getProfit());
-                }
-                flipManager.mergeFlips(flips, displayName);
-                log.info("sending {} transactions took {}ms", toSend.size(), (System.nanoTime() - s) / 1000_000);
-                synchronized (this) {
-                    transactionSyncScheduled.put(displayName, false);
-                    toSend.forEach(unAckedTransactions::remove);
-                    if(!unAckedTransactions.isEmpty()) {
-                        scheduleSyncIn(0, displayName);
-                    }
-                }
-            } catch (Exception e) {
-                synchronized (this) {
-                    transactionSyncScheduled.put(displayName, false);
-                }
-                String currentDisplayName = osrsLoginManager.getPlayerDisplayName();
-                if (loginResponseManager.isLoggedIn() && (currentDisplayName == null || currentDisplayName.equals(displayName))) {
-                    log.warn("failed to send transactions to copilot server {}", e.getMessage(), e);
-                    scheduleSyncIn(10, displayName);
+
+        Consumer<List<FlipV2>> onSuccess = (flips) -> {
+            for (FlipV2 f : flips) {
+                log.debug("server updated flip for {} closed qty {}, profit {}", f.getItemName(), f.getClosedQuantity(), f.getProfit());
+            }
+            flipManager.mergeFlips(flips, displayName);
+            log.info("sending {} transactions took {}ms", toSend.size(), (System.nanoTime() - s) / 1000_000);
+            synchronized (this) {
+                List<Transaction> unAckedTransactions  = getUnAckedTransactions(displayName);
+                transactionSyncScheduled.get(displayName).set(false);
+                toSend.forEach(unAckedTransactions::remove);
+                if(!unAckedTransactions.isEmpty()) {
+                    scheduleSyncIn(0, displayName);
                 }
             }
-        });
+        };
+
+        Consumer<HttpResponseException> onFailure = (e) -> {
+            synchronized (this) {
+                transactionSyncScheduled.get(displayName).set(false);
+            }
+            String currentDisplayName = osrsLoginManager.getPlayerDisplayName();
+            if (loginResponseManager.isLoggedIn() && (currentDisplayName == null || currentDisplayName.equals(displayName))) {
+                log.warn("failed to send transactions to copilot server {}", e.getMessage(), e);
+                scheduleSyncIn(10, displayName);
+            }
+        };
+        api.sendTransactionsAsync(toSend, displayName, onSuccess, onFailure);
     }
 
     public long addTransaction(Transaction transaction, String displayName) {
-        List<Transaction> unAckedTransactions  = getUnAckedTransactions(displayName);
-        unAckedTransactions.add(transaction);
-        Persistance.storeUnAckedTransactions(unAckedTransactions, displayName);
-        Persistance.storeTransaction(transaction, displayName);
+        synchronized (this) {
+            List<Transaction> unAckedTransactions = getUnAckedTransactions(displayName);
+            unAckedTransactions.add(transaction);
+            Persistance.storeUnAckedTransactions(unAckedTransactions, displayName);
+        }
         MutableReference<Long> profit = new MutableReference<>(0L);
         if (OfferStatus.SELL.equals(transaction.getType())) {
             profit.setValue(flipManager.estimateTransactionProfit(displayName, transaction));
@@ -85,16 +89,18 @@ public class TransactionManger {
     }
 
     private List<Transaction> getUnAckedTransactions(String displayName) {
-        return cachedUnAckedTransactions.computeIfAbsent(displayName, (k) -> Collections.synchronizedList(Persistance.loadUnAckedTransactions(displayName)));
+        return cachedUnAckedTransactions.computeIfAbsent(displayName, (k) -> Persistance.loadUnAckedTransactions(displayName));
     }
 
     public synchronized void scheduleSyncIn(int seconds, String displayName) {
-        if (!transactionSyncScheduled.computeIfAbsent(displayName, (k) -> false)) {
+        AtomicBoolean scheduled = transactionSyncScheduled.computeIfAbsent(displayName, k -> new AtomicBoolean(false));
+        if(scheduled.compareAndSet(false, true)) {
             log.info("scheduling attempt to sync {} transactions in {}s", displayName, seconds);
-            transactionSyncScheduled.put(displayName, true);
             executorService.schedule(() ->  {
                 this.syncUnAckedTransactions(displayName);
             }, seconds, TimeUnit.SECONDS);
+        } else {
+            log.debug("skipping scheduling sync as already scheduled");
         }
     }
 }

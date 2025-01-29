@@ -74,7 +74,9 @@ public class GameUiChangesHandler {
         {
             OfferEditor flippingWidget = new OfferEditor(offerManager, client.getWidget(ComponentID.CHATBOX_CONTAINER), offerHandler, client);
             Suggestion suggestion = suggestionManager.getSuggestion();
-            flippingWidget.showSuggestion(suggestion);
+            if (suggestion != null) {
+                flippingWidget.showSuggestion(suggestion);
+            }
         });
     }
 
