@@ -3,6 +3,7 @@ package com.flippingcopilot.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.widgets.InterfaceID;
 import net.runelite.api.widgets.Widget;
 
 import javax.inject.Inject;
@@ -28,11 +29,11 @@ public class GrandExchange {
     }
 
     boolean isOpen() {
-        return client.getWidget(465, 7) != null;
+        return client.getWidget(InterfaceID.GRAND_EXCHANGE, 7) != null;
     }
 
     boolean isCollectButtonVisible() {
-        Widget w = client.getWidget(465, 6);
+        Widget w = client.getWidget(InterfaceID.GRAND_EXCHANGE, 6);
         if (w == null) {
             return false;
         }

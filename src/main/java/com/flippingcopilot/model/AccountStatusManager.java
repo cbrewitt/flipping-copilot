@@ -74,10 +74,6 @@ public class AccountStatusManager {
             }
         }
 
-        for(RSItem i : inventory) {
-            log.debug("tick {} inventory item {}, qty {}", client.getTickCount(), i.id, i.amount);
-        }
-
         return status;
     }
 

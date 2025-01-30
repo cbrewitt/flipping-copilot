@@ -1,9 +1,6 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.model.OfferManager;
-import com.flippingcopilot.model.OsrsLoginManager;
-import com.flippingcopilot.model.Suggestion;
-import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.model.*;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +32,7 @@ public class OfferHandler {
     private final OsrsLoginManager osrsLoginManager;
     private final OfferManager offerManager;
     private final HighlightController highlightController;
+    private final LoginResponseManager loginResponseManager;
 
     // state
     private String viewedSlotPriceErrorText = null;
@@ -52,6 +50,11 @@ public class OfferHandler {
                 offerManager.setLastViewedSlotItemId(suggestion.getItemId());
                 offerManager.setLastViewedSlotItemPrice(suggestion.getPrice());
                 offerManager.setLastViewedSlotItemPrice((int) Instant.now().getEpochSecond());
+                return;
+            }
+
+            if (!loginResponseManager.isLoggedIn()) {
+                viewedSlotPriceErrorText = "Login to copilot to see item price.";
                 return;
             }
 

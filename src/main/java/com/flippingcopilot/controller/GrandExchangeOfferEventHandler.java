@@ -66,6 +66,7 @@ public class GrandExchangeOfferEventHandler {
         }
 
         o.setCopilotPriceUsed(wasCopilotPriceUsed(o, prev));
+        o.setWasCopilotSuggestion(wasCopilotSuggestion(o, prev));
 
         boolean consistent = isConsistent(prev, o);
         if(!consistent) {
@@ -76,7 +77,7 @@ public class GrandExchangeOfferEventHandler {
             suggestionManager.setSuggestionNeeded(true);
         }
 
-        Transaction t = inferTransaction( slot, o, prev, consistent);
+        Transaction t = inferTransaction(slot, o, prev, consistent);
         if(t != null) {
             transactionsToProcess.add(t);
             processTransactions();
@@ -96,6 +97,14 @@ public class GrandExchangeOfferEventHandler {
             return o.getItemId() == offerManager.getLastViewedSlotItemId() && o.getPrice() == offerManager.getLastViewedSlotItemPrice() && Instant.now().minusSeconds(30).getEpochSecond() < offerManager.getLastViewedSlotPriceTime();
         } else {
             return prev.isCopilotPriceUsed();
+        }
+    }
+
+    private boolean wasCopilotSuggestion(SavedOffer o, SavedOffer prev) {
+        if(isNewOffer(prev, o)){
+            return o.getItemId() == suggestionManager.getSuggestionItemIdOnOfferSubmitted() && o.getOfferStatus().equals(suggestionManager.getSuggestionOfferStatusOnOfferSubmitted());
+        } else {
+            return prev.isWasCopilotSuggestion();
         }
     }
 
@@ -159,7 +168,8 @@ public class GrandExchangeOfferEventHandler {
             t.setBoxId(slot);
             t.setAmountSpent(amountSpentDiff);
             t.setTimestamp(Instant.now());
-            t.setCopilotPriceUsed(true);
+            t.setCopilotPriceUsed(offer.isCopilotPriceUsed());
+            t.setWasCopilotSuggestion(offer.isWasCopilotSuggestion());
             t.setOfferTotalQuantity(offer.getTotalQuantity());
             t.setLogin(login);
             t.setConsistent(consistent);

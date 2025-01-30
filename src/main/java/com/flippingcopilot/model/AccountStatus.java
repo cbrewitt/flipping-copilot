@@ -84,7 +84,7 @@ public class AccountStatus {
         if(!requestedSuggestionTypes.isEmpty()) {
            JsonArray rstArray = new JsonArray();
            requestedSuggestionTypes.forEach(rstArray::add);
-           statusJson.add("requestedSuggestionTypes", rstArray);
+           statusJson.add("requested_suggestion_types", rstArray);
         }
         return statusJson;
     }
