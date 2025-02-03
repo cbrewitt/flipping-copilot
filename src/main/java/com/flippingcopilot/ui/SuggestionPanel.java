@@ -6,8 +6,11 @@ import com.flippingcopilot.model.*;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.ItemComposition;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 
@@ -41,8 +44,11 @@ public class SuggestionPanel extends JPanel {
     private final GrandExchangeUncollectedManager uncollectedManager;
     private final ClientThread clientThread;
     private final HighlightController highlightController;
+    private final ItemManager itemManager;
 
     private final JLabel suggestionText = new JLabel();
+    private final JLabel suggestionIcon = new JLabel(new ImageIcon(ImageUtil.loadImageResource(getClass(),"/small_open_arrow.png")));
+    private final JPanel suggestionTextContainer = new JPanel();
     public final Spinner spinner = new Spinner();
     private JLabel skipButton;
     private final JPanel buttonContainer = new JPanel();
@@ -68,7 +74,7 @@ public class SuggestionPanel extends JPanel {
                            Client client, PausedManager pausedManager,
                            GrandExchangeUncollectedManager uncollectedManager,
                            ClientThread clientThread,
-                           HighlightController highlightController) {
+                           HighlightController highlightController, ItemManager itemManager) {
         this.preferencesPanel = preferencesPanel;
         this.config = config;
         this.suggestionManager = suggestionManager;
@@ -80,6 +86,7 @@ public class SuggestionPanel extends JPanel {
         this.uncollectedManager = uncollectedManager;
         this.clientThread = clientThread;
         this.highlightController = highlightController;
+        this.itemManager = itemManager;
 
 
         // Create the layered pane first
@@ -102,13 +109,27 @@ public class SuggestionPanel extends JPanel {
         suggestionContainer.setPreferredSize(new Dimension(0, 85));
         suggestedActionPanel.add(suggestionContainer, BorderLayout.CENTER);
 
+        suggestionTextContainer.setLayout(new BoxLayout(suggestionTextContainer, BoxLayout.X_AXIS));
+        suggestionTextContainer.add(Box.createHorizontalGlue());
+        suggestionTextContainer.add(suggestionIcon);
+        suggestionTextContainer.add(suggestionText);
+        suggestionTextContainer.add(Box.createHorizontalGlue());
+        suggestionTextContainer.setOpaque(true);
+        suggestionTextContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        suggestionIcon.setVisible(false);
+        suggestionIcon.setOpaque(true);
+        suggestionIcon.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        suggestionIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
+
         suggestionText.setHorizontalAlignment(SwingConstants.CENTER);
-        suggestionText.setOpaque(true);
-        suggestionText.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        suggestionContainer.add(suggestionText);
+        suggestionText.setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+        suggestionContainer.add(suggestionTextContainer);
+
         suggestionContainer.add(spinner);
         setupButtonContainer();
         suggestedActionPanel.add(buttonContainer, BorderLayout.SOUTH);
+
+
 
 
         layeredPane.add(suggestedActionPanel, JLayeredPane.DEFAULT_LAYER);
@@ -219,9 +240,19 @@ public class SuggestionPanel extends JPanel {
     }
 
 
+    private void setItemIcon(int itemId) {
+        AsyncBufferedImage image = itemManager.getImage(itemId);
+        if (image != null) {
+            image.addTo(suggestionIcon);
+            suggestionIcon.setVisible(true);
+        }
+    }
+
+
     public void updateSuggestion(Suggestion suggestion) {
         NumberFormat formatter = NumberFormat.getNumberInstance();
         String suggestionString = "<html><center>";
+        suggestionTextContainer.setVisible(false);
 
         switch (suggestion.getType()) {
             case "wait":
@@ -229,6 +260,7 @@ public class SuggestionPanel extends JPanel {
                 break;
             case "abort":
                 suggestionString += "Abort offer for<br><FONT COLOR=white>" + suggestion.getName() + "<br></FONT>";
+                setItemIcon(suggestion.getItemId());
                 break;
             case "buy":
             case "sell":
@@ -237,6 +269,7 @@ public class SuggestionPanel extends JPanel {
                         " <FONT COLOR=yellow>" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
                         "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
                         "for <FONT COLOR=yellow>" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
+                setItemIcon(suggestion.getItemId());
                 break;
             default:
                 suggestionString += "Error processing suggestion<br>";
@@ -244,11 +277,14 @@ public class SuggestionPanel extends JPanel {
         suggestionString += suggestion.getMessage();
         suggestionString += "</center><html>";
         innerSuggestionMessage = "";
-        suggestionText.setText(suggestionString);
-        suggestionText.setVisible(true);
         if(!suggestion.getType().equals("wait")) {
             setButtonsVisible(true);
         }
+        suggestionText.setText(suggestionString);
+        suggestionText.setMaximumSize(new Dimension(suggestionText.getPreferredSize().width, Integer.MAX_VALUE));
+        suggestionTextContainer.setVisible(true);
+        suggestionTextContainer.revalidate();
+        suggestionTextContainer.repaint();
     }
 
     public void suggestCollect() {
@@ -261,6 +297,7 @@ public class SuggestionPanel extends JPanel {
         setMessage("Add at least <FONT COLOR=yellow>" + formatter.format(MIN_GP_NEEDED_TO_FLIP)
                                + "</FONT> gp<br>to your inventory<br>"
                                + "to get a flip suggestion");
+        setButtonsVisible(false);
     }
 
     public void setIsPausedMessage() {
@@ -270,8 +307,11 @@ public class SuggestionPanel extends JPanel {
 
     public void setMessage(String message) {
         innerSuggestionMessage = message;
-        suggestionText.setText("<html><center>" + innerSuggestionMessage +  "<br>" + serverMessage + "</center><html>");
         setButtonsVisible(false);
+        suggestionText.setText("<html><center>" + innerSuggestionMessage +  "<br>" + serverMessage + "</center><html>");
+        suggestionText.setMaximumSize(new Dimension(suggestionText.getPreferredSize().width, Integer.MAX_VALUE));
+        suggestionTextContainer.revalidate();
+        suggestionTextContainer.repaint();
     }
 
     public boolean isCollectItemsSuggested() {
@@ -279,20 +319,23 @@ public class SuggestionPanel extends JPanel {
     }
 
     public void showLoading() {
-        suggestionText.setVisible(false);
+        suggestionTextContainer.setVisible(false);
         setServerMessage("");
         spinner.show();
         setButtonsVisible(false);
+        suggestionIcon.setVisible(false);
+        suggestionText.setText("");
     }
 
     public void hideLoading() {
         spinner.hide();
-        suggestionText.setVisible(true);
+        suggestionTextContainer.setVisible(true);
     }
 
     private void setButtonsVisible(boolean visible) {
         skipButton.setVisible(visible);
         graphButton.setVisible(visible);
+        suggestionIcon.setVisible(visible);
     }
 
     public void displaySuggestion() {

@@ -84,7 +84,9 @@ public class TransactionManger {
         if (OfferStatus.SELL.equals(transaction.getType())) {
             profit.setValue(flipManager.estimateTransactionProfit(displayName, transaction));
         }
-        scheduleSyncIn(0, displayName);
+        if (loginResponseManager.isLoggedIn()) {
+            scheduleSyncIn(0, displayName);
+        }
         return profit.getValue();
     }
 
@@ -95,7 +97,7 @@ public class TransactionManger {
     public synchronized void scheduleSyncIn(int seconds, String displayName) {
         AtomicBoolean scheduled = transactionSyncScheduled.computeIfAbsent(displayName, k -> new AtomicBoolean(false));
         if(scheduled.compareAndSet(false, true)) {
-            log.info("scheduling attempt to sync {} transactions in {}s", displayName, seconds);
+            log.info("scheduling {} attempt to sync {} transactions in {}s", displayName, getUnAckedTransactions(displayName).size(), seconds);
             executorService.schedule(() ->  {
                 this.syncUnAckedTransactions(displayName);
             }, seconds, TimeUnit.SECONDS);

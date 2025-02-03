@@ -1,6 +1,7 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.OfferManager;
+import com.flippingcopilot.model.OfferStatus;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.OfferEditor;
@@ -87,6 +88,9 @@ public class GameUiChangesHandler {
     }
 
     public void onWidgetLoaded(WidgetLoaded event) {
+        if (event.getGroupId() == InterfaceID.GRAND_EXCHANGE) {
+            suggestionManager.setSuggestionNeeded(true);
+        }
         if (event.getGroupId() == 383
                 || event.getGroupId() == InterfaceID.GRAND_EXCHANGE
                 || event.getGroupId() == 213
@@ -98,6 +102,7 @@ public class GameUiChangesHandler {
     public void onWidgetClosed(WidgetClosed event) {
         if (event.getGroupId() == InterfaceID.GRAND_EXCHANGE) {
             clientThread.invokeLater(highlightController::removeAll);
+            suggestionManager.setSuggestionNeeded(true);
         }
     }
 
@@ -121,6 +126,24 @@ public class GameUiChangesHandler {
             offerManager.setOfferJustPlaced(true);
             suggestionManager.setLastOfferSubmittedTick(client.getTickCount());
             suggestionManager.setSuggestionNeeded(true);
+            Suggestion suggestion = suggestionManager.getSuggestion();
+            if(suggestion != null) {
+                suggestionManager.setSuggestionItemIdOnOfferSubmitted(suggestion.getItemId());
+                suggestionManager.setSuggestionOfferStatusOnOfferSubmitted(suggestionOfferStatus(suggestion));
+            } else {
+                suggestionManager.setSuggestionItemIdOnOfferSubmitted(-1);
+                suggestionManager.setSuggestionOfferStatusOnOfferSubmitted(null);
+            }
+        }
+    }
+
+    private OfferStatus suggestionOfferStatus(Suggestion suggestion) {
+        if ("sell".equals(suggestion.getType())) {
+            return OfferStatus.SELL;
+        } else if ("buy".equals(suggestion.getType())) {
+            return OfferStatus.BUY;
+        } else {
+            return null;
         }
     }
 }

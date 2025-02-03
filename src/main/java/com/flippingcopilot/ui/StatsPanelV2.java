@@ -62,7 +62,7 @@ public class StatsPanelV2 extends JPanel {
     private JComboBox<String> timeIntervalDropdown;
     private final DefaultComboBoxModel<String> rsAccountDropdownModel = new DefaultComboBoxModel<>();
     private final JComboBox<String> rsAccountDropdown = new JComboBox<>(rsAccountDropdownModel);
-    private final JButton sessionResetButton = new JButton("  reset  ");
+    private final JButton sessionResetButton = new JButton("  Reset session ");
     private JPanel profitAndSubInfoPanel;
     private JPanel subInfoPanel;
     private final JPanel flipsPanel = new JPanel();

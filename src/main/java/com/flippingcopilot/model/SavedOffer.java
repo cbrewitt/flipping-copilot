@@ -16,6 +16,7 @@ public class SavedOffer
 	private int spent;
 	private GrandExchangeOfferState state;
 	private boolean copilotPriceUsed;
+	private boolean wasCopilotSuggestion;
 
 
 	public static SavedOffer fromGrandExchangeOffer(GrandExchangeOffer offer) {
@@ -62,7 +63,7 @@ public class SavedOffer
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		SavedOffer that = (SavedOffer) o;
-		return itemId == that.itemId && quantitySold == that.quantitySold && totalQuantity == that.totalQuantity && price == that.price && spent == that.spent && copilotPriceUsed == that.copilotPriceUsed && state == that.state;
+		return itemId == that.itemId && quantitySold == that.quantitySold && totalQuantity == that.totalQuantity && price == that.price && spent == that.spent && copilotPriceUsed == that.copilotPriceUsed && state == that.state && wasCopilotSuggestion == that.wasCopilotSuggestion;
 	}
 
 	@Override

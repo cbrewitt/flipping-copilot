@@ -127,8 +127,9 @@ public class FlippingCopilotPlugin extends Plugin {
 					AccountStatus accStatus = accountStatusManager.getAccountStatus();
 					boolean isFlipping = accStatus != null && accStatus.currentlyFlipping();
 					long cashStack = accStatus == null ? 0 : accStatus.currentCashStack();
-					sessionManager.updateSessionStats(isFlipping, cashStack);
-					mainPanel.copilotPanel.statsPanel.refresh(false, loginResponseManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
+					if(sessionManager.updateSessionStats(isFlipping, cashStack)) {
+						mainPanel.copilotPanel.statsPanel.refresh(false, loginResponseManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
+					}
 				}
 			})
 		, 2000, 1000, TimeUnit.MILLISECONDS);
@@ -232,7 +233,9 @@ public class FlippingCopilotPlugin extends Plugin {
 					flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
 					statsPanel.refresh(true, loginResponseManager.isLoggedIn()  && osrsLoginManager.isValidLoginState());
 					mainPanel.refresh();
-					transactionManger.scheduleSyncIn(0, name);
+					if(loginResponseManager.isLoggedIn()) {
+						transactionManger.scheduleSyncIn(0, name);
+					}
 					return true;
 				});
 		}
