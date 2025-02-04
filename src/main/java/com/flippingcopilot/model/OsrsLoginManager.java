@@ -65,22 +65,21 @@ public class OsrsLoginManager {
         return null;
     }
 
+    // todo: inline this method
     public Long getAccountHash() {
-        long accountHash = client.getAccountHash();
-        if(accountHash != -1) {
-            lastAccountHash = accountHash;
-        }
-        return accountHash;
+        return client.getAccountHash();
     }
 
     public String getPlayerDisplayName() {
-        if(lastAccountHash == getAccountHash() && cachedDisplayName != null) {
+        long accountHash = client.getAccountHash();
+        if(lastAccountHash == accountHash && cachedDisplayName != null) {
             return cachedDisplayName;
         }
         final Player player = client.getLocalPlayer();
         if (player != null) {
             final String name = player.getName();
             if (name != null && !name.isEmpty()) {
+                lastAccountHash = accountHash;
                 cachedDisplayName = name;
                 return name;
             }
