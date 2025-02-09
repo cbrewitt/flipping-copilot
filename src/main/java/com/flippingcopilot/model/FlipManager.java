@@ -94,7 +94,7 @@ public class FlipManager {
         if (Objects.equals(displayName, intervalDisplayName)) {
             return;
         }
-        if (!displayNameToAccountId.containsKey(displayName)) {
+        if (displayName != null && !displayNameToAccountId.containsKey(displayName)) {
             displayNameToAccountId.put(displayName, -1);
         }
         intervalDisplayName = displayName;
