@@ -61,7 +61,7 @@ public class GrandExchangeOfferEventHandler {
         SavedOffer prev = offerPersistence.loadOffer(accountHash, slot);
 
         if(Objects.equals(o, prev)) {
-            log.debug("skipping duplicate offer event");
+            log.debug("skipping duplicate offer event {}", o);
             return;
         }
 

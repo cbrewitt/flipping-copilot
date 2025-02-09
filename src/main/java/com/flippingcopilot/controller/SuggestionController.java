@@ -67,7 +67,7 @@ public class SuggestionController {
         // In such a case we can end up with the uncollectedManager falsely thinking there is items to collect.
         // We identify if this has happened here by checking if the collect button is actually visible.
         if(isUncollectedOutOfSync()) {
-            log.warn("uncollectedManager manager is out of sync, it thinks there are items to collect but the GE is open and the Collect button not visible");
+            log.warn("uncollected is out of sync, it thinks there are items to collect but the GE is open and the Collect button not visible");
             uncollectedManager.clearAllUncollected(osrsLoginManager.getAccountHash());
             suggestionManager.setSuggestionNeeded(true);
         }
@@ -84,14 +84,13 @@ public class SuggestionController {
         if (client.getTickCount() <= uncollectedManager.getLastUncollectedAddedTick() + 2) {
             return false;
         }
-        if(!grandExchange.isOpen() || grandExchange.isCollectButtonVisible()) {
+        if(!grandExchange.isHomeScreenOpen() || grandExchange.isCollectButtonVisible()) {
             return false;
         }
         if(uncollectedManager.HasUncollected(osrsLoginManager.getAccountHash())) {
             return true;
         }
         if(suggestionPanel.isCollectItemsSuggested()) {
-            log.debug("inner suggestion text is collect items");
             return true;
         }
         return false;

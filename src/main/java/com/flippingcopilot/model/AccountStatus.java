@@ -80,6 +80,7 @@ public class AccountStatus {
         if(sellOnlyMode) {
             requestedSuggestionTypes.clear();
             requestedSuggestionTypes.add("abort");
+            requestedSuggestionTypes.add("sell");
         }
         if(!requestedSuggestionTypes.isEmpty()) {
            JsonArray rstArray = new JsonArray();
