@@ -13,6 +13,20 @@ class PreferencesToggleButton extends JToggleButton
 {
     private static final ImageIcon ON_SWITCHER;
     private static final ImageIcon OFF_SWITCHER;
+    private final String unSelectedToolTipText;
+    private final String selectedToolTipText;
+
+
+    public PreferencesToggleButton(String selectedToolTipText, String unSelectedToolTipText) {
+        super(OFF_SWITCHER);
+        setSelectedIcon(ON_SWITCHER);
+        SwingUtil.removeButtonDecorations(this);
+        setPreferredSize(new Dimension(25, 25));
+        addItemListener(l -> updateTooltip());
+        updateTooltip();
+        this.selectedToolTipText = selectedToolTipText;
+        this.unSelectedToolTipText = unSelectedToolTipText;
+    }
 
     static
     {
@@ -28,18 +42,8 @@ class PreferencesToggleButton extends JToggleButton
         ));
     }
 
-    public PreferencesToggleButton()
-    {
-        super(OFF_SWITCHER);
-        setSelectedIcon(ON_SWITCHER);
-        SwingUtil.removeButtonDecorations(this);
-        setPreferredSize(new Dimension(25, 25));
-        addItemListener(l -> updateTooltip());
-        updateTooltip();
-    }
-
     private void updateTooltip()
     {
-        setToolTipText(isSelected() ? "Disable sell-only mode" :  "Enable sell-only mode");
+        setToolTipText(isSelected() ? selectedToolTipText :  unSelectedToolTipText);
     }
 }

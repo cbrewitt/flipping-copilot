@@ -53,7 +53,7 @@ public class PreferencesPanel extends JPanel {
         preferencesTitle.setHorizontalAlignment(SwingConstants.CENTER);
         add(preferencesTitle);
         add(Box.createRigidArea(new Dimension(0, 6)));
-        sellOnlyModeToggleButton = new PreferencesToggleButton();
+        sellOnlyModeToggleButton = new PreferencesToggleButton("Disable sell-only mode", "Enable sell-only mode");
         sellOnlyButton = new JPanel();
         sellOnlyButton.setLayout(new BorderLayout());
         sellOnlyButton.setOpaque(false);
@@ -68,7 +68,7 @@ public class PreferencesPanel extends JPanel {
         });
         add(Box.createRigidArea(new Dimension(0, 3)));
 
-        f2pOnlyModeToggleButton = new PreferencesToggleButton();
+        f2pOnlyModeToggleButton = new PreferencesToggleButton("Disable F2P-only mode",  "Enable F2P-only mode");
         f2pOnlyButton = new JPanel();
         f2pOnlyButton.setLayout(new BorderLayout());
         f2pOnlyButton.setOpaque(false);
