@@ -88,7 +88,7 @@ public class OsrsLoginManager {
     }
 
     public String getLastDisplayName() {
-        return getPlayerDisplayName();
+        return cachedDisplayName != null ? cachedDisplayName : getPlayerDisplayName();
     }
 
     public void reset() {
