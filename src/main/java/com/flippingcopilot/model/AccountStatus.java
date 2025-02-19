@@ -113,6 +113,10 @@ public class AccountStatus {
         return offers.emptySlotExists() && getTotalGp() < Constants.MIN_GP_NEEDED_TO_FLIP;
     }
 
+    public synchronized boolean emptySlotExists() {
+        return offers.emptySlotExists();
+    }
+
     private long getTotalGp() {
         return inventory.getTotalGp() + offers.getTotalGpToCollect();
     }
