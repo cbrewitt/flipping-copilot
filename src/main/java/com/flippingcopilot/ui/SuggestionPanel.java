@@ -39,6 +39,7 @@ public class SuggestionPanel extends JPanel {
     private final SuggestionManager suggestionManager;
     private final AccountStatusManager accountStatusManager;
     public final PauseButton pauseButton;
+    private final BlockButton blockButton;
     private final OsrsLoginManager osrsLoginManager;
     private final Client client;
     private final PausedManager pausedManager;
@@ -71,6 +72,7 @@ public class SuggestionPanel extends JPanel {
                            SuggestionManager suggestionManager,
                            AccountStatusManager accountStatusManager,
                            PauseButton pauseButton,
+                           BlockButton blockButton,
                            PreferencesPanel preferencesPanel,
                            OsrsLoginManager osrsLoginManager,
                            Client client, PausedManager pausedManager,
@@ -84,6 +86,7 @@ public class SuggestionPanel extends JPanel {
         this.suggestionManager = suggestionManager;
         this.accountStatusManager = accountStatusManager;
         this.pauseButton = pauseButton;
+        this.blockButton = blockButton;
         this.osrsLoginManager = osrsLoginManager;
         this.client = client;
         this.pausedManager = pausedManager;
@@ -185,8 +188,6 @@ public class SuggestionPanel extends JPanel {
 
         add(layeredPane);
 
-        setupPauseButton();
-
         // Add a component listener to handle resizing
         addComponentListener(new ComponentAdapter() {
             @Override
@@ -212,17 +213,40 @@ public class SuggestionPanel extends JPanel {
     private void setupButtonContainer() {
         buttonContainer.setLayout(new BorderLayout());
         buttonContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        setupGraphButton();
+
+        JPanel centerPanel = new JPanel(new GridLayout(1, 4, 15, 0));
+        centerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        // graph button
+        BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
+        graphButton = buildButton(graphIcon, "Price graph", () ->
+        {
+            Suggestion suggestion = suggestionManager.getSuggestion();
+            String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());
+            LinkBrowser.browse(url);
+        });
+        centerPanel.add(graphButton);
 
         // skip button
-        BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/skip.png");
-        skipButton = buildButton(graphIcon, "Skip suggestion", () -> {
+        BufferedImage skipIcon = ImageUtil.loadImageResource(getClass(), "/skip.png");
+        skipButton = buildButton(skipIcon, "Skip suggestion", () -> {
             showLoading();
             Suggestion s = suggestionManager.getSuggestion();
             accountStatusManager.setSkipSuggestion(s != null ? s.getId(): -1);
             suggestionManager.setSuggestionNeeded(true);
         });
-        buttonContainer.add(skipButton, BorderLayout.EAST);
+        centerPanel.add(skipButton);
+
+        // block button
+        centerPanel.add(blockButton);
+
+        // Pause button
+        centerPanel.add(pauseButton);
+
+        // Add the grid panel to your container
+        buttonContainer.setLayout(new BorderLayout());
+        buttonContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        buttonContainer.add(centerPanel, BorderLayout.CENTER);
     }
 
     private void setupGraphButton() {
@@ -345,6 +369,7 @@ public class SuggestionPanel extends JPanel {
 
     private void setButtonsVisible(boolean visible) {
         skipButton.setVisible(visible);
+        blockButton.setVisible(visible);
         graphButton.setVisible(visible);
         suggestionIcon.setVisible(visible);
     }
