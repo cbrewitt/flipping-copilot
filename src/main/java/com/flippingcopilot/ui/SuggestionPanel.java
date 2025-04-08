@@ -213,39 +213,33 @@ public class SuggestionPanel extends JPanel {
     private void setupButtonContainer() {
         buttonContainer.setLayout(new BorderLayout());
         buttonContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-
-        JPanel centerPanel = new JPanel(new GridLayout(1, 4, 15, 0));
+    
+        JPanel centerPanel = new JPanel(new GridLayout(1, 5, 15, 0));
         centerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-
-        // graph button
+    
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
-        graphButton = buildButton(graphIcon, "Price graph", () ->
-        {
+        graphButton = buildButton(graphIcon, "Price graph", () -> {
             Suggestion suggestion = suggestionManager.getSuggestion();
             String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());
             LinkBrowser.browse(url);
         });
         centerPanel.add(graphButton);
-
-        // skip button
+    
+        JPanel emptyPanel = new JPanel();
+        emptyPanel.setOpaque(false);
+        centerPanel.add(emptyPanel);
+        centerPanel.add(pauseButton);
+        centerPanel.add(blockButton);
+    
         BufferedImage skipIcon = ImageUtil.loadImageResource(getClass(), "/skip.png");
         skipButton = buildButton(skipIcon, "Skip suggestion", () -> {
             showLoading();
             Suggestion s = suggestionManager.getSuggestion();
-            accountStatusManager.setSkipSuggestion(s != null ? s.getId(): -1);
+            accountStatusManager.setSkipSuggestion(s != null ? s.getId() : -1);
             suggestionManager.setSuggestionNeeded(true);
         });
         centerPanel.add(skipButton);
-
-        // block button
-        centerPanel.add(blockButton);
-
-        // Pause button
-        centerPanel.add(pauseButton);
-
-        // Add the grid panel to your container
-        buttonContainer.setLayout(new BorderLayout());
-        buttonContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        
         buttonContainer.add(centerPanel, BorderLayout.CENTER);
     }
 
