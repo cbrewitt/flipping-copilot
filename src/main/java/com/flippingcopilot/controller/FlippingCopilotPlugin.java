@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @PluginDescriptor(
-		name = "Flipping Copilot (custom)",
+		name = "Flipping Copilot",
 		description = "Your AI assistant for trading"
 )
 public class FlippingCopilotPlugin extends Plugin {
