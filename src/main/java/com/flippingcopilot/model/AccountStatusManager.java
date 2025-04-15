@@ -51,6 +51,7 @@ public class AccountStatusManager {
         status.setMember(osrsLoginManager.isMembersWorld());
         status.setSuggestionsPaused(pausedManager.isPaused());
         status.setBlockedItems(suggestionPreferencesManager.blockedItems());
+        status.setTimeframe(suggestionPreferencesManager.getTimeframe());
 
         Map<Integer, Long> inLimboItems = geUncollected.getLastClearedUncollected();
         List<Integer> clearedSlots = geUncollected.getLastClearedSlots();
