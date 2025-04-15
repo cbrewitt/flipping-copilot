@@ -30,6 +30,7 @@ public class AccountStatus {
     private boolean sellOnlyMode = false;
     private boolean f2pOnlyMode = false;
     private List<Integer> blockedItems;
+    private int timeframe = 5; // Default to 5 minutes
 
     public AccountStatus() {
         offers = new StatusOfferList();
@@ -59,6 +60,7 @@ public class AccountStatus {
         statusJson.addProperty("f2p_only", f2pOnlyMode);
         statusJson.addProperty("is_member", isMember);
         statusJson.addProperty("skip_suggestion", skipSuggestion);
+        statusJson.addProperty("timeframe", timeframe);
         if (suggestionsPaused != null) {
             statusJson.addProperty("suggestions_paused", suggestionsPaused);
         }

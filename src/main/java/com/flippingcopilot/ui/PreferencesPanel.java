@@ -26,6 +26,8 @@ public class PreferencesPanel extends JPanel {
     private final PreferencesToggleButton f2pOnlyModeToggleButton;
     private final BlacklistDropdownPanel blacklistDropdownPanel;
     private final JLabel messageText = new JLabel();
+    private final JPanel timeframePanel;
+    private final JSpinner timeframeSpinner;
 
     @Inject
     public PreferencesPanel(
@@ -83,6 +85,23 @@ public class PreferencesPanel extends JPanel {
         });
         add(Box.createRigidArea(new Dimension(0, 3)));
 
+        // Add timeframe spinner
+        timeframePanel = new JPanel();
+        timeframePanel.setLayout(new BorderLayout());
+        timeframePanel.setOpaque(false);
+        JLabel timeframeLabel = new JLabel("Timeframe (minutes)");
+        timeframeSpinner = new JSpinner(new SpinnerNumberModel(5, 1, 480, 1));
+        timeframeSpinner.setPreferredSize(new Dimension(60, 25));
+        timeframePanel.add(timeframeLabel, BorderLayout.LINE_START);
+        timeframePanel.add(timeframeSpinner, BorderLayout.LINE_END);
+        add(timeframePanel);
+        timeframeSpinner.addChangeListener(e -> {
+            int minutes = (Integer) timeframeSpinner.getValue();
+            preferencesManager.setTimeframe(minutes);
+            suggestionManager.setSuggestionNeeded(true);
+        });
+
+        add(Box.createRigidArea(new Dimension(0, 3)));
         add(this.blacklistDropdownPanel);
         add(Box.createRigidArea(new Dimension(0, 30)));
         add(messageText);
@@ -104,11 +123,14 @@ public class PreferencesPanel extends JPanel {
             f2pOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isF2pOnlyMode());
             f2pOnlyButton.setVisible(true);
             blacklistDropdownPanel.setVisible(true);
+            timeframePanel.setVisible(true);
+            timeframeSpinner.setValue(preferencesManager.getTimeframe());
             messageText.setVisible(false);
         } else {
             sellOnlyButton.setVisible(false);
             f2pOnlyButton.setVisible(false);
             blacklistDropdownPanel.setVisible(false);
+            timeframePanel.setVisible(false);
             messageText.setVisible(true);
         }
     }
