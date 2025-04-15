@@ -61,6 +61,18 @@ public class SuggestionPreferencesManager {
         log.debug("F2p only mode is now: {}", f2pOnlyMode);
     }
 
+    public synchronized void setTimeframe(int minutes) {
+        Long accountHash = osrsLoginManager.getAccountHash();
+        SuggestionPreferences preferences = cached.computeIfAbsent(accountHash, this::load);
+        preferences.setTimeframe(minutes);
+        saveAsync(accountHash);
+        log.debug("Timeframe is now: {} minutes", minutes);
+    }
+
+    public synchronized int getTimeframe() {
+        return getPreferences().getTimeframe();
+    }
+
     public synchronized void blockItem(int itemId) {
         Long accountHash = osrsLoginManager.getAccountHash();
         SuggestionPreferences preferences = cached.computeIfAbsent(accountHash, this::load);
