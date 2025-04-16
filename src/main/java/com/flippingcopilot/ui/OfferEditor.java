@@ -17,6 +17,7 @@ public class OfferEditor {
     private final Client client;
 
     private Widget text;
+    private Widget priceGraphText;
     private static final int MOUSE_OFF_TEXT_COLOR = 0x0040FF;
     private static final int MOUSE_OFF_ERROR_TEXT_COLOR = 0xAA2222;
 
@@ -72,6 +73,8 @@ public class OfferEditor {
                         showPriceWithWarning(price, offerHandler.getViewedSlotPriceErrorText());
                     } else {
                         showPrice(price);
+//                        shiftChatboxWidgetsDown();
+//                        showPriceGraph(price);
                     }
                 }
             } else {
@@ -94,6 +97,16 @@ public class OfferEditor {
     private void showPrice(int price) {
         text.setText("set to Copilot price: " + String.format("%,d", price) + " gp");
         text.setAction(0, "Set price");
+        setHoverListeners(text);
+        text.setOnOpListener((JavaScriptCallback) ev ->
+        {
+            offerHandler.setChatboxValue(price);
+        });
+    }
+
+    private void showPriceGraph(int price) {
+        text.setText("open Copilot price graph");
+        text.setAction(0, "Open price graph");
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
