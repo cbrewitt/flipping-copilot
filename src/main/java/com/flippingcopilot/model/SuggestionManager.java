@@ -13,6 +13,7 @@ public class SuggestionManager {
 
     private volatile boolean suggestionNeeded;
     private volatile boolean suggestionRequestInProgress;
+    private volatile boolean graphDataReadingInProgress;
     private Instant lastFailureAt;
     private HttpResponseException suggestionError;
     private Suggestion suggestion;
