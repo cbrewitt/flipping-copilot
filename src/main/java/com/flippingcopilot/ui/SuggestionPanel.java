@@ -3,17 +3,18 @@ package com.flippingcopilot.ui;
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.GrandExchange;
 import com.flippingcopilot.controller.HighlightController;
+import com.flippingcopilot.manger.PriceGraphConfigManager;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.ui.graph.Manager;
+import com.flippingcopilot.ui.graph.model.Data;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.ItemComposition;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.LinkBrowser;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -24,7 +25,10 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.io.*;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.flippingcopilot.ui.UIUtilities.*;
 import static com.flippingcopilot.util.Constants.MIN_GP_NEEDED_TO_FLIP;
@@ -48,6 +52,7 @@ public class SuggestionPanel extends JPanel {
     private final HighlightController highlightController;
     private final ItemManager itemManager;
     private final GrandExchange grandExchange;
+    private final PriceGraphConfigManager priceGraphConfigManager;
 
     private final JLabel suggestionText = new JLabel();
     private final JLabel suggestionIcon = new JLabel(new ImageIcon(ImageUtil.loadImageResource(getClass(),"/small_open_arrow.png")));
@@ -80,7 +85,7 @@ public class SuggestionPanel extends JPanel {
                            ClientThread clientThread,
                            HighlightController highlightController,
                            ItemManager itemManager,
-                           GrandExchange grandExchange) {
+                           GrandExchange grandExchange, PriceGraphConfigManager priceGraphConfigManager) {
         this.preferencesPanel = preferencesPanel;
         this.config = config;
         this.suggestionManager = suggestionManager;
@@ -95,6 +100,7 @@ public class SuggestionPanel extends JPanel {
         this.highlightController = highlightController;
         this.itemManager = itemManager;
         this.grandExchange = grandExchange;
+        this.priceGraphConfigManager = priceGraphConfigManager;
 
         // Create the layered pane first
         layeredPane.setLayout(null);  // LayeredPane needs null layout
@@ -201,7 +207,11 @@ public class SuggestionPanel extends JPanel {
 
     // Add this as a private method in the class
     private void handleGearClick() {
-        log.debug("clicked suggestion preferences");
+//        Data data = getPriceData();
+//
+//        Manager.showPriceGraph(graphButton, data);
+
+
         isPreferencesPanelVisible = !isPreferencesPanelVisible;
         preferencesPanel.setVisible(isPreferencesPanelVisible);
         suggestedActionPanel.setVisible(!isPreferencesPanelVisible);
@@ -219,9 +229,12 @@ public class SuggestionPanel extends JPanel {
     
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
         graphButton = buildButton(graphIcon, "Price graph", () -> {
-            Suggestion suggestion = suggestionManager.getSuggestion();
-            String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());
-            LinkBrowser.browse(url);
+            log.info("creating graph ");
+            Data priceData = suggestionManager.getSuggestion().getGraphData();
+            Manager.showPriceGraph(graphButton, priceData, priceGraphConfigManager);
+//            Suggestion suggestion = suggestionManager.getSuggestion();
+//            String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());
+//            LinkBrowser.browse(url);
         });
         centerPanel.add(graphButton);
     
@@ -241,24 +254,6 @@ public class SuggestionPanel extends JPanel {
         centerPanel.add(skipButton);
         
         buttonContainer.add(centerPanel, BorderLayout.CENTER);
-    }
-
-    private void setupGraphButton() {
-        BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
-        graphButton = buildButton(graphIcon, "Price graph", () -> {
-            Suggestion suggestion = suggestionManager.getSuggestion();
-            String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());
-            LinkBrowser.browse(url);
-        });
-        buttonContainer.add(graphButton, BorderLayout.WEST);
-    }
-
-    private void setupPauseButton() {
-        Box box = Box.createHorizontalBox();
-        box.add(Box.createHorizontalGlue());
-        box.add(pauseButton);
-        box.add(Box.createHorizontalGlue());
-        buttonContainer.add(box, BorderLayout.CENTER);
     }
 
 
@@ -431,5 +426,103 @@ public class SuggestionPanel extends JPanel {
         } else {
             displaySuggestion();
         }
+    }
+
+    private Data getPriceData() {
+        String lowsFile = "dragon_bones_lows.csv";
+        String highsFile = "dragon_bones_highs.csv";
+
+        Data data = new Data();
+        data.name = "Dragon Bones";
+
+        try {
+            // Load low prices
+            int[][] lowData = loadPriceDataFromCSV(lowsFile);
+            data.lowLatestTimes = lowData[0];
+            data.lowLatestPrices = lowData[1];
+
+            // Load high prices
+            int[][] highData = loadPriceDataFromCSV(highsFile);
+            data.highLatestTimes = highData[0];
+            data.highLatestPrices = highData[1];
+
+            // Generate prediction data based on historical data
+            int[] predictionTimes = new int[7];
+            int[] predictionLowMeans = new int[7];
+            int[] predictionLowIQRLower = new int[7];
+            int[] predictionLowIQRUpper = new int[7];
+            int[] predictionHighMeans = new int[7];
+            int[] predictionHighIQRLower = new int[7];
+            int[] predictionHighIQRUpper = new int[7];
+
+            int lastLowPrice = data.lowLatestPrices[data.lowLatestPrices.length-1];
+            int lastHighPrice = data.highLatestPrices[data.highLatestPrices.length-1];
+            int now  = Math.max(data.highLatestTimes[data.highLatestTimes.length-1], data.lowLatestTimes[data.lowLatestTimes.length-1]);
+            for (int i = 0; i < 7; i++) {
+                predictionTimes[i] = now + i * 4 * 3600;
+                predictionLowMeans[i] = lastLowPrice + (int) (Math.random() * 100) - 50;
+                int iqrSize = 20 + i * 10; // Uncertainty grows over time
+                predictionLowIQRLower[i] = predictionLowMeans[i] - iqrSize;
+                predictionLowIQRUpper[i] = predictionLowMeans[i] + iqrSize;
+                predictionHighMeans[i] = lastHighPrice + (int) (Math.random() * 100) - 50;
+                predictionHighIQRLower[i] = predictionHighMeans[i] - iqrSize;
+                predictionHighIQRUpper[i] = predictionHighMeans[i] + iqrSize;
+            }
+
+            data.predictionTimes = predictionTimes;
+            data.predictionLowMeans = predictionLowMeans;
+            data.predictionLowIQRLower = predictionLowIQRLower;
+            data.predictionLowIQRUpper = predictionLowIQRUpper;
+            data.predictionHighMeans = predictionHighMeans;
+            data.predictionHighIQRLower = predictionHighIQRLower;
+            data.predictionHighIQRUpper = predictionHighIQRUpper;
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load price data from CSV files", e);
+        }
+
+        return data;
+    }
+
+    /**
+     * Loads time and price data from a CSV file in the resources folder.
+     * @param filename The name of the CSV file to load
+     * @return A 2D array where the first inner array contains times and the second contains prices
+     * @throws IOException If the file cannot be read
+     */
+    private int[][] loadPriceDataFromCSV(String filename) throws IOException {
+        List<Integer> times = new ArrayList<Integer>();
+        List<Integer> prices = new ArrayList<Integer>();
+
+        // Get file from resources folder
+        InputStream is = getClass().getClassLoader().getResourceAsStream(filename);
+        if (is == null) {
+            throw new FileNotFoundException("Resource not found: " + filename);
+        }
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 2) {
+                    try {
+                        int time = Integer.parseInt(parts[0].trim());
+                        int price = Integer.parseInt(parts[1].trim());
+                        times.add(time);
+                        prices.add(price);
+                    } catch (NumberFormatException e) {
+                        // Skip malformed rows
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // Convert Lists to arrays
+        int[][] result = new int[2][];
+        result[0] = times.stream().mapToInt(Integer::intValue).toArray();
+        result[1] = prices.stream().mapToInt(Integer::intValue).toArray();
+
+        return result;
     }
 }
