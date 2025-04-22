@@ -1,5 +1,6 @@
 package com.flippingcopilot.model;
 
+import com.flippingcopilot.ui.graph.model.Data;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
@@ -31,6 +32,9 @@ public class Suggestion {
     private final int id;
 
     private final String message;
+
+    @SerializedName("graph_data")
+    private final Data graphData;
 
     public static Suggestion fromJson(JsonObject json, Gson gson) {
         return gson.fromJson(json, Suggestion.class);
