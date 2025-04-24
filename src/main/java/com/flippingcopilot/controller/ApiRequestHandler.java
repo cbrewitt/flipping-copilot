@@ -259,6 +259,7 @@ public class ApiRequestHandler {
             body.add("item_id", new JsonPrimitive(itemId));
             body.add("display_name", new JsonPrimitive(displayName));
             body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
+            body.addProperty("timeframe_minutes", preferencesManager.getTimeframe());
             return doHttpRequest("POST", body, "/prices", ItemPrice.class);
         } catch (HttpResponseException e) {
             log.error("error fetching copilot price for item {}, resp code {}", itemId, e.getResponseCode(), e);
