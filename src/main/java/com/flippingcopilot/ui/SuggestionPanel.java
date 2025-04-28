@@ -68,6 +68,7 @@ public class SuggestionPanel extends JPanel {
     private boolean isPreferencesPanelVisible = false;
     private final JLabel gearButton;
     private String innerSuggestionMessage;
+    private String highlightedColor = "#f0cf7b";
 
     @Setter
     private String serverMessage = "";
@@ -286,9 +287,9 @@ public class SuggestionPanel extends JPanel {
             case "sell":
                 String capitalisedAction = suggestion.getType().equals("buy") ? "Buy" : "Sell";
                 suggestionString += capitalisedAction +
-                        " <FONT COLOR=yellow>" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
+                        " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
                         "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
-                        "for <FONT COLOR=yellow>" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
+                        "for <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
                 setItemIcon(suggestion.getItemId());
                 break;
             default:
@@ -315,7 +316,7 @@ public class SuggestionPanel extends JPanel {
     public void suggestAddGp() {
         NumberFormat formatter = NumberFormat.getNumberInstance();
         setMessage("Add " +
-                "at least <FONT COLOR=yellow>" + formatter.format(MIN_GP_NEEDED_TO_FLIP)
+                "at least <FONT COLOR=" + highlightedColor + ">" + formatter.format(MIN_GP_NEEDED_TO_FLIP)
                                + "</FONT> gp<br>to your inventory<br>"
                                + "to get a flip suggestion");
         setButtonsVisible(false);
