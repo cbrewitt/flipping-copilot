@@ -68,7 +68,7 @@ public class SuggestionPanel extends JPanel {
     private boolean isPreferencesPanelVisible = false;
     private final JLabel gearButton;
     private String innerSuggestionMessage;
-    private String highlightedColor = "#f0cf7b";
+    private String highlightedColor = "yellow";
 
     @Setter
     private String serverMessage = "";
