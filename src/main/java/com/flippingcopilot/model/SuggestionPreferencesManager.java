@@ -30,7 +30,6 @@ public class SuggestionPreferencesManager {
 
     // dependencies
     private final Gson gson;
-    private final OsrsLoginManager osrsLoginManager;
     private final FuzzySearchScorer fuzzySearchScorer;
     private final Client client;
     private final ItemManager itemManager;
@@ -132,6 +131,25 @@ public class SuggestionPreferencesManager {
         return name;
     }
 
+    private SuggestionPreferences load() {
+        File file = getSharedFile();
+        if (!file.exists()) {
+            SuggestionPreferences merged = mergeExistingPreferences();
+            sharedPreferences = merged;
+            saveAsync();
+            return merged;
+        }
+        
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            return gson.fromJson(reader, SuggestionPreferences.class);
+        } catch (FileNotFoundException ignored) {
+            return new SuggestionPreferences();
+        } catch (JsonSyntaxException | JsonIOException | IOException e) {
+            log.warn("error loading preferences json file {}", file, e);
+            return new SuggestionPreferences();
+        }
+    }
+
     private SuggestionPreferences mergeExistingPreferences() {
         SuggestionPreferences mergedPreferences = new SuggestionPreferences();
         Set<Integer> mergedBlockedItems = new HashSet<>();
@@ -158,25 +176,6 @@ public class SuggestionPreferencesManager {
         mergedPreferences.setBlockedItemIds(new ArrayList<>(mergedBlockedItems));
         log.info("Merged preferences from {} existing account files", files != null ? files.length : 0);
         return mergedPreferences;
-    }
-
-    private SuggestionPreferences load() {
-        File file = getSharedFile();
-        if (!file.exists()) {
-            SuggestionPreferences merged = mergeExistingPreferences();
-            sharedPreferences = merged;
-            saveAsync();
-            return merged;
-        }
-        
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            return gson.fromJson(reader, SuggestionPreferences.class);
-        } catch (FileNotFoundException ignored) {
-            return new SuggestionPreferences();
-        } catch (JsonSyntaxException | JsonIOException | IOException e) {
-            log.warn("error loading preferences json file {}", file, e);
-            return new SuggestionPreferences();
-        }
     }
 
     private void saveAsync() {
