@@ -1,10 +1,7 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.model.SuggestionPreferencesManager;
 import com.flippingcopilot.model.SuggestionManager;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.inject.Inject;
@@ -15,17 +12,12 @@ import java.awt.*;
 @Singleton
 public class PreferencesPanel extends JPanel {
 
-    public static String LOGIN_TO_MANAGE_SETTINGS = "Log in to manage settings";
-
-    private final Client client;
-    private final OsrsLoginManager osrsLoginManager;
     private final SuggestionPreferencesManager preferencesManager;
     private final JPanel sellOnlyButton;
     private final PreferencesToggleButton sellOnlyModeToggleButton;
     private final JPanel f2pOnlyButton;
     private final PreferencesToggleButton f2pOnlyModeToggleButton;
     private final BlacklistDropdownPanel blacklistDropdownPanel;
-    private final JLabel messageText = new JLabel();
     private final JPanel timeframePanel;
     private final JToggleButton btn5m;
     private final JToggleButton btn30m;
@@ -34,14 +26,10 @@ public class PreferencesPanel extends JPanel {
 
     @Inject
     public PreferencesPanel(
-            OsrsLoginManager osrsLoginManager,
             SuggestionManager suggestionManager,
-            SuggestionPreferencesManager suggestionPreferencesManager, Client client,
             SuggestionPreferencesManager preferencesManager,
             BlacklistDropdownPanel blocklistDropdownPanel) {
         super();
-        this.osrsLoginManager = osrsLoginManager;
-        this.client = client;
         this.preferencesManager = preferencesManager;
         this.blacklistDropdownPanel = blocklistDropdownPanel;
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -101,7 +89,7 @@ public class PreferencesPanel extends JPanel {
         sellOnlyButton.add(sellOnlyModeToggleButton, BorderLayout.LINE_END);
         sellOnlyModeToggleButton.addItemListener(i ->
         {
-            suggestionPreferencesManager.setSellOnlyMode(sellOnlyModeToggleButton.isSelected());
+            preferencesManager.setSellOnlyMode(sellOnlyModeToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
         });
         add(Box.createRigidArea(new Dimension(0, 3)));
@@ -116,18 +104,12 @@ public class PreferencesPanel extends JPanel {
         f2pOnlyButton.add(f2pOnlyModeToggleButton, BorderLayout.LINE_END);
         f2pOnlyModeToggleButton.addItemListener(i ->
         {
-            suggestionPreferencesManager.setF2pOnlyMode(f2pOnlyModeToggleButton.isSelected());
+            preferencesManager.setF2pOnlyMode(f2pOnlyModeToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
         });
 
         add(Box.createRigidArea(new Dimension(0, 3)));
         add(this.blacklistDropdownPanel);
-        add(Box.createRigidArea(new Dimension(0, 30)));
-        add(messageText);
-        messageText.setText(LOGIN_TO_MANAGE_SETTINGS);
-        messageText.setVisible(false);
-        messageText.setAlignmentX(Component.CENTER_ALIGNMENT);
-        messageText.setHorizontalAlignment(SwingConstants.CENTER);
     }    
 
     private JToggleButton createTimeframeButton(String label, int value, SuggestionManager suggestionManager) {
@@ -165,25 +147,17 @@ public class PreferencesPanel extends JPanel {
             SwingUtilities.invokeLater(this::refresh);
             return;
         }
-        if(osrsLoginManager.getPlayerDisplayName() != null && client.getGameState() == GameState.LOGGED_IN) {
-            sellOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isSellOnlyMode());
-            sellOnlyButton.setVisible(true);
-            f2pOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isF2pOnlyMode());
-            f2pOnlyButton.setVisible(true);
-            blacklistDropdownPanel.setVisible(true);
-            timeframePanel.setVisible(true);
-            int tf = preferencesManager.getTimeframe();
-            btn5m.setSelected(tf == 5);
-            btn30m.setSelected(tf == 30);
-            btn2h.setSelected(tf == 120);
-            btn8h.setSelected(tf == 480);
-            messageText.setVisible(false);
-        } else {
-            sellOnlyButton.setVisible(false);
-            f2pOnlyButton.setVisible(false);
-            blacklistDropdownPanel.setVisible(false);
-            timeframePanel.setVisible(false);
-            messageText.setVisible(true);
-        }
+        
+        sellOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isSellOnlyMode());
+        sellOnlyButton.setVisible(true);
+        f2pOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isF2pOnlyMode());
+        f2pOnlyButton.setVisible(true);
+        blacklistDropdownPanel.setVisible(true);
+        timeframePanel.setVisible(true);
+        int tf = preferencesManager.getTimeframe();
+        btn5m.setSelected(tf == 5);
+        btn30m.setSelected(tf == 30);
+        btn2h.setSelected(tf == 120);
+        btn8h.setSelected(tf == 480);
     }
 }
