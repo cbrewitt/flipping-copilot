@@ -1,40 +1,50 @@
 package com.flippingcopilot.model;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import com.flippingcopilot.ui.graph.model.Data;
+import com.flippingcopilot.msgpacklite.MsgpackName;
 import com.google.gson.annotations.SerializedName;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.ToString;
+import lombok.*;
 
 import java.text.NumberFormat;
 
 @Getter
 @AllArgsConstructor
 @ToString
+@NoArgsConstructor
 public class Suggestion {
-    private final String type;
 
+    @MsgpackName("t")
+    private String type;
+
+    @MsgpackName("b")
     @SerializedName("box_id")
-    private final int boxId;
+    private int boxId;
 
+    @MsgpackName("i")
     @SerializedName("item_id")
-    private final int itemId;
+    private int itemId;
 
-    private final int price;
+    @MsgpackName("p")
+    private int price;
 
-    private final int quantity;
+    @MsgpackName("q")
+    private int quantity;
 
-    private final String name;
+    @MsgpackName("n")
+    private String name;
 
+    @MsgpackName("id")
     @SerializedName("command_id")
-    private final int id;
+    private int id;
 
-    private final String message;
+    @MsgpackName("m")
+    private String message;
 
-    public static Suggestion fromJson(JsonObject json, Gson gson) {
-        return gson.fromJson(json, Suggestion.class);
-    }
+    @MsgpackName("gd")
+    @SerializedName("graph_data")
+    @Setter
+    private Data graphData;
+
 
     public boolean equals(Suggestion other) {
         return this.type.equals(other.type)
