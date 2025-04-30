@@ -52,13 +52,15 @@ public class AccountStatus {
         return false;
     }
 
-    public synchronized JsonObject toJson(Gson gson, boolean geOpen) {
+    public synchronized JsonObject toJson(Gson gson, boolean geOpen, boolean sendGraphData) {
         JsonObject statusJson = new JsonObject();
+        statusJson.addProperty("timeframe", 5);
         statusJson.addProperty("display_name", displayName);
         statusJson.addProperty("sell_only", sellOnlyMode);
         statusJson.addProperty("f2p_only", f2pOnlyMode);
         statusJson.addProperty("is_member", isMember);
         statusJson.addProperty("skip_suggestion", skipSuggestion);
+        statusJson.addProperty("send_graph_data", sendGraphData);
         if (suggestionsPaused != null) {
             statusJson.addProperty("suggestions_paused", suggestionsPaused);
         }

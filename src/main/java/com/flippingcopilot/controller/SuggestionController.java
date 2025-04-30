@@ -2,6 +2,7 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.*;
+import com.flippingcopilot.ui.graph.model.Data;
 import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -60,7 +61,7 @@ public class SuggestionController {
     }
 
     void onGameTick() {
-        if(suggestionManager.isSuggestionRequestInProgress()) {
+        if(suggestionManager.isSuggestionRequestInProgress() || suggestionManager.isGraphDataReadingInProgress()) {
             return;
         }
         // There is a race condition when the collect button is hit at the same time as offers fill.
@@ -109,8 +110,9 @@ public class SuggestionController {
             return;
         }
         suggestionManager.setSuggestionRequestInProgress(true);
+        suggestionManager.setGraphDataReadingInProgress(true);
         Suggestion oldSuggestion = suggestionManager.getSuggestion();
-        Consumer<Suggestion> onSuccess = (newSuggestion) -> {
+        Consumer<Suggestion> suggestionConsumer = (newSuggestion) -> {
             suggestionManager.setSuggestion(newSuggestion);
             suggestionManager.setSuggestionError(null);
             suggestionManager.setSuggestionRequestInProgress(false);
@@ -119,6 +121,13 @@ public class SuggestionController {
             offerManager.setOfferJustPlaced(false);
             suggestionPanel.refresh();
             showNotifications(oldSuggestion, newSuggestion, accountStatus);
+        };
+        Consumer<Data> graphDataConsumer = (d) -> {
+            Suggestion s = suggestionManager.getSuggestion();
+            if (s != null) {
+                s.setGraphData(d);
+            }
+            suggestionManager.setGraphDataReadingInProgress(false);
         };
         Consumer<HttpResponseException> onFailure = (e) -> {
             suggestionManager.setSuggestion(null);
@@ -134,7 +143,7 @@ public class SuggestionController {
         };
         suggestionPanel.refresh();
         log.debug("tick {} getting suggestion", client.getTickCount());
-        apiRequestHandler.getSuggestionAsync(accountStatus.toJson(gson, grandExchange.isOpen()), onSuccess, onFailure);
+        apiRequestHandler.getSuggestionAsync(accountStatus.toJson(gson, grandExchange.isOpen(), config.priceGraphWebsite() == FlippingCopilotConfig.PriceGraphWebsite.COPILOT), suggestionConsumer, graphDataConsumer, onFailure);
     }
 
 

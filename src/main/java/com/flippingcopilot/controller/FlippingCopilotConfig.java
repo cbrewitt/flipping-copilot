@@ -24,7 +24,8 @@ public interface FlippingCopilotConfig extends Config
         GE_DATABASE("GE Database"),
         OSRS_CLOUD("Osrs.cloud"),
         OSRS_EXCHANGE("OSRS Exchange"),
-        FLIPPING_GG("Flipping.gg");
+        FLIPPING_GG("Flipping.gg"),
+        COPILOT("Copilot");
 
         private final String name;
         PriceGraphWebsite(String name)
