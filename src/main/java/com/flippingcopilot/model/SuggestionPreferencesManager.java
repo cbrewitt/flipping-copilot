@@ -21,49 +21,57 @@ import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-
 @Singleton
 @Slf4j
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class SuggestionPreferencesManager {
 
-    private static final String SUGGESTION_PREFERENCES_FILE_TEMPLATE = "acc_%d_preferences.json";
+    private static final String SHARED_PREFERENCES_FILE = "shared_preferences.json";
 
     // dependencies
     private final Gson gson;
-    private final OsrsLoginManager osrsLoginManager;
     private final FuzzySearchScorer fuzzySearchScorer;
     private final Client client;
     private final ItemManager itemManager;
     private final ScheduledExecutorService executorService;
 
     // state
-    private final Map<Long, SuggestionPreferences> cached = new HashMap<>();
-    private final Map<Long, File> accountHashToFile = new HashMap<>();
+    private SuggestionPreferences sharedPreferences;
     
     public synchronized SuggestionPreferences getPreferences() {
-        Long accountHash = osrsLoginManager.getAccountHash();
-        return cached.computeIfAbsent(accountHash, this::load);
+        if (sharedPreferences == null) {
+            sharedPreferences = load();
+        }
+        return sharedPreferences;
     }
 
     public synchronized void setSellOnlyMode(boolean sellOnlyMode) {
-        Long accountHash = osrsLoginManager.getAccountHash();
-        SuggestionPreferences preferences = cached.computeIfAbsent(accountHash, this::load);
+        SuggestionPreferences preferences = getPreferences();
         preferences.setSellOnlyMode(sellOnlyMode);
-        saveAsync(accountHash);
+        saveAsync();
         log.debug("Sell only mode is now: {}", sellOnlyMode);
     }
+
     public synchronized void setF2pOnlyMode(boolean f2pOnlyMode) {
-        Long accountHash = osrsLoginManager.getAccountHash();
-        SuggestionPreferences preferences = cached.computeIfAbsent(accountHash, this::load);
+        SuggestionPreferences preferences = getPreferences();
         preferences.setF2pOnlyMode(f2pOnlyMode);
-        saveAsync(accountHash);
+        saveAsync();
         log.debug("F2p only mode is now: {}", f2pOnlyMode);
     }
 
+    public synchronized void setTimeframe(int minutes) {
+        SuggestionPreferences preferences = getPreferences();
+        preferences.setTimeframe(minutes);
+        saveAsync();
+        log.debug("Timeframe is now: {} minutes", minutes);
+    }
+
+    public synchronized int getTimeframe() {
+        return getPreferences().getTimeframe();
+    }
+
     public synchronized void blockItem(int itemId) {
-        Long accountHash = osrsLoginManager.getAccountHash();
-        SuggestionPreferences preferences = cached.computeIfAbsent(accountHash, this::load);
+        SuggestionPreferences preferences = getPreferences();
         List<Integer> blockedList = preferences.getBlockedItemIds();
         if(blockedList == null) {
             blockedList = new ArrayList<>();
@@ -72,20 +80,19 @@ public class SuggestionPreferencesManager {
             blockedList.add(itemId);
         }
         preferences.setBlockedItemIds(blockedList);
-        saveAsync(accountHash);
+        saveAsync();
         log.debug("blocked item {}", itemId);
     }
 
     public synchronized void unblockItem(int itemId) {
-        Long accountHash = osrsLoginManager.getAccountHash();
-        SuggestionPreferences preferences = cached.computeIfAbsent(accountHash, this::load);
+        SuggestionPreferences preferences = getPreferences();
         List<Integer> blockedList = preferences.getBlockedItemIds();
         if(blockedList == null) {
             blockedList = new ArrayList<>();
         }
         blockedList.removeIf(i -> i==itemId);
         preferences.setBlockedItemIds(blockedList);
-        saveAsync(accountHash);
+        saveAsync();
         log.debug("unblocked item {}", itemId);
     }
 
@@ -124,8 +131,15 @@ public class SuggestionPreferencesManager {
         return name;
     }
 
-    private SuggestionPreferences load(Long accountHash) {
-        File file = getFile(accountHash);
+    private SuggestionPreferences load() {
+        File file = getSharedFile();
+        if (!file.exists()) {
+            SuggestionPreferences merged = mergeExistingPreferences();
+            sharedPreferences = merged;
+            saveAsync();
+            return merged;
+        }
+        
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             return gson.fromJson(reader, SuggestionPreferences.class);
         } catch (FileNotFoundException ignored) {
@@ -136,13 +150,40 @@ public class SuggestionPreferencesManager {
         }
     }
 
-    private void saveAsync(Long accountHash) {
+    private SuggestionPreferences mergeExistingPreferences() {
+        SuggestionPreferences mergedPreferences = new SuggestionPreferences();
+        Set<Integer> mergedBlockedItems = new HashSet<>();
+
+        File parentDir = Persistance.PARENT_DIRECTORY;
+        if (!parentDir.exists()) {
+            return mergedPreferences;
+        }
+
+        File[] files = parentDir.listFiles((dir, name) -> name.matches("acc_-?\\d+_preferences\\.json"));
+        if (files != null) {
+            for (File file : files) {
+                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                    SuggestionPreferences accountPrefs = gson.fromJson(reader, SuggestionPreferences.class);
+                    if (accountPrefs != null && accountPrefs.getBlockedItemIds() != null) {
+                        mergedBlockedItems.addAll(accountPrefs.getBlockedItemIds());
+                    }
+                } catch (Exception e) {
+                    log.warn("Error reading preferences file {} during merge", file, e);
+                }
+            }
+        }
+
+        mergedPreferences.setBlockedItemIds(new ArrayList<>(mergedBlockedItems));
+        log.info("Merged preferences from {} existing account files", files != null ? files.length : 0);
+        return mergedPreferences;
+    }
+
+    private void saveAsync() {
         executorService.submit(() -> {
-            File file = getFile(accountHash);
+            File file = getSharedFile();
             synchronized (file) {
-                SuggestionPreferences p = cached.computeIfAbsent(accountHash, this::load);
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, false))) {
-                    String json = gson.toJson(p);
+                    String json = gson.toJson(sharedPreferences);
                     writer.write(json);
                     writer.newLine();
                 } catch (IOException e) {
@@ -152,8 +193,7 @@ public class SuggestionPreferencesManager {
         });
     }
 
-    private File getFile(Long accountHash) {
-        return accountHashToFile.computeIfAbsent(accountHash,
-                (k) -> new File(Persistance.PARENT_DIRECTORY, String.format(SUGGESTION_PREFERENCES_FILE_TEMPLATE, accountHash)));
+    private File getSharedFile() {
+        return new File(Persistance.PARENT_DIRECTORY, SHARED_PREFERENCES_FILE);
     }
 }
