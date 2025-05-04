@@ -19,6 +19,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -27,6 +28,9 @@ import java.util.function.Consumer;
 public class ApiRequestHandler {
 
     private static final String serverUrl = System.getenv("FLIPPING_COPILOT_HOST") != null ? System.getenv("FLIPPING_COPILOT_HOST")  : "https://api.flippingcopilot.com";
+    public static final String DEFAULT_COPILOT_PRICE_ERROR_MESSAGE = "Unable to fetch price copilot price (possible server update)";
+    public static final String DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE = "Error loading premium instance data (possible server update)";
+
 
     // dependencies
     private final OkHttpClient client;
@@ -111,6 +115,7 @@ public class ApiRequestHandler {
             throw new IOException("empty suggestion request response");
         }
         String contentType = response.header("Content-Type");
+        Suggestion s;
         if (contentType != null && contentType.contains("application/x-msgpack")) {
             int contentLength = resolveContentLength(response);
             int suggestionContentLength = resolveSuggestionContentLength(response);
@@ -119,12 +124,17 @@ public class ApiRequestHandler {
 
             Data d = new Data();
             try(InputStream is = response.body().byteStream()) {
+                // This is some bespoke handling to make the user experience better. We basically pack two different
+                // objects in the response body. The suggestion (first object) and the graph data (second
+                // object). The graph data can be a few kb, and we want the suggestion to be displayed
+                // immediately, without having to wait for the graph data to be loaded.
+
                 byte[] suggestionBytes = new byte[suggestionContentLength];
                 int bytesRead = is.readNBytes(suggestionBytes, 0, suggestionContentLength);
                 if (bytesRead != suggestionContentLength) {
                     throw new IOException("failed to read complete suggestion content: " + bytesRead + " of " + suggestionContentLength + " bytes");
                 }
-                Suggestion s = MsgpackDeserializer.deserialize(suggestionBytes, Suggestion.class);
+                s = MsgpackDeserializer.deserialize(suggestionBytes, Suggestion.class);
                 log.info("suggestion received");
                 clientThread.invoke(() -> suggestionConsumer.accept(s));
 
@@ -151,12 +161,15 @@ public class ApiRequestHandler {
                     }
                 }
             }
+            if (s != null && "wait".equals(s.getType())){
+                d.fromWaitSuggestion = true;
+            }
             Data finalD = d;
             clientThread.invoke(() -> graphDataConsumer.accept(finalD));
         } else {
             String body = response.body().string();
             log.info("json suggestion response size is: {}", body.getBytes().length);
-            Suggestion s = gson.fromJson(body, Suggestion.class);
+            s = gson.fromJson(body, Suggestion.class);
             clientThread.invoke(() -> suggestionConsumer.accept(s));
             Data d = new Data();
             d.loadingErrorMessage = "No graph data loaded for this item.";
@@ -179,22 +192,6 @@ public class ApiRequestHandler {
             return Integer.parseInt(cl != null ? cl : "missing Content-Length header");
         } catch (NumberFormatException  e) {
             throw new IOException("Failed to parse response Content-Length", e);
-        }
-    }
-
-    private <T> T deserialize(Response response, Class<T> classOfT) throws IOException {
-        if (response.body() == null) {
-            return null;
-        }
-        String contentType = response.header("Content-Type");
-        if (contentType != null && contentType.contains("application/x-msgpack")) {
-            byte[] bytes = response.body().bytes();
-            log.info("suggestion response size is: {}", bytes.length);
-            return MsgpackDeserializer.deserialize(bytes, classOfT);
-        } else {
-            String body = response.body().string();
-            log.info("suggestion response size is: {}", body.getBytes().length);
-            return gson.fromJson(body, classOfT);
         }
     }
 
@@ -252,6 +249,126 @@ public class ApiRequestHandler {
         return "Unknown Error";
     }
 
+    public void asyncGetItemPriceWithGraphData(int itemId, String displayName, Consumer<ItemPrice> consumer) {
+        JsonObject body = new JsonObject();
+        body.add("item_id", new JsonPrimitive(itemId));
+        body.add("display_name", new JsonPrimitive(displayName));
+        body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
+        body.addProperty("timeframe_minutes", preferencesManager.getTimeframe());
+        body.addProperty("include_graph_data", true);
+        log.info("requesting price graph data for item {}", itemId);
+        Request request = new Request.Builder()
+                .url(serverUrl +"/prices")
+                .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
+                .addHeader("Accept", "application/x-msgpack")
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
+                .build();
+
+        client.newBuilder()
+                .callTimeout(30, TimeUnit.SECONDS) // Overall timeout
+                .build()
+                .newCall(request)
+                .enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.error("error fetching copilot price for item {}", itemId, e);
+                ItemPrice ip = new ItemPrice(0, 0, DEFAULT_COPILOT_PRICE_ERROR_MESSAGE, null);
+                clientThread.invoke(() -> consumer.accept(ip));
+            }
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        log.error("get copilot price for item {} failed with http status code {}", itemId, response.code());
+                        ItemPrice ip = new ItemPrice(0, 0, DEFAULT_COPILOT_PRICE_ERROR_MESSAGE, null);
+                        clientThread.invoke(() -> consumer.accept(ip));
+                    } else {
+                        byte[] d = response.body().bytes();
+                        ItemPrice ip = MsgpackDeserializer.deserialize(d, ItemPrice.class);
+                        log.info("price graph data recieved for item {}", itemId);
+                        clientThread.invoke(() -> consumer.accept(ip));
+                    }
+                } catch (Exception e) {
+                    log.error("error fetching copilot price for item {}", itemId, e);
+                    ItemPrice ip = new ItemPrice(0, 0, DEFAULT_COPILOT_PRICE_ERROR_MESSAGE, null);
+                    clientThread.invoke(() -> consumer.accept(ip));
+                }
+            }
+        });
+    }
+
+
+    public void asyncUpdatePremiumInstances(Consumer<PremiumInstanceStatus> consumer, List<String> displayNames) {
+        JsonObject payload = new JsonObject();
+        JsonArray arr = new JsonArray();
+        displayNames.forEach(arr::add);
+        payload.add("premium_display_names", arr);
+
+        Request request = new Request.Builder()
+                .url(serverUrl +"/premium-instances/update-assignments")
+                .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
+                .addHeader("Accept", "application/x-msgpack")
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), payload.toString()))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.error("error updating premium instance assignments", e);
+                clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
+            }
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        log.error("update premium instances failed with http status code {}", response.code());
+                        clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
+                    } else {
+                        byte[] d = response.body().bytes();
+                        PremiumInstanceStatus ip = MsgpackDeserializer.deserialize(d, PremiumInstanceStatus.class);
+                        clientThread.invoke(() -> consumer.accept(ip));
+                    }
+                } catch (Exception e) {
+                    log.error("error updating premium instance assignments", e);
+                    clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
+                }
+            }
+        });
+    }
+
+    public void asyncGetPremiumInstanceStatus(Consumer<PremiumInstanceStatus> consumer) {
+        Request request = new Request.Builder()
+                .url(serverUrl +"/premium-instances/status")
+                .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
+                .addHeader("Accept", "application/x-msgpack")
+                .get()
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.error("error fetching premium instance status", e);
+                clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
+            }
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        log.error("get premium instance status failed with http status code {}", response.code());
+                        clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
+                    } else {
+                        byte[] d = response.body().bytes();
+                        PremiumInstanceStatus ip = MsgpackDeserializer.deserialize(d, PremiumInstanceStatus.class);
+                        clientThread.invoke(() -> consumer.accept(ip));
+                    }
+                } catch (Exception e) {
+                    log.error("error fetching premium instance status", e);
+                    clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
+                }
+            }
+        });
+    }
+
     public ItemPrice getItemPrice(int itemId, String displayName) {
         JsonObject respObj = null;
         try {
@@ -263,7 +380,7 @@ public class ApiRequestHandler {
             return doHttpRequest("POST", body, "/prices", ItemPrice.class);
         } catch (HttpResponseException e) {
             log.error("error fetching copilot price for item {}, resp code {}", itemId, e.getResponseCode(), e);
-            return new ItemPrice(0, 0, "Unable to fetch price copilot price (possible server update)");
+            return new ItemPrice(0, 0, "Unable to fetch price copilot price (possible server update)", null);
         }
     }
 

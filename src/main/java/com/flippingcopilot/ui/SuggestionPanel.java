@@ -3,9 +3,8 @@ package com.flippingcopilot.ui;
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.GrandExchange;
 import com.flippingcopilot.controller.HighlightController;
-import com.flippingcopilot.manger.PriceGraphConfigManager;
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.ui.graph.Manager;
+import com.flippingcopilot.ui.graph.PriceGraphController;
 import com.flippingcopilot.ui.graph.model.Data;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -53,7 +52,7 @@ public class SuggestionPanel extends JPanel {
     private final HighlightController highlightController;
     private final ItemManager itemManager;
     private final GrandExchange grandExchange;
-    private final PriceGraphConfigManager priceGraphConfigManager;
+    private final PriceGraphController priceGraphController;
 
     private final JLabel suggestionText = new JLabel();
     private final JLabel suggestionIcon = new JLabel(new ImageIcon(ImageUtil.loadImageResource(getClass(),"/small_open_arrow.png")));
@@ -87,7 +86,7 @@ public class SuggestionPanel extends JPanel {
                            ClientThread clientThread,
                            HighlightController highlightController,
                            ItemManager itemManager,
-                           GrandExchange grandExchange, PriceGraphConfigManager priceGraphConfigManager) {
+                           GrandExchange grandExchange,  PriceGraphController priceGraphController) {
         this.preferencesPanel = preferencesPanel;
         this.config = config;
         this.suggestionManager = suggestionManager;
@@ -102,7 +101,7 @@ public class SuggestionPanel extends JPanel {
         this.highlightController = highlightController;
         this.itemManager = itemManager;
         this.grandExchange = grandExchange;
-        this.priceGraphConfigManager = priceGraphConfigManager;
+        this.priceGraphController = priceGraphController;
 
         // Create the layered pane first
         layeredPane.setLayout(null);  // LayeredPane needs null layout
@@ -143,8 +142,6 @@ public class SuggestionPanel extends JPanel {
         suggestionContainer.add(spinner);
         setupButtonContainer();
         suggestedActionPanel.add(buttonContainer, BorderLayout.SOUTH);
-
-
 
 
         layeredPane.add(suggestedActionPanel, JLayeredPane.DEFAULT_LAYER);
@@ -232,8 +229,8 @@ public class SuggestionPanel extends JPanel {
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
         graphButton = buildButton(graphIcon, "Price graph", () -> {
             if(config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.COPILOT)) {
-                Data priceData = suggestionManager.getSuggestion().getGraphData();
-                Manager.showPriceGraph(graphButton, priceData, priceGraphConfigManager, config);
+                Suggestion suggestion = suggestionManager.getSuggestion();
+                priceGraphController.showPriceGraph( suggestion.getName(),true);
             } else {
                 Suggestion suggestion = suggestionManager.getSuggestion();
                 String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());

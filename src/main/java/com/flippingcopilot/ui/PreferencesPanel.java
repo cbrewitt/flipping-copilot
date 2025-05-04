@@ -1,5 +1,6 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.controller.PremiumInstanceController;
 import com.flippingcopilot.model.SuggestionPreferencesManager;
 import com.flippingcopilot.model.SuggestionManager;
 import net.runelite.client.ui.ColorScheme;
@@ -23,7 +24,8 @@ public class PreferencesPanel extends JPanel {
     public PreferencesPanel(
             SuggestionManager suggestionManager,
             SuggestionPreferencesManager preferencesManager,
-            BlacklistDropdownPanel blocklistDropdownPanel) {
+            BlacklistDropdownPanel blocklistDropdownPanel,
+            PremiumInstanceController premiumInstanceController) {
         super();
         this.preferencesManager = preferencesManager;
         this.blacklistDropdownPanel = blocklistDropdownPanel;
@@ -40,7 +42,8 @@ public class PreferencesPanel extends JPanel {
         preferencesTitle.setMaximumSize(new Dimension(300, preferencesTitle.getPreferredSize().height));
         preferencesTitle.setHorizontalAlignment(SwingConstants.CENTER);
         add(preferencesTitle);
-        add(Box.createRigidArea(new Dimension(0, 6)));
+        add(Box.createRigidArea(new Dimension(0, 8)));
+        add(this.blacklistDropdownPanel);
 
         sellOnlyModeToggleButton = new PreferencesToggleButton("Disable sell-only mode", "Enable sell-only mode");
         sellOnlyButton = new JPanel();
@@ -71,8 +74,19 @@ public class PreferencesPanel extends JPanel {
             suggestionManager.setSuggestionNeeded(true);
         });
 
+        // Premium instances panel - moved to the bottom
         add(Box.createRigidArea(new Dimension(0, 3)));
-        add(this.blacklistDropdownPanel);
+        JPanel premiumInstancesPanel = new JPanel();
+        premiumInstancesPanel.setLayout(new BorderLayout());
+        premiumInstancesPanel.setOpaque(false);
+        JLabel premiumInstancesLabel = new JLabel("Premium accounts:");
+        JButton manageButton = new JButton("manage");
+        manageButton.addActionListener(e -> {
+            premiumInstanceController.loadAndOpenPremiumInstanceDialog();
+        });
+        premiumInstancesPanel.add(premiumInstancesLabel, BorderLayout.LINE_START);
+        premiumInstancesPanel.add(manageButton, BorderLayout.LINE_END);
+        add(premiumInstancesPanel);
     }
 
     public void refresh() {
@@ -81,7 +95,7 @@ public class PreferencesPanel extends JPanel {
             SwingUtilities.invokeLater(this::refresh);
             return;
         }
-        
+
         sellOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isSellOnlyMode());
         sellOnlyButton.setVisible(true);
         f2pOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isF2pOnlyMode());
