@@ -1,43 +1,103 @@
 package com.flippingcopilot.ui.graph;
 
+import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.manger.PriceGraphConfigManager;
-import com.flippingcopilot.ui.graph.model.Config;
+import com.flippingcopilot.model.ItemPrice;
+import com.flippingcopilot.model.OsrsLoginManager;
+import com.flippingcopilot.ui.Spinner;
+import com.flippingcopilot.ui.graph.model.Constants;
 import com.flippingcopilot.ui.graph.model.Data;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ItemComposition;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.ImageUtil;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
+import java.util.function.Consumer;
 
-/**
- * Utility class to manage the display of price graphs in RuneLite.
- */
+import static com.google.common.base.MoreObjects.firstNonNull;
+
+
 @Slf4j
-public class Manager {
+@Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
+public class PriceGraphController {
 
-    private static JDialog currentDialog = null;
-    private static JPanel mainPanel = null;
-    private static Data currentData = null;
-    private static String currentItemName = null;
-    private static boolean isShowingSettings = false;
+    private final JLabel itemIcon = new JLabel(new ImageIcon(ImageUtil.loadImageResource(getClass(),"/small_open_arrow.png")));
 
-    /**
-     * Shows a price graph panel in a popup dialog that can be moved and resized.
-     *
-     * @param parent The parent component (usually a button that was clicked)
-     * @param data   The price data to display
-     */
-    public static void showPriceGraph(Component parent, Data data, PriceGraphConfigManager configManager, FlippingCopilotConfig copilotConfig) {
+    // dependencies
+    private final PriceGraphConfigManager configManager;
+    private final FlippingCopilotConfig copilotConfig;
+    private final ApiRequestHandler apiRequestHandler;
+    private final OsrsLoginManager osrsLoginManager;
+    private final ItemManager itemManager;
+
+    // state
+    private JDialog currentDialog = null;
+    private JPanel mainPanel = null;
+    private boolean isShowingSettings = false;
+    private boolean currentIsSuggestedItem = false;
+
+    @Getter
+    private Data suggestedItemGraphData;
+
+    @Getter
+    private Data userItemGraphData;
+    private GraphPanel graphPanel;
+
+
+    // Custom setters to handle data updates
+    public void setSuggestedItemGraphData(Data data) {
+        this.suggestedItemGraphData = data;
+        if (currentDialog != null && currentIsSuggestedItem) {
+            updateUIAfterDataChange(data);
+        }
+    }
+
+    public void setUserItemGraphData(Data data) {
+        this.userItemGraphData = data;
+        if (currentDialog != null && !currentIsSuggestedItem) {
+            updateUIAfterDataChange(data);
+        }
+    }
+
+    private void updateUIAfterDataChange(Data data) {
+        SwingUtilities.invokeLater(() -> {
+            if (currentDialog != null && mainPanel != null) {
+                if (data != null && data.getLoadingErrorMessage() != null && !data.getLoadingErrorMessage().isEmpty()) {
+                    showErrorView(data.getLoadingErrorMessage());
+                } else if (data != null) {
+                    showGraphView(data.name, data);
+                }
+            }
+        });
+    }
+
+    public void loadAndAndShowPriceGraph(Component parent,  int itemId) {
+        Consumer<ItemPrice> consumer = (ItemPrice i) -> {
+            Data d = firstNonNull(i.getGraphData(), new Data());
+            d.loadingErrorMessage = i.getMessage();
+            setUserItemGraphData(d);
+        };
+        ItemComposition item = itemManager.getItemComposition(itemId);
+        apiRequestHandler.asyncGetItemPriceWithGraphData(itemId, osrsLoginManager.getPlayerDisplayName(), consumer);
+        showPriceGraph(parent, item.getName(), false);
+    }
+
+    public void showPriceGraph(Component parent, String itemName, boolean isSuggestedItem) {
         try {
-            log.info("Showing price graph panel for item: " + data.name);
-
-            // Store the data and item name for later use
-            currentData = data;
-            currentItemName = data.name;
+            log.info("Showing price graph panel for item: " + itemName);
+            this.currentIsSuggestedItem = isSuggestedItem;
 
             // If there's already a dialog showing, dispose it
             if (currentDialog != null) {
@@ -55,7 +115,7 @@ public class Manager {
             // Create new dialog with decorations for moving and resizing
             JDialog dialog = new JDialog(parentFrame);
             dialog.setUndecorated(false); // Keep window decorations to allow resizing
-            dialog.setTitle(data.name + " analysis");
+            dialog.setTitle(itemName + " analysis");
             dialog.setResizable(true); // Allow resizing
 
             // Set minimum size to prevent making the graph too small
@@ -63,9 +123,21 @@ public class Manager {
 
             // Create main panel to contain the components
             mainPanel = new JPanel(new BorderLayout());
+            mainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-            // Create and show the graph view
-            showGraphView(configManager, copilotConfig);
+            // Check if data is available
+            Data currentData = isSuggestedItem ? suggestedItemGraphData : userItemGraphData;
+
+            if (currentData == null) {
+                // Show loading view
+                showLoadingView(itemName);
+            } else if (currentData.getLoadingErrorMessage() != null && !currentData.getLoadingErrorMessage().isEmpty()) {
+                // Show error view
+                showErrorView(currentData.getLoadingErrorMessage());
+            } else {
+                // Show graph view
+                showGraphView(itemName, currentData);
+            }
 
             // Set the content pane
             dialog.setContentPane(mainPanel);
@@ -126,31 +198,110 @@ public class Manager {
         }
     }
 
+    private void showLoadingView(String itemName) {
+        mainPanel.removeAll();
+
+        // Create loading panel
+        JPanel loadingPanel = new JPanel(new GridBagLayout());
+        loadingPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.insets = new Insets(10, 10, 10, 10);
+
+        // Add spinner
+        Spinner spinner = new Spinner();
+        spinner.show();
+        loadingPanel.add(spinner, gbc);
+
+        // Add loading text
+        gbc.gridy = 1;
+        JLabel loadingLabel = new JLabel("Loading price data for " + itemName + "...");
+        loadingLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        loadingLabel.setFont(loadingLabel.getFont().deriveFont(Font.BOLD, 14f));
+        loadingPanel.add(loadingLabel, gbc);
+
+        mainPanel.add(loadingPanel, BorderLayout.CENTER);
+        mainPanel.revalidate();
+        mainPanel.repaint();
+    }
+
+    private void showErrorView(String errorMessage) {
+        mainPanel.removeAll();
+
+        // Create error panel
+        JPanel errorPanel = new JPanel(new GridBagLayout());
+        errorPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.insets = new Insets(10, 10, 10, 10);
+
+        // Add error icon (optional - you could add a red X icon here)
+        JLabel errorIcon = new JLabel("⚠");
+        errorIcon.setForeground(Color.RED);
+        errorIcon.setFont(errorIcon.getFont().deriveFont(Font.BOLD, 24f));
+        errorPanel.add(errorIcon, gbc);
+
+        // Add error message
+        gbc.gridy = 1;
+        JLabel errorLabel = new JLabel("<html><center>" + errorMessage + "</center></html>");
+        errorLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        errorLabel.setFont(errorLabel.getFont().deriveFont(14f));
+        errorLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        errorPanel.add(errorLabel, gbc);
+
+        // Add close button
+        gbc.gridy = 2;
+        gbc.insets = new Insets(20, 10, 10, 10);
+        JButton closeButton = new JButton("Close");
+        closeButton.addActionListener(e -> {
+            if (currentDialog != null) {
+                currentDialog.dispose();
+            }
+        });
+        errorPanel.add(closeButton, gbc);
+
+        mainPanel.add(errorPanel, BorderLayout.CENTER);
+        mainPanel.revalidate();
+        mainPanel.repaint();
+    }
+
     // Modified showGraphView method in Manager.java
-    private static void showGraphView(PriceGraphConfigManager configManager, FlippingCopilotConfig copilotConfig) {
-        if (mainPanel == null || currentData == null) {
+    private void showGraphView(String itemName, Data data) {
+        if (mainPanel == null) {
             log.error("Cannot show graph view, main panel or data is null");
             return;
         }
-
+        if(graphPanel != null && graphPanel.itemName.equals(itemName)) {
+            // if it's the same item just update the data and repaint
+            DataManager dm = new DataManager(data);
+            graphPanel.dataManager = dm;
+            graphPanel.zoomHandler.maxViewBounds = dm.calculateBounds((p) -> true);
+            graphPanel.zoomHandler.homeViewBounds = dm.calculateBounds((p) -> p.time > graphPanel.zoomHandler.maxViewBounds.xMax - 4 * Constants.DAY_SECONDS);
+            graphPanel.zoomHandler.weekViewBounds = dm.calculateBounds((p) -> p.time > graphPanel.zoomHandler.maxViewBounds.xMax - 7 * Constants.DAY_SECONDS);
+            graphPanel.zoomHandler.monthViewBounds = dm.calculateBounds((p) -> p.time > graphPanel.zoomHandler.maxViewBounds.xMax - 30 * Constants.DAY_SECONDS);
+            graphPanel.repaint();
+            return;
+        }
         // Clear the main panel
+        setItemIcon(data.itemId);
         mainPanel.removeAll();
-
-        // Create the stats panel
-        DataManager dm = new DataManager(currentData);
-        // Create the graph panel
-        GraphPanel graphPanel = new GraphPanel(dm, configManager);
+        DataManager dm = new DataManager(data);
+        graphPanel = new GraphPanel(dm, configManager);
 
         // Create settings button with gear icon
         JPanel statsHeaderPanel = new JPanel(new BorderLayout());
         statsHeaderPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         try {
-            BufferedImage gearIcon = ImageUtil.loadImageResource(Manager.class, "/preferences-icon.png");
+            BufferedImage gearIcon = ImageUtil.loadImageResource(PriceGraphController.class, "/preferences-icon.png");
             gearIcon = ImageUtil.resizeImage(gearIcon, 20, 20);
             BufferedImage recoloredIcon = ImageUtil.recolorImage(gearIcon, ColorScheme.LIGHT_GRAY_COLOR);
             JLabel settingsButton = ConfigPanel.buildButton(recoloredIcon, "Settings", () -> {
                 isShowingSettings = true;
-                showSettingsView(configManager, copilotConfig);
+                showSettingsView(itemName, data);
             });
             statsHeaderPanel.add(settingsButton, BorderLayout.EAST); // Move to EAST instead of WEST
             statsHeaderPanel.setBackground(configManager.getConfig().backgroundColor);
@@ -160,7 +311,7 @@ public class Manager {
             JButton settingsButton = new JButton("Settings");
             settingsButton.addActionListener(e1 -> {
                 isShowingSettings = true;
-                showSettingsView(configManager, copilotConfig);
+                showSettingsView(itemName, data);
             });
             statsHeaderPanel.add(settingsButton, BorderLayout.EAST); // Move to EAST instead of WEST
         }
@@ -190,8 +341,8 @@ public class Manager {
         mainPanel.add(splitPane, BorderLayout.CENTER);
 
         // Update the dialog title if needed
-        if (currentDialog != null && currentItemName != null) {
-            currentDialog.setTitle(currentItemName + " analysis");
+        if (currentDialog != null && itemName != null) {
+            currentDialog.setTitle(itemName + " analysis");
         }
 
         // Update UI
@@ -204,7 +355,7 @@ public class Manager {
     /**
      * Shows the settings view in the dialog
      */
-    private static void showSettingsView(PriceGraphConfigManager configManager, FlippingCopilotConfig copilotConfig) {
+    private  void showSettingsView(String itemName, Data data) {
         if (mainPanel == null) {
             log.error("Cannot show settings view, main panel is null");
             return;
@@ -219,12 +370,12 @@ public class Manager {
 
         // Create back button with gear icon (reusing the same icon for simplicity)
         try {
-            BufferedImage gearIcon = ImageUtil.loadImageResource(Manager.class, "/preferences-icon.png");
+            BufferedImage gearIcon = ImageUtil.loadImageResource(PriceGraphController.class, "/preferences-icon.png");
             gearIcon = ImageUtil.resizeImage(gearIcon, 20, 20);
             BufferedImage recoloredIcon = ImageUtil.recolorImage(gearIcon, ColorScheme.LIGHT_GRAY_COLOR);
             JLabel backButton = ConfigPanel.buildButton(recoloredIcon, "Back to Graph", () -> {
                 isShowingSettings = false;
-                showGraphView(configManager, copilotConfig);
+                showGraphView(itemName, data);
             });
             topPanel.setBackground(configManager.getConfig().backgroundColor);
             topPanel.add(backButton, BorderLayout.EAST);
@@ -238,7 +389,7 @@ public class Manager {
         // Set the callback to return to graph view when "Apply" is clicked
         configPanel.setOnApplyCallback(() -> {
             isShowingSettings = false;
-            showGraphView(configManager, copilotConfig);
+            showGraphView(itemName, data);
         });
 
         // Add components to main panel
@@ -253,5 +404,15 @@ public class Manager {
         // Update UI
         mainPanel.revalidate();
         mainPanel.repaint();
+    }
+
+
+    private void setItemIcon(int itemId) {
+        itemIcon.setVisible(false);
+        AsyncBufferedImage image = itemManager.getImage(itemId);
+        if (image != null) {
+            image.addTo(itemIcon);
+            itemIcon.setVisible(true);
+        }
     }
 }

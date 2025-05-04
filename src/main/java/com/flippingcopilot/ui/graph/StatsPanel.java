@@ -139,14 +139,14 @@ public class StatsPanel extends JPanel {
         // Price changes
         model.addRow(new Object[]{"24h change", formatPercentage((float) dataManager.priceChange24H)});
         model.addRow(new Object[]{"Week change", formatPercentage((float) dataManager.priceChangeWeek)});
-
-        // Copilot price and margin
-        model.addRow(new Object[]{"Copilot buy price", formatNumber(dataManager.data.buyPrice)});
-        model.addRow(new Object[]{"Copilot sell price", formatNumber(dataManager.data.sellPrice)});
-
-        model.addRow(new Object[]{"Margin", formatNumber(dataManager.margin)});
-        model.addRow(new Object[]{"Tax", formatNumber(dataManager.tax)});
-        model.addRow(new Object[]{"Profit", formatNumber(dataManager.profit)});
+//
+//        // Copilot price and margin
+//        model.addRow(new Object[]{"Copilot buy price", formatNumber(dataManager.data.buyPrice)});
+//        model.addRow(new Object[]{"Copilot sell price", formatNumber(dataManager.data.sellPrice)});
+//
+//        model.addRow(new Object[]{"Margin", formatNumber(dataManager.margin)});
+//        model.addRow(new Object[]{"Tax", formatNumber(dataManager.tax)});
+//        model.addRow(new Object[]{"Profit", formatNumber(dataManager.profit)});
    }
 
     /**

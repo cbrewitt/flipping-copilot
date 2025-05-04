@@ -2,6 +2,7 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.*;
+import com.flippingcopilot.ui.graph.PriceGraphController;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.google.gson.Gson;
 import lombok.Getter;
@@ -43,6 +44,8 @@ public class SuggestionController {
     private final SuggestionManager suggestionManager;
     private final AccountStatusManager accountStatusManager;
     private final GrandExchangeUncollectedManager uncollectedManager;
+    private final PriceGraphController graphPriceGraphController;
+
     private MainPanel mainPanel;
     private LoginPanel loginPanel;
     private CopilotPanel copilotPanel;
@@ -123,10 +126,7 @@ public class SuggestionController {
             showNotifications(oldSuggestion, newSuggestion, accountStatus);
         };
         Consumer<Data> graphDataConsumer = (d) -> {
-            Suggestion s = suggestionManager.getSuggestion();
-            if (s != null) {
-                s.setGraphData(d);
-            }
+            graphPriceGraphController.setSuggestedItemGraphData(d);
             suggestionManager.setGraphDataReadingInProgress(false);
         };
         Consumer<HttpResponseException> onFailure = (e) -> {
