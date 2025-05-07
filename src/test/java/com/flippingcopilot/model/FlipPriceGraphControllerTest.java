@@ -11,7 +11,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class FlipManagerTest {
+public class FlipPriceGraphControllerTest {
 
     private static final String DISPLAY_NAME_1 = "Acc 1";
     private static final String DISPLAY_NAME_2 = "Acc 2";

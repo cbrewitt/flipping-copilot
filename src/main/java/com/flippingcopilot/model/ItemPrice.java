@@ -1,24 +1,32 @@
 package com.flippingcopilot.model;
 
+import com.flippingcopilot.msgpacklite.MsgpackName;
+import com.flippingcopilot.ui.graph.model.Data;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Getter
 @AllArgsConstructor
+@NoArgsConstructor
 @ToString
 public class ItemPrice {
     @SerializedName("sell_price")
-    private final int sellPrice;
+    @MsgpackName("sl")
+    private int sellPrice;
 
     @SerializedName("buy_price")
-    private final int buyPrice;
-    private final String message;
+    @MsgpackName("bp")
+    private  int buyPrice;
+    @MsgpackName("m")
+    private  String message;
 
-    public static ItemPrice fromJson(JsonObject json, Gson gson) {
-        return gson.fromJson(json, ItemPrice.class);
-    }
+    @SerializedName("graph_data")
+    @MsgpackName("gd")
+    private Data graphData;
+
 }

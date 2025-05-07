@@ -2,10 +2,12 @@ package com.flippingcopilot.ui.graph.model;
 
 import com.flippingcopilot.msgpacklite.MsgpackName;
 import com.google.gson.annotations.SerializedName;
+import lombok.Getter;
 
 
 public class Data {
 
+    @Getter
     public String loadingErrorMessage;
 
     // 6 months 1h data

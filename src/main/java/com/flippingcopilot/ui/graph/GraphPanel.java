@@ -12,11 +12,11 @@ public class GraphPanel extends JPanel {
 
     // Component references
     private final PriceGraphConfigManager configManager;
-    private final DataManager dataManager;
+    public DataManager dataManager;
     private final RenderV2 renderer;
-    private final ZoomHandler zoomHandler;
+    public final ZoomHandler zoomHandler;
     private final DatapointTooltip tooltip;
-    private final PlotArea pa;
+    public final PlotArea pa;
 
     // For point hovering
     private Point mousePosition = new Point(0,0);
