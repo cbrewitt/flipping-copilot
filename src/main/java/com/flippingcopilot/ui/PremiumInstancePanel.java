@@ -4,14 +4,18 @@ import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.model.PremiumInstanceStatus;
 import com.flippingcopilot.model.SuggestionManager;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+@Slf4j
 public class PremiumInstancePanel extends JPanel {
 
     private final CardLayout cardLayout;
@@ -192,6 +196,13 @@ public class PremiumInstancePanel extends JPanel {
         bottomPanel.add(changesLabel, BorderLayout.WEST);
 
         JButton updateButton = new JButton("Update");
+        // Disable the update button if no changes remaining
+        updateButton.setEnabled(status.getChangesRemaining() > 0);
+        // Add tooltip to explain why button is disabled when changes = 0
+        if (status.getChangesRemaining() <= 0) {
+            updateButton.setToolTipText("No changes remaining. Wait for daily recharge.");
+        }
+
         updateButton.addActionListener(e -> {
             this.showLoading();
             Consumer<PremiumInstanceStatus> c = (s) -> {

@@ -133,6 +133,7 @@ public class SuggestionController {
             suggestionManager.setSuggestion(null);
             suggestionManager.setSuggestionError(e);
             suggestionManager.setSuggestionRequestInProgress(false);
+            suggestionManager.setGraphDataReadingInProgress(false);
             if (e.getResponseCode() == 401) {
                 loginResponseManager.reset();
                 mainPanel.refresh();

@@ -115,11 +115,9 @@ public class ZoomHandler {
         int width = Math.abs(selectionEnd.x - selectionStart.x);
         int height = Math.abs(selectionEnd.y - selectionStart.y);
 
-        // Draw filled rectangle with semi-transparent color
         plotAreaG2.setColor(Config.SELECTION_COLOR);
         plotAreaG2.fillRect(x, y, width, height);
 
-        // Draw border
         plotAreaG2.setColor(Config.SELECTION_BORDER_COLOR);
         plotAreaG2.setStroke(Config.SELECTION_STROKE);
         plotAreaG2.drawRect(x, y, width, height);

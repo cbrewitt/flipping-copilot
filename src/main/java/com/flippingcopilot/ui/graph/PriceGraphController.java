@@ -205,7 +205,7 @@ public class PriceGraphController {
             dialog.setVisible(true);
             log.info("Price graph panel shown successfully");
         } catch (Exception e) {
-            log.error("Error showing price graph panel: " + e.getMessage(), e);
+            log.error("Error showing price graph panel: {}", e.getMessage(), e);
         }
     }
 
@@ -362,11 +362,9 @@ public class PriceGraphController {
 
         // Add the icon panel to the content panel
         statsContentPanel.add(iconPanel);
-        // Add the stats panel directly below with no gap
-        statsPanel.setBorder(null); // Remove border from stats panel
+        statsPanel.setBorder(null);
         statsContentPanel.add(statsPanel);
 
-        // Create stats container with the settings header and our content
         JPanel statsContainer = new JPanel(new BorderLayout(0, 0));
         statsContainer.add(statsHeaderPanel, BorderLayout.NORTH);
         statsContainer.add(statsContentPanel, BorderLayout.CENTER);
@@ -378,26 +376,19 @@ public class PriceGraphController {
         splitPane.setResizeWeight(1.0); // Graph gets all extra space
         splitPane.setDividerLocation(0.75); // Initial position of divider at 75%
 
-        // Add padding only to graph panel, not stats
         graphPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         statsContainer.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
 
-        // Add components to main panel
         mainPanel.add(splitPane, BorderLayout.CENTER);
 
-        // Update the dialog title if needed
         if (currentDialog != null && itemName != null) {
             currentDialog.setTitle(itemName + " statistics");
         }
 
-        // Update UI
         mainPanel.revalidate();
         mainPanel.repaint();
     }
 
-    /**
-     * Shows the settings view in the dialog
-     */
     private  void showSettingsView(String itemName, Data data) {
         if (mainPanel == null) {
             log.error("Cannot show settings view, main panel is null");
@@ -405,14 +396,12 @@ public class PriceGraphController {
         }
         currentView = View.SETTINGS;
 
-        // Clear the main panel
         mainPanel.removeAll();
 
         // Create the top panel for back button
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
-        // Create back button with gear icon (reusing the same icon for simplicity)
         try {
             BufferedImage gearIcon = ImageUtil.loadImageResource(PriceGraphController.class, "/preferences-icon.png");
             gearIcon = ImageUtil.resizeImage(gearIcon, 20, 20);
@@ -426,24 +415,15 @@ public class PriceGraphController {
             log.error("Error creating back button", e);
         }
 
-        // Create settings panel
-        ConfigPanel configPanel = new ConfigPanel(configManager);
+        ConfigPanel configPanel = new ConfigPanel(configManager, () -> showGraphView(itemName, data));
 
-        // Set the callback to return to graph view when "Apply" is clicked
-        configPanel.setOnApplyCallback(() -> {
-            showGraphView(itemName, data);
-        });
-
-        // Add components to main panel
         mainPanel.add(topPanel, BorderLayout.NORTH);
         mainPanel.add(configPanel, BorderLayout.CENTER);
 
-        // Update the dialog title
         if (currentDialog != null) {
             currentDialog.setTitle("Graph Settings");
         }
 
-        // Update UI
         mainPanel.revalidate();
         mainPanel.repaint();
     }

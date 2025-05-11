@@ -285,7 +285,7 @@ public class ApiRequestHandler {
                     } else {
                         byte[] d = response.body().bytes();
                         ItemPrice ip = MsgpackDeserializer.deserialize(d, ItemPrice.class);
-                        log.info("price graph data recieved for item {}", itemId);
+                        log.info("price graph data received for item {}", itemId);
                         clientThread.invoke(() -> consumer.accept(ip));
                     }
                 } catch (Exception e) {
