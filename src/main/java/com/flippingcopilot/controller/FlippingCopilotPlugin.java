@@ -83,12 +83,14 @@ public class FlippingCopilotPlugin extends Plugin {
 	private TransactionManger transactionManger;
 	@Inject
 	private OfferManager offerManager;
+	@Inject
+	private PriceGraphOpener priceGraphOpener;
 
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
 	private NavigationButton navButton;
 
-    @Override
+	@Override
 	protected void startUp() throws Exception {
 		Persistance.setUp(gson);
 
@@ -176,6 +178,11 @@ public class FlippingCopilotPlugin extends Plugin {
 		int slot = grandExchange.getOpenSlot();
 		grandExchangeCollectHandler.handleCollect(event, slot);
 		gameUiChangesHandler.handleMenuOptionClicked(event);
+	}
+
+	@Subscribe
+	public void onMenuEntryAdded(MenuEntryAdded event) {
+		priceGraphOpener.injectCopilotPriceGraphMenuEntry(event);
 	}
 
 	@Subscribe

@@ -73,8 +73,6 @@ public class OfferEditor {
                         showPriceWithWarning(price, offerHandler.getViewedSlotPriceErrorText());
                     } else {
                         showPrice(price);
-//                        shiftChatboxWidgetsDown();
-//                        showPriceGraph(price);
                     }
                 }
             } else {
@@ -97,16 +95,6 @@ public class OfferEditor {
     private void showPrice(int price) {
         text.setText("set to Copilot price: " + String.format("%,d", price) + " gp");
         text.setAction(0, "Set price");
-        setHoverListeners(text);
-        text.setOnOpListener((JavaScriptCallback) ev ->
-        {
-            offerHandler.setChatboxValue(price);
-        });
-    }
-
-    private void showPriceGraph(int price) {
-        text.setText("open Copilot price graph");
-        text.setAction(0, "Open price graph");
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
         {

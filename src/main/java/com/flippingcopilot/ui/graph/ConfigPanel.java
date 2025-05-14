@@ -13,19 +13,17 @@ import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Panel for configuring graph settings
- */
 @Slf4j
 public class ConfigPanel extends JPanel {
     private final Map<String, Component> configComponents = new HashMap<>();
-    private Runnable onApplyCallback;
+    private final Runnable onApplyCallback;
     private final PriceGraphConfigManager configManager;
-    private Config configInstance;
+    private final Config configInstance;
 
-    public ConfigPanel(PriceGraphConfigManager configManager) {
+    public ConfigPanel(PriceGraphConfigManager configManager, Runnable callback) {
         this.configManager = configManager;
         this.configInstance = configManager.getConfig();
+        this.onApplyCallback = callback;
 
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -76,7 +74,7 @@ public class ConfigPanel extends JPanel {
                     addFloatSetting(settingsPanel, c, field.getName(), (Float) value);
                 }
             } catch (Exception e) {
-                log.error("Error adding setting for " + field.getName(), e);
+                log.error("Error adding setting for {}", field.getName(), e);
             }
         }
 
@@ -119,14 +117,6 @@ public class ConfigPanel extends JPanel {
 
         buttonPanel.add(applyButton);
         add(buttonPanel, BorderLayout.SOUTH);
-    }
-
-    /**
-     * Sets the callback to be executed after applying settings
-     * @param callback runnable to execute after applying settings
-     */
-    public void setOnApplyCallback(Runnable callback) {
-        this.onApplyCallback = callback;
     }
 
     private void addIntegerSetting(JPanel panel, GridBagConstraints c, String name, Integer value) {

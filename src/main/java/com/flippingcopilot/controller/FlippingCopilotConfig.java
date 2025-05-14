@@ -149,4 +149,14 @@ public interface FlippingCopilotConfig extends Config
     {
         return new Keybind(KeyEvent.VK_E, 0);
     }
+
+    @ConfigItem(
+            keyName = "enabledPriceGraphMenuOpton",
+            name = "Enable price graph menu option",
+            description = "Adds a menu option to open copilot price graph on applicable right clicks."
+    )
+    default boolean priceGraphMenuOptionEnabled()
+    {
+        return true;
+    }
 }
