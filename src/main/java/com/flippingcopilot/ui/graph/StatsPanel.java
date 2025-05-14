@@ -7,29 +7,20 @@ import com.flippingcopilot.ui.graph.model.Constants;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
+import javax.swing.border.MatteBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.text.NumberFormat;
 import java.util.Date;
 
-/**
- * Panel to display item statistics in a table format.
- */
 @Slf4j
 public class StatsPanel extends JPanel {
     private final DataManager dataManager;
     private final JTable statsTable;
-    private final FlippingCopilotConfig copilotConfig;
 
-    /**
-     * Constructs a new StatsPanel to display item statistics.
-     *
-     * @param dataManager The data containing the item statistics
-     */
     public StatsPanel(DataManager dataManager, PriceGraphConfigManager configManager, FlippingCopilotConfig copilotConfig) {
         this.dataManager = dataManager;
-        this.copilotConfig = copilotConfig;
         this.setLayout(new BorderLayout());
 
         // Create table model with two columns and no row editing
@@ -43,7 +34,6 @@ public class StatsPanel extends JPanel {
         model.addColumn("Statistic");
         model.addColumn("Value");
 
-        // Create the table
         statsTable = new JTable(model);
         statsTable.setFillsViewportHeight(true);
         statsTable.setRowHeight(24);
@@ -51,15 +41,12 @@ public class StatsPanel extends JPanel {
         statsTable.getTableHeader().setResizingAllowed(true);
         statsTable.setBackground(configManager.getConfig().backgroundColor);
 
-        // Remove cell borders
         statsTable.setShowGrid(false);
         statsTable.setIntercellSpacing(new Dimension(0, 0));
 
-        // Set column widths
         statsTable.getColumnModel().getColumn(0).setPreferredWidth(150);
         statsTable.getColumnModel().getColumn(1).setPreferredWidth(120);
 
-        // Hide the default table header
         statsTable.setTableHeader(null);
 
         // Set custom cell renderer for value column to color the change percentages
@@ -77,45 +64,25 @@ public class StatsPanel extends JPanel {
                     } else if (!valueStr.equals("0%")) {
                         c.setForeground(copilotConfig.profitAmountColor());
                     } else {
-                        c.setForeground(table.getForeground()); // Default color for 0%
+                        c.setForeground(table.getForeground());
                     }
                 } else {
-                    c.setForeground(table.getForeground()); // Default color for other rows
+                    c.setForeground(table.getForeground());
                 }
 
                 return c;
             }
         });
 
-        // Create a custom header panel
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(UIManager.getColor("TableHeader.background"));
-        headerPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 1, 0, UIManager.getColor("TableHeader.separatorColor")),
-                BorderFactory.createEmptyBorder(4, 4, 4, 4)
-        ));
-
-        // Add the "Item statistics" label to the header panel
-        JLabel headerLabel = new JLabel("Item statistics", JLabel.CENTER);
-        headerLabel.setFont(UIManager.getFont("TableHeader.font"));
-        headerLabel.setForeground(UIManager.getColor("TableHeader.foreground"));
-        headerPanel.add(headerLabel, BorderLayout.CENTER);
-
-        // Add table to scroll pane
+        statsTable.setBorder(new MatteBorder(1, 0, 0, 0, Color.GRAY));
         JScrollPane scrollPane = new JScrollPane(statsTable);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
 
-        // Remove the default column header view
         scrollPane.setColumnHeaderView(null);
 
-        // Add the custom header and scroll pane to the panel
-        this.add(headerPanel, BorderLayout.NORTH);
         this.add(scrollPane, BorderLayout.CENTER);
 
-        // Populate table with data
         populateTable();
-
-        // Set preferred size for the panel
         this.setPreferredSize(new Dimension(280, 400));
     }
 
@@ -139,22 +106,17 @@ public class StatsPanel extends JPanel {
         // Price changes
         model.addRow(new Object[]{"24h change", formatPercentage((float) dataManager.priceChange24H)});
         model.addRow(new Object[]{"Week change", formatPercentage((float) dataManager.priceChangeWeek)});
+//
+//        // Copilot price and margin
+//        model.addRow(new Object[]{"Copilot buy price", formatNumber(dataManager.data.buyPrice)});
+//        model.addRow(new Object[]{"Copilot sell price", formatNumber(dataManager.data.sellPrice)});
+//
+//        model.addRow(new Object[]{"Margin", formatNumber(dataManager.margin)});
+//        model.addRow(new Object[]{"Tax", formatNumber(dataManager.tax)});
+//        model.addRow(new Object[]{"Profit", formatNumber(dataManager.profit)});
+    }
 
-        // Copilot price and margin
-        model.addRow(new Object[]{"Copilot buy price", formatNumber(dataManager.data.buyPrice)});
-        model.addRow(new Object[]{"Copilot sell price", formatNumber(dataManager.data.sellPrice)});
 
-        model.addRow(new Object[]{"Margin", formatNumber(dataManager.margin)});
-        model.addRow(new Object[]{"Tax", formatNumber(dataManager.tax)});
-        model.addRow(new Object[]{"Profit", formatNumber(dataManager.profit)});
-   }
-
-    /**
-     * Formats a number with thousand separators
-     *
-     * @param number The number to format
-     * @return Formatted number string
-     */
     private String formatNumber(long number) {
         return NumberFormat.getNumberInstance().format(number);
     }

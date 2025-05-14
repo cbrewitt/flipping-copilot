@@ -219,9 +219,6 @@ public class MsgpackSerializer {
         return buffer.array();
     }
 
-    /**
-     * Serialize a list to MessagePack format
-     */
     private static byte[] serializeList(List<?> list) {
         int size = list.size();
         byte[][] elements = new byte[size][];
@@ -262,9 +259,6 @@ public class MsgpackSerializer {
         return buffer.array();
     }
 
-    /**
-     * Serialize a map to MessagePack format
-     */
     private static byte[] serializeMap(Map<?, ?> map) {
         int size = map.size();
         List<byte[]> keyValues = new ArrayList<>(size * 2);
