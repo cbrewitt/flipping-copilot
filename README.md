@@ -12,13 +12,13 @@ Join our [Discord server](https://discord.gg/UyQxA4QJAq) to engage with fellow u
  - Intelligent item suggestions
  - Optimal price and quantity suggestions
  - Real-time offer cancellation suggestions
- - Profit and loss tracking
+ - Quant-model price predictions
+ - Cross-device flip tracking
+ - Price graphs, stats and more!
 
-![image info](./images/buy.png)
-![image info](./images/sell.png)
+![image info](./images/flipping-copilot-ui.png)
 
-![image info](./images/sold.png)
-![image info](./images/flip-log.png)
+![image info](./images/price-graph.png)
 
 ## Attribution
 Icons were created by cbrewitt or sourced from Flaticon. The following attributions are provided in accordance with the Flaticon license agreement.

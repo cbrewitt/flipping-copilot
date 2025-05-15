@@ -18,14 +18,15 @@ public interface FlippingCopilotConfig extends Config
 {
     public enum PriceGraphWebsite
     {
+        FLIPPING_COPILOT("Flipping Copilot"),
         OSRS_WIKI("OSRS Wiki"),
         GE_TRACKER("GE Tracker"),
         PLATINUM_TOKENS("PlatinumTokens"),
         GE_DATABASE("GE Database"),
         OSRS_CLOUD("Osrs.cloud"),
         OSRS_EXCHANGE("OSRS Exchange"),
-        FLIPPING_GG("Flipping.gg"),
-        COPILOT("Copilot");
+        FLIPPING_GG("Flipping.gg");
+
 
         private final String name;
         PriceGraphWebsite(String name)
@@ -123,13 +124,13 @@ public interface FlippingCopilotConfig extends Config
     )
     String webhook();
     @ConfigItem(
-            keyName = "priceGraphWebsite",
-            name = "Graph button site",
-            description = "The website to open when the graph button is clicked."
+            keyName = "priceGraphButton",
+            name = "Graph button",
+            description = "The page to open when the graph button is clicked."
     )
     default PriceGraphWebsite priceGraphWebsite()
     {
-        return PriceGraphWebsite.OSRS_WIKI;
+        return PriceGraphWebsite.FLIPPING_COPILOT;
     }
     @ConfigItem(
             keyName = "suggestionHighlights",
