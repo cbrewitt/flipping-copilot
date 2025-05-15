@@ -88,11 +88,6 @@ public class MainPanel extends PluginPanel {
         int columns = isLoggedIn ? 4 : 3;
         topBar.setLayout(new GridLayout(1, columns));
 
-        JLabel github = buildTopBarUriButton(UIUtilities.githubIcon,
-                "Flipping Copilot Github",
-                "https://github.com/cbrewitt/flipping-copilot");
-        topBar.add(github);
-
         JLabel discord = buildTopBarUriButton(UIUtilities.discordIcon,
                 "Flipping Copilot Discord",
                 "https://discord.gg/UyQxA4QJAq");
