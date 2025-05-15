@@ -1,10 +1,11 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.ui.graph.model.Data;
-import com.flippingcopilot.msgpacklite.MsgpackName;
+import com.flippingcopilot.util.MsgPackUtil;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
 
+import java.nio.ByteBuffer;
 import java.text.NumberFormat;
 
 @Getter
@@ -12,35 +13,18 @@ import java.text.NumberFormat;
 @ToString
 @NoArgsConstructor
 public class Suggestion {
-
-    @MsgpackName("t")
     private String type;
-
-    @MsgpackName("b")
     @SerializedName("box_id")
     private int boxId;
-
-    @MsgpackName("i")
     @SerializedName("item_id")
     private int itemId;
-
-    @MsgpackName("p")
     private int price;
-
-    @MsgpackName("q")
     private int quantity;
-
-    @MsgpackName("n")
     private String name;
-
-    @MsgpackName("id")
     @SerializedName("command_id")
     private int id;
-
-    @MsgpackName("m")
     private String message;
 
-    @MsgpackName("gd")
     @SerializedName("graph_data")
     @Setter
     private Data graphData;
@@ -76,6 +60,52 @@ public class Suggestion {
                 break;
         }
         return string;
+    }
+
+    public static Suggestion fromMsgPack(ByteBuffer b) {
+        Suggestion s = new Suggestion();
+        Integer mapSize = MsgPackUtil.decodeMapSize(b);
+        if(mapSize == null) {
+            return null;
+        }
+
+        for (int i = 0; i < mapSize; i++) {
+            String key = (String) MsgPackUtil.decodePrimitive(b);
+            switch (key) {
+                case "t":
+                    s.type = (String) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "b":
+                    s.boxId = (int) (long) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "i":
+                    s.itemId = (int) (long) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "p":
+                    s.price = (int) (long) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "q":
+                    s.quantity = (int) (long) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "n":
+                    s.name = (String) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "id":
+                    s.id = (int) (long) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "m":
+                    s.message = (String) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "gd":
+                    s.graphData = Data.fromMsgPack(b);
+                    break;
+                default:
+                    // discard value for unrecognised key
+                    MsgPackUtil.decodePrimitive(b);
+            }
+        }
+
+        return s;
     }
 }
 
