@@ -6,7 +6,6 @@ import com.flippingcopilot.controller.HighlightController;
 import com.flippingcopilot.controller.PremiumInstanceController;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.graph.PriceGraphController;
-import com.flippingcopilot.ui.graph.model.Data;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
@@ -23,10 +22,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.io.*;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.List;
 
 import static com.flippingcopilot.ui.UIUtilities.*;
 import static com.flippingcopilot.util.Constants.MIN_GP_NEEDED_TO_FLIP;
@@ -228,7 +224,7 @@ public class SuggestionPanel extends JPanel {
     
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
         graphButton = buildButton(graphIcon, "Price graph", () -> {
-            if(config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.COPILOT)) {
+            if(config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT)) {
                 Suggestion suggestion = suggestionManager.getSuggestion();
                 priceGraphController.showPriceGraph( suggestion.getName(),true);
             } else {
