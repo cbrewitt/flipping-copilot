@@ -1,9 +1,7 @@
 package com.flippingcopilot.model;
 
-import com.flippingcopilot.msgpacklite.MsgpackName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.flippingcopilot.ui.graph.model.Data;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,17 +14,17 @@ import lombok.ToString;
 @ToString
 public class ItemPrice {
     @SerializedName("sell_price")
-    @MsgpackName("sl")
+    @JsonProperty("sp")
     private int sellPrice;
 
     @SerializedName("buy_price")
-    @MsgpackName("bp")
+    @JsonProperty("bp")
     private  int buyPrice;
-    @MsgpackName("m")
+    @JsonProperty("m")
     private  String message;
 
     @SerializedName("graph_data")
-    @MsgpackName("gd")
+    @JsonProperty("gd")
     private Data graphData;
 
 }
