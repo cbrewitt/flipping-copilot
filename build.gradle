@@ -2,6 +2,11 @@ plugins {
 	id 'java'
 }
 
+tasks.withType(Jar).configureEach {
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	exclude 'META-INF/LICENSE*', 'META-INF/NOTICE*'
+}
+
 repositories {
 	mavenLocal()
 	maven {
