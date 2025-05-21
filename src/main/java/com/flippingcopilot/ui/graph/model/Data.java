@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui.graph.model;
 
-import com.flippingcopilot.msgpacklite.MsgpackName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.gson.annotations.SerializedName;
 import lombok.Getter;
 
@@ -9,87 +9,108 @@ public class Data {
 
     @Getter
     public String loadingErrorMessage;
+
     @Getter
     public boolean fromWaitSuggestion;
 
     // 6 months 1h data
+    @JsonProperty("l1ht")
     @SerializedName("low_1h_times")
-    @MsgpackName("l1ht")
     public int[] low1hTimes;
-    @MsgpackName("l1hp")
+
+    @JsonProperty("l1hp")
     @SerializedName("low_1h_prices")
     public int[] low1hPrices;
-    @MsgpackName("h1ht")
+
+    @JsonProperty("h1ht")
     @SerializedName("high_1h_times")
     public int[] high1hTimes;
-    @MsgpackName("h1hp")
+
+    @JsonProperty("h1hp")
     @SerializedName("high_1h_prices")
     public int[] high1hPrices;
 
     // 1 month 5m data
-    @MsgpackName("l5mt")
+    @JsonProperty("l5mt")
     @SerializedName("low_5m_times")
     public int[] low5mTimes;
-    @MsgpackName("l5mp")
+
+    @JsonProperty("l5mp")
     @SerializedName("low_5m_prices")
     public int[] low5mPrices;
-    @MsgpackName("h5mt")
+
+    @JsonProperty("h5mt")
     @SerializedName("high_5m_times")
     public int[] high5mTimes;
-    @MsgpackName("h5mp")
+
+    @JsonProperty("h5mp")
     @SerializedName("high_5m_prices")
     public int[] high5mPrices;
 
     // several days latest data
-    @MsgpackName("llt")
+    @JsonProperty("llt")
     @SerializedName("low_latest_times")
     public int[] lowLatestTimes;
-    @MsgpackName("llp")
+
+    @JsonProperty("llp")
     @SerializedName("low_latest_prices")
     public int[] lowLatestPrices;
-    @MsgpackName("hlt")
+
+    @JsonProperty("hlt")
     @SerializedName("high_latest_times")
     public int[] highLatestTimes;
-    @MsgpackName("hlp")
+
+    @JsonProperty("hlp")
     @SerializedName("high_latest_prices")
     public int[] highLatestPrices;
 
-    @MsgpackName("pt")
+    @JsonProperty("pt")
     @SerializedName("prediction_times")
     public int[] predictionTimes;
-    @MsgpackName("plm")
+
+    @JsonProperty("plm")
     @SerializedName("prediction_low_means")
     public int[] predictionLowMeans;
-    @MsgpackName("pliu")
+
+    @JsonProperty("pliu")
     @SerializedName("prediction_low_iqr_upper")
     public int[] predictionLowIQRUpper;
-    @MsgpackName("plil")
+
+    @JsonProperty("plil")
     @SerializedName("prediction_low_iqr_lower")
     public int[] predictionLowIQRLower;
-    @MsgpackName("phm")
+
+    @JsonProperty("phm")
     @SerializedName("prediction_high_means")
     public int[] predictionHighMeans;
-    @MsgpackName("phiu")
+
+    @JsonProperty("phiu")
     @SerializedName("prediction_high_iqr_upper")
     public int[] predictionHighIQRUpper;
-    @MsgpackName("phil")
+
+    @JsonProperty("phil")
     @SerializedName("prediction_high_iqr_lower")
     public int[] predictionHighIQRLower;
 
     // stats
-    @MsgpackName("id")
+    @JsonProperty("id")
     @SerializedName("item_id")
     public int itemId;
-    @MsgpackName("n")
+
+    @JsonProperty("n")
     @SerializedName("name")
     public String name;
-    @MsgpackName("dv")
+
+
+    @JsonProperty("dv")
     @SerializedName("daily_volume")
     public double dailyVolume;
-    @MsgpackName("sp")
+
+    @JsonProperty("sp")
     @SerializedName("sell_price")
     public int sellPrice;
-    @MsgpackName("bp")
+
+    @JsonProperty("bp")
     @SerializedName("buy_price")
     public int buyPrice;
 }

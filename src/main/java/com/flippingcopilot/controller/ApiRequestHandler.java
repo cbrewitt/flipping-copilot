@@ -1,7 +1,6 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.msgpacklite.MsgpackDeserializer;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
@@ -21,6 +20,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+
+import static com.flippingcopilot.util.MsgPackExt.MSG_PACK_MAPPER;
 
 @Slf4j
 @Singleton
@@ -134,7 +135,7 @@ public class ApiRequestHandler {
                 if (bytesRead != suggestionContentLength) {
                     throw new IOException("failed to read complete suggestion content: " + bytesRead + " of " + suggestionContentLength + " bytes");
                 }
-                s = MsgpackDeserializer.deserialize(suggestionBytes, Suggestion.class);
+                s = MSG_PACK_MAPPER.readValue(suggestionBytes, Suggestion.class);
                 log.info("suggestion received");
                 clientThread.invoke(() -> suggestionConsumer.accept(s));
 
@@ -148,7 +149,7 @@ public class ApiRequestHandler {
                             d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
                         } else {
                             try {
-                                d = MsgpackDeserializer.deserialize(remainingBytes, Data.class);
+                                d = MSG_PACK_MAPPER.readValue(remainingBytes, Data.class);
                                 log.info("graph data received");
                             } catch (Exception e) {
                                 log.error("error deserializing graph data", e);
@@ -284,7 +285,7 @@ public class ApiRequestHandler {
                         clientThread.invoke(() -> consumer.accept(ip));
                     } else {
                         byte[] d = response.body().bytes();
-                        ItemPrice ip = MsgpackDeserializer.deserialize(d, ItemPrice.class);
+                        ItemPrice ip = MSG_PACK_MAPPER.readValue(d, ItemPrice.class);
                         log.info("price graph data received for item {}", itemId);
                         clientThread.invoke(() -> consumer.accept(ip));
                     }
@@ -325,7 +326,7 @@ public class ApiRequestHandler {
                         clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
                     } else {
                         byte[] d = response.body().bytes();
-                        PremiumInstanceStatus ip = MsgpackDeserializer.deserialize(d, PremiumInstanceStatus.class);
+                        PremiumInstanceStatus ip = MSG_PACK_MAPPER.readValue(d, PremiumInstanceStatus.class);
                         clientThread.invoke(() -> consumer.accept(ip));
                     }
                 } catch (Exception e) {
@@ -358,7 +359,7 @@ public class ApiRequestHandler {
                         clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
                     } else {
                         byte[] d = response.body().bytes();
-                        PremiumInstanceStatus ip = MsgpackDeserializer.deserialize(d, PremiumInstanceStatus.class);
+                        PremiumInstanceStatus ip = MSG_PACK_MAPPER.readValue(d, PremiumInstanceStatus.class);
                         clientThread.invoke(() -> consumer.accept(ip));
                     }
                 } catch (Exception e) {

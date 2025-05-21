@@ -401,6 +401,9 @@ public class SuggestionPanel extends JPanel {
             return;
         }
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
+        if(accountStatus == null) {
+            return;
+        }
         setServerMessage(suggestion.getMessage());
         boolean collectNeeded = accountStatus.isCollectNeeded(suggestion);
         if(collectNeeded && !uncollectedManager.HasUncollected(osrsLoginManager.getAccountHash())) {

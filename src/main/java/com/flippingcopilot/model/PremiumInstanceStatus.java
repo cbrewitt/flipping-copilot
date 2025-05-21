@@ -1,6 +1,6 @@
 package com.flippingcopilot.model;
 
-import com.flippingcopilot.msgpacklite.MsgpackName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
 
@@ -15,16 +15,16 @@ import java.util.List;
 public class PremiumInstanceStatus {
     private String loadingError;
     @SerializedName("premium_instances_count")
-    @MsgpackName("pic")
+    @JsonProperty("pic")
     private int premiumInstancesCount;
     @SerializedName("changes_remaining")
-    @MsgpackName("cr")
+    @JsonProperty("cr")
     private int changesRemaining;
     @SerializedName("currently_assigned_display_names")
-    @MsgpackName("cadn")
+    @JsonProperty("cadn")
     private List<String> currentlyAssignedDisplayNames;
     @SerializedName("available_display_names")
-    @MsgpackName("adn")
+    @JsonProperty("adn")
     private List<String> availableDisplayNames;
 
     public static PremiumInstanceStatus ErrorInstance(String error) {

@@ -1,7 +1,7 @@
 package com.flippingcopilot.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.flippingcopilot.ui.graph.model.Data;
-import com.flippingcopilot.msgpacklite.MsgpackName;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
 
@@ -12,35 +12,27 @@ import java.text.NumberFormat;
 @ToString
 @NoArgsConstructor
 public class Suggestion {
-
-    @MsgpackName("t")
+    @JsonProperty("t")
     private String type;
-
-    @MsgpackName("b")
+    @JsonProperty("b")
     @SerializedName("box_id")
     private int boxId;
-
-    @MsgpackName("i")
+    @JsonProperty("i")
     @SerializedName("item_id")
     private int itemId;
-
-    @MsgpackName("p")
+    @JsonProperty("p")
     private int price;
-
-    @MsgpackName("q")
+    @JsonProperty("q")
     private int quantity;
-
-    @MsgpackName("n")
+    @JsonProperty("n")
     private String name;
-
-    @MsgpackName("id")
+    @JsonProperty("id")
     @SerializedName("command_id")
     private int id;
-
-    @MsgpackName("m")
+    @JsonProperty("m")
     private String message;
 
-    @MsgpackName("gd")
+    @JsonProperty("gd")
     @SerializedName("graph_data")
     @Setter
     private Data graphData;
