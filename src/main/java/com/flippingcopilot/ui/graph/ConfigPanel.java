@@ -8,8 +8,6 @@ import net.runelite.client.ui.ColorScheme;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,12 +34,11 @@ public class ConfigPanel extends JPanel {
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.HORIZONTAL;
         c.weightx = 1.0;
-        c.anchor = GridBagConstraints.NORTH; // Anchor components to the top
+        c.anchor = GridBagConstraints.NORTH;
         c.gridx = 0;
         c.gridy = 0;
         c.insets = new Insets(5, 5, 5, 5);
 
-        // Add a title
         JLabel titleLabel = new JLabel("Graph Settings");
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
@@ -49,57 +46,39 @@ public class ConfigPanel extends JPanel {
         settingsPanel.add(titleLabel, c);
         c.gridy++;
 
-        // Get all fields from Config class
-        Field[] fields = Config.class.getDeclaredFields();
+        // boolean
+        addBooleanSetting(settingsPanel, c, "connectPoints", configInstance.isConnectPoints());
 
-        for (Field field : fields) {
-            try {
-                field.setAccessible(true);
-
-                // Skip static fields - only edit non-static instance fields
-                if (Modifier.isStatic(field.getModifiers())) {
-                    continue;
-                }
-
-                // Get the current value from our config instance
-                Object value = field.get(configInstance);
-
-                if (value instanceof Integer) {
-                    addIntegerSetting(settingsPanel, c, field.getName(), (Integer) value);
-                } else if (value instanceof Color) {
-                    addColorSetting(settingsPanel, c, field.getName(), (Color) value);
-                } else if (value instanceof Boolean) {
-                    addBooleanSetting(settingsPanel, c, field.getName(), (Boolean) value);
-                } else if (value instanceof Float) {
-                    addFloatSetting(settingsPanel, c, field.getName(), (Float) value);
-                }
-            } catch (Exception e) {
-                log.error("Error adding setting for {}", field.getName(), e);
-            }
-        }
+        // colours
+        addColorSetting(settingsPanel, c, "lowColor", configInstance.getLowColor());
+        addColorSetting(settingsPanel, c, "highColor", configInstance.getHighColor());
+        addColorSetting(settingsPanel, c, "lowShadeColor", configInstance.getLowShadeColor());
+        addColorSetting(settingsPanel, c, "highShadeColor", configInstance.getHighShadeColor());
+        addColorSetting(settingsPanel, c, "backgroundColor", configInstance.getBackgroundColor());
+        addColorSetting(settingsPanel, c, "plotAreaColor", configInstance.getPlotAreaColor());
+        addColorSetting(settingsPanel, c, "textColor", configInstance.getTextColor());
+        addColorSetting(settingsPanel, c, "axisColor", configInstance.getAxisColor());
+        addColorSetting(settingsPanel, c, "gridColor", configInstance.getGridColor());
 
         // Add a filler component to push everything to the top
         GridBagConstraints fillerConstraints = new GridBagConstraints();
         fillerConstraints.gridx = 0;
-        fillerConstraints.gridy = c.gridy; // Use the current gridy value
+        fillerConstraints.gridy = c.gridy;
         fillerConstraints.gridwidth = GridBagConstraints.REMAINDER;
         fillerConstraints.fill = GridBagConstraints.BOTH;
         fillerConstraints.weightx = 1.0;
-        fillerConstraints.weighty = 1.0; // This is the key - it takes up extra vertical space
+        fillerConstraints.weighty = 1.0;
 
-        // Add an empty panel as filler
         JPanel fillerPanel = new JPanel();
         fillerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         settingsPanel.add(fillerPanel, fillerConstraints);
 
-        // Add a scrollpane to make the settings scrollable
         JScrollPane scrollPane = new JScrollPane(settingsPanel);
         scrollPane.setBorder(null);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         add(scrollPane, BorderLayout.CENTER);
 
-        // Add apply button
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
@@ -109,7 +88,6 @@ public class ConfigPanel extends JPanel {
         applyButton.setForeground(Color.WHITE);
         applyButton.addActionListener(e -> {
             applySettings();
-            // Return to graph view after applying settings
             if (onApplyCallback != null) {
                 onApplyCallback.run();
             }
@@ -119,37 +97,7 @@ public class ConfigPanel extends JPanel {
         add(buttonPanel, BorderLayout.SOUTH);
     }
 
-    private void addIntegerSetting(JPanel panel, GridBagConstraints c, String name, Integer value) {
-        JLabel label = new JLabel(formatFieldName(name));
-        label.setForeground(Color.WHITE);
-        panel.add(label, c);
-        c.gridx = 1;
-
-        JSpinner spinner = new JSpinner(new SpinnerNumberModel((int) value, 0, 1000, 1));
-        spinner.setToolTipText(name);
-        configComponents.put(name, spinner);
-        panel.add(spinner, c);
-
-        c.gridx = 0;
-        c.gridy++;
-    }
-
-    private void addFloatSetting(JPanel panel, GridBagConstraints c, String name, Float value) {
-        JLabel label = new JLabel(formatFieldName(name));
-        label.setForeground(Color.WHITE);
-        panel.add(label, c);
-        c.gridx = 1;
-
-        JSpinner spinner = new JSpinner(new SpinnerNumberModel((float) value, 0.0f, 100.0f, 0.5f));
-        spinner.setToolTipText(name);
-        configComponents.put(name, spinner);
-        panel.add(spinner, c);
-
-        c.gridx = 0;
-        c.gridy++;
-    }
-
-    private void addBooleanSetting(JPanel panel, GridBagConstraints c, String name, Boolean value) {
+    private void addBooleanSetting(JPanel panel, GridBagConstraints c, String name, boolean value) {
         JLabel label = new JLabel(formatFieldName(name));
         label.setForeground(Color.WHITE);
         panel.add(label, c);
@@ -200,49 +148,40 @@ public class ConfigPanel extends JPanel {
 
     private String formatFieldName(String name) {
         StringBuilder result = new StringBuilder();
-        for (char c : name.toCharArray()) {
-            if (Character.isUpperCase(c)) {
-                result.append(' ').append(Character.toLowerCase(c));
+        for (char ch : name.toCharArray()) {
+            if (Character.isUpperCase(ch)) {
+                result.append(' ').append(Character.toLowerCase(ch));
             } else {
-                result.append(c);
+                result.append(ch);
             }
         }
         return result.toString().trim();
     }
 
-    /**
-     * Apply the settings to the config instance and save it
-     */
+    private Color extractColor(String key) {
+        JPanel wrapper = (JPanel) configComponents.get(key);
+        JPanel colorPanel = (JPanel) wrapper.getComponent(0);
+        return colorPanel.getBackground();
+    }
+
     private void applySettings() {
         try {
-            for (Map.Entry<String, Component> entry : configComponents.entrySet()) {
-                String fieldName = entry.getKey();
-                Component component = entry.getValue();
+            // boolean
+            JCheckBox connectPointsBox = (JCheckBox) configComponents.get("connectPoints");
+            configInstance.setConnectPoints(connectPointsBox.isSelected());
 
-                Field field = Config.class.getDeclaredField(fieldName);
-                field.setAccessible(true);
+            // colours
+            configInstance.setLowColor(extractColor("lowColor"));
+            configInstance.setHighColor(extractColor("highColor"));
+            configInstance.setLowShadeColor(extractColor("lowShadeColor"));
+            configInstance.setHighShadeColor(extractColor("highShadeColor"));
+            configInstance.setBackgroundColor(extractColor("backgroundColor"));
+            configInstance.setPlotAreaColor(extractColor("plotAreaColor"));
+            configInstance.setTextColor(extractColor("textColor"));
+            configInstance.setAxisColor(extractColor("axisColor"));
+            configInstance.setGridColor(extractColor("gridColor"));
 
-                if (component instanceof JSpinner) {
-                    JSpinner spinner = (JSpinner) component;
-                    if (field.getType() == Integer.TYPE || field.getType() == Integer.class) {
-                        field.set(configInstance, ((Number) spinner.getValue()).intValue());
-                    } else if (field.getType() == Float.TYPE || field.getType() == Float.class) {
-                        field.set(configInstance, ((Number) spinner.getValue()).floatValue());
-                    }
-                } else if (component instanceof JCheckBox) {
-                    JCheckBox checkBox = (JCheckBox) component;
-                    field.set(configInstance, checkBox.isSelected());
-                } else if (component instanceof JPanel) {
-                    // For color settings, we stored a panel
-                    JPanel wrapper = (JPanel) component;
-                    JPanel colorPanel = (JPanel) wrapper.getComponent(0);
-                    field.set(configInstance, colorPanel.getBackground());
-                }
-            }
-
-            // Save the updated config instance using the config manager
             configManager.setConfig(configInstance);
-
             log.info("Applied and saved graph settings");
         } catch (Exception e) {
             log.error("Error applying settings", e);
@@ -257,6 +196,7 @@ public class ConfigPanel extends JPanel {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 onClick.run();
             }
+
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 button.setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
