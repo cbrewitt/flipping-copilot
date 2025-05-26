@@ -15,13 +15,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.URLEncoder;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import static com.flippingcopilot.util.MsgPackExt.MSG_PACK_MAPPER;
 
 @Slf4j
 @Singleton
@@ -135,7 +135,7 @@ public class ApiRequestHandler {
                 if (bytesRead != suggestionContentLength) {
                     throw new IOException("failed to read complete suggestion content: " + bytesRead + " of " + suggestionContentLength + " bytes");
                 }
-                s = MSG_PACK_MAPPER.readValue(suggestionBytes, Suggestion.class);
+                s = Suggestion.fromMsgPack(ByteBuffer.wrap(suggestionBytes));
                 log.info("suggestion received");
                 clientThread.invoke(() -> suggestionConsumer.accept(s));
 
@@ -149,7 +149,7 @@ public class ApiRequestHandler {
                             d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
                         } else {
                             try {
-                                d = MSG_PACK_MAPPER.readValue(remainingBytes, Data.class);
+                                d = Data.fromMsgPack(ByteBuffer.wrap(remainingBytes));
                                 log.info("graph data received");
                             } catch (Exception e) {
                                 log.error("error deserializing graph data", e);
@@ -285,7 +285,7 @@ public class ApiRequestHandler {
                         clientThread.invoke(() -> consumer.accept(ip));
                     } else {
                         byte[] d = response.body().bytes();
-                        ItemPrice ip = MSG_PACK_MAPPER.readValue(d, ItemPrice.class);
+                        ItemPrice ip = ItemPrice.fromMsgPack(ByteBuffer.wrap(d));
                         log.info("price graph data received for item {}", itemId);
                         clientThread.invoke(() -> consumer.accept(ip));
                     }
@@ -308,7 +308,6 @@ public class ApiRequestHandler {
         Request request = new Request.Builder()
                 .url(serverUrl +"/premium-instances/update-assignments")
                 .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
-                .addHeader("Accept", "application/x-msgpack")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), payload.toString()))
                 .build();
 
@@ -325,8 +324,7 @@ public class ApiRequestHandler {
                         log.error("update premium instances failed with http status code {}", response.code());
                         clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
                     } else {
-                        byte[] d = response.body().bytes();
-                        PremiumInstanceStatus ip = MSG_PACK_MAPPER.readValue(d, PremiumInstanceStatus.class);
+                        PremiumInstanceStatus ip = gson.fromJson(response.body().string(), PremiumInstanceStatus.class);
                         clientThread.invoke(() -> consumer.accept(ip));
                     }
                 } catch (Exception e) {
@@ -341,7 +339,6 @@ public class ApiRequestHandler {
         Request request = new Request.Builder()
                 .url(serverUrl +"/premium-instances/status")
                 .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
-                .addHeader("Accept", "application/x-msgpack")
                 .get()
                 .build();
 
@@ -358,8 +355,7 @@ public class ApiRequestHandler {
                         log.error("get premium instance status failed with http status code {}", response.code());
                         clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
                     } else {
-                        byte[] d = response.body().bytes();
-                        PremiumInstanceStatus ip = MSG_PACK_MAPPER.readValue(d, PremiumInstanceStatus.class);
+                        PremiumInstanceStatus ip = gson.fromJson(response.body().string(), PremiumInstanceStatus.class);
                         clientThread.invoke(() -> consumer.accept(ip));
                     }
                 } catch (Exception e) {

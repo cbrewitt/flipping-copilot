@@ -230,7 +230,7 @@ public class DataManager {
     public List<Datapoint> sellPriceDataPoint() {
         return Collections.singletonList(new Datapoint(
                 (int) Instant.now().getEpochSecond(),
-                data.sellPrice,
+                (int) data.sellPrice,
                 false,
                 Datapoint.Type.PREDICTION
         ));
@@ -239,7 +239,7 @@ public class DataManager {
     public List<Datapoint> buyPriceDataPoint() {
         return Collections.singletonList(new Datapoint(
                 (int) Instant.now().getEpochSecond(),
-                data.buyPrice,
+                (int) data.buyPrice,
                 true,
                 Datapoint.Type.PREDICTION
         ));

@@ -2,11 +2,6 @@ plugins {
 	id 'java'
 }
 
-tasks.withType(Jar).configureEach {
-	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-	exclude 'META-INF/LICENSE*', 'META-INF/NOTICE*'
-}
-
 repositories {
 	mavenLocal()
 	maven {
@@ -21,7 +16,6 @@ dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion
 	compileOnly 'org.projectlombok:lombok:1.18.20'
 	annotationProcessor 'org.projectlombok:lombok:1.18.20'
-	implementation 'org.msgpack:jackson-dataformat-msgpack:0.9.5'
 	testImplementation 'junit:junit:4.13.1'
 	testImplementation group: 'net.runelite', name:'client', version: runeLiteVersion
 	testImplementation group: 'net.runelite', name:'jshell', version: runeLiteVersion
