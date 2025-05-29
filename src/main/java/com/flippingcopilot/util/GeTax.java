@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 
 public class GeTax {
-    private final static int MAX_PRICE_FOR_GE_TAX = 500000000;
+    private final static int MAX_PRICE_FOR_GE_TAX = 250000000;
     private final static int GE_TAX_CAP = 5000000;
     private final static double GE_TAX = 0.02;
     private final static HashSet<Integer> GE_TAX_EXEMPT_ITEMS = new HashSet<>(
