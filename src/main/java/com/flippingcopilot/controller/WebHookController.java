@@ -14,7 +14,7 @@ import javax.inject.Singleton;
 import java.io.IOException;
 import java.time.Instant;
 
-import static com.flippingcopilot.ui.FlipPanel.formatEpoch;
+import static com.flippingcopilot.util.DateUtil.formatEpoch;
 import static net.runelite.http.api.RuneLiteAPI.GSON;
 
 @Slf4j

@@ -29,7 +29,7 @@ public class CopilotLoginController {
     private final SuggestionManager suggestionManager;
     private final OsrsLoginManager osrsLoginManager;
     private final SessionManager sessionManager;
-    private final TransactionManger transactionManger;
+    private final TransactionManager transactionManager;
 
     // state
     private String email;
@@ -44,7 +44,7 @@ public class CopilotLoginController {
                 if(displayName != null) {
                     flipManager.setIntervalDisplayName(displayName);
                     flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
-                    transactionManger.scheduleSyncIn(0, displayName);
+                    transactionManager.scheduleSyncIn(0, displayName);
                 }
             } else {
                 LoginResponse loginResponse = loginResponseManager.getLoginResponse();

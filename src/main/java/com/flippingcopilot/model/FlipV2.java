@@ -3,7 +3,6 @@ package com.flippingcopilot.model;
 import com.flippingcopilot.util.GeTax;
 import com.google.gson.annotations.SerializedName;
 import lombok.Data;
-import java.util.Comparator;
 import java.util.UUID;
 
 @Data
@@ -50,6 +49,9 @@ public class FlipV2 {
 
     @SerializedName("is_closed")
     private boolean isClosed;
+
+    @SerializedName("status")
+    private String status;
 
     private String accountDisplayName;
 

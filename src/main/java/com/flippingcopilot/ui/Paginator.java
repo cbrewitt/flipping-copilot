@@ -1,6 +1,7 @@
 package com.flippingcopilot.ui;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -12,6 +13,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.util.function.Consumer;
 
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
 
@@ -31,9 +33,9 @@ public class Paginator extends JPanel {
 	private final JLabel statusText = new JLabel("Page 1 of 1", SwingUtilities.CENTER);
 	private final JLabel arrowRight= new JLabel(ARROW_RIGHT);
 	private final JLabel arrowLeft =  new JLabel(ARROW_LEFT);
-	private final Runnable onPageChange;
+	private final Consumer<Integer> onPageChange;
 
-	public Paginator(Runnable onPageChange) {
+	public Paginator(Consumer<Integer> onPageChange) {
 		this.onPageChange = onPageChange;
 		this.statusText.setFont(FontManager.getRunescapeFont());
 		this.arrowRight.setForeground(Color.blue);
@@ -51,6 +53,7 @@ public class Paginator extends JPanel {
 		this.totalPages = totalPages;
 		if(pageNumber > this.totalPages) {
 			pageNumber = 1;
+			onPageChange.accept(pageNumber);
 		}
 		statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
 	}
@@ -61,7 +64,7 @@ public class Paginator extends JPanel {
 			public void mousePressed(MouseEvent e) {
 				if (pageNumber < totalPages) {
 					pageNumber++;
-					onPageChange.run();
+					onPageChange.accept(pageNumber);
 					statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
 				}
 			}
@@ -84,7 +87,7 @@ public class Paginator extends JPanel {
 			public void mousePressed(MouseEvent e) {
 				if (pageNumber > 1) {
 					pageNumber--;
-					onPageChange.run();
+					onPageChange.accept(pageNumber);
 					statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
 				}
 			}
