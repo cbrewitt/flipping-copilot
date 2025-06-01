@@ -1,6 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +9,7 @@ import okhttp3.OkHttpClient;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.swing.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
@@ -43,6 +45,7 @@ public class FlipManager {
     private int intervalStartTime;
     private Stats intervalStats = new Stats();
 
+    @Getter
     final Map<String, Integer> displayNameToAccountId = new HashMap<>();
     final Map<Integer, Map<Integer, FlipV2>> lastOpenFLipByItemId = new HashMap<>();
     final Map<UUID, Integer> existingCloseTimes = new HashMap<>();
@@ -75,7 +78,7 @@ public class FlipManager {
             displayNameToAccountId.put(displayName, flips.get(0).getAccountId());
         }
         flips.forEach(this::mergeFlip_);
-        flipsChangedCallback.run();
+        SwingUtilities.invokeLater(flipsChangedCallback);
     }
 
     public synchronized Stats getIntervalStats() {
@@ -117,7 +120,7 @@ public class FlipManager {
             intervalStats = calculateStatsForAccount(intervalStartTime, displayNameToAccountId.getOrDefault(intervalDisplayName, -1));
         }
         log.debug("interval flips updated to {}, interval profit updated to {}", intervalStats.flipsMade, intervalStats.profit);
-        flipsChangedCallback.run();
+        SwingUtilities.invokeLater(flipsChangedCallback);
     }
 
     private Stats calculateStatsAllAccounts(int startTime) {
@@ -144,7 +147,13 @@ public class FlipManager {
         return stats;
     }
 
-    public synchronized List<FlipV2> getPageFlips(int page, int pageSize) {
+    public List<FlipV2> getPageFlips(int page, int pageSize) {
+        return getPageFlips(page, pageSize,  intervalStartTime, intervalDisplayName, false);
+    }
+
+
+
+    public synchronized List<FlipV2> getPageFlips(int page, int pageSize, int intervalStartTime, String intervalDisplayName, boolean includeActiveFlips) {
         Integer accountId = intervalDisplayName == null ? null : displayNameToAccountId.getOrDefault(intervalDisplayName, -1);
         if (Objects.equals(accountId,-1)) {
             return new ArrayList<>();
@@ -172,6 +181,14 @@ public class FlipManager {
                 toSkip -= n;
             }
         }
+
+        if(includeActiveFlips) {
+            WeekAggregate openingFlips = getOrInitWeek(0);
+            List<FlipV2> flips = openingFlips.flipsAfter(-1, true);
+            flips.addAll(resultFlips);
+            return flips;
+        }
+
         return resultFlips;
     }
 
@@ -205,7 +222,7 @@ public class FlipManager {
                     log.debug("merging flips to took {}ms", (System.nanoTime() - s) / 1000_000);
                     flipsLoaded = true;
                 }
-                flipsChangedCallback.run();
+                SwingUtilities.invokeLater(flipsChangedCallback);
             } catch (Exception e) {
                 if (this.resetSeq == seq) {
                     log.warn("failed to load historical flips from server {} try again in 10s", e.getMessage(), e);
