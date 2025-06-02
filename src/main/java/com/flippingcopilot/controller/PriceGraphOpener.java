@@ -40,7 +40,7 @@ public class PriceGraphOpener {
                                 int itemId = offers[i].getItemId();
                                 priceGraphController.setUserItemGraphData(null);
                                 priceGraphController.loadAndAndShowPriceGraph(itemId);
-                                log.info("matched widget to slot {}, item {}", i, offers[i].getItemId());
+                                log.debug("matched widget to slot {}, item {}", i, offers[i].getItemId());
                             }
                         }
                     });

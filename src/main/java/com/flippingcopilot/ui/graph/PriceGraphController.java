@@ -86,7 +86,7 @@ public class PriceGraphController {
             if (currentDialog != null && !currentIsSuggestedItem) {
                 updateUIAfterDataChange(data);
             } else {
-                log.info("discarding price graph data for user selected item {}", data != null ? data.name : "null");
+                log.debug("discarding price graph data for user selected item {}", data != null ? data.name : "null");
             }
         });
     }
@@ -99,7 +99,7 @@ public class PriceGraphController {
                 showGraphView(data.name, data);
             }
         } else {
-            log.info("dialog or main panel null");
+            log.debug("dialog or main panel null");
         }
     }
 
@@ -120,14 +120,14 @@ public class PriceGraphController {
             return;
         }
         try {
-            log.info("Showing price graph panel for item: " + itemName);
+            log.debug("Showing price graph panel for item: " + itemName);
             this.currentIsSuggestedItem = isSuggestedItem;
 
             // If there's already a dialog showing, dispose it
             if (currentDialog != null) {
                 lastDialogPosition = currentDialog.getLocation();
                 lastDialogSize = currentDialog.getSize();
-                log.info("Disposing existing dialog");
+                log.debug("Disposing existing dialog");
                 currentDialog.dispose();
             }
             clear();
@@ -190,7 +190,7 @@ public class PriceGraphController {
                 public void windowClosing(WindowEvent e) {
                     lastDialogPosition = dialog.getLocation();
                     lastDialogSize = dialog.getSize();
-                    log.info("Saved dialog position: {} and size: {}", lastDialogPosition, lastDialogSize);
+                    log.debug("Saved dialog position: {} and size: {}", lastDialogPosition, lastDialogSize);
                 }
             });
 
@@ -203,7 +203,7 @@ public class PriceGraphController {
 
             // Make dialog visible
             dialog.setVisible(true);
-            log.info("Price graph panel shown successfully");
+            log.debug("Price graph panel shown successfully");
         } catch (Exception e) {
             log.error("Error showing price graph panel: {}", e.getMessage(), e);
         }
@@ -279,7 +279,7 @@ public class PriceGraphController {
             if (currentDialog != null) {
                 lastDialogPosition = currentDialog.getLocation();
                 lastDialogSize = currentDialog.getSize();
-                log.info("Saved dialog position and size on error close");
+                log.debug("Saved dialog position and size on error close");
                 currentDialog.dispose();
             }
         });

@@ -121,7 +121,7 @@ public class ApiRequestHandler {
             int contentLength = resolveContentLength(response);
             int suggestionContentLength = resolveSuggestionContentLength(response);
             int graphDataContentLength = contentLength - suggestionContentLength;
-            log.info("msgpack suggestion response size is: {}, suggestion size is {}", contentLength, suggestionContentLength);
+            log.debug("msgpack suggestion response size is: {}, suggestion size is {}", contentLength, suggestionContentLength);
 
             Data d = new Data();
             try(InputStream is = response.body().byteStream()) {
@@ -136,7 +136,7 @@ public class ApiRequestHandler {
                     throw new IOException("failed to read complete suggestion content: " + bytesRead + " of " + suggestionContentLength + " bytes");
                 }
                 s = Suggestion.fromMsgPack(ByteBuffer.wrap(suggestionBytes));
-                log.info("suggestion received");
+                log.debug("suggestion received");
                 clientThread.invoke(() -> suggestionConsumer.accept(s));
 
                 if (graphDataContentLength == 0) {
@@ -150,7 +150,7 @@ public class ApiRequestHandler {
                         } else {
                             try {
                                 d = Data.fromMsgPack(ByteBuffer.wrap(remainingBytes));
-                                log.info("graph data received");
+                                log.debug("graph data received");
                             } catch (Exception e) {
                                 log.error("error deserializing graph data", e);
                                 d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
@@ -169,7 +169,7 @@ public class ApiRequestHandler {
             clientThread.invoke(() -> graphDataConsumer.accept(finalD));
         } else {
             String body = response.body().string();
-            log.info("json suggestion response size is: {}", body.getBytes().length);
+            log.debug("json suggestion response size is: {}", body.getBytes().length);
             s = gson.fromJson(body, Suggestion.class);
             clientThread.invoke(() -> suggestionConsumer.accept(s));
             Data d = new Data();
@@ -257,7 +257,7 @@ public class ApiRequestHandler {
         body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
         body.addProperty("timeframe_minutes", preferencesManager.getTimeframe());
         body.addProperty("include_graph_data", true);
-        log.info("requesting price graph data for item {}", itemId);
+        log.debug("requesting price graph data for item {}", itemId);
         Request request = new Request.Builder()
                 .url(serverUrl +"/prices")
                 .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
@@ -286,7 +286,7 @@ public class ApiRequestHandler {
                     } else {
                         byte[] d = response.body().bytes();
                         ItemPrice ip = ItemPrice.fromMsgPack(ByteBuffer.wrap(d));
-                        log.info("price graph data received for item {}", itemId);
+                        log.debug("price graph data received for item {}", itemId);
                         clientThread.invoke(() -> consumer.accept(ip));
                     }
                 } catch (Exception e) {
