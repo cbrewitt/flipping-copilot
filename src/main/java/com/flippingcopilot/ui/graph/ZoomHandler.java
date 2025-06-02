@@ -55,13 +55,13 @@ public class ZoomHandler {
         int newPriceMin = pa.bounds.yMax - (int)(((long)pa.bounds.yDelta() * (long)(selectionY2)) / pa.h);
 
         if (newTimeMax - newTimeMin < MIN_TIME_DELTA) {
-            log.info("zoomed time delta {}s too small", newTimeMax - newTimeMin);
+            log.debug("zoomed time delta {}s too small", newTimeMax - newTimeMin);
             cancelSelection();
             return;
         }
 
         if (newPriceMax - newPriceMin < MIN_PRICE_DELTA) {
-            log.info("zoomed price delta {}s too small", newPriceMax - newPriceMin);
+            log.debug("zoomed price delta {}s too small", newPriceMax - newPriceMin);
             cancelSelection();
             return;
         }
