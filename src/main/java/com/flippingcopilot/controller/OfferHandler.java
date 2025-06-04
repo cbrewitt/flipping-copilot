@@ -108,7 +108,7 @@ public class OfferHandler {
     }
 
     private Widget getOfferTextWidget() {
-        var offerContainerWidget = client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER);
+        var offerContainerWidget = client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_DESCRIPTION);
         if (offerContainerWidget == null) return null;
         return offerContainerWidget.getChild(GE_OFFER_INIT_STATE_CHILD_ID);
     }
@@ -141,7 +141,8 @@ public class OfferHandler {
             setChatboxValue(suggestion.getQuantity());
         } else if (isSettingPrice()) {
             int price = -1;
-            if (suggestion == null || currentItemId != suggestion.getItemId()) {
+            if (suggestion == null || currentItemId != suggestion.getItemId()
+                    || !suggestion.getType().equals(getOfferType())) {
                 if (offerManager.getViewedSlotItemId() != currentItemId) {
                     return;
                 }
