@@ -61,11 +61,11 @@ public class GrandExchange {
         if (topBar == null) {
             return null;
         }
-        return topBar.getChild(1);
+        return topBar.getChild(2);
     }
 
     Widget getOfferContainerWidget() {
-        return client.getWidget(465, 25);
+        return client.getWidget(465, 26);
     }
 
     Widget getOfferTypeWidget() {
