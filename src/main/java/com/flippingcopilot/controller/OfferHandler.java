@@ -108,7 +108,7 @@ public class OfferHandler {
     }
 
     private Widget getOfferTextWidget() {
-        var offerContainerWidget = client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_DESCRIPTION);
+        var offerContainerWidget = client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER);
         if (offerContainerWidget == null) return null;
         return offerContainerWidget.getChild(GE_OFFER_INIT_STATE_CHILD_ID);
     }
