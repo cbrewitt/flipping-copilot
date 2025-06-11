@@ -250,14 +250,14 @@ public class ApiRequestHandler {
         return "Unknown Error";
     }
 
-    public void asyncGetItemPriceWithGraphData(int itemId, String displayName, Consumer<ItemPrice> consumer) {
+    public void asyncGetItemPriceWithGraphData(int itemId, String displayName, Consumer<ItemPrice> consumer, boolean includeGraphData) {
         JsonObject body = new JsonObject();
         body.add("item_id", new JsonPrimitive(itemId));
         body.add("display_name", new JsonPrimitive(displayName));
         body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
         body.addProperty("timeframe_minutes", preferencesManager.getTimeframe());
-        body.addProperty("include_graph_data", true);
-        log.debug("requesting price graph data for item {}", itemId);
+        body.addProperty("include_graph_data", includeGraphData);
+        log.debug("requesting price data for item {}", itemId);
         Request request = new Request.Builder()
                 .url(serverUrl +"/prices")
                 .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
@@ -364,21 +364,6 @@ public class ApiRequestHandler {
                 }
             }
         });
-    }
-
-    public ItemPrice getItemPrice(int itemId, String displayName) {
-        JsonObject respObj = null;
-        try {
-            JsonObject body = new JsonObject();
-            body.add("item_id", new JsonPrimitive(itemId));
-            body.add("display_name", new JsonPrimitive(displayName));
-            body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
-            body.addProperty("timeframe_minutes", preferencesManager.getTimeframe());
-            return doHttpRequest("POST", body, "/prices", ItemPrice.class);
-        } catch (HttpResponseException e) {
-            log.error("error fetching copilot price for item {}, resp code {}", itemId, e.getResponseCode(), e);
-            return new ItemPrice(0, 0, "Unable to fetch price copilot price (possible server update)", null);
-        }
     }
 
     public Map<String, Integer> loadUserDisplayNames() throws HttpResponseException {
