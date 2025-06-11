@@ -32,7 +32,7 @@ public class ItemPrice {
         for (int i = 0; i < mapSize; i++) {
             String key = (String) MsgPackUtil.decodePrimitive(b);
             switch (key) {
-                case "sl":
+                case "sp":
                     ip.sellPrice = (int) (long)MsgPackUtil.decodePrimitive(b);
                     break;
                 case "bp":

@@ -5,6 +5,7 @@ import com.flippingcopilot.model.OfferStatus;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.OfferEditor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
@@ -36,6 +37,8 @@ public class GameUiChangesHandler {
     // state
     boolean quantityOrPriceChatboxOpen;
     boolean itemSearchChatboxOpen = false;
+    @Getter
+    OfferEditor flippingWidget = null;
 
     public void onVarClientIntChanged(VarClientIntChanged event) {
         if (event.getIndex() == VarClientInt.INPUT_TYPE
@@ -73,7 +76,7 @@ public class GameUiChangesHandler {
 
         clientThread.invokeLater(() ->
         {
-            OfferEditor flippingWidget = new OfferEditor(offerManager, client.getWidget(ComponentID.CHATBOX_CONTAINER), offerHandler, client);
+            flippingWidget = new OfferEditor(offerManager, client.getWidget(ComponentID.CHATBOX_CONTAINER), offerHandler, client);
             Suggestion suggestion = suggestionManager.getSuggestion();
             if (suggestion != null) {
                 flippingWidget.showSuggestion(suggestion);
@@ -116,7 +119,7 @@ public class GameUiChangesHandler {
         }
 
         if (event.getVarpId() == CURRENT_GE_ITEM) {
-            clientThread.invokeLater(() -> offerHandler.fetchSlotItemPrice(event.getValue() > -1));
+            clientThread.invokeLater(() -> offerHandler.fetchSlotItemPrice(event.getValue() > -1, this::getFlippingWidget));
         }
     }
 

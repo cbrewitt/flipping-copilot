@@ -110,7 +110,7 @@ public class PriceGraphController {
             setUserItemGraphData(d);
         };
         ItemComposition item = itemManager.getItemComposition(itemId);
-        apiRequestHandler.asyncGetItemPriceWithGraphData(itemId, osrsLoginManager.getPlayerDisplayName(), consumer);
+        apiRequestHandler.asyncGetItemPriceWithGraphData(itemId, osrsLoginManager.getPlayerDisplayName(), consumer, true);
         showPriceGraph(item.getName(), false);
     }
 

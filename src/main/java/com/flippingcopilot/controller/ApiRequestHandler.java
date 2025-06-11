@@ -250,13 +250,13 @@ public class ApiRequestHandler {
         return "Unknown Error";
     }
 
-    public void asyncGetItemPriceWithGraphData(int itemId, String displayName, Consumer<ItemPrice> consumer) {
+    public void asyncGetItemPriceWithGraphData(int itemId, String displayName, Consumer<ItemPrice> consumer, boolean includeGraphData) {
         JsonObject body = new JsonObject();
         body.add("item_id", new JsonPrimitive(itemId));
         body.add("display_name", new JsonPrimitive(displayName));
         body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
         body.addProperty("timeframe_minutes", preferencesManager.getTimeframe());
-        body.addProperty("include_graph_data", true);
+        body.addProperty("include_graph_data", includeGraphData);
         log.debug("requesting price graph data for item {}", itemId);
         Request request = new Request.Builder()
                 .url(serverUrl +"/prices")
