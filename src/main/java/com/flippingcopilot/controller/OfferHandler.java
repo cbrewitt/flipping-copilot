@@ -1,6 +1,7 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.ui.OfferEditor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,11 +10,14 @@ import net.runelite.api.VarClientStr;
 import net.runelite.api.Varbits;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.callback.ClientThread;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
@@ -27,6 +31,7 @@ public class OfferHandler {
 
     // dependencies
     private final Client client;
+    private final ClientThread clientThread;
     private final SuggestionManager suggestionManager;
     private final ApiRequestHandler apiRequestHandler;
     private final OsrsLoginManager osrsLoginManager;
@@ -37,7 +42,7 @@ public class OfferHandler {
     // state
     private String viewedSlotPriceErrorText = null;
 
-    public void fetchSlotItemPrice(boolean isViewingSlot) {
+    public void fetchSlotItemPrice(boolean isViewingSlot, Supplier<OfferEditor> offerEditorSupplier) {
         if (isViewingSlot) {
             var currentItemId = client.getVarpValue(CURRENT_GE_ITEM);
             offerManager.setViewedSlotItemId(currentItemId);
@@ -57,25 +62,41 @@ public class OfferHandler {
                 viewedSlotPriceErrorText = "Login to copilot to see item price.";
                 return;
             }
+            viewedSlotPriceErrorText = "Loading copilot item price..";
+            Consumer<ItemPrice> itemPriceConsumer = (fetchedPrice) -> {
+                clientThread.invoke(() -> {
+                    if (fetchedPrice == null) {
+                        viewedSlotPriceErrorText = "Unknown error";
+                        return;
+                    }
 
-            var fetchedPrice = apiRequestHandler.getItemPrice(currentItemId, osrsLoginManager.getPlayerDisplayName());
+                    if (fetchedPrice.getMessage() != null && !fetchedPrice.getMessage().isEmpty()) {
+                        viewedSlotPriceErrorText = fetchedPrice.getMessage();
+                    } else {
+                        viewedSlotPriceErrorText = null;
+                    }
+                    offerManager.setViewedSlotItemPrice(isSelling() ? fetchedPrice.getSellPrice() : fetchedPrice.getBuyPrice());
+                    offerManager.setLastViewedSlotItemId(offerManager.getViewedSlotItemId());
+                    offerManager.setLastViewedSlotItemPrice(offerManager.getViewedSlotItemPrice());
+                    offerManager.setLastViewedSlotPriceTime((int) Instant.now().getEpochSecond());
 
-            if (fetchedPrice == null) {
-                viewedSlotPriceErrorText = "Unknown error";
-                return;
-            }
+                    log.debug("fetched item {} price: {}", offerManager.getViewedSlotItemId(), offerManager.getViewedSlotItemPrice());
 
-            if (fetchedPrice.getMessage() != null && !fetchedPrice.getMessage().isEmpty()) {
-                viewedSlotPriceErrorText = fetchedPrice.getMessage();
-            } else {
-                viewedSlotPriceErrorText = null;
-            }
-            offerManager.setViewedSlotItemPrice(isSelling() ? fetchedPrice.getSellPrice() : fetchedPrice.getBuyPrice());
-            offerManager.setLastViewedSlotItemId(offerManager.getViewedSlotItemId());
-            offerManager.setLastViewedSlotItemPrice(offerManager.getViewedSlotItemPrice());
-            offerManager.setLastViewedSlotItemPrice((int) Instant.now().getEpochSecond());
+                    // todo: Usage of OfferEditor is messy. It mutates a widget so we need to get the original instance
+                    //  of it which is created downstream on some other event handler path. This is why we use a supplier
+                    //  but probably it should be an injected class of some kind. We should clean this up in the future
+                    //  but for now just need it to work as currently broken.
 
-            log.debug("fetched item {} price: {}", offerManager.getViewedSlotItemId(),  offerManager.getViewedSlotItemPrice());
+                    OfferEditor flippingWidget = offerEditorSupplier.get();
+                    if (flippingWidget != null) {
+                        flippingWidget.showPrice(offerManager.getViewedSlotItemPrice());
+                    }
+                });
+            };
+
+
+            apiRequestHandler.fetchItemPriceAsync(currentItemId, osrsLoginManager.getPlayerDisplayName(), itemPriceConsumer);
+
         } else {
             offerManager.setViewedSlotItemPrice(-1);
             offerManager.setViewedSlotItemId(-1);

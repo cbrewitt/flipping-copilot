@@ -157,18 +157,44 @@ public class ApiRequestHandler {
         return "Unknown Error";
     }
 
-    public ItemPrice getItemPrice(int itemId, String displayName) {
-        JsonObject respObj = null;
-        try {
-            JsonObject body = new JsonObject();
-            body.add("item_id", new JsonPrimitive(itemId));
-            body.add("display_name", new JsonPrimitive(displayName));
-            body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
-            return doHttpRequest("POST", body, "/prices", ItemPrice.class);
-        } catch (HttpResponseException e) {
-            log.error("error fetching copilot price for item {}, resp code {}", itemId, e.getResponseCode(), e);
-            return new ItemPrice(0, 0, "Unable to fetch price copilot price (possible server update)");
-        }
+    public void fetchItemPriceAsync(int itemId, String displayName, Consumer<ItemPrice> resultConsumer) {
+        JsonObject body = new JsonObject();
+        body.add("item_id", new JsonPrimitive(itemId));
+        body.add("display_name", new JsonPrimitive(displayName));
+        body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
+
+        Request request = new Request.Builder()
+                .url(serverUrl + "/prices")
+                .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
+                .build();
+
+        ItemPrice failureResult = new ItemPrice(0, 0, "Unable to fetch price copilot price (possible server update)");
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.error("IO error on copilot price request for item {}", itemId, e);
+                resultConsumer.accept(failureResult);
+            }
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        String errorMessage = extractErrorMessage(response);
+                        log.error("error fetching copilot price for item {}, resp code {}, err msg {}", itemId, response.code(), errorMessage);
+                        resultConsumer.accept(failureResult);
+                        return;
+                    }
+                    String body = response.body() == null ? "" : response.body().string();
+                    ItemPrice itemPrice = gson.fromJson(body, ItemPrice.class);
+                    resultConsumer.accept(itemPrice);
+                } catch (IOException | JsonParseException e) {
+                    log.warn("error reading/parsing sync item price response body", e);
+                    resultConsumer.accept(failureResult);
+                }
+            }
+        });
     }
 
     public Map<String, Integer> loadUserDisplayNames() throws HttpResponseException {

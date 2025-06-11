@@ -91,7 +91,7 @@ public class OfferEditor {
         });
     }
 
-    private void showPrice(int price) {
+    public void showPrice(int price) {
         text.setText("set to Copilot price: " + String.format("%,d", price) + " gp");
         text.setAction(0, "Set price");
         setHoverListeners(text);
