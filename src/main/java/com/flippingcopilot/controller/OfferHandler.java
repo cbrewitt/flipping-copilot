@@ -82,6 +82,8 @@ public class OfferHandler {
 
                     log.debug("fetched item {} price: {}", offerManager.getViewedSlotItemId(), offerManager.getViewedSlotItemPrice());
 
+                    highlightController.redraw();
+
                     // todo: Usage of OfferEditor is messy. It mutates a widget so we need to get the original instance
                     //  of it which is created downstream on some other event handler path. This is why we use a supplier
                     //  but probably it should be an injected class of some kind. We should clean this up in the future
