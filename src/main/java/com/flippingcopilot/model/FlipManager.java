@@ -70,6 +70,17 @@ public class FlipManager {
         return 0;
     }
 
+    public synchronized FlipV2 getLastFlipByItemId(String displayName, int itemId) {
+        Integer accountId = displayNameToAccountId.get(displayName);
+        if (accountId != null && lastOpenFLipByItemId.containsKey(accountId)) {
+            FlipV2 flip = lastOpenFLipByItemId.get(accountId).get(itemId);
+            if(flip != null) {
+                return flip;
+            }
+        }
+        return null;
+    }
+
     public synchronized void mergeFlips(List<FlipV2> flips, String displayName) {
         if(!flips.isEmpty() && displayName != null) {
             displayNameToAccountId.put(displayName, flips.get(0).getAccountId());

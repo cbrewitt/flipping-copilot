@@ -1,0 +1,96 @@
+package com.flippingcopilot.controller;
+
+import com.flippingcopilot.model.*;
+import com.flippingcopilot.ui.UIUtilities;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
+import net.runelite.api.events.ScriptPostFired;
+import net.runelite.api.widgets.Widget;
+import net.runelite.api.widgets.WidgetID;
+import net.runelite.api.widgets.WidgetSizeMode;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static com.flippingcopilot.model.OfferStatus.SELL;
+import static com.flippingcopilot.util.GeTax.getPostTaxPrice;
+
+@Singleton
+@Slf4j
+@RequiredArgsConstructor(onConstructor_ = @Inject)
+public class TooltipController {
+    private static final int SCRIPT_TOOLTIP_GE = 526;
+
+    private final Client client;
+    private final OfferManager offerManager;
+    private final FlipManager flipManager;
+
+    public void tooltip(ScriptPostFired e) {
+        if(e.getScriptId() != SCRIPT_TOOLTIP_GE) {
+            return;
+        }
+
+        Widget tooltip = client.getWidget(WidgetID.GRAND_EXCHANGE_GROUP_ID, 33);
+        if(tooltip == null || tooltip.isHidden()) {
+            return;
+        }
+
+        Widget background = tooltip.getChild(0);
+        Widget border = tooltip.getChild(1);
+        Widget text = tooltip.getChild(2);
+
+        if (text != null && background != null && border != null) {
+            String name = getItemNameFromTooltipText(text.getText());
+            if(name != null) {
+                long profit = getProfitFromItemName(name);
+                text.setText(text.getText()  + "<br>Profit: " + UIUtilities.quantityToRSDecimalStack(profit, false) + " gp");
+
+                tooltip.setOriginalHeight(45);
+                text.setOriginalHeight(45);
+
+                tooltip.revalidate();
+                border.revalidate();
+                background.revalidate();
+            }
+        }
+
+    }
+
+    public long getProfitFromItemName(String itemName) {
+        for(int i = 0; i < 8; i++) {
+            long accountHash = client.getAccountHash();
+            SavedOffer offer = offerManager.loadOffer(accountHash, i);
+
+            if(offer.getOfferStatus().equals(SELL)) {
+
+                if(offer.getQuantitySold() == offer.getTotalQuantity()) {
+                    continue;
+                }
+
+                FlipV2 flip = flipManager.getLastFlipByItemId(client.getLauncherDisplayName(), offer.getItemId());
+
+                if(flip.getItemName().equals(itemName)) {
+                    return ((long) getPostTaxPrice(offer.getItemId(), offer.getPrice()) * offer.getTotalQuantity()) - (flip.getAvgBuyPrice() * offer.getTotalQuantity());
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    public String getItemNameFromTooltipText(String text) {
+        text = text.replaceAll("<br>", " ");
+        Pattern pattern = Pattern.compile("^(Buying|Selling): (.+?) \\d+ / \\d+$");
+        Matcher matcher = pattern.matcher(text);
+
+        if (matcher.find()) {
+            return matcher.group(2);
+        } else {
+            return null; // or handle as you wish
+        }
+    }
+}

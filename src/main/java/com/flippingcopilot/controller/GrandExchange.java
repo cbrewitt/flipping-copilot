@@ -40,7 +40,7 @@ public class GrandExchange {
         return Arrays.stream(children).anyMatch(c -> !c.isHidden() && "Collect".equals(c.getText()));
     }
 
-    int getOpenSlot() {
+    public int getOpenSlot() {
         return client.getVarbitValue(CURRENTLY_OPEN_GE_SLOT_VARBIT_ID) - 1;
     }
 

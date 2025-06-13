@@ -33,6 +33,7 @@ public class GameUiChangesHandler {
     private final GrandExchange grandExchange;
     private final OfferManager offerManager;
     private final OfferHandler offerHandler;
+    private final TooltipController tooltipController;
 
     // state
     boolean quantityOrPriceChatboxOpen;
@@ -76,7 +77,7 @@ public class GameUiChangesHandler {
 
         clientThread.invokeLater(() ->
         {
-            flippingWidget = new OfferEditor(offerManager, client.getWidget(ComponentID.CHATBOX_CONTAINER), offerHandler, client);
+            flippingWidget = new OfferEditor(offerManager, client.getWidget(ComponentID.CHATBOX_CONTAINER), offerHandler, grandExchange, client);
             Suggestion suggestion = suggestionManager.getSuggestion();
             if (suggestion != null) {
                 flippingWidget.showSuggestion(suggestion);
