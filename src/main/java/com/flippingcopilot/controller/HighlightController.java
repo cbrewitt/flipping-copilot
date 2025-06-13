@@ -55,6 +55,7 @@ public class HighlightController {
         if (grandExchange.isHomeScreenOpen()) {
             drawHomeScreenHighLights(suggestion);
         } else if (grandExchange.isSlotOpen()) {
+            offerManager.setOfferCorrect(false);
             drawOfferScreenHighlights(suggestion);
         }
     }
@@ -169,6 +170,7 @@ public class HighlightController {
     }
 
     private void highlightConfirm() {
+        offerManager.setOfferCorrect(true);
         Widget confirmButton = grandExchange.getConfirmButton();
         if (confirmButton != null) {
             add(confirmButton, highlightColorController.getBlueColor(), new Rectangle(1, 1, 150, 38));

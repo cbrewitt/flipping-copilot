@@ -49,6 +49,9 @@ public class OfferManager {
     @Getter
     @Setter
     boolean offerJustPlaced = false;
+    @Getter
+    @Setter
+    boolean offerCorrect = false;
 
     private final Map<Long, Map<Integer, SavedOffer>> cachedOffers = new HashMap<>();
     private final Map<Long, Map<Integer, File>> files = new HashMap<>();
