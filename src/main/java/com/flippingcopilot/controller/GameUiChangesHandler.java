@@ -33,7 +33,6 @@ public class GameUiChangesHandler {
     private final GrandExchange grandExchange;
     private final OfferManager offerManager;
     private final OfferHandler offerHandler;
-
     // state
     boolean quantityOrPriceChatboxOpen;
     boolean itemSearchChatboxOpen = false;

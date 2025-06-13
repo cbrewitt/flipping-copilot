@@ -85,6 +85,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	private OfferManager offerManager;
 	@Inject
 	private PriceGraphOpener priceGraphOpener;
+	@Inject
+	private TooltipController tooltipController;
 
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
@@ -178,6 +180,11 @@ public class FlippingCopilotPlugin extends Plugin {
 		int slot = grandExchange.getOpenSlot();
 		grandExchangeCollectHandler.handleCollect(event, slot);
 		gameUiChangesHandler.handleMenuOptionClicked(event);
+	}
+
+	@Subscribe
+	public void onScriptPostFired(ScriptPostFired e) {
+		tooltipController.tooltip(e);
 	}
 
 	@Subscribe
