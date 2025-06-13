@@ -149,14 +149,12 @@ public class HighlightController {
 
     private void highlightPrice() {
         Widget setPriceButton = grandExchange.getSetPriceButton();
-        // keep menu entry swap
         if (setPriceButton != null) {
             add(setPriceButton, highlightColorController.getBlueColor(), new Rectangle(1, 6, 33, 23));
         }
     }
 
     private void highlightQuantity(Suggestion suggestion) {
-        // keep menu entry swap
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (grandExchange.getOfferQuantity() != suggestion.getQuantity()) {
             Widget setQuantityButton;
