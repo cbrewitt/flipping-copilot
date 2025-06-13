@@ -43,8 +43,14 @@ public class TooltipController {
         Widget border = tooltip.getChild(1);
         Widget text = tooltip.getChild(2);
 
+
         if (text != null && background != null && border != null) {
+            if(!isItemSelling(text.getText())) {
+                return;
+            }
+
             String name = getItemNameFromTooltipText(text.getText());
+
             if(name != null) {
                 long profit = getProfitFromItemName(name);
                 text.setText(text.getText()  + "<br>Profit: " + UIUtilities.quantityToRSDecimalStack(profit, false) + " gp");
@@ -57,7 +63,19 @@ public class TooltipController {
                 background.revalidate();
             }
         }
+    }
 
+    public boolean isItemSelling(String text) {
+        text = text.replaceAll("<br>", " ");
+        Pattern pattern = Pattern.compile("^(Buying|Selling): (.+?) \\d+ / \\d+$");
+        Matcher matcher = pattern.matcher(text);
+
+        if (matcher.find()) {
+            String action = matcher.group(1);
+            return action.equals("Selling");
+        } else {
+            return false; // or handle as you wish
+        }
     }
 
     public long getProfitFromItemName(String itemName) {

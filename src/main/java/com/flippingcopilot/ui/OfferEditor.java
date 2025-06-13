@@ -15,7 +15,6 @@ import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 public class OfferEditor {
     private final OfferManager offerManager;
     private final OfferHandler offerHandler;
-    private final GrandExchange grandExchange;
     private final Client client;
 
     private Widget text;
@@ -23,10 +22,9 @@ public class OfferEditor {
     private static final int MOUSE_OFF_TEXT_COLOR = 0x0040FF;
     private static final int MOUSE_OFF_ERROR_TEXT_COLOR = 0xAA2222;
 
-    public OfferEditor(OfferManager offerManager, Widget parent, OfferHandler offerHandler, GrandExchange grandExchange, Client client) {
+    public OfferEditor(OfferManager offerManager, Widget parent, OfferHandler offerHandler, Client client) {
         this.offerManager = offerManager;
         this.offerHandler = offerHandler;
-        this.grandExchange = grandExchange;
         this.client = client;
         if (parent == null) {
             return;
@@ -50,15 +48,6 @@ public class OfferEditor {
 
     public void showSuggestion(Suggestion suggestion) {
         var currentItemId = client.getVarpValue(CURRENT_GE_ITEM);
-
-//        if(suggestion.getType().equals("sell")) {
-//            Long accountHash = client.getAccountHash();
-//            int slot = this.grandExchange.getOpenSlot();
-//            var offer = offerManager.loadOffer(accountHash, slot);
-//            log.info("slot: {}, current item id: {}, suggestion item id: {}, offer: {}", slot, currentItemId, suggestion.getItemId(), offer);
-//            log.info("Loaded offer {}", offer);
-//        }
-
         if (offerHandler.isSettingQuantity()) {
             if (currentItemId != suggestion.getItemId()) {
                 return;
@@ -105,7 +94,7 @@ public class OfferEditor {
     }
 
     public void showPrice(int price) {
-        text.setText("set to Copilot price: " + String.format("%,d", price) + " gp" + " for a profit of ");
+        text.setText("set to Copilot price: " + String.format("%,d", price) + " gp");
         text.setAction(0, "Set price");
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
