@@ -55,6 +55,7 @@ public class HighlightController {
         if (grandExchange.isHomeScreenOpen()) {
             drawHomeScreenHighLights(suggestion);
         } else if (grandExchange.isSlotOpen()) {
+            offerManager.setOfferCorrect(false);
             drawOfferScreenHighlights(suggestion);
         }
     }
@@ -148,12 +149,14 @@ public class HighlightController {
 
     private void highlightPrice() {
         Widget setPriceButton = grandExchange.getSetPriceButton();
+        // keep menu entry swap
         if (setPriceButton != null) {
             add(setPriceButton, highlightColorController.getBlueColor(), new Rectangle(1, 6, 33, 23));
         }
     }
 
     private void highlightQuantity(Suggestion suggestion) {
+        // keep menu entry swap
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (grandExchange.getOfferQuantity() != suggestion.getQuantity()) {
             Widget setQuantityButton;
@@ -169,6 +172,7 @@ public class HighlightController {
     }
 
     private void highlightConfirm() {
+        offerManager.setOfferCorrect(true);
         Widget confirmButton = grandExchange.getConfirmButton();
         if (confirmButton != null) {
             add(confirmButton, highlightColorController.getBlueColor(), new Rectangle(1, 1, 150, 38));
