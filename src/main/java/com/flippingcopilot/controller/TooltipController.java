@@ -8,7 +8,9 @@ import net.runelite.api.Client;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetID;
-import net.runelite.api.widgets.WidgetSizeMode;
+import net.runelite.client.ui.FontManager;
+
+import java.awt.*;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -25,9 +27,13 @@ import static com.flippingcopilot.util.GeTax.getPostTaxPrice;
 public class TooltipController {
     private static final int SCRIPT_TOOLTIP_GE = 526;
 
+    private static final FontMetrics FONT_METRICS = Toolkit.getDefaultToolkit().getFontMetrics(FontManager.getRunescapeFont());
+    private static final int WIDTH_PADDING = 4;
+
     private final Client client;
     private final OfferManager offerManager;
     private final FlipManager flipManager;
+    private final OsrsLoginManager osrsLoginManager;
 
     public void tooltip(ScriptPostFired e) {
         if(e.getScriptId() != SCRIPT_TOOLTIP_GE) {
@@ -44,7 +50,13 @@ public class TooltipController {
         Widget text = tooltip.getChild(2);
 
 
+
         if (text != null && background != null && border != null) {
+            if (text.getText().contains("Profit:")) {
+                // If the tooltip already contains profit information, we don't need to process it again
+                return;
+            }
+
             if(!isItemSelling(text.getText())) {
                 return;
             }
@@ -58,6 +70,10 @@ public class TooltipController {
                 tooltip.setOriginalHeight(45);
                 text.setOriginalHeight(45);
 
+                int width = calculateTooltipWidth(text.getText());
+                tooltip.setOriginalWidth(width);
+                text.setOriginalWidth(width);
+
                 tooltip.revalidate();
                 border.revalidate();
                 background.revalidate();
@@ -66,8 +82,8 @@ public class TooltipController {
     }
 
     public boolean isItemSelling(String text) {
-        text = text.replaceAll("<br>", " ");
-        Pattern pattern = Pattern.compile("^(Buying|Selling): (.+?) \\d+ / \\d+$");
+        text = text.replaceAll("<br>", " ").trim();
+        Pattern pattern = Pattern.compile("^(Buying|Selling): (.+) (\\d{1,3}(?:,\\d{3})*|\\d+) / (\\d{1,3}(?:,\\d{3})*|\\d+)( Profit: -?[\\d,]+ gp?)?$");
         Matcher matcher = pattern.matcher(text);
 
         if (matcher.find()) {
@@ -89,7 +105,12 @@ public class TooltipController {
                     continue;
                 }
 
-                FlipV2 flip = flipManager.getLastFlipByItemId(client.getLauncherDisplayName(), offer.getItemId());
+                String displayName = osrsLoginManager.getPlayerDisplayName();
+                FlipV2 flip = flipManager.getLastFlipByItemId(displayName, offer.getItemId());
+
+                if (flip == null) {
+                    continue;
+                }
 
                 if(flip.getItemName().equals(itemName)) {
                     return ((long) getPostTaxPrice(offer.getItemId(), offer.getPrice()) * offer.getTotalQuantity()) - (flip.getAvgBuyPrice() * offer.getTotalQuantity());
@@ -101,8 +122,8 @@ public class TooltipController {
     }
 
     public String getItemNameFromTooltipText(String text) {
-        text = text.replaceAll("<br>", " ");
-        Pattern pattern = Pattern.compile("^(Buying|Selling): (.+?) \\d+ / \\d+$");
+        text = text.replaceAll("<br>", " ").trim();
+        Pattern pattern = Pattern.compile("^(Buying|Selling): (.+) (\\d{1,3}(?:,\\d{3})*|\\d+) / (\\d{1,3}(?:,\\d{3})*|\\d+)( Profit: -?[\\d,]+ gp?)?$");
         Matcher matcher = pattern.matcher(text);
 
         if (matcher.find()) {
@@ -110,5 +131,26 @@ public class TooltipController {
         } else {
             return null; // or handle as you wish
         }
+    }
+
+    private int calculateTooltipWidth(String text)
+    {
+        final String[] lines = text.split("<br>");
+        int maxWidth = 0;
+        for (int i = 0; i < lines.length; i++)
+        {
+            String left = "";
+            if (i < lines.length)
+            {
+                left = lines[i];
+            }
+
+            int width = FONT_METRICS.stringWidth(left);
+            if (width > maxWidth)
+            {
+                maxWidth = width;
+            }
+        }
+        return maxWidth + WIDTH_PADDING;
     }
 }
