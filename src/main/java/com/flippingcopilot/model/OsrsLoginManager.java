@@ -3,12 +3,14 @@ package com.flippingcopilot.model;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.EnumSet;
 
+@Slf4j
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class OsrsLoginManager {
@@ -38,6 +40,12 @@ public class OsrsLoginManager {
 
     public boolean isMembersWorld() {
         return client.getWorldType().contains(WorldType.MEMBERS);
+    }
+
+    public boolean isAccountMember()
+    {
+        int daysLeft = client.getVarpValue(VarPlayer.MEMBERSHIP_DAYS);
+        return daysLeft > 0;
     }
 
     public boolean isValidLoginState() {

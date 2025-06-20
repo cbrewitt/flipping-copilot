@@ -22,7 +22,8 @@ public class AccountStatus {
     private StatusOfferList offers;
     private Inventory inventory;
     private Map<Integer, Long> uncollected;
-    private boolean isMember = false;
+    private boolean isWorldMember = false;
+    private boolean isAccountMember = false;
     private int skipSuggestion = -1;
     private String displayName;
     private Long rsAccountHash;
@@ -59,7 +60,8 @@ public class AccountStatus {
         statusJson.addProperty("display_name", displayName);
         statusJson.addProperty("sell_only", sellOnlyMode);
         statusJson.addProperty("f2p_only", f2pOnlyMode);
-        statusJson.addProperty("is_member", isMember);
+        statusJson.addProperty("is_member", isWorldMember);
+        statusJson.addProperty("is_account_member", isAccountMember);
         statusJson.addProperty("skip_suggestion", skipSuggestion);
         statusJson.addProperty("send_graph_data", sendGraphData);
         statusJson.addProperty("timeframe", timeframe);
