@@ -142,13 +142,13 @@ public interface FlippingCopilotConfig extends Config
         return true;
     }
     @ConfigItem(
-            keyName = "disableLeftClickConfirmOnIncorrectOffers",
-            name = "Right Click Confirm",
-            description = "Disable left click confirm on incorrect offers"
+            keyName = "misClickProtection",
+            name = "Mis-click protection",
+            description = "Require right click to confirm when price/quantity set incorrectly"
     )
     default boolean disableLeftClickConfirm()
     {
-        return true;
+        return false;
     }
     @ConfigItem(
             keyName = "quickSetKeybind",
