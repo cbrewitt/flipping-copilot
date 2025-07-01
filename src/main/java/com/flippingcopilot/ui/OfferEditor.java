@@ -1,5 +1,6 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.controller.GrandExchange;
 import com.flippingcopilot.controller.OfferHandler;
 import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.Suggestion;

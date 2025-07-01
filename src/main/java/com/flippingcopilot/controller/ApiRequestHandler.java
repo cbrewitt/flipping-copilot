@@ -364,6 +364,7 @@ public class ApiRequestHandler {
                 }
             }
         });
+
     }
 
     public ItemPrice getItemPrice(int itemId, String displayName) {
@@ -379,6 +380,7 @@ public class ApiRequestHandler {
             log.error("error fetching copilot price for item {}, resp code {}", itemId, e.getResponseCode(), e);
             return new ItemPrice(0, 0, "Unable to fetch price copilot price (possible server update)", null);
         }
+
     }
 
     public Map<String, Integer> loadUserDisplayNames() throws HttpResponseException {
