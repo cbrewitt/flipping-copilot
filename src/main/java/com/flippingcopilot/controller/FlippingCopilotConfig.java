@@ -142,6 +142,15 @@ public interface FlippingCopilotConfig extends Config
         return true;
     }
     @ConfigItem(
+            keyName = "misClickProtection",
+            name = "Mis-click protection",
+            description = "Require right click to confirm when price/quantity set incorrectly"
+    )
+    default boolean disableLeftClickConfirm()
+    {
+        return false;
+    }
+    @ConfigItem(
             keyName = "quickSetKeybind",
             name = "Price/quantity set keybind",
             description = "Keybind to quickly set the price or quantity of a GE offer to the suggested value"

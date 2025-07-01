@@ -6,6 +6,7 @@ import com.google.gson.Gson;
 import com.google.inject.Provides;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.events.*;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -87,7 +88,9 @@ public class FlippingCopilotPlugin extends Plugin {
 	private PriceGraphOpener priceGraphOpener;
 	@Inject
 	private TooltipController tooltipController;
-
+  @Inject
+	private MenuHandler menuHandler;
+  
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
 	private NavigationButton navButton;
@@ -164,7 +167,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event) {
-		if (event.getContainerId() == InventoryID.INVENTORY.getId() && grandExchange.isOpen()) {
+		if (event.getContainerId() == InventoryID.INV && grandExchange.isOpen()) {
 			suggestionManager.setSuggestionNeeded(true);
 		}
 	}
@@ -189,7 +192,8 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event) {
-		priceGraphOpener.injectCopilotPriceGraphMenuEntry(event);
+		menuHandler.injectCopilotPriceGraphMenuEntry(event);
+		menuHandler.injectConfirmMenuEntry(event);
 	}
 
 	@Subscribe
