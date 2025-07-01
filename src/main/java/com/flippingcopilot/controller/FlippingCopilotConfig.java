@@ -142,6 +142,15 @@ public interface FlippingCopilotConfig extends Config
         return true;
     }
     @ConfigItem(
+            keyName = "disableLeftClickConfirmOnIncorrectOffers",
+            name = "Right Click Confirm",
+            description = "Disable left click confirm on incorrect offers"
+    )
+    default boolean disableLeftClickConfirm()
+    {
+        return true;
+    }
+    @ConfigItem(
             keyName = "quickSetKeybind",
             name = "Price/quantity set keybind",
             description = "Keybind to quickly set the price or quantity of a GE offer to the suggested value"
@@ -150,7 +159,7 @@ public interface FlippingCopilotConfig extends Config
     {
         return new Keybind(KeyEvent.VK_E, 0);
     }
-
+ 
     @ConfigItem(
             keyName = "enabledPriceGraphMenuOpton",
             name = "Enable price graph menu option",
@@ -161,3 +170,4 @@ public interface FlippingCopilotConfig extends Config
         return true;
     }
 }
+

@@ -85,8 +85,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private OfferManager offerManager;
 	@Inject
-	private PriceGraphOpener priceGraphOpener;
-
+	private MenuHandler menuHandler;
+  
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
 	private NavigationButton navButton;
@@ -183,7 +183,8 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event) {
-		priceGraphOpener.injectCopilotPriceGraphMenuEntry(event);
+		menuHandler.injectCopilotPriceGraphMenuEntry(event);
+		menuHandler.injectConfirmMenuEntry(event);
 	}
 
 	@Subscribe
