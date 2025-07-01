@@ -34,7 +34,7 @@ public class ControlPanel extends JPanel {
         timeframePanel = new JPanel();
         timeframePanel.setLayout(new BoxLayout(timeframePanel, BoxLayout.Y_AXIS));
         timeframePanel.setOpaque(false);
-        JLabel timeframeLabel = new JLabel("How often do you check offers?");
+        JLabel timeframeLabel = new JLabel("How often do you adjust offers?");
         timeframeLabel.setHorizontalAlignment(SwingConstants.LEFT);
         timeframeLabel.setMaximumSize(timeframeLabel.getPreferredSize());
         JPanel labelPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
