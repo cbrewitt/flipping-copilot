@@ -8,7 +8,9 @@ public class GeTax {
     private final static int GE_TAX_CAP = 5000000;
     private final static double GE_TAX = 0.02;
     private final static HashSet<Integer> GE_TAX_EXEMPT_ITEMS = new HashSet<>(
-            Arrays.asList(13190, 1755, 5325, 1785, 2347, 1733, 233, 5341, 8794, 5329, 5343, 1735, 952, 5331));
+            Arrays.asList(8011, 365, 2309, 882, 806, 1891, 8010, 1755, 28824, 2140, 2142, 8009, 5325, 1785, 2347, 347,
+                    884, 807, 28790, 379, 8008, 355, 2327, 558, 1733, 13190, 233, 351, 5341, 2552, 329, 8794, 5329,
+                    5343, 1735, 315, 952, 886, 808, 8013, 361, 8007, 5331));
 
     public static int getPostTaxPrice(int itemId, int price) {
         if (GE_TAX_EXEMPT_ITEMS.contains(itemId)) {

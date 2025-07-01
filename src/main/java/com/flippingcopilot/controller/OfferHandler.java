@@ -79,6 +79,7 @@ public class OfferHandler {
                     offerManager.setLastViewedSlotItemId(offerManager.getViewedSlotItemId());
                     offerManager.setLastViewedSlotItemPrice(offerManager.getViewedSlotItemPrice());
                     offerManager.setLastViewedSlotPriceTime((int) Instant.now().getEpochSecond());
+
                     highlightController.redraw();
                     log.debug("fetched item {} price: {}", offerManager.getViewedSlotItemId(), offerManager.getViewedSlotItemPrice());
 

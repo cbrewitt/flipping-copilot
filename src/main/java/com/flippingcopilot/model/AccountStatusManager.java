@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.gameval.InventoryID;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -28,12 +29,13 @@ public class AccountStatusManager {
 
     public synchronized AccountStatus getAccountStatus() {
         Long accountHash =  osrsLoginManager.getAccountHash();
-        ItemContainer itemContainer = client.getItemContainer(InventoryID.INVENTORY);
+        ItemContainer itemContainer = client.getItemContainer(InventoryID.INV);
+        Inventory inventory;
         if(itemContainer == null) {
-            log.warn("unable to fetch inventory item container");
-            return null;
+            inventory = new Inventory();
+        } else {
+            inventory = Inventory.fromRunelite(itemContainer, client);
         }
-        Inventory inventory = Inventory.fromRunelite(itemContainer, client);
         Map<Integer, Long> u = geUncollected.loadAllUncollected(accountHash);
 
         GrandExchangeOffer[] geOffers = client.getGrandExchangeOffers();
@@ -48,7 +50,8 @@ public class AccountStatusManager {
         status.setSkipSuggestion(skipSuggestion);
         status.setSellOnlyMode(suggestionPreferencesManager.getPreferences().isSellOnlyMode());
         status.setF2pOnlyMode(suggestionPreferencesManager.getPreferences().isF2pOnlyMode());
-        status.setMember(osrsLoginManager.isMembersWorld());
+        status.setWorldMember(osrsLoginManager.isMembersWorld());
+        status.setAccountMember(osrsLoginManager.isAccountMember());
         status.setSuggestionsPaused(pausedManager.isPaused());
         status.setBlockedItems(suggestionPreferencesManager.blockedItems());
         status.setTimeframe(suggestionPreferencesManager.getTimeframe());

@@ -159,6 +159,7 @@ public interface FlippingCopilotConfig extends Config
     {
         return new Keybind(KeyEvent.VK_E, 0);
     }
+ 
     @ConfigItem(
             keyName = "enabledPriceGraphMenuOpton",
             name = "Enable price graph menu option",
@@ -169,3 +170,4 @@ public interface FlippingCopilotConfig extends Config
         return true;
     }
 }
+
