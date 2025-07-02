@@ -50,8 +50,6 @@ public class TooltipController {
         Widget border = tooltip.getChild(1);
         Widget text = tooltip.getChild(2);
 
-
-
         if (text != null && background != null && border != null) {
             if (text.getText().contains("Profit:")) {
                 // If the tooltip already contains profit information, we don't need to process it again
@@ -96,20 +94,16 @@ public class TooltipController {
     }
 
     public long getProfitFromItemName(String itemName) {
+        String displayName = osrsLoginManager.getPlayerDisplayName();
+
         for(int i = 0; i < 8; i++) {
             long accountHash = client.getAccountHash();
             SavedOffer offer = offerManager.loadOffer(accountHash, i);
 
             if(offer.getOfferStatus().equals(SELL)) {
-
-                if(offer.getQuantitySold() == offer.getTotalQuantity()) {
-                    continue;
-                }
-
-                String displayName = osrsLoginManager.getPlayerDisplayName();
                 FlipV2 flip = flipManager.getLastFlipByItemId(displayName, offer.getItemId());
 
-                if (flip == null) {
+                if (flip == null || flip.isClosed()) {
                     continue;
                 }
 

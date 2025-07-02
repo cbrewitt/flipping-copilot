@@ -44,7 +44,7 @@ public class FlipManager {
     private Stats intervalStats = new Stats();
 
     final Map<String, Integer> displayNameToAccountId = new HashMap<>();
-    final Map<Integer, Map<Integer, FlipV2>> lastOpenFLipByItemId = new HashMap<>();
+    final Map<Integer, Map<Integer, FlipV2>> lastOpenFlipByItemId = new HashMap<>();
     final Map<UUID, Integer> existingCloseTimes = new HashMap<>();
     final List<WeekAggregate> weeks = new ArrayList<>(365*5);
 
@@ -61,8 +61,8 @@ public class FlipManager {
 
     public synchronized long estimateTransactionProfit(String displayName, Transaction t) {
         Integer accountId = displayNameToAccountId.get(displayName);
-        if (accountId != null && lastOpenFLipByItemId.containsKey(accountId)) {
-            FlipV2 flip = lastOpenFLipByItemId.get(accountId).get(t.getItemId());
+        if (accountId != null && lastOpenFlipByItemId.containsKey(accountId)) {
+            FlipV2 flip = lastOpenFlipByItemId.get(accountId).get(t.getItemId());
             if(flip != null) {
                 return flip.calculateProfit(t);
             }
@@ -72,14 +72,16 @@ public class FlipManager {
 
     public synchronized FlipV2 getLastFlipByItemId(String displayName, int itemId) {
         Integer accountId = displayNameToAccountId.get(displayName);
-        if (accountId != null && lastOpenFLipByItemId.containsKey(accountId)) {
-            FlipV2 flip = lastOpenFLipByItemId.get(accountId).get(itemId);
-            if(flip != null) {
+        if (accountId != null && lastOpenFlipByItemId.containsKey(accountId)) {
+            Map<Integer, FlipV2> flips = lastOpenFlipByItemId.get(accountId);
+            FlipV2 flip = flips.get(itemId);
+            if (flip != null) {
                 return flip;
             }
         }
         return null;
     }
+
 
     public synchronized void mergeFlips(List<FlipV2> flips, String displayName) {
         if(!flips.isEmpty() && displayName != null) {
@@ -232,7 +234,7 @@ public class FlipManager {
         intervalStartTime = 0;
         intervalStats = new Stats();
         displayNameToAccountId.clear();
-        lastOpenFLipByItemId.clear();
+        lastOpenFlipByItemId.clear();
         existingCloseTimes.clear();
         weeks.clear();
         flipsLoaded = false;
@@ -255,10 +257,13 @@ public class FlipManager {
         if(flip.getClosedTime() >= intervalStartTime && (intervalAccountId == null || flip.getAccountId() == intervalAccountId)) {
             intervalStats.addFlip(flip);
         }
-        if(flip.getClosedQuantity() < flip.getOpenedQuantity()) {
-            lastOpenFLipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).put(flip.getItemId(), flip);
-        } else if (flip.isClosed()) {
-            lastOpenFLipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).remove(flip.getItemId());
+        if(!flip.isClosed()) {
+            lastOpenFlipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).put(flip.getItemId(), flip);
+        } else {
+            FlipV2 existingFlip = lastOpenFlipByItemId.get(intervalAccountId).get(flip.getItemId());
+            if (flip.getId().equals(existingFlip.getId())) {
+                lastOpenFlipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).remove(flip.getItemId());
+            }
         }
         existingCloseTimes.put(flip.getId(), flip.getClosedTime());
     }
