@@ -85,8 +85,6 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private OfferManager offerManager;
 	@Inject
-	private PriceGraphOpener priceGraphOpener;
-	@Inject
 	private TooltipController tooltipController;
   @Inject
 	private MenuHandler menuHandler;
