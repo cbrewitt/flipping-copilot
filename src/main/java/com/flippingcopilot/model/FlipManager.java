@@ -45,6 +45,7 @@ public class FlipManager {
 
     final Map<String, Integer> displayNameToAccountId = new HashMap<>();
     final Map<Integer, Map<Integer, FlipV2>> lastOpenFlipByItemId = new HashMap<>();
+    final Map<Integer, Map<Integer, FlipV2>> openFlipsByItemId = new HashMap<>();
     final Map<UUID, Integer> existingCloseTimes = new HashMap<>();
     final List<WeekAggregate> weeks = new ArrayList<>(365*5);
 
@@ -72,8 +73,8 @@ public class FlipManager {
 
     public synchronized FlipV2 getLastFlipByItemId(String displayName, int itemId) {
         Integer accountId = displayNameToAccountId.get(displayName);
-        if (accountId != null && lastOpenFlipByItemId.containsKey(accountId)) {
-            Map<Integer, FlipV2> flips = lastOpenFlipByItemId.get(accountId);
+        if (accountId != null && openFlipsByItemId.containsKey(accountId)) {
+            Map<Integer, FlipV2> flips = openFlipsByItemId.get(accountId);
             FlipV2 flip = flips.get(itemId);
             if (flip != null) {
                 return flip;
@@ -235,6 +236,7 @@ public class FlipManager {
         intervalStats = new Stats();
         displayNameToAccountId.clear();
         lastOpenFlipByItemId.clear();
+        openFlipsByItemId.clear();
         existingCloseTimes.clear();
         weeks.clear();
         flipsLoaded = false;
@@ -257,14 +259,26 @@ public class FlipManager {
         if(flip.getClosedTime() >= intervalStartTime && (intervalAccountId == null || flip.getAccountId() == intervalAccountId)) {
             intervalStats.addFlip(flip);
         }
-        if(!flip.isClosed()) {
+        if(flip.getClosedQuantity() < flip.getOpenedQuantity()) {
             lastOpenFlipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).put(flip.getItemId(), flip);
         } else {
+            lastOpenFlipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).remove(flip.getItemId());
+        }
+
+        if(!flip.isClosed()) {
+            openFlipsByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).put(flip.getItemId(), flip);
+        } else {
             FlipV2 existingFlip = lastOpenFlipByItemId.get(intervalAccountId).get(flip.getItemId());
+
+            if(existingFlip == null) {
+                return;
+            }
+
             if (flip.getId().equals(existingFlip.getId())) {
                 lastOpenFlipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).remove(flip.getItemId());
             }
         }
+
         existingCloseTimes.put(flip.getId(), flip.getClosedTime());
     }
 
