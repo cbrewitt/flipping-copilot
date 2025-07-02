@@ -6,8 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.events.ScriptPostFired;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetID;
 import net.runelite.client.ui.FontManager;
 
 import java.awt.*;
@@ -40,7 +40,8 @@ public class TooltipController {
             return;
         }
 
-        Widget tooltip = client.getWidget(WidgetID.GRAND_EXCHANGE_GROUP_ID, 33);
+        Widget tooltip = client.getWidget(InterfaceID.GeOffers.TOOLTIP);
+
         if(tooltip == null || tooltip.isHidden()) {
             return;
         }
