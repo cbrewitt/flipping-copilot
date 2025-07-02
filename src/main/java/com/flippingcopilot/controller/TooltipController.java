@@ -138,17 +138,12 @@ public class TooltipController {
     {
         final String[] lines = text.split("<br>");
         int maxWidth = 0;
-        for (int i = 0; i < lines.length; i++)
-        {
+        for (String line : lines) {
             String left = "";
-            if (i < lines.length)
-            {
-                left = lines[i];
-            }
+            left = line;
 
             int width = FONT_METRICS.stringWidth(left);
-            if (width > maxWidth)
-            {
+            if (width > maxWidth) {
                 maxWidth = width;
             }
         }
