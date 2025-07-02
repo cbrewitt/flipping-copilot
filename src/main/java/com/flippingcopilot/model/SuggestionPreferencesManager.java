@@ -41,6 +41,10 @@ public class SuggestionPreferencesManager {
     public synchronized SuggestionPreferences getPreferences() {
         if (sharedPreferences == null) {
             sharedPreferences = load();
+
+            // Set these false reduce avoid user error
+            sharedPreferences.setF2pOnlyMode(false);
+            sharedPreferences.setSellOnlyMode(false);
         }
         return sharedPreferences;
     }
