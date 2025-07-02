@@ -261,21 +261,21 @@ public class FlipManager {
         }
         if(flip.getClosedQuantity() < flip.getOpenedQuantity()) {
             lastOpenFlipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).put(flip.getItemId(), flip);
-        } else {
+        } else if (flip.isClosed()) {
             lastOpenFlipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).remove(flip.getItemId());
         }
 
         if(!flip.isClosed()) {
             openFlipsByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).put(flip.getItemId(), flip);
         } else {
-            FlipV2 existingFlip = lastOpenFlipByItemId.get(intervalAccountId).get(flip.getItemId());
+            FlipV2 existingFlip = openFlipsByItemId.get(flip.getAccountId()).get(flip.getItemId());
 
             if(existingFlip == null) {
                 return;
             }
 
             if (flip.getId().equals(existingFlip.getId())) {
-                lastOpenFlipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).remove(flip.getItemId());
+                openFlipsByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).remove(flip.getItemId());
             }
         }
 
