@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 public class StatusOfferList extends ArrayList<Offer> {
     public static final int NUM_SLOTS = 8;
+    public static final int NUM_F2P_SLOTS = 3;
 
     public StatusOfferList() {
         super(NUM_SLOTS);
@@ -28,13 +29,13 @@ public class StatusOfferList extends ArrayList<Offer> {
         return offers;
     }
 
-    public boolean isEmptySlotNeeded(Suggestion suggestion) {
+    public boolean isEmptySlotNeeded(Suggestion suggestion, boolean isMember) {
         return (suggestion.getType().equals("buy") || suggestion.getType().equals("sell"))
-                && !emptySlotExists();
+                && !emptySlotExists(isMember);
     }
 
-    boolean emptySlotExists() {
-        return stream().anyMatch(offer -> offer.getStatus() == OfferStatus.EMPTY);
+    boolean emptySlotExists(boolean isMember) {
+        return findEmptySlot(isMember) != -1;
     }
 
     public long getGpOnMarket() {
@@ -54,8 +55,9 @@ public class StatusOfferList extends ArrayList<Offer> {
         return jsonArray;
     }
 
-    public int findEmptySlot() {
-        for (int i = 0; i < NUM_SLOTS; i++) {
+    public int findEmptySlot(boolean isMember) {
+        int numUsableSlots = isMember ? NUM_SLOTS : NUM_F2P_SLOTS;
+        for (int i = 0; i < numUsableSlots; i++) {
             if (get(i).getStatus() == OfferStatus.EMPTY) {
                 return i;
             }

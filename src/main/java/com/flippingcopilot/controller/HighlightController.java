@@ -73,7 +73,7 @@ public class HighlightController {
             add(slotWidget, highlightColorController.getRedColor());
         }
         else if (suggestion.getType().equals("buy")) {
-            int slotId = accountStatus.getOffers().findEmptySlot();
+            int slotId = accountStatus.findEmptySlot();
             if (slotId != -1) {
                 Widget buyButton = grandExchange.getBuyButton(slotId);
                 if (buyButton != null && !buyButton.isHidden()) {
