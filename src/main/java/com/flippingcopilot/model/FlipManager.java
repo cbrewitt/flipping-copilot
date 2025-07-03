@@ -28,6 +28,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class FlipManager {
 
+    // closed flips first oldest to newest then open flips oldest to newest
+    public static final Comparator<FlipV2> FLIP_STATUS_TIME_COMPARATOR =
+            Comparator.comparing(FlipV2::isClosed, Comparator.reverseOrder())
+                    .thenComparing(flip -> flip.isClosed() ? flip.getClosedTime() : flip.getOpenedTime());
+
     private static final int WEEK_SECS = 7 * 24 * 60 * 60;
 
     // dependencies
@@ -74,6 +79,7 @@ public class FlipManager {
         if(!flips.isEmpty() && displayName != null) {
             displayNameToAccountId.put(displayName, flips.get(0).getAccountId());
         }
+        flips.sort(FLIP_STATUS_TIME_COMPARATOR);
         flips.forEach(this::mergeFlip_);
         flipsChangedCallback.run();
     }
@@ -244,9 +250,9 @@ public class FlipManager {
         if(flip.getClosedTime() >= intervalStartTime && (intervalAccountId == null || flip.getAccountId() == intervalAccountId)) {
             intervalStats.addFlip(flip);
         }
-        if(flip.getClosedQuantity() < flip.getOpenedQuantity()) {
+        if(!flip.isClosed()) {
             lastOpenFLipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).put(flip.getItemId(), flip);
-        } else if (flip.isClosed()) {
+        } else {
             lastOpenFLipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).remove(flip.getItemId());
         }
         existingCloseTimes.put(flip.getId(), flip.getClosedTime());
