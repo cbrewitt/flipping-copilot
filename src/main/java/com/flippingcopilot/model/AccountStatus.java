@@ -39,7 +39,7 @@ public class AccountStatus {
     }
 
     public synchronized boolean isCollectNeeded(Suggestion suggestion) {
-        if (offers.isEmptySlotNeeded(suggestion)) {
+        if (offers.isEmptySlotNeeded(suggestion, isWorldMember || isAccountMember)) {
             log.debug("collected needed isEmptySlotNeeded");
             return true;
         }
@@ -52,6 +52,10 @@ public class AccountStatus {
             return true;
         }
         return false;
+    }
+
+    public int findEmptySlot() {
+        return getOffers().findEmptySlot(isWorldMember || isAccountMember);
     }
 
     public synchronized JsonObject toJson(Gson gson, boolean geOpen, boolean sendGraphData) {
@@ -116,11 +120,11 @@ public class AccountStatus {
     }
 
     public synchronized boolean moreGpNeeded() {
-        return offers.emptySlotExists() && getTotalGp() < Constants.MIN_GP_NEEDED_TO_FLIP;
+        return emptySlotExists() && getTotalGp() < Constants.MIN_GP_NEEDED_TO_FLIP;
     }
 
     public synchronized boolean emptySlotExists() {
-        return offers.emptySlotExists();
+        return offers.emptySlotExists(isWorldMember || isAccountMember);
     }
 
     private long getTotalGp() {

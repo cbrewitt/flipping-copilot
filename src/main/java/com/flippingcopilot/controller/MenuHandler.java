@@ -1,13 +1,12 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.ui.MainPanel;
+import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.ui.graph.PriceGraphController;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.widgets.Widget;
-import net.runelite.client.game.ItemManager;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -15,11 +14,11 @@ import javax.inject.Singleton;
 @Slf4j
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
-public class PriceGraphOpener {
+public class MenuHandler {
 
     private final FlippingCopilotConfig config;
     private final Client client;
-    private final ItemManager itemManager;
+    private final OfferManager offerManager;
     private final PriceGraphController priceGraphController;
 
 
@@ -44,6 +43,25 @@ public class PriceGraphOpener {
                             }
                         }
                     });
+        }
+    }
+
+    public void injectConfirmMenuEntry(MenuEntryAdded event) {
+        if(!config.disableLeftClickConfirm()) {
+            return;
+        }
+
+        if(offerManager.isOfferCorrect()) {
+            return;
+        }
+
+        if(event.getOption().equals("Confirm")) {
+            log.debug("Adding deprioritized menu entry for offer");
+            client.getMenu()
+                    .createMenuEntry(-1)
+                    .setOption("Nothing");
+
+            event.getMenuEntry().setDeprioritized(true);
         }
     }
 }

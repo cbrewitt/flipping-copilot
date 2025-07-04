@@ -90,7 +90,7 @@ public class TransactionManger {
         return profit.getValue();
     }
 
-    private List<Transaction> getUnAckedTransactions(String displayName) {
+    public List<Transaction> getUnAckedTransactions(String displayName) {
         return cachedUnAckedTransactions.computeIfAbsent(displayName, (k) -> Persistance.loadUnAckedTransactions(displayName));
     }
 
