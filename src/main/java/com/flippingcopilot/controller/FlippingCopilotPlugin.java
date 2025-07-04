@@ -161,12 +161,14 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Subscribe
 	public void onGrandExchangeOfferChanged(GrandExchangeOfferChanged event) {
 		offerEventHandler.onGrandExchangeOfferChanged(event);
+		clientThread.invokeLater(() -> highlightController.redraw());
 	}
 
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event) {
 		if (event.getContainerId() == InventoryID.INV && grandExchange.isOpen()) {
 			suggestionManager.setSuggestionNeeded(true);
+			clientThread.invokeLater(() -> highlightController.redraw());
 		}
 	}
 
