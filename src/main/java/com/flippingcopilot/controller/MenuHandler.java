@@ -20,6 +20,7 @@ public class MenuHandler {
     private final Client client;
     private final OfferManager offerManager;
     private final PriceGraphController priceGraphController;
+    private final GrandExchange grandExchange;
 
 
     public void injectCopilotPriceGraphMenuEntry(MenuEntryAdded event) {
@@ -55,7 +56,7 @@ public class MenuHandler {
             return;
         }
 
-        if(event.getOption().equals("Confirm")) {
+        if(event.getOption().equals("Confirm") && grandExchange.isSlotOpen()) {
             log.debug("Adding deprioritized menu entry for offer");
             client.getMenu()
                     .createMenuEntry(-1)
