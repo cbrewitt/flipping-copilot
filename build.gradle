@@ -23,7 +23,7 @@ dependencies {
 
 
 group = 'com.flippingcopilot'
-version = '1.7.2'
+version = '1.7.3'
 
 tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
