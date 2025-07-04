@@ -5,9 +5,14 @@ import com.flippingcopilot.ui.graph.model.Config;
 import com.flippingcopilot.ui.graph.model.Constants;
 import com.flippingcopilot.ui.graph.model.Datapoint;
 import lombok.Getter;
+import net.runelite.client.util.QuantityFormatter;
 
 import java.awt.*;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.NumberFormat;
 import java.util.Date;
+import java.util.Locale;
 
 @Getter
 public class DatapointTooltip {
@@ -22,7 +27,8 @@ public class DatapointTooltip {
 
     public void draw(Graphics2D g2, Config config, PlotArea pa, Datapoint point) {
         // Prepare tooltip text
-        String priceStr = UIUtilities.quantityToRSDecimalStack(point.getPrice(), true);
+        NumberFormat format = new DecimalFormat("#,###", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+        String priceStr = format.format(point.getPrice());
 
         final String typeText;
         final String timeText;
