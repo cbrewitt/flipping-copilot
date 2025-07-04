@@ -143,7 +143,7 @@ public interface FlippingCopilotConfig extends Config
     }
     @ConfigItem(
             keyName = "misClickProtection",
-            name = "Mis-click protection",
+            name = "Mis-click prevention",
             description = "Require right click to confirm when price/quantity set incorrectly"
     )
     default boolean disableLeftClickConfirm()
