@@ -31,6 +31,7 @@ public class SuggestionManager {
     public void setSuggestion(Suggestion suggestion) {
         this.suggestion = suggestion;
         suggestionReceivedAt = Instant.now();
+
     }
 
     public void setSuggestionError(HttpResponseException error) {

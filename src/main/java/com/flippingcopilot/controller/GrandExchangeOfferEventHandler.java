@@ -73,23 +73,17 @@ public class GrandExchangeOfferEventHandler {
             log.warn("offer on slot {} is inconsistent with previous saved offer", slot);
         }
 
-        if(hasSlotBecomeFree(o, prev, consistent)) {
-            suggestionManager.setSuggestionNeeded(true);
-        }
-
         Transaction t = inferTransaction(slot, o, prev, consistent);
         if(t != null) {
             transactionsToProcess.add(t);
             processTransactions();
-            suggestionManager.setSuggestionNeeded(true);
             log.debug("inferred transaction {}", t);
         }
         updateUncollected(accountHash, slot, o, prev, consistent);
         offerPersistence.saveOffer(accountHash, slot, o);
-    }
 
-    private boolean hasSlotBecomeFree(SavedOffer offer, SavedOffer prev, boolean consistent) {
-        return offer.isFreeSlot() && (prev == null || !consistent || !prev.isFreeSlot());
+        // Always fetch suggestion to ensure fast response for better UX
+        suggestionManager.setSuggestionNeeded(true);
     }
 
     private boolean wasCopilotPriceUsed(SavedOffer o, SavedOffer prev) {
