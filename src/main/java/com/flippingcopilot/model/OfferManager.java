@@ -18,6 +18,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
+
 
 @Slf4j
 @Singleton
@@ -49,9 +51,6 @@ public class OfferManager {
     @Getter
     @Setter
     boolean offerJustPlaced = false;
-    @Getter
-    @Setter
-    boolean offerCorrect = false;
 
     private final Map<Long, Map<Integer, SavedOffer>> cachedOffers = new HashMap<>();
     private final Map<Long, Map<Integer, File>> files = new HashMap<>();
