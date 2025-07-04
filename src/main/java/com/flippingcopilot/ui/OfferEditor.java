@@ -48,7 +48,6 @@ public class OfferEditor {
 
     public void showSuggestion(Suggestion suggestion) {
         var currentItemId = client.getVarpValue(CURRENT_GE_ITEM);
-        offerManager.setOfferCorrect(false);
         if (offerHandler.isSettingQuantity()) {
             if (currentItemId != suggestion.getItemId()) {
                 return;
