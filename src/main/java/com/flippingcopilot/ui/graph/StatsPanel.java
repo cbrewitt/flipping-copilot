@@ -53,15 +53,12 @@ public class StatsPanel extends JPanel {
         statsTable.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                if (row == 7) { // "View on Wiki" row
-                    JLabel label = new JLabel("<html><a href=''>View on Wiki</a></html>");
-                    label.setForeground(Color.BLUE);
-                    label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-                    return label;
-                }
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (row == 5 || row == 6) {
+
+                // Apply color to the price change rows (24h change and week change)
+                if (row == 5 || row == 6) { // Index of 24h change and week change rows
                     String valueStr = value.toString();
+                    // Check if the percentage is negative (contains '-' character)
                     if (valueStr.contains("-")) {
                         c.setForeground(copilotConfig.lossAmountColor());
                     } else if (!valueStr.equals("0%")) {
@@ -72,9 +69,18 @@ public class StatsPanel extends JPanel {
                 } else {
                     c.setForeground(table.getForeground());
                 }
+
+                if (row == 7) { // "View on Wiki" row
+                    JLabel label = new JLabel("<html><a href=''>View on Wiki</a></html>");
+                    label.setForeground(Color.BLUE);
+                    label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    return label;
+                }
+
                 return c;
             }
         });
+
         statsTable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
@@ -91,8 +97,6 @@ public class StatsPanel extends JPanel {
                 }
             }
         });
-
-
 
         statsTable.setBorder(new MatteBorder(1, 0, 0, 0, Color.GRAY));
         JScrollPane scrollPane = new JScrollPane(statsTable);
