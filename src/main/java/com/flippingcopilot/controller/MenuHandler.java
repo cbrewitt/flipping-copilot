@@ -74,6 +74,9 @@ public class MenuHandler {
 
     private boolean offerDetailsCorrect() {
         Suggestion suggestion = suggestionManager.getSuggestion();
+        if (suggestion == null) {
+            return false;
+        }
         String offerType = client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
         if (client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId() && offerType.equals(suggestion.getType())) {
             return grandExchange.getOfferPrice() == suggestion.getPrice()
