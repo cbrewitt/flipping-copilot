@@ -53,12 +53,15 @@ public class StatsPanel extends JPanel {
         statsTable.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                if (row == 7) { // "View on Wiki" row
+                    JLabel label = new JLabel("<html><a href=''>View on Wiki</a></html>");
+                    label.setForeground(Color.BLUE);
+                    label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    return label;
+                }
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-
-                // Apply color to the price change rows (24h change and week change)
-                if (row == 5 || row == 6) { // Index of 24h change and week change rows
+                if (row == 5 || row == 6) {
                     String valueStr = value.toString();
-                    // Check if the percentage is negative (contains '-' character)
                     if (valueStr.contains("-")) {
                         c.setForeground(copilotConfig.lossAmountColor());
                     } else if (!valueStr.equals("0%")) {
@@ -69,10 +72,27 @@ public class StatsPanel extends JPanel {
                 } else {
                     c.setForeground(table.getForeground());
                 }
-
                 return c;
             }
         });
+        statsTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                int row = statsTable.rowAtPoint(e.getPoint());
+                int col = statsTable.columnAtPoint(e.getPoint());
+                if (row == 7 && col == 1) {
+                    int itemId = dataManager.data.itemId; // Adjust as needed
+                    String url = "https://prices.runescape.wiki/osrs/item/" + itemId;
+                    try {
+                        Desktop.getDesktop().browse(new java.net.URI(url));
+                    } catch (Exception ex) {
+                        log.error("Failed to open wiki link", ex);
+                    }
+                }
+            }
+        });
+
+
 
         statsTable.setBorder(new MatteBorder(1, 0, 0, 0, Color.GRAY));
         JScrollPane scrollPane = new JScrollPane(statsTable);
@@ -106,6 +126,7 @@ public class StatsPanel extends JPanel {
         // Price changes
         model.addRow(new Object[]{"24h change", formatPercentage((float) dataManager.priceChange24H)});
         model.addRow(new Object[]{"Week change", formatPercentage((float) dataManager.priceChangeWeek)});
+        model.addRow(new Object[]{"", "<html><a href=''>View on Wiki</a></html>"});
 //
 //        // Copilot price and margin
 //        model.addRow(new Object[]{"Copilot buy price", formatNumber(dataManager.data.buyPrice)});
