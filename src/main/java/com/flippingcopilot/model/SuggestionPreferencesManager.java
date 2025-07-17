@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -16,6 +17,8 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
@@ -30,9 +33,6 @@ public class SuggestionPreferencesManager {
 
     // dependencies
     private final Gson gson;
-    private final FuzzySearchScorer fuzzySearchScorer;
-    private final Client client;
-    private final ItemManager itemManager;
     private final ScheduledExecutorService executorService;
 
     // state
@@ -74,6 +74,12 @@ public class SuggestionPreferencesManager {
         return getPreferences().getTimeframe();
     }
 
+    public synchronized void setBlockedItems(Set<Integer> blockedItems) {
+        SuggestionPreferences preferences = getPreferences();
+        preferences.setBlockedItemIds(new ArrayList<>(blockedItems));
+        saveAsync();
+    }
+
     public synchronized void blockItem(int itemId) {
         SuggestionPreferences preferences = getPreferences();
         List<Integer> blockedList = preferences.getBlockedItemIds();
@@ -100,39 +106,8 @@ public class SuggestionPreferencesManager {
         log.debug("unblocked item {}", itemId);
     }
 
-    public List<Pair<Integer, String>> search(String input) {
-        Set<Integer> blockedItems = new HashSet<>(blockedItems());
-        if(input == null || input.isBlank()) {
-            return IntStream.range(0, client.getItemCount())
-                    .mapToObj(itemManager::getItemComposition)
-                    .filter(item -> item.isTradeable() && item.getNote() == -1)
-                    .sorted(Comparator.comparing((ItemComposition i) -> !blockedItems.contains(i.getId())).thenComparing(ItemComposition::getName))
-                    .limit(250)
-                    .map((i) -> Pair.of(i.getId(), trimName(i.getName())))
-                    .collect(Collectors.toList());
-        }
-
-        ToDoubleFunction<ItemComposition> comparator = fuzzySearchScorer.comparator(input);
-        return IntStream.range(0, client.getItemCount())
-            .mapToObj(itemManager::getItemComposition)
-            .filter(item -> item.isTradeable() && item.getNote() == -1)
-            .filter(item -> comparator.applyAsDouble(item) > 0)
-            .sorted(Comparator.comparing((ItemComposition i) -> !blockedItems.contains(i.getId())).thenComparing(Comparator.comparingDouble(comparator).reversed()
-                    .thenComparing(ItemComposition::getName)))
-            .limit(250)
-            .map((i) -> Pair.of(i.getId(), trimName(i.getName())))
-            .collect(Collectors.toList());
-    }
-
     public List<Integer> blockedItems() {
         return getPreferences().getBlockedItemIds();
-    }
-
-    private String trimName(String name) {
-        if(name.length() > 23) {
-            return name.substring(0, 23) + "..";
-        }
-        return name;
     }
 
     private SuggestionPreferences load() {

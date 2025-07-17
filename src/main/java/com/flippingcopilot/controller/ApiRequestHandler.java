@@ -17,7 +17,6 @@ import java.lang.reflect.Type;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -39,9 +38,6 @@ public class ApiRequestHandler {
     private final LoginResponseManager loginResponseManager;
     private final SuggestionPreferencesManager preferencesManager;
     private final ClientThread clientThread;
-
-    // state
-    private Instant lastDebugMessageSent = Instant.now();
 
 
     public void authenticate(String username, String password, Runnable callback) {
@@ -207,6 +203,7 @@ public class ApiRequestHandler {
                 .url(serverUrl + "/profit-tracking/client-transactions?display_name=" + encodedDisplayName)
                 .addHeader("Authorization", "Bearer " + loginResponseManager.getJwtToken())
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
+                .header("Accept", "application/x-bytes")
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
@@ -224,10 +221,9 @@ public class ApiRequestHandler {
                         onFailure.accept(new HttpResponseException(response.code(), errorMessage));
                         return;
                     }
-                    String body = response.body() == null ? "" : response.body().string();
-                    List<FlipV2> changedFlips = gson.fromJson(body, new TypeToken<List<FlipV2>>(){}.getType());
+                    List<FlipV2> changedFlips = FlipV2.listFromRaw(response.body().bytes());
                     onSuccess.accept(changedFlips);
-                } catch (IOException | JsonParseException e) {
+                } catch (Exception e) {
                     log.warn("error reading/parsing sync transactions response body", e);
                     onFailure.accept(new HttpResponseException(-1, "Unknown Error"));
                 }
@@ -367,20 +363,80 @@ public class ApiRequestHandler {
 
     }
 
-    public ItemPrice getItemPrice(int itemId, String displayName) {
-        JsonObject respObj = null;
-        try {
-            JsonObject body = new JsonObject();
-            body.add("item_id", new JsonPrimitive(itemId));
-            body.add("display_name", new JsonPrimitive(displayName));
-            body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
-            body.addProperty("timeframe_minutes", preferencesManager.getTimeframe());
-            return doHttpRequest("POST", body, "/prices", ItemPrice.class);
-        } catch (HttpResponseException e) {
-            log.error("error fetching copilot price for item {}, resp code {}", itemId, e.getResponseCode(), e);
-            return new ItemPrice(0, 0, "Unable to fetch price copilot price (possible server update)", null);
+    public void asyncDeleteFlip(FlipV2 flip, Consumer<FlipV2> onSuccess, Runnable onFailure) {
+        String jwtToken = loginResponseManager.getJwtToken();
+        if (jwtToken == null) {
+            throw new IllegalStateException("Not authenticated");
         }
+        JsonObject body = new JsonObject();
+        body.addProperty("flip_id", flip.getId().toString());
 
+        Request request = new Request.Builder()
+                .url(serverUrl + "/profit-tracking/delete-flip")
+                .addHeader("Authorization", "Bearer " + jwtToken)
+                .header("Accept", "application/x-bytes")
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.error("deleting flip {}", flip.getId(), e);
+                onFailure.run();
+            }
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        log.error("deleting flip {}, bad response code {}", flip.getId(), response.code());
+                        onFailure.run();
+                    } else {
+                        FlipV2 flip = FlipV2.fromRaw(response.body().bytes());
+                        onSuccess.accept(flip);
+                    }
+                } catch (Exception e) {
+                    log.error("deleting flip {}", flip.getId(), e);
+                    onFailure.run();
+               }
+            }
+        });
+    }
+
+    public void asyncDeleteAccount(int accountId, Runnable onSuccess, Runnable onFailure) {
+        String jwtToken = loginResponseManager.getJwtToken();
+        if (jwtToken == null) {
+            throw new IllegalStateException("Not authenticated");
+        }
+        JsonObject body = new JsonObject();
+        body.addProperty("account_id", accountId);
+
+        Request request = new Request.Builder()
+                .url(serverUrl + "/profit-tracking/delete-account")
+                .addHeader("Authorization", "Bearer " + jwtToken)
+                .header("Accept", "application/x-bytes")
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.error("deleting account {}", accountId, e);
+                onFailure.run();
+            }
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        log.error("deleting account {}, bad response code {}", accountId, response.code());
+                        onFailure.run();
+                    }
+                    onSuccess.run();
+                } catch (Exception e) {
+                    log.error("deleting account {}", accountId, e);
+                    onFailure.run();
+                }
+            }
+        });
     }
 
     public Map<String, Integer> loadUserDisplayNames() throws HttpResponseException {
@@ -390,9 +446,27 @@ public class ApiRequestHandler {
     }
 
     public List<FlipV2> LoadFlips() throws HttpResponseException {
-        Type respType = new TypeToken<List<FlipV2>>(){}.getType();
-        List<FlipV2> flips = doHttpRequest("GET", null, "/profit-tracking/client-flips", respType);
-        return flips == null ? new ArrayList<>() : flips;
+        String jwtToken = loginResponseManager.getJwtToken();
+        if (jwtToken == null) {
+            throw new IllegalStateException("Not authenticated");
+        }
+        Request request = new Request.Builder()
+                .url(serverUrl + "/profit-tracking/client-flips")
+                .addHeader("Authorization", "Bearer " + jwtToken)
+                .header("Accept", "application/x-bytes")
+                .method("GET", null)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (response.isSuccessful()) {
+                byte[] b = response.body().bytes();
+                return FlipV2.listFromRaw(b);
+            } else {
+                throw new HttpResponseException(response.code(), extractErrorMessage(response));
+            }
+        } catch (Exception e) {
+            throw new HttpResponseException(-1, "Unknown server error (possible system update)", e);
+        }
     }
 
     public <T> T doHttpRequest(String method, JsonElement bodyJson, String route, Type responseType) throws HttpResponseException {
@@ -421,29 +495,5 @@ public class ApiRequestHandler {
         } catch (JsonSyntaxException | IOException e) {
             throw new HttpResponseException(-1, "Unknown server error (possible system update)", e);
         }
-    }
-
-    public void sendDebugData(JsonObject bodyJson) {
-        String jwtToken = loginResponseManager.getJwtToken();
-        Instant now = Instant.now();
-        if (now.minusSeconds(5).isBefore(lastDebugMessageSent)){
-            // we don't want to spam
-            return;
-        }
-        RequestBody body = RequestBody.create(MediaType.get("application/json; charset=utf-8"), bodyJson.toString());
-        Request request = new Request.Builder()
-                .url(serverUrl + "/debug-data")
-                .addHeader("Authorization", "Bearer " + jwtToken)
-                .method("POST", body)
-                .build();
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-               log.debug("failed to send debug data", e);
-            }
-            @Override
-            public void onResponse(Call call, Response response) {}
-        });
-        lastDebugMessageSent = Instant.now();
     }
 }

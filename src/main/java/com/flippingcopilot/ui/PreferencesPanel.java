@@ -1,14 +1,17 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.controller.PremiumInstanceController;
 import com.flippingcopilot.model.SuggestionPreferencesManager;
 import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.*;
 import java.awt.*;
+import java.util.HashSet;
 
 @Singleton
 public class PreferencesPanel extends JPanel {
@@ -18,17 +21,25 @@ public class PreferencesPanel extends JPanel {
     private final PreferencesToggleButton sellOnlyModeToggleButton;
     private final JPanel f2pOnlyButton;
     private final PreferencesToggleButton f2pOnlyModeToggleButton;
-    private final BlacklistDropdownPanel blacklistDropdownPanel;
+    private final ItemSearchMultiSelect blocklistDropdownPanel;
 
     @Inject
     public PreferencesPanel(
             SuggestionManager suggestionManager,
             SuggestionPreferencesManager preferencesManager,
-            BlacklistDropdownPanel blocklistDropdownPanel,
-            PremiumInstanceController premiumInstanceController) {
+            PremiumInstanceController premiumInstanceController,
+            ItemController itemController) {
         super();
         this.preferencesManager = preferencesManager;
-        this.blacklistDropdownPanel = blocklistDropdownPanel;
+        blocklistDropdownPanel = new ItemSearchMultiSelect(
+                () -> new HashSet<>(preferencesManager.blockedItems()),
+                itemController::allItemIds,
+                itemController::search,
+                (bl) -> {
+                    preferencesManager.setBlockedItems(bl);
+                    suggestionManager.setSuggestionNeeded(true);
+                },
+                "Item blocklist...");
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
         setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
@@ -43,7 +54,8 @@ public class PreferencesPanel extends JPanel {
         preferencesTitle.setHorizontalAlignment(SwingConstants.CENTER);
         add(preferencesTitle);
         add(Box.createRigidArea(new Dimension(0, 8)));
-        add(this.blacklistDropdownPanel);
+        blocklistDropdownPanel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0), blocklistDropdownPanel.getBorder()));
+        add(blocklistDropdownPanel);
 
         sellOnlyModeToggleButton = new PreferencesToggleButton("Disable sell-only mode", "Enable sell-only mode");
         sellOnlyButton = new JPanel();
@@ -100,6 +112,6 @@ public class PreferencesPanel extends JPanel {
         sellOnlyButton.setVisible(true);
         f2pOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isF2pOnlyMode());
         f2pOnlyButton.setVisible(true);
-        blacklistDropdownPanel.setVisible(true);
+        blocklistDropdownPanel.setVisible(true);
     }
 }

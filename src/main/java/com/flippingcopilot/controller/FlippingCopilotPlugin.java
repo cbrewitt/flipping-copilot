@@ -1,9 +1,12 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.manager.AccountsManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.*;
 import com.google.gson.Gson;
 import com.google.inject.Provides;
+import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.gameval.InventoryID;
@@ -22,6 +25,9 @@ import net.runelite.client.util.ImageUtil;
 
 import javax.inject.Inject;
 import java.awt.image.BufferedImage;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -39,6 +45,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private ClientThread clientThread;
 	@Inject
+	@Named("copilotExecutor")
 	private ScheduledExecutorService executorService;
 	@Inject
 	private ClientToolbar clientToolbar;
@@ -81,14 +88,30 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private GrandExchangeUncollectedManager grandExchangeUncollectedManager;
 	@Inject
-	private TransactionManger transactionManger;
+	private TransactionManager transactionManager;
 	@Inject
 	private OfferManager offerManager;
 	@Inject
 	private TooltipController tooltipController;
-  @Inject
+  	@Inject
 	private MenuHandler menuHandler;
-  
+    @Inject
+	private AccountsManager accountsManager;
+
+	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
+	@Provides
+	@Singleton
+	@Named("copilotExecutor")
+	public ScheduledExecutorService provideCustomExecutorService() {
+		return Executors.newScheduledThreadPool(2);
+	}
+
+	@Provides
+	@Singleton
+	public ExecutorService provideExecutorService(@Named("copilotExecutor") ScheduledExecutorService scheduledExecutor) {
+		return scheduledExecutor;
+	}
+
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
 	private NavigationButton navButton;
@@ -122,7 +145,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			flipManager.loadFlipsAsync();
 		}
 		if(osrsLoginManager.getInvalidStateDisplayMessage() == null) {
-			flipManager.setIntervalDisplayName(osrsLoginManager.getPlayerDisplayName());
+			flipManager.setIntervalAccount(null);
 			flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
 		}
 		executorService.scheduleAtFixedRate(() ->
@@ -147,7 +170,10 @@ public class FlippingCopilotPlugin extends Plugin {
 		clientToolbar.removeNavigation(navButton);
 		if(loginResponseManager.isLoggedIn()) {
 			String displayName = osrsLoginManager.getLastDisplayName();
-			webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, displayName), sessionManager.getCachedSessionData(), displayName, false);
+			Integer accountId = accountsManager.getAccountId(displayName);
+			if (accountId != null && accountId != -1) {
+				webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
+			}
 		}
 		keybindHandler.unregister();
 	}
@@ -247,12 +273,17 @@ public class FlippingCopilotPlugin extends Plugin {
 						return false;
 					}
 					statsPanel.resetIntervalDropdownToSession();
-					flipManager.setIntervalDisplayName(name);
+					Integer accountId = accountsManager.getAccountId(name);
+					if (accountId != null && accountId != -1) {
+						flipManager.setIntervalAccount(accountId);
+					} else {
+						flipManager.setIntervalAccount(null);
+					}
 					flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
 					statsPanel.refresh(true, loginResponseManager.isLoggedIn()  && osrsLoginManager.isValidLoginState());
 					mainPanel.refresh();
 					if(loginResponseManager.isLoggedIn()) {
-						transactionManger.scheduleSyncIn(0, name);
+						transactionManager.scheduleSyncIn(0, name);
 					}
 					return true;
 				});
@@ -270,7 +301,10 @@ public class FlippingCopilotPlugin extends Plugin {
 		offerManager.saveAll();
 		if(loginResponseManager.isLoggedIn()) {
 			String displayName = osrsLoginManager.getLastDisplayName();
-			webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, displayName), sessionManager.getCachedSessionData(), displayName, false);
+			Integer accountId = accountsManager.getAccountId(displayName);
+			if (accountId != null && accountId != -1) {
+				webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
+			}
 		}
 	}
 

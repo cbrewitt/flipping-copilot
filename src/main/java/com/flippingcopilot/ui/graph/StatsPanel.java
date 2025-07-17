@@ -1,8 +1,7 @@
 package com.flippingcopilot.ui.graph;
 
 import com.flippingcopilot.controller.FlippingCopilotConfig;
-import com.flippingcopilot.manger.PriceGraphConfigManager;
-import com.flippingcopilot.ui.graph.model.Config;
+import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.ui.graph.model.Constants;
 import lombok.extern.slf4j.Slf4j;
 

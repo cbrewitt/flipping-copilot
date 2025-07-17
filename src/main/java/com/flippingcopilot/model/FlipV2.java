@@ -2,56 +2,59 @@ package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.GeTax;
 import com.google.gson.annotations.SerializedName;
-import lombok.Data;
-import java.util.Comparator;
+import lombok.Data;;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Data
 public class FlipV2 {
 
-    public static UUID MAX_UUID = new UUID(-1L, -1L);
-    public static UUID MIN_UUID = new UUID(0L, 0L);
+    public static final int OPENED_TIME_BYTE_POS = 36;
+    public static final int UPDATED_TIME_BYTE_POS = 76;
+    public static final int RAW_SIZE = 84;
 
     @SerializedName("id")
     private UUID id;
 
     @SerializedName("account_id")
     private int accountId;
-
     @SerializedName("item_id")
     private int itemId;
+    @SerializedName("opened_time")
+    private int openedTime;
+    @SerializedName("opened_quantity")
+    private int openedQuantity;
+    @SerializedName("spent")
+    private long spent;
+    @SerializedName("closed_time")
+    private int closedTime;
+    @SerializedName("closed_quantity")
+    private int closedQuantity;
+    @SerializedName("received_post_tax")
+    private long receivedPostTax;
+    @SerializedName("profit")
+    private long profit;
+    @SerializedName("tax_paid")
+    private long taxPaid;
+    @SerializedName("status")
+    private FlipStatus status;
+    @SerializedName("updated_time")
+    private int updatedTime;
+    @SerializedName("deleted")
+    private boolean deleted;
 
     @SerializedName("item_name")
     private String itemName;
 
-    @SerializedName("opened_time")
-    private int openedTime;
-
-    @SerializedName("opened_quantity")
-    private int openedQuantity;
-
-    @SerializedName("spent")
-    private long spent;
-
-    @SerializedName("closed_time")
-    private int closedTime;
-
-    @SerializedName("closed_quantity")
-    private int closedQuantity;
-
-    @SerializedName("received_post_tax")
-    private long receivedPostTax;
-
-    @SerializedName("profit")
-    private long profit;
-
-    @SerializedName("tax_paid")
-    private long taxPaid;
-
-    @SerializedName("is_closed")
-    private boolean isClosed;
-
-    private String accountDisplayName;
+    public FlipV2 setItemName(String itemName) {
+        this.itemName = itemName;
+        return this;
+    }
 
     public long calculateProfit(Transaction transaction) {
         long amountToClose = Math.min(openedQuantity - closedQuantity, transaction.getQuantity());
@@ -77,5 +80,69 @@ public class FlipV2 {
             return 0;
         }
         return (receivedPostTax  + taxPaid) / closedQuantity;
+    }
+
+    public static List<FlipV2> listFromRaw(byte[] raw) {
+        if (raw.length < 4) {
+            throw new IllegalArgumentException("Raw data must be at least 4 bytes to contain record count");
+        }
+
+        ByteBuffer b = ByteBuffer.wrap(raw);
+        b.order(ByteOrder.BIG_ENDIAN);
+
+        // Read the number of records (int32)
+        int recordCount = b.getInt();
+        int expectedSize = 4 + (recordCount * RAW_SIZE);
+        if (raw.length != expectedSize) {
+            throw new IllegalArgumentException("Raw data size " + raw.length + " doesn't match expected size " + expectedSize + " for " + recordCount + " records");
+        }
+        List<FlipV2> flips = new ArrayList<>(recordCount);
+        for (int i = 0; i < recordCount; i++) {
+            byte[] recordBytes = new byte[RAW_SIZE];
+            b.get(recordBytes);
+            flips.add(fromRaw(recordBytes));
+        }
+
+        return flips;
+    }
+
+    public static FlipV2 fromRaw(byte[] raw) {
+        if (raw.length != RAW_SIZE) {
+            throw new IllegalArgumentException("Raw data must be exactly " + RAW_SIZE + " bytes");
+        }
+
+        ByteBuffer b = ByteBuffer.wrap(raw);
+        b.order(ByteOrder.BIG_ENDIAN);
+        FlipV2 flip = new FlipV2();
+
+        // Read UUID (16 bytes)
+        long idMostSig = b.getLong();
+        long idLeastSig = b.getLong();
+        flip.id = new UUID(idMostSig, idLeastSig);
+
+        // Read primitive fields
+        flip.accountId = b.getInt();           // 4 bytes
+        flip.itemId = b.getInt();              // 4 bytes
+        flip.openedTime = b.getInt();          // 4 bytes
+        flip.openedQuantity = b.getInt();      // 4 bytes
+        flip.spent = b.getLong();              // 8 bytes
+        flip.closedTime = b.getInt();          // 4 bytes
+        flip.closedQuantity = b.getInt();      // 4 bytes
+        flip.receivedPostTax = b.getLong();    // 8 bytes
+        flip.profit = b.getLong();             // 8 bytes
+        flip.taxPaid = b.getLong();            // 8 bytes
+
+        // Read FlipStatus as int32 ordinal
+        int statusOrdinal = b.getInt();        // 4 bytes
+        flip.status = FlipStatus.values()[statusOrdinal];
+
+        flip.updatedTime = b.getInt();         // 4 bytes
+        flip.deleted = b.getInt() > 0;
+
+        return flip;
+    }
+
+    public boolean isClosed() {
+        return Objects.equals(status, FlipStatus.FINISHED);
     }
 }

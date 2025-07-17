@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.manager.AccountsManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.UIUtilities;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class TooltipController {
     private final OfferManager offerManager;
     private final FlipManager flipManager;
     private final OsrsLoginManager osrsLoginManager;
+    private final AccountsManager accountsManager;
 
     public void tooltip(ScriptPostFired e) {
         if(e.getScriptId() != SCRIPT_TOOLTIP_GE) {
@@ -101,14 +103,17 @@ public class TooltipController {
             SavedOffer offer = offerManager.loadOffer(accountHash, i);
 
             if(offer.getOfferStatus().equals(SELL)) {
-                FlipV2 flip = flipManager.getLastFlipByItemId(displayName, offer.getItemId());
+                Integer accountId = accountsManager.getAccountId(displayName);
+                if(accountId != null && accountId != -1) {
+                    FlipV2 flip = flipManager.getLastFlipByItemId(accountId, offer.getItemId());
 
-                if (flip == null || flip.isClosed()) {
-                    continue;
-                }
+                    if (flip == null || FlipStatus.FINISHED.equals(flip.getStatus())) {
+                        continue;
+                    }
 
-                if(flip.getItemName().equals(itemName)) {
-                    return ((long) getPostTaxPrice(offer.getItemId(), offer.getPrice()) * offer.getTotalQuantity()) - (flip.getAvgBuyPrice() * offer.getTotalQuantity());
+                    if(flip.getItemName().equals(itemName)) {
+                        return ((long) getPostTaxPrice(offer.getItemId(), offer.getPrice()) * offer.getTotalQuantity()) - (flip.getAvgBuyPrice() * offer.getTotalQuantity());
+                    }
                 }
             }
         }

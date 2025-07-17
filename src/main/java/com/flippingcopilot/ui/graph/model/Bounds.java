@@ -8,8 +8,8 @@ import java.time.Instant;
 public class Bounds {
     public int xMin;
     public int xMax;
-    public int yMin;
-    public int yMax;
+    public long yMin;
+    public long yMax;
 
     public Bounds() {
         xMax = (int) Instant.now().getEpochSecond();
@@ -18,7 +18,7 @@ public class Bounds {
         yMin = 0;
     }
 
-    public int yDelta() {
+    public long yDelta() {
         return yMax - yMin;
     }
 

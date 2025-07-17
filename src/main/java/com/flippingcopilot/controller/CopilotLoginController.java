@@ -2,6 +2,7 @@ package com.flippingcopilot.controller;
 
 import java.awt.event.ActionEvent;
 
+import com.flippingcopilot.manager.AccountsManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.LoginPanel;
 import com.flippingcopilot.ui.MainPanel;
@@ -29,7 +30,8 @@ public class CopilotLoginController {
     private final SuggestionManager suggestionManager;
     private final OsrsLoginManager osrsLoginManager;
     private final SessionManager sessionManager;
-    private final TransactionManger transactionManger;
+    private final TransactionManager transactionManager;
+    private final AccountsManager accountsManager;
 
     // state
     private String email;
@@ -42,9 +44,9 @@ public class CopilotLoginController {
                 mainPanel.refresh();
                 String displayName = osrsLoginManager.getPlayerDisplayName();
                 if(displayName != null) {
-                    flipManager.setIntervalDisplayName(displayName);
+                    flipManager.setIntervalAccount(null);
                     flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
-                    transactionManger.scheduleSyncIn(0, displayName);
+                    transactionManager.scheduleSyncIn(0, displayName);
                 }
             } else {
                 LoginResponse loginResponse = loginResponseManager.getLoginResponse();
@@ -66,6 +68,7 @@ public class CopilotLoginController {
         loginResponseManager.reset();
         suggestionManager.reset();
         highlightController.removeAll();
+        accountsManager.clear();
     }
 
     public void onEmailTextChanged(String newEmail) {
