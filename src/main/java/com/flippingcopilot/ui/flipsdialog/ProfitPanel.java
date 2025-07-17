@@ -1,7 +1,7 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.controller.FlippingCopilotConfig;
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.FlipV2;
 import com.flippingcopilot.model.SessionManager;
@@ -42,7 +42,7 @@ public class ProfitPanel extends JPanel {
     public ProfitPanel(FlipManager flipManager,
                        @Named("copilotExecutor") ExecutorService executorService,
                        SessionManager sessionManager,
-                       AccountsManager accountsManager,
+                       CopilotLoginManager copilotLoginManager,
                        FlippingCopilotConfig config) {
         this.flipManager = flipManager;
         this.executorService = executorService;
@@ -64,7 +64,7 @@ public class ProfitPanel extends JPanel {
         intervalDropdown.setToolTipText("Select time interval");
 
         accountDropdown = new AccountDropdown(
-                accountsManager::displayNameToAccountIdMap,
+                copilotLoginManager::displayNameToAccountIdMap,
                 accountId -> refreshGraph(),
                 AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
         );

@@ -26,9 +26,9 @@ public class FlipPriceGraphControllerTest {
         List<FlipV2> flips = generateFlipsBetween(sixMonthsAgo, now, 10_000, List.of(ACCOUNT_ID_1));
 
         // create and populate the flip cache
-        FlipManager flipManager = new FlipManager(null, new DoesNothingExecutorService(), new OkHttpClient.Builder().build(), null, null);
+        FlipManager flipManager = new FlipManager(null);
         flipManager.setFlipsChangedCallback(() -> {});
-        flipManager.mergeFlips(flips);
+        flipManager.mergeFlips(flips, 0);
         flipManager.setIntervalAccount(ACCOUNT_ID_1);
 
 
@@ -74,9 +74,9 @@ public class FlipPriceGraphControllerTest {
         List<FlipV2> flips = generateFlipsBetween(sixMonthsAgo, now, 5_000, List.of(ACCOUNT_ID_1, ACCOUNT_ID_2, ACCOUNT_ID_3));
 
         // create and populate the flip cache
-        FlipManager flipManager = new FlipManager(null, new DoesNothingExecutorService(), new OkHttpClient.Builder().build(), null, null);
+        FlipManager flipManager = new FlipManager(null);
         flipManager.setFlipsChangedCallback(() -> {});
-        flipManager.mergeFlips(flips);
+        flipManager.mergeFlips(flips, 0);
         verifyflipManagerStoredOrder(flipManager);
 
 

@@ -58,6 +58,16 @@ public class Paginator extends JPanel {
 		statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
 	}
 
+	public void setTotalPagesWithoutEffect(int totalPages) {
+		this.totalPages = totalPages;
+		statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
+	}
+
+	public void setPageNumber(int pageNumber) {
+		this.pageNumber = pageNumber;
+		statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
+	}
+
 	private MouseAdapter onIncreasePage() {
 		return new MouseAdapter() {
 			@Override

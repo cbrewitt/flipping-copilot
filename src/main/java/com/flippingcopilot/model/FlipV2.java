@@ -1,8 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.GeTax;
-import com.google.gson.annotations.SerializedName;
-import lombok.Data;;
+import lombok.Data;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -14,45 +13,27 @@ import java.util.UUID;
 @Data
 public class FlipV2 {
 
-    public static final int OPENED_TIME_BYTE_POS = 36;
-    public static final int UPDATED_TIME_BYTE_POS = 76;
     public static final int RAW_SIZE = 84;
 
-    @SerializedName("id")
     private UUID id;
-
-    @SerializedName("account_id")
     private int accountId;
-    @SerializedName("item_id")
     private int itemId;
-    @SerializedName("opened_time")
     private int openedTime;
-    @SerializedName("opened_quantity")
     private int openedQuantity;
-    @SerializedName("spent")
     private long spent;
-    @SerializedName("closed_time")
     private int closedTime;
-    @SerializedName("closed_quantity")
     private int closedQuantity;
-    @SerializedName("received_post_tax")
     private long receivedPostTax;
-    @SerializedName("profit")
     private long profit;
-    @SerializedName("tax_paid")
     private long taxPaid;
-    @SerializedName("status")
     private FlipStatus status;
-    @SerializedName("updated_time")
     private int updatedTime;
-    @SerializedName("deleted")
     private boolean deleted;
 
-    @SerializedName("item_name")
-    private String itemName;
+    private String cachedItemName;
 
-    public FlipV2 setItemName(String itemName) {
-        this.itemName = itemName;
+    public FlipV2 setCachedItemName(String cachedItemName) {
+        this.cachedItemName = cachedItemName;
         return this;
     }
 
@@ -144,5 +125,9 @@ public class FlipV2 {
 
     public boolean isClosed() {
         return Objects.equals(status, FlipStatus.FINISHED);
+    }
+
+    public int lastTransactionTime() {
+        return closedTime == 0 ? openedTime : closedTime;
     }
 }

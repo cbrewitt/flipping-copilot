@@ -1,6 +1,7 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.controller.ItemController;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.FlipV2;
 import com.flippingcopilot.model.IntervalTimeUnit;
@@ -29,20 +30,10 @@ public class FlipFilterAndSort {
 
     static {
         // Last sell time - special handling for non-closed trades
-        SORT_COMPARATORS.put("Last sell time", (f1, f2) -> {
-            // Non-closed trades (closedTime == 0) always go to top
-            if (f1.getClosedTime() == 0 && f2.getClosedTime() == 0) {
-                return Integer.compare(f2.getOpenedTime(), f1.getOpenedTime()); // Newer opened trades first
-            }
-            if (f1.getClosedTime() == 0) return -1;
-            if (f2.getClosedTime() == 0) return 1;
-            // Both closed, sort by Last sell time
-            return Integer.compare(f2.getClosedTime(), f1.getClosedTime());
-        });
-
+        SORT_COMPARATORS.put("Last sell time", Comparator.comparing(FlipV2::lastTransactionTime).reversed());
         SORT_COMPARATORS.put("First buy time", Comparator.comparing(FlipV2::getOpenedTime));
         SORT_COMPARATORS.put("Account", Comparator.comparing(FlipV2::getAccountId));
-        SORT_COMPARATORS.put("Item", Comparator.comparing(f -> f.getItemName() != null ? f.getItemName() : ""));
+        SORT_COMPARATORS.put("Item", Comparator.comparing(f -> f.getCachedItemName() != null ? f.getCachedItemName() : ""));
         SORT_COMPARATORS.put("Status", Comparator.comparing(FlipV2::getStatus));
         SORT_COMPARATORS.put("Bought", Comparator.comparing(FlipV2::getOpenedQuantity));
         SORT_COMPARATORS.put("Sold", Comparator.comparing(FlipV2::getClosedQuantity));
@@ -50,8 +41,7 @@ public class FlipFilterAndSort {
         SORT_COMPARATORS.put("Avg. sell price", Comparator.comparing(FlipV2::getReceivedPostTax));
         SORT_COMPARATORS.put("Tax", Comparator.comparing(FlipV2::getTaxPaid));
         SORT_COMPARATORS.put("Profit", Comparator.comparing(FlipV2::getProfit));
-        SORT_COMPARATORS.put("Profit ea.", Comparator.comparing(f ->
-                f.getClosedQuantity() > 0 ? f.getProfit() / f.getClosedQuantity() : 0L));
+        SORT_COMPARATORS.put("Profit ea.", Comparator.comparing(f -> f.getClosedQuantity() > 0 ? f.getProfit() / f.getClosedQuantity() : 0L));
     }
 
     // dependencies
@@ -60,7 +50,8 @@ public class FlipFilterAndSort {
     private final Consumer<Integer> totalPagesChangedCallback;
     private final Consumer<Boolean> slowLoadingCallback;
     private final ExecutorService executorService;
-    private final AccountsManager accountsManager;
+    private final CopilotLoginManager copilotLoginManager;
+    private final ItemController itemController;
 
     // state
     private List<FlipV2> cachedFlips = new ArrayList<>();
@@ -89,14 +80,15 @@ public class FlipFilterAndSort {
                              Consumer<Integer> totalPagesChangedCallback,
                              Consumer<Boolean> slowLoadingCallback,
                              @Named("copilotExecutor") ExecutorService executorService,
-                             AccountsManager accountsManager) {
+                             CopilotLoginManager copilotLoginManager, ItemController itemController) {
         this.flipManager = flipManager;
 
         this.flipsCallback = flipsCallback;
         this.totalPagesChangedCallback = totalPagesChangedCallback;
         this.slowLoadingCallback = slowLoadingCallback;
         this.executorService = executorService;
-        this.accountsManager = accountsManager;
+        this.copilotLoginManager = copilotLoginManager;
+        this.itemController = itemController;
     }
 
     public synchronized void setIncludeBuyingFlips(boolean b) {
@@ -175,7 +167,7 @@ public class FlipFilterAndSort {
                     totalFlips = flipManager.calculateStats(intervalStartTime, accountId).flipsMade;
                     totalPagesChangedCallback.accept(1 + totalFlips / pageSize);
                 }
-                flipsCallback.accept(flipManager.getPageFlips(page, pageSize, intervalStartTime, accountId, includeBuyingFlips));
+                flipsCallback.accept(flipManager.getPageFlips(page, pageSize, intervalStartTime, accountId));
             } else {
                 slowLoadingCallback.accept(true);
                 boolean cachedFlipsOutOfDate = !Objects.equals(cachedAccountId, accountId) || !cachedFilteredItems.equals(filteredItems) || cachedIntervalStartTime != intervalStartTime || cachedIncludeBuyingFlips != includeBuyingFlips;
@@ -190,7 +182,12 @@ public class FlipFilterAndSort {
                     cachedIncludeBuyingFlips = includeBuyingFlips;
                     cachedFlips.clear();
                     Predicate<FlipV2> flipFilter = filteredItems.isEmpty() ? f -> true : f -> filteredItems.contains(f.getItemId());
-                    flipManager.getPageFlips(1, Integer.MAX_VALUE, intervalStartTime, accountId, includeBuyingFlips).stream().filter(flipFilter).forEach(cachedFlips::add);
+                    flipManager.aggregateFlips(intervalStartTime, accountId, includeBuyingFlips, (f) -> {
+                        if(flipFilter.test(f)) {
+                            f.setCachedItemName(itemController.getItemName(f.getItemId()));
+                            cachedFlips.add(f);
+                        }
+                    });
                     log.debug("loaded {} cached flips", cachedFlips.size());
                 }
 
@@ -228,7 +225,7 @@ public class FlipFilterAndSort {
     }
 
     private boolean canUseFlipsManager() {
-        return sortDirection == SortDirection.DESC && sortColumn.equals("Last sell time") && filteredItems.isEmpty();
+        return !includeBuyingFlips && sortDirection == SortDirection.DESC && sortColumn.equals("Last sell time") && filteredItems.isEmpty();
     }
 
     public synchronized void writeCsvRecords(FileWriter writer) {
@@ -253,14 +250,14 @@ public class FlipFilterAndSort {
     }
 
     private String toCSVRow(FlipV2 f) {
-        Map<Integer, String> accountIdToDisplayName = accountsManager.accountIDToDisplayNameMap();
+        Map<Integer, String> accountIdToDisplayName = copilotLoginManager.accountIDToDisplayNameMap();
         long profitPerItem = f.getClosedQuantity() > 0 ? f.getProfit() / f.getClosedQuantity() : 0L;
 
         return String.join(",",
                 formatTimestampISO(f.getOpenedTime()),
                 formatTimestampISO(f.getClosedTime()),
                 escapeCSV(accountIdToDisplayName.getOrDefault(f.getAccountId(), "Display name not loaded")),
-                escapeCSV(f.getItemName()),
+                escapeCSV(f.getCachedItemName()),
                 f.getStatus().name(),
                 String.valueOf(f.getOpenedQuantity()),
                 String.valueOf(f.getClosedQuantity()),
@@ -272,14 +269,14 @@ public class FlipFilterAndSort {
         );
     }
 
-    private String formatTimestampISO(int timestamp) {
+    public static String formatTimestampISO(int timestamp) {
         if (timestamp == 0) {
             return "";
         }
         return Instant.ofEpochSecond(timestamp).toString();
     }
 
-    private String escapeCSV(String value) {
+    public static String escapeCSV(String value) {
         if (value == null) {
             return "";
         }

@@ -3,13 +3,14 @@ package com.flippingcopilot.ui.flipsdialog;
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.SessionManager;
 import com.google.inject.name.Named;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
+import okhttp3.OkHttpClient;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -29,7 +30,7 @@ public class FlipsDialogController {
     @Named("copilotExecutor")
     private final ExecutorService executorService;
     private final SessionManager sessionManager;
-    private final AccountsManager accountsManager;
+    private final CopilotLoginManager copilotLoginManager;
     private final FlippingCopilotConfig config;
     private final ApiRequestHandler apiRequestHandler;
 
@@ -64,33 +65,52 @@ public class FlipsDialogController {
             // Initialize all panels upfront
             log.debug("Creating FlipsPanel...");
             long startTime = System.currentTimeMillis();
-            FlipsPanel flipsPanel = new FlipsPanel(flipsManager, itemController, accountsManager,
+            FlipsPanel flipsPanel = new FlipsPanel(flipsManager, itemController, copilotLoginManager,
                     executorService, config, apiRequestHandler);
             log.debug("FlipsPanel created in {}s", (System.currentTimeMillis() - startTime) / 1000.0);
 
             log.debug("Creating ItemAggregatePanel...");
             startTime = System.currentTimeMillis();
             ItemAggregatePanel itemsPanel = new ItemAggregatePanel(flipsManager, itemController,
-                    accountsManager, executorService, config);
+                    copilotLoginManager, executorService, config);
             log.debug("ItemAggregatePanel created in {}s", (System.currentTimeMillis() - startTime) / 1000.0);
 
             log.debug("Creating AccountsAggregatePanel...");
             startTime = System.currentTimeMillis();
-            AccountsAggregatePanel accountsPanel = new AccountsAggregatePanel(flipsManager, accountsManager,
+            AccountsAggregatePanel accountsPanel = new AccountsAggregatePanel(flipsManager, copilotLoginManager,
                     executorService, config, apiRequestHandler, flipsManager);
             log.debug("AccountsAggregatePanel created in {}s", (System.currentTimeMillis() - startTime) / 1000.0);
 
             log.debug("Creating ProfitPanel...");
             startTime = System.currentTimeMillis();
             ProfitPanel profitPanel = new ProfitPanel(flipsManager, executorService, sessionManager,
-                    accountsManager, config);
+                    copilotLoginManager, config);
             log.debug("ProfitPanel created in {}s", (System.currentTimeMillis() - startTime) / 1000.0);
+
+            log.debug("Creating TransactionsPanel...");
+            startTime = System.currentTimeMillis();
+            TransactionsPanel transactionsPanel = new TransactionsPanel(copilotLoginManager, itemController,
+                    executorService, apiRequestHandler, config, flipsManager);
+            log.debug("TransactionsPanel created in {}s", (System.currentTimeMillis() - startTime) / 1000.0);
+
+
 
             // Add all tabs
             tabbedPane.addTab("Flips", flipsPanel);
             tabbedPane.addTab("Items", itemsPanel);
             tabbedPane.addTab("Accounts", accountsPanel);
             tabbedPane.addTab("Profit graph", profitPanel);
+            tabbedPane.addTab("Transactions", transactionsPanel);
+
+            // Add tab change listener to load transactions when first selected
+            tabbedPane.addChangeListener(e -> {
+                if (tabbedPane.getSelectedIndex() == 4) {
+                    transactionsPanel.loadTransactionsIfNeeded();
+                } else if (tabbedPane.getSelectedIndex() == 0) {
+                    flipsPanel.sortAndFilter.reloadFlips(true, true);
+                }
+            });
+
 
             dialog.setContentPane(tabbedPane);
 

@@ -2,7 +2,7 @@ package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.Persistance;
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.util.MutableReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -26,9 +27,8 @@ public class TransactionManager {
     private final FlipManager flipManager;
     private final ScheduledExecutorService executorService;
     private final ApiRequestHandler api;
-    private final LoginResponseManager loginResponseManager;
+    private final CopilotLoginManager copilotLoginManager;
     private final OsrsLoginManager osrsLoginManager;
-    private final AccountsManager accountsManager;
 
     // state
     private final ConcurrentMap<String, List<Transaction>> cachedUnAckedTransactions = new ConcurrentHashMap<>();
@@ -46,11 +46,11 @@ public class TransactionManager {
             }
         }
 
-        Consumer<List<FlipV2>> onSuccess = (flips) -> {
-            if(!flips.isEmpty() && !accountsManager.exists(flips.get(0).getAccountId())){
-                accountsManager.add(flips.get(0).getAccountId(),displayName);
+        BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
+            if(!flips.isEmpty()) {
+                copilotLoginManager.addAccountIfMissing(flips.get(0).getAccountId(), displayName, userId);
             }
-            flipManager.mergeFlips(flips);
+            flipManager.mergeFlips(flips, userId);
             log.info("sending {} transactions took {}ms", toSend.size(), (System.nanoTime() - s) / 1000_000);
             synchronized (this) {
                 List<Transaction> unAckedTransactions  = getUnAckedTransactions(displayName);
@@ -67,7 +67,7 @@ public class TransactionManager {
                 transactionSyncScheduled.get(displayName).set(false);
             }
             String currentDisplayName = osrsLoginManager.getPlayerDisplayName();
-            if (loginResponseManager.isLoggedIn() && (currentDisplayName == null || currentDisplayName.equals(displayName))) {
+            if (copilotLoginManager.isLoggedIn() && (currentDisplayName == null || currentDisplayName.equals(displayName))) {
                 log.warn("failed to send transactions to copilot server {}", e.getMessage(), e);
                 scheduleSyncIn(10, displayName);
             }
@@ -83,12 +83,12 @@ public class TransactionManager {
         }
         MutableReference<Long> profit = new MutableReference<>(0L);
         if (OfferStatus.SELL.equals(transaction.getType())) {
-            Integer accountId = accountsManager.getAccountId(displayName);
+            Integer accountId = copilotLoginManager.getAccountId(displayName);
             if (accountId != null && accountId != -1) {
                 profit.setValue(flipManager.estimateTransactionProfit(accountId, transaction));
             }
         }
-        if (loginResponseManager.isLoggedIn()) {
+        if (copilotLoginManager.isLoggedIn()) {
             scheduleSyncIn(0, displayName);
         }
         return profit.getValue();

@@ -3,7 +3,7 @@ package com.flippingcopilot.ui.flipsdialog;
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.Paginator;
 import com.flippingcopilot.ui.Spinner;
@@ -25,9 +25,11 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.NumberFormat;
+import java.time.Instant;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static com.flippingcopilot.util.DateUtil.formatEpoch;
@@ -37,7 +39,7 @@ public class FlipsPanel extends JPanel {
 
 
     private static final Integer[] PAGE_SIZE_OPTIONS = {10, 25, 50, 100, 200, 500, 1000, 2000};
-    private static final NumberFormat GP_FORMAT = NumberFormat.getNumberInstance(Locale.US);
+    public static final NumberFormat GP_FORMAT = NumberFormat.getNumberInstance(Locale.US);
     public static final String[] COLUMN_NAMES = {
             "First buy time", "Last sell time", "Account", "Item", "Status", "Bought", "Sold",
             "Avg. buy price", "Avg. sell price", "Tax", "Profit", "Profit ea."
@@ -45,7 +47,7 @@ public class FlipsPanel extends JPanel {
 
     // dependencies
     private final FlipManager flipsManager;
-    private final AccountsManager accountsManager;
+    private final CopilotLoginManager copilotLoginManager;
     private final ApiRequestHandler apiRequestHandler;
 
     // ui components
@@ -63,22 +65,22 @@ public class FlipsPanel extends JPanel {
 
     // state
     private List<FlipV2> currentFlips = new ArrayList<>();
-    private FlipFilterAndSort sortAndFilter;
+    public FlipFilterAndSort sortAndFilter;
 
 
 
     public FlipsPanel(FlipManager flipsManager,
                       ItemController itemController,
-                      AccountsManager accountsManager,
+                      CopilotLoginManager copilotLoginManager,
                       @Named("copilotExecutor") ExecutorService executorService,
                       FlippingCopilotConfig config,
                       ApiRequestHandler apiRequestHandler) {
-        this.accountsManager = accountsManager;
+        this.copilotLoginManager = copilotLoginManager;
         this.apiRequestHandler = apiRequestHandler;
 
         // Initialize pagination first (before loadFlips is called)
         paginatorPanel = new Paginator((i) -> sortAndFilter.setPage(i));
-        sortAndFilter = new FlipFilterAndSort(flipsManager, this::showFlips, paginatorPanel::setTotalPages, this::setSpinnerVisible, executorService, accountsManager);
+        sortAndFilter = new FlipFilterAndSort(flipsManager, this::showFlips, paginatorPanel::setTotalPages, this::setSpinnerVisible, executorService, copilotLoginManager, itemController);
         this.flipsManager = flipsManager;
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -194,7 +196,7 @@ public class FlipsPanel extends JPanel {
                                                            boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 if (value instanceof Long) {
-                    setText(formatGp((Long) value));
+                    setText(GP_FORMAT.format((long) (Long) value));
                     setHorizontalAlignment(RIGHT);
                 } else if (value instanceof String) {
                     setHorizontalAlignment(CENTER);
@@ -210,7 +212,7 @@ public class FlipsPanel extends JPanel {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 if (value instanceof Long) {
                     long amount = (Long) value;
-                    setText(formatGp(amount));
+                    setText(GP_FORMAT.format(amount));
                     setHorizontalAlignment(RIGHT);
 
                     // Color profit/loss only if not selected
@@ -313,7 +315,7 @@ public class FlipsPanel extends JPanel {
 
     private void setupDropdowns() {
         accountDropdown = new AccountDropdown(
-                accountsManager::displayNameToAccountIdMap,
+                copilotLoginManager::displayNameToAccountIdMap,
                 sortAndFilter::setAccountId,
                 AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
         );
@@ -325,7 +327,6 @@ public class FlipsPanel extends JPanel {
         timeIntervalDropdown.setPreferredSize(new Dimension(150, timeIntervalDropdown.getPreferredSize().height));
         timeIntervalDropdown.setToolTipText("Select time interval");
     }
-
 
     private void showFlipMenu(MouseEvent e, int row) {
         FlipV2 flip = currentFlips.get(row);
@@ -341,7 +342,7 @@ public class FlipsPanel extends JPanel {
                 setSpinnerVisible(true);
                 log.info("deleting flip with ID: {}", flip.getId());
                 Consumer<FlipV2> onSuccess = (f) -> {
-                    flipsManager.mergeFlips(Collections.singletonList(f));
+                    flipsManager.mergeFlips(Collections.singletonList(f),copilotLoginManager.getCopilotUserId());
                     setSpinnerVisible(false);
                     sortAndFilter.reloadFlips(true, true);
                 };
@@ -349,6 +350,89 @@ public class FlipsPanel extends JPanel {
             }
         });
         menu.add(deleteItem);
+
+        String displayName = copilotLoginManager.getDisplayName(flip.getAccountId());
+        if (displayName != null && !FlipStatus.FINISHED.equals(flip.getStatus())) {
+            JMenuItem missedSellTransaction = new JMenuItem("Add missed sell transaction");
+            missedSellTransaction.addActionListener(evt -> {
+                int qty = flip.getOpenedQuantity() - flip.getClosedQuantity();
+                int suggestedPrice = (int) (flip.getAvgBuyPrice() * 1.02);
+
+                JPanel dialogPanel = new JPanel(new GridBagLayout());
+                GridBagConstraints gbc = new GridBagConstraints();
+                gbc.insets = new Insets(5, 5, 5, 5);
+                gbc.anchor = GridBagConstraints.WEST;
+                gbc.gridx = 0; gbc.gridy = 0;
+                dialogPanel.add(new JLabel("Item:"), gbc);
+                gbc.gridx = 1;
+                dialogPanel.add(new JLabel(flip.getCachedItemName()), gbc);
+                gbc.gridx = 0; gbc.gridy = 1;
+                dialogPanel.add(new JLabel("Quantity:"), gbc);
+                gbc.gridx = 1;
+                dialogPanel.add(new JLabel(String.valueOf(qty)), gbc);
+                gbc.gridx = 0; gbc.gridy = 2;
+                dialogPanel.add(new JLabel("Sell Price:"), gbc);
+                gbc.gridx = 1;
+                JTextField priceField = new JTextField(String.valueOf(suggestedPrice), 10);
+                dialogPanel.add(priceField, gbc);
+
+                int result = JOptionPane.showConfirmDialog(this,
+                        dialogPanel,
+                        "Add Missed Sell Transaction",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.PLAIN_MESSAGE);
+
+                if (result == JOptionPane.YES_OPTION) {
+                    try {
+                        int price = Integer.parseInt(priceField.getText().trim());
+                        if (price <= 0) {
+                            JOptionPane.showMessageDialog(this,
+                                    "Price must be a positive number.",
+                                    "Invalid Price",
+                                    JOptionPane.ERROR_MESSAGE);
+                            return;
+                        }
+
+                        setSpinnerVisible(true);
+                        log.info("Adding missed sell transaction for flip with ID: {}", flip.getId());
+
+                        Transaction t = new Transaction();
+                        t.setId(UUID.randomUUID());
+                        t.setType(OfferStatus.SELL);
+                        t.setItemId(flip.getItemId());
+                        t.setPrice(price);
+                        t.setQuantity(qty);
+                        t.setBoxId(0);
+                        t.setAmountSpent(price * qty);
+                        t.setTimestamp(Instant.now());
+                        t.setCopilotPriceUsed(true);
+                        t.setWasCopilotSuggestion(true);
+                        t.setOfferTotalQuantity(qty);
+
+                        BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
+                            flipsManager.mergeFlips(flips, userId);
+                            setSpinnerVisible(false);
+                            sortAndFilter.reloadFlips(true, true);
+                        };
+                        Consumer<HttpResponseException> onFailure = (r) -> {
+                            setSpinnerVisible(false);
+                            JOptionPane.showMessageDialog(this,
+                                    "Failed to add sell transaction. Please try again.",
+                                    "Transaction Error",
+                                    JOptionPane.ERROR_MESSAGE);
+                        };
+                        apiRequestHandler.sendTransactionsAsync(List.of(t), displayName, onSuccess, onFailure);
+
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(this,
+                                "Please enter a valid number for the price.",
+                                "Invalid Price",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            });
+            menu.add(missedSellTransaction);
+        }
         menu.show(e.getComponent(), e.getX(), e.getY());
     }
 
@@ -371,11 +455,9 @@ public class FlipsPanel extends JPanel {
 
     private void showFlips(List<FlipV2> flips) {
         SwingUtilities.invokeLater(() -> {
-            // Clear existing data
             currentFlips = flips;
             tableModel.setRowCount(0);
-            Map<Integer, String> accountIdToDisplayName = accountsManager.accountIDToDisplayNameMap();
-            // Add new data
+            Map<Integer, String> accountIdToDisplayName = copilotLoginManager.accountIDToDisplayNameMap();
             for (FlipV2 flip : flips) {
                 long profitPerItem = flip.getClosedQuantity() > 0 ? flip.getProfit() / flip.getClosedQuantity() : 0L;
 
@@ -383,7 +465,7 @@ public class FlipsPanel extends JPanel {
                         formatTimestamp(flip.getOpenedTime()),
                         formatTimestamp(flip.getClosedTime()),
                         accountIdToDisplayName.getOrDefault(flip.getAccountId(), "Display name not loaded"),
-                        flip.getItemName(),
+                        flip.getCachedItemName(),
                         flip.getStatus().name(),
                         flip.getOpenedQuantity(),
                         flip.getClosedQuantity(),
@@ -417,10 +499,6 @@ public class FlipsPanel extends JPanel {
 
         preferredWidth = Math.min(preferredWidth, maxWidth);
         tableColumn.setPreferredWidth(preferredWidth);
-    }
-
-    private String formatGp(long amount) {
-        return GP_FORMAT.format(amount);
     }
 
     private String formatTimestamp(int epochSeconds) {
