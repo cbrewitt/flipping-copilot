@@ -2,7 +2,7 @@ package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -41,7 +41,7 @@ public class FlipManager {
     private final ApiRequestHandler api;
     private final ScheduledExecutorService executorService;
     private final OkHttpClient okHttpClient;
-    private final AccountsManager accountsManager;
+    private final CopilotLoginManager copilotLoginManager;
     private final ItemController itemController;
 
     @Setter
@@ -56,8 +56,6 @@ public class FlipManager {
     final Map<UUID, Integer> existingCloseTimes = new HashMap<>();
     final List<WeekAggregate> weeks = new ArrayList<>(365*5);
 
-    private int resetSeq = 0;
-    public volatile boolean flipsLoaded;
 
     public synchronized Integer getIntervalAccount() {
         return intervalAccount;
@@ -78,7 +76,7 @@ public class FlipManager {
             Map<Integer, FlipV2> flips = lastOpenFlipByItemId.get(accountId);
             FlipV2 flip = flips.get(itemId);
             if (flip != null) {
-                flip.setItemName(itemController.getItemName(flip.getItemId()));
+                flip.setCachedItemName(itemController.getItemName(flip.getItemId()));
                 return flip;
             }
         }
@@ -214,10 +212,10 @@ public class FlipManager {
             WeekAggregate openingFlips = getOrInitWeek(0);
             List<FlipV2> flips = openingFlips.flipsAfter(-1, true);
             flips.addAll(resultFlips);
-            flips.forEach(flip -> flip.setItemName(itemController.getItemName(flip.getItemId())));
+            flips.forEach(flip -> flip.setCachedItemName(itemController.getItemName(flip.getItemId())));
             return flips;
         }
-        resultFlips.forEach(flip -> flip.setItemName(itemController.getItemName(flip.getItemId())));
+        resultFlips.forEach(flip -> flip.setCachedItemName(itemController.getItemName(flip.getItemId())));
         return resultFlips;
     }
 
@@ -230,17 +228,8 @@ public class FlipManager {
         // refactor the API call to be async style but until then just run in okHttpClient's executor
         okHttpClient.dispatcher().executorService().submit(() -> {
             try {
+
                 long s = System.nanoTime();
-                Map<String, Integer> names = api.loadUserDisplayNames();
-                synchronized (this) {
-                    if (seq != resetSeq) {
-                        return;
-                    }
-                    names.forEach(
-                            (k, v) -> accountsManager.add(v, k));
-                }
-                log.debug("loading account names took {}ms", (System.nanoTime() - s) / 1000_000);
-                s = System.nanoTime();
                 List<FlipV2> flips = api.LoadFlips();
                 log.debug("loading {} flips took {}ms", flips.size(), (System.nanoTime() - s) / 1000_000);
                 s = System.nanoTime();
@@ -270,8 +259,6 @@ public class FlipManager {
         lastOpenFlipByItemId.clear();
         existingCloseTimes.clear();
         weeks.clear();
-        flipsLoaded = false;
-        resetSeq += 1;
     }
 
     private void mergeFlip_(FlipV2 flip) {
@@ -279,8 +266,12 @@ public class FlipManager {
 
         if(existingCloseTime != null) {
             WeekAggregate wa = getOrInitWeek(existingCloseTime);
-            FlipV2 removed = wa.removeFlip(flip.getId(), existingCloseTime, flip.getAccountId());
-            if(removed.getClosedTime() >= intervalStartTime && (intervalAccount == null || removed.getAccountId() == intervalAccount)) {
+            FlipV2 removed = wa.removeFlipIfUpdatedBefore(flip.getId(), existingCloseTime, flip.getAccountId(), flip.getUpdatedTime());
+            if (removed == null) {
+                // the flip we are merging is an out of date instance of the same flip
+                return;
+            }
+            if(isInInterval(removed)) {
                 intervalStats.subtractFlip(removed);
             }
         }
@@ -289,7 +280,7 @@ public class FlipManager {
         }
         WeekAggregate wa = getOrInitWeek(flip.getClosedTime());
         wa.addFlip(flip);
-        if(flip.getClosedTime() >= intervalStartTime && (intervalAccount == null || flip.getAccountId() == intervalAccount)) {
+        if(isInInterval(flip)) {
             intervalStats.addFlip(flip);
         }
 
@@ -300,6 +291,10 @@ public class FlipManager {
         }
 
         existingCloseTimes.put(flip.getId(), flip.getClosedTime());
+    }
+
+    private boolean isInInterval(FlipV2 flip) {
+        return flip.getClosedTime() >= intervalStartTime && (intervalAccount == null || flip.getAccountId() == intervalAccount);
     }
 
     private WeekAggregate getOrInitWeek(int closeTime) {
@@ -352,10 +347,14 @@ public class FlipManager {
             flips.add(-i -1, flip);
         }
 
-        FlipV2 removeFlip(UUID id, int closeTime, int accountId) {
+        FlipV2 removeFlipIfUpdatedBefore(UUID id, int closeTime, int accountId, int newUpdatedTime) {
             List<FlipV2> flips = accountIdToFlips.computeIfAbsent(accountId, (k) -> new ArrayList<>());
             int i = bisect(flips.size(), closedTimeCmp(flips, id, closeTime));
             FlipV2 flip = flips.get(i);
+            // if the existing instance of the flip is updated more recently return null
+            if (flip.getUpdatedTime() > newUpdatedTime) {
+                return null;
+            }
             allStats.subtractFlip(flip);
             flips.remove(i);
             accountIdToStats.get(accountId).subtractFlip(flip);

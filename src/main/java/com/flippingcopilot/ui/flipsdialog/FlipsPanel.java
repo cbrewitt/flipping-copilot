@@ -3,7 +3,7 @@ package com.flippingcopilot.ui.flipsdialog;
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.Paginator;
 import com.flippingcopilot.ui.Spinner;
@@ -45,7 +45,7 @@ public class FlipsPanel extends JPanel {
 
     // dependencies
     private final FlipManager flipsManager;
-    private final AccountsManager accountsManager;
+    private final CopilotLoginManager copilotLoginManager;
     private final ApiRequestHandler apiRequestHandler;
 
     // ui components
@@ -69,16 +69,16 @@ public class FlipsPanel extends JPanel {
 
     public FlipsPanel(FlipManager flipsManager,
                       ItemController itemController,
-                      AccountsManager accountsManager,
+                      CopilotLoginManager copilotLoginManager,
                       @Named("copilotExecutor") ExecutorService executorService,
                       FlippingCopilotConfig config,
                       ApiRequestHandler apiRequestHandler) {
-        this.accountsManager = accountsManager;
+        this.copilotLoginManager = copilotLoginManager;
         this.apiRequestHandler = apiRequestHandler;
 
         // Initialize pagination first (before loadFlips is called)
         paginatorPanel = new Paginator((i) -> sortAndFilter.setPage(i));
-        sortAndFilter = new FlipFilterAndSort(flipsManager, this::showFlips, paginatorPanel::setTotalPages, this::setSpinnerVisible, executorService, accountsManager);
+        sortAndFilter = new FlipFilterAndSort(flipsManager, this::showFlips, paginatorPanel::setTotalPages, this::setSpinnerVisible, executorService, copilotLoginManager);
         this.flipsManager = flipsManager;
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -313,7 +313,7 @@ public class FlipsPanel extends JPanel {
 
     private void setupDropdowns() {
         accountDropdown = new AccountDropdown(
-                accountsManager::displayNameToAccountIdMap,
+                copilotLoginManager::displayNameToAccountIdMap,
                 sortAndFilter::setAccountId,
                 AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
         );
@@ -374,7 +374,7 @@ public class FlipsPanel extends JPanel {
             // Clear existing data
             currentFlips = flips;
             tableModel.setRowCount(0);
-            Map<Integer, String> accountIdToDisplayName = accountsManager.accountIDToDisplayNameMap();
+            Map<Integer, String> accountIdToDisplayName = copilotLoginManager.accountIDToDisplayNameMap();
             // Add new data
             for (FlipV2 flip : flips) {
                 long profitPerItem = flip.getClosedQuantity() > 0 ? flip.getProfit() / flip.getClosedQuantity() : 0L;
@@ -383,7 +383,7 @@ public class FlipsPanel extends JPanel {
                         formatTimestamp(flip.getOpenedTime()),
                         formatTimestamp(flip.getClosedTime()),
                         accountIdToDisplayName.getOrDefault(flip.getAccountId(), "Display name not loaded"),
-                        flip.getItemName(),
+                        flip.getCachedItemName(),
                         flip.getStatus().name(),
                         flip.getOpenedQuantity(),
                         flip.getClosedQuantity(),

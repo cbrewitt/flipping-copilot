@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.FlipV2;
 import com.flippingcopilot.model.IntervalTimeUnit;
@@ -42,7 +42,7 @@ public class FlipFilterAndSort {
 
         SORT_COMPARATORS.put("First buy time", Comparator.comparing(FlipV2::getOpenedTime));
         SORT_COMPARATORS.put("Account", Comparator.comparing(FlipV2::getAccountId));
-        SORT_COMPARATORS.put("Item", Comparator.comparing(f -> f.getItemName() != null ? f.getItemName() : ""));
+        SORT_COMPARATORS.put("Item", Comparator.comparing(f -> f.getCachedItemName() != null ? f.getCachedItemName() : ""));
         SORT_COMPARATORS.put("Status", Comparator.comparing(FlipV2::getStatus));
         SORT_COMPARATORS.put("Bought", Comparator.comparing(FlipV2::getOpenedQuantity));
         SORT_COMPARATORS.put("Sold", Comparator.comparing(FlipV2::getClosedQuantity));
@@ -60,7 +60,7 @@ public class FlipFilterAndSort {
     private final Consumer<Integer> totalPagesChangedCallback;
     private final Consumer<Boolean> slowLoadingCallback;
     private final ExecutorService executorService;
-    private final AccountsManager accountsManager;
+    private final CopilotLoginManager copilotLoginManager;
 
     // state
     private List<FlipV2> cachedFlips = new ArrayList<>();
@@ -89,14 +89,14 @@ public class FlipFilterAndSort {
                              Consumer<Integer> totalPagesChangedCallback,
                              Consumer<Boolean> slowLoadingCallback,
                              @Named("copilotExecutor") ExecutorService executorService,
-                             AccountsManager accountsManager) {
+                             CopilotLoginManager copilotLoginManager) {
         this.flipManager = flipManager;
 
         this.flipsCallback = flipsCallback;
         this.totalPagesChangedCallback = totalPagesChangedCallback;
         this.slowLoadingCallback = slowLoadingCallback;
         this.executorService = executorService;
-        this.accountsManager = accountsManager;
+        this.copilotLoginManager = copilotLoginManager;
     }
 
     public synchronized void setIncludeBuyingFlips(boolean b) {
@@ -253,14 +253,14 @@ public class FlipFilterAndSort {
     }
 
     private String toCSVRow(FlipV2 f) {
-        Map<Integer, String> accountIdToDisplayName = accountsManager.accountIDToDisplayNameMap();
+        Map<Integer, String> accountIdToDisplayName = copilotLoginManager.accountIDToDisplayNameMap();
         long profitPerItem = f.getClosedQuantity() > 0 ? f.getProfit() / f.getClosedQuantity() : 0L;
 
         return String.join(",",
                 formatTimestampISO(f.getOpenedTime()),
                 formatTimestampISO(f.getClosedTime()),
                 escapeCSV(accountIdToDisplayName.getOrDefault(f.getAccountId(), "Display name not loaded")),
-                escapeCSV(f.getItemName()),
+                escapeCSV(f.getCachedItemName()),
                 f.getStatus().name(),
                 String.valueOf(f.getOpenedQuantity()),
                 String.valueOf(f.getClosedQuantity()),

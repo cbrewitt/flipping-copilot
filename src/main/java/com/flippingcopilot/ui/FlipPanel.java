@@ -22,7 +22,7 @@ public class FlipPanel extends JPanel {
         JLabel itemQuantity = new JLabel(String.format("%d x ", flip.getClosedQuantity()));
         itemQuantity.setForeground(Color.WHITE);
 
-        JLabel itemNameLabel = new JLabel(UIUtilities.truncateString(flip.getItemName(), 20));
+        JLabel itemNameLabel = new JLabel(UIUtilities.truncateString(flip.getCachedItemName(), 20));
 
         // Create a sub-panel for the left side
         JPanel leftPanel = new JPanel();

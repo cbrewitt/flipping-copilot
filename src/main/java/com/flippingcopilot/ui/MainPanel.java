@@ -1,7 +1,7 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.CopilotLoginController;
-import com.flippingcopilot.model.LoginResponseManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
@@ -22,7 +22,7 @@ public class MainPanel extends PluginPanel {
     // dependencies
     public final LoginPanel loginPanel;
     public final CopilotPanel copilotPanel;
-    private final LoginResponseManager loginResponseManager;
+    private final CopilotLoginManager copilotLoginManager;
     private final CopilotLoginController copilotLoginController;
 
     private Boolean isLoggedInView;
@@ -30,12 +30,12 @@ public class MainPanel extends PluginPanel {
     @Inject
     public MainPanel(CopilotPanel copilotPanel,
                      LoginPanel loginPanel,
-                     LoginResponseManager loginResponseManager,
+                     CopilotLoginManager copilotLoginManager,
                      CopilotLoginController copilotLoginController) {
         super(false);
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(5, 6, 5, 6));
-        this.loginResponseManager = loginResponseManager;
+        this.copilotLoginManager = copilotLoginManager;
         this.copilotPanel = copilotPanel;
         this.loginPanel = loginPanel;
         this.copilotLoginController = copilotLoginController;
@@ -47,7 +47,7 @@ public class MainPanel extends PluginPanel {
             SwingUtilities.invokeLater(this::refresh);
             return;
         }
-        boolean shouldBeLoggedInView = loginResponseManager.isLoggedIn();
+        boolean shouldBeLoggedInView = copilotLoginManager.isLoggedIn();
         if(shouldBeLoggedInView) {
             if (isLoggedInView == null || !isLoggedInView) {
                 renderLoggedInView();

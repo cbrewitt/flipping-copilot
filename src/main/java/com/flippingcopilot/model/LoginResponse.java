@@ -7,8 +7,6 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class LoginResponse {
-    public boolean error;
-    public String message;
     public String jwt;
 
     @SerializedName("user_id")

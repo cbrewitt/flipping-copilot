@@ -22,16 +22,23 @@ public class AccountDropdown extends JComboBox<String> {
     private Map<String, Integer> cachedAccounts;
     private volatile boolean refreshInProgress = false;
 
-    public AccountDropdown(Supplier<Map<String, Integer>> accountsGetter, Consumer<Integer> onDisplayNameChanged, String initialValue) {
+    public AccountDropdown(Supplier<Map<String, Integer>> accountsGetter, Consumer<Integer> onSelectedAccountChanged, String initialValue) {
+
         super();
         this.accountsGetter = accountsGetter;
-
+        DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) getModel();
+        if(ALL_ACCOUNTS_DROPDOWN_OPTION.equals(initialValue)) {
+            model.addElement(ALL_ACCOUNTS_DROPDOWN_OPTION);
+        } else {
+            model.addElement(initialValue);
+            model.addElement(ALL_ACCOUNTS_DROPDOWN_OPTION);
+        }
         setBorder(BorderFactory.createEmptyBorder());
         setMaximumSize(new Dimension(Integer.MAX_VALUE, getPreferredSize().height));
         setSelectedItem(initialValue);
         addItemListener(e -> {
             if (!refreshInProgress && e.getStateChange() == ItemEvent.SELECTED) {
-                onDisplayNameChanged.accept(getSelectedAccountId());
+                onSelectedAccountChanged.accept(getSelectedAccountId());
             }
         });
     }

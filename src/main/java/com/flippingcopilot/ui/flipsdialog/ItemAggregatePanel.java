@@ -2,7 +2,7 @@ package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.Paginator;
 import com.flippingcopilot.ui.Spinner;
@@ -32,7 +32,7 @@ public class ItemAggregatePanel extends JPanel {
     private static final NumberFormat GP_FORMAT = NumberFormat.getNumberInstance(Locale.US);
 
     // dependencies
-    private final AccountsManager accountsManager;
+    private final CopilotLoginManager copilotLoginManager;
 
     // ui components
     private final DefaultTableModel tableModel;
@@ -55,10 +55,10 @@ public class ItemAggregatePanel extends JPanel {
 
     public ItemAggregatePanel(FlipManager flipsManager,
                               ItemController itemController,
-                              AccountsManager accountsManager,
+                              CopilotLoginManager copilotLoginManager,
                               @Named("copilotExecutor") ExecutorService executorService,
                               FlippingCopilotConfig config) {
-        this.accountsManager = accountsManager;
+        this.copilotLoginManager = copilotLoginManager;
         setFocusable(true);
 
         paginatorPanel = new Paginator((i) -> sortAndFilter.setPage(i));
@@ -249,7 +249,7 @@ public class ItemAggregatePanel extends JPanel {
 
     private void setupDropdowns() {
         accountDropdown = new AccountDropdown(
-                accountsManager::displayNameToAccountIdMap,
+                copilotLoginManager::displayNameToAccountIdMap,
                 sortAndFilter::setAccountId,
                 AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
         );

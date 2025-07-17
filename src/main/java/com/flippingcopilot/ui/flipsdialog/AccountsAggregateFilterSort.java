@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +16,7 @@ public class AccountsAggregateFilterSort {
 
     // dependencies
     private final FlipManager flipManager;
-    private final AccountsManager accountsManager;
+    private final CopilotLoginManager copilotLoginManager;
     private final Consumer<List<AccountAggregate>> aggregatesCallback;
     private final Consumer<Boolean> slowLoadingCallback;
     private final ExecutorService executorService;
@@ -27,12 +27,12 @@ public class AccountsAggregateFilterSort {
     private final List<AccountAggregate> cachedAggregates =  new ArrayList<>();
 
     public AccountsAggregateFilterSort(FlipManager flipManager,
-                                       AccountsManager accountsManager,
+                                       CopilotLoginManager copilotLoginManager,
                                        Consumer<List<AccountAggregate>> aggregatesCallback,
                                        Consumer<Boolean> slowLoadingCallback,
                                        @Named("copilotExecutor") ExecutorService executorService) {
         this.flipManager = flipManager;
-        this.accountsManager = accountsManager;
+        this.copilotLoginManager = copilotLoginManager;
         this.aggregatesCallback = aggregatesCallback;
         this.slowLoadingCallback = slowLoadingCallback;
         this.executorService = executorService;
@@ -65,12 +65,12 @@ public class AccountsAggregateFilterSort {
                 log.debug("loading account aggregates");
                 cachedAggregates.clear();
                 Aggregator a = new Aggregator();
-                accountsManager.accountIDToDisplayNameMap().forEach(
+                copilotLoginManager.accountIDToDisplayNameMap().forEach(
                         (accountId, displayName)  -> a.accounts.put(accountId, new AccountAggregator(accountId))
                 );
                 flipManager.aggregateFlips(intervalStartTime, null, false, a);
                 cachedIntervalStartTime = intervalStartTime;
-                a.accounts.forEach((k, v) -> cachedAggregates.add(v.toAccountAggregate(accountsManager.getDisplayName(k))));
+                a.accounts.forEach((k, v) -> cachedAggregates.add(v.toAccountAggregate(copilotLoginManager.getDisplayName(k))));
                 log.debug("loaded {} account aggregates", cachedAggregates.size());
             }
             // Final callback to indicate completion
