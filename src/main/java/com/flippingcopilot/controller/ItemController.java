@@ -1,21 +1,19 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.model.ItemIdName;
 import com.flippingcopilot.ui.FuzzySearchScorer;
-import com.flippingcopilot.util.ClientThreadUtil;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.ItemComposition;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
-import org.apache.commons.lang3.tuple.Pair;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -23,40 +21,64 @@ import java.util.stream.IntStream;
 
 @Slf4j
 @Singleton
-@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class ItemController {
     private static final int NAME_CHAR_LIMIT = 25;
 
     // dependencies
-    private final Client client;
-    private final ClientThreadUtil clientThreadUtil;
-    private final ItemManager itemManager;
     private final FuzzySearchScorer fuzzySearchScorer;
 
     // state
     private final Map<Integer, String> cachedItemNames = new ConcurrentHashMap<>();
+    private volatile List<ItemIdName> cachedItems = new ArrayList<>(); // volatile used to guarantee immediate visibility across threads on re-assignment
+    private final AtomicBoolean initScheduled = new AtomicBoolean(false);
 
-    public List<Pair<Integer, String>> search(String input, Set<Integer> existingSelectedItems) {
-        if(!client.isClientThread()) {
-            return clientThreadUtil.executeInClientThread(() -> search(input, existingSelectedItems));
-        }
+    @Inject
+    public ItemController(Client client,
+                          ClientThread clientThread,
+                          ItemManager itemManager,
+                          FuzzySearchScorer fuzzySearchScorer,
+                          ScheduledExecutorService executorService) {
+        this.fuzzySearchScorer = fuzzySearchScorer;
+
+        Runnable initItems = () -> {
+            // only allow one init attempt at a time
+            if(initScheduled.compareAndSet(false, true)) {
+                clientThread.invokeLater(() -> {
+                    List<ItemIdName> items = IntStream.range(0, client.getItemCount())
+                            .mapToObj(itemManager::getItemComposition)
+                            .filter(item -> item.isTradeable() && item.getNote() == -1)
+                            .map(i -> new ItemIdName(i.getId(), i.getName()))
+                            .collect(Collectors.toList());
+                    if (!items.isEmpty()) {
+                        cachedItems = items;
+                        cachedItems.forEach(i -> cachedItemNames.put(i.itemId, i.name));
+                        initScheduled.set(false);
+                        log.debug("initialised {} items", items.size());
+                        return true;
+                    }
+                    // if no items are found try again
+                    return false;
+                });
+            }
+        };
+
+        // re-init every 5 mins just in case new items are added without restart
+        executorService.scheduleAtFixedRate(initItems, 0, 5, TimeUnit.MINUTES);
+    }
+
+    public List<ItemIdName> search(String input, Set<Integer> existingSelectedItems) {
+
         if(input == null || input.isBlank()) {
-            return IntStream.range(0, client.getItemCount())
-                    .mapToObj(itemManager::getItemComposition)
-                    .filter(item -> item.isTradeable() && item.getNote() == -1)
-                    .sorted(Comparator.comparing((ItemComposition i) -> !existingSelectedItems.contains(i.getId())).thenComparing(ItemComposition::getName))
-                    .map((i) -> Pair.of(i.getId(), trimName(i.getName())))
+            return cachedItems.stream()
+                    .sorted(Comparator.comparing((ItemIdName i) -> !existingSelectedItems.contains(i.itemId)).thenComparing(i -> i.name))
                     .collect(Collectors.toList());
         }
 
-        ToDoubleFunction<ItemComposition> comparator = fuzzySearchScorer.comparator(input);
-        return IntStream.range(0, client.getItemCount())
-                .mapToObj(itemManager::getItemComposition)
-                .filter(item -> item.isTradeable() && item.getNote() == -1)
+        ToDoubleFunction<ItemIdName> comparator = fuzzySearchScorer.comparator(input);
+        return cachedItems.stream()
                 .filter(item -> comparator.applyAsDouble(item) > 0)
-                .sorted(Comparator.comparing((ItemComposition i) -> !existingSelectedItems.contains(i.getId())).thenComparing(Comparator.comparingDouble(comparator).reversed()
-                        .thenComparing(ItemComposition::getName)))
-                .map((i) -> Pair.of(i.getId(), trimName(i.getName())))
+                .sorted(Comparator.comparing((ItemIdName i) -> !existingSelectedItems.contains(i.itemId)).thenComparing(Comparator.comparingDouble(comparator).reversed()
+                        .thenComparing(i -> i.name)))
                 .collect(Collectors.toList());
     }
 
@@ -69,37 +91,10 @@ public class ItemController {
     }
 
     public Set<Integer> allItemIds() {
-        if(!client.isClientThread()) {
-            return clientThreadUtil.executeInClientThread(this::allItemIds);
-        }
-        return IntStream.range(0, client.getItemCount())
-                .mapToObj(itemManager::getItemComposition)
-                .filter(item -> item.isTradeable() && item.getNote() == -1)
-                .map(ItemComposition::getId).collect(Collectors.toSet());
+        return cachedItemNames.keySet();
     }
 
     public String getItemName(Integer itemId) {
-        if (cachedItemNames.containsKey(itemId)) {
-            return cachedItemNames.get(itemId);
-        }
-        loadItemNames(itemId);
         return cachedItemNames.getOrDefault(itemId, "Name unavailable");
-    }
-
-    private int loadItemNames(Integer missing) {
-        log.debug("loading item names");
-        if(!client.isClientThread()) {
-            return clientThreadUtil.executeInClientThread(() -> loadItemNames(missing));
-        }
-        // someone else beat us to it...
-        if(cachedItemNames.containsKey(missing)) {
-            return 0;
-        }
-        Map<Integer, String> itemNames = IntStream.range(0, client.getItemCount())
-                .mapToObj(itemManager::getItemComposition)
-                .collect(Collectors.toMap(ItemComposition::getId, ItemComposition::getName));
-        cachedItemNames.putAll(itemNames);
-        log.debug("loaded item names");
-        return 0;
     }
 }

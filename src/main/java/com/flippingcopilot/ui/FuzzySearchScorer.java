@@ -25,7 +25,7 @@
 
 package com.flippingcopilot.ui;
 
-import net.runelite.api.ItemComposition;
+import com.flippingcopilot.model.ItemIdName;
 import org.apache.commons.text.similarity.JaroWinklerDistance;
 import org.apache.commons.text.similarity.LongestCommonSubsequence;
 import org.apache.commons.text.similarity.SimilarityScore;
@@ -66,7 +66,7 @@ public class FuzzySearchScorer
 		return lcsScore + proximityScore - 1.0;
 	}
 
-	public ToDoubleFunction<ItemComposition> comparator(String query)
+	public ToDoubleFunction<ItemIdName> comparator(String query)
 	{
 		// We do this so that for example the items "Anti-venom ..." are still at the top
 		// when searching "anti venom"

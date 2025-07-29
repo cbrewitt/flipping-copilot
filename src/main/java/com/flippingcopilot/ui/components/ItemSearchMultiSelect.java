@@ -1,5 +1,6 @@
 package com.flippingcopilot.ui.components;
 
+import com.flippingcopilot.model.ItemIdName;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -30,16 +31,16 @@ public class ItemSearchMultiSelect extends JPanel {
     private final JScrollPane scrollPane;
     private final JPanel actionButtonsPanel;
     private final Supplier<Set<Integer>> allItemIdsSupplier;
-    private final BiFunction<String, Set<Integer>, List<Pair<Integer, String>>> searchFunc;
+    private final BiFunction<String, Set<Integer>, List<ItemIdName>> searchFunc;
     private final Consumer<Set<Integer>> onItemSelectionChanged;
     private final Supplier<Set<Integer>> selectedItemsGetter;
-    private List<Pair<Integer, String>> currentSearchResults = new ArrayList<>();
+    private List<ItemIdName> currentSearchResults = new ArrayList<>();
 
     @Inject
     public ItemSearchMultiSelect(
             Supplier<Set<Integer>> selectedItemsGetter,
             Supplier<Set<Integer>> allItemIdsSupplier,
-            BiFunction<String, Set<Integer>, List<Pair<Integer, String>>> searchFunc,
+            BiFunction<String, Set<Integer>, List<ItemIdName>> searchFunc,
             Consumer<Set<Integer>> onItemSelectionChanged,
             String placeholderText) {
         super();
@@ -236,7 +237,7 @@ public class ItemSearchMultiSelect extends JPanel {
      * Virtual scrolling panel that only renders visible items
      */
     private class VirtualScrollPanel extends JPanel implements Scrollable {
-        private List<Pair<Integer, String>> items = new ArrayList<>();
+        private List<ItemIdName> items = new ArrayList<>();
         private final Map<Integer, JPanel> panelCache = new HashMap<>();
         private int firstVisibleIndex = 0;
         private int lastVisibleIndex = 0;
@@ -254,7 +255,7 @@ public class ItemSearchMultiSelect extends JPanel {
             });
         }
 
-        public void setItems(List<Pair<Integer, String>> items) {
+        public void setItems(List<ItemIdName> items) {
             this.items = items;
             panelCache.clear(); // Clear cache when items change
 
@@ -306,7 +307,7 @@ public class ItemSearchMultiSelect extends JPanel {
             }
 
             // Create new panel
-            Pair<Integer, String> item = items.get(index);
+            ItemIdName item = items.get(index);
             JPanel panel = createItemPanel(item);
 
             // Cache the panel
@@ -350,7 +351,7 @@ public class ItemSearchMultiSelect extends JPanel {
         }
     }
 
-    private JPanel createItemPanel(Pair<Integer, String> item) {
+    private JPanel createItemPanel(ItemIdName item) {
         Set<Integer> selectedItems = selectedItemsGetter.get();
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(1, 2, 1, 2));
@@ -359,11 +360,11 @@ public class ItemSearchMultiSelect extends JPanel {
         panel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         panel.setOpaque(true);
 
-        JLabel nameLabel = new JLabel(item.getValue());
+        JLabel nameLabel = new JLabel(item.name);
         panel.add(nameLabel, BorderLayout.CENTER);
 
         JCheckBox checkBox = new JCheckBox();
-        checkBox.setSelected(selectedItems.contains(item.getKey()));
+        checkBox.setSelected(selectedItems.contains(item.itemId));
         checkBox.setBackground(ColorScheme.DARK_GRAY_COLOR);
         checkBox.setPreferredSize(new Dimension(20, 16));
 
@@ -372,11 +373,11 @@ public class ItemSearchMultiSelect extends JPanel {
         checkBox.setMargin(new Insets(0, 0, 0, 0));
 
         Runnable onClick = () -> {
-            if (selectedItems.contains(item.getKey())) {
-                selectedItems.remove(item.getKey());
+            if (selectedItems.contains(item.itemId)) {
+                selectedItems.remove(item.itemId);
                 checkBox.setSelected(false);
             } else {
-                selectedItems.add(item.getKey());
+                selectedItems.add(item.itemId);
                 checkBox.setSelected(true);
             }
             onItemSelectionChanged.accept(new HashSet<>(selectedItems));
