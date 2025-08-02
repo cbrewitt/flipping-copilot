@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui.graph;
 
-import com.flippingcopilot.manger.PriceGraphConfigManager;
+import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.ui.graph.model.*;
 
 import javax.swing.*;

@@ -51,8 +51,8 @@ public class ZoomHandler {
         int newTimeMin = pa.bounds.xMin + (int)(((long)pa.bounds.xDelta() * (long)(selectionX1)) / pa.w);
         int newTimeMax = pa.bounds.xMin + (int)(((long)pa.bounds.xDelta() * (long)(selectionX2)) / pa.w);
 
-        int newPriceMax = pa.bounds.yMax - (int)(((long)pa.bounds.yDelta() * (long)(selectionY1)) / pa.h);
-        int newPriceMin = pa.bounds.yMax - (int)(((long)pa.bounds.yDelta() * (long)(selectionY2)) / pa.h);
+        int newPriceMax = (int) (pa.bounds.yMax - ((pa.bounds.yDelta() * (long)(selectionY1)) / pa.h));
+        int newPriceMin = (int) (pa.bounds.yMax - ((pa.bounds.yDelta() * (long)(selectionY2)) / pa.h));
 
         if (newTimeMax - newTimeMin < MIN_TIME_DELTA) {
             log.debug("zoomed time delta {}s too small", newTimeMax - newTimeMin);
@@ -80,7 +80,7 @@ public class ZoomHandler {
         int td = pa.bounds.xDelta();
         pa.bounds.xMin= Math.max(maxViewBounds.xMin, pa.bounds.xMin- (int) (td*0.2));
         pa.bounds.xMax = Math.min(maxViewBounds.xMax, pa.bounds.xMax + (int) (td*0.2));
-        int pd = pa.bounds.yDelta();
+        int pd = (int) pa.bounds.yDelta();
         pa.bounds.yMin = Math.max(maxViewBounds.yMin, pa.bounds.yMin - (int) (pd*0.1));
         pa.bounds.yMax = Math.min(maxViewBounds.yMax, pa.bounds.yMax + (int) (pd*0.1));
     }

@@ -2,7 +2,7 @@ package com.flippingcopilot.ui.graph;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.FlippingCopilotConfig;
-import com.flippingcopilot.manger.PriceGraphConfigManager;
+import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.ItemPrice;
 import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.ui.Spinner;

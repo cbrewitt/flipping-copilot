@@ -68,9 +68,9 @@ public class AxisCalculator {
         int maxAllowableTicks = 18;
         int maxAllowableGridLines = 28;
 
-        int priceRange = pa.bounds.yDelta();
-        int priceMin = pa.bounds.yMin;
-        int priceMax = pa.bounds.yMax;
+        int priceRange = (int) pa.bounds.yDelta();
+        int priceMin = (int) pa.bounds.yMin;
+        int priceMax = (int) pa.bounds.yMax;
 
         int magnitude = (int) Math.floor(Math.log10(priceRange));
         int[] possibleSteps = {1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500};

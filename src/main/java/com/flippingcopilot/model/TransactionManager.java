@@ -2,10 +2,10 @@ package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.Persistance;
+import com.flippingcopilot.manager.AccountsManager;
 import com.flippingcopilot.util.MutableReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.OkHttpClient;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -20,7 +20,7 @@ import java.util.function.Consumer;
 @Slf4j
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
-public class TransactionManger {
+public class TransactionManager {
 
     // dependencies
     private final FlipManager flipManager;
@@ -28,6 +28,7 @@ public class TransactionManger {
     private final ApiRequestHandler api;
     private final LoginResponseManager loginResponseManager;
     private final OsrsLoginManager osrsLoginManager;
+    private final AccountsManager accountsManager;
 
     // state
     private final ConcurrentMap<String, List<Transaction>> cachedUnAckedTransactions = new ConcurrentHashMap<>();
@@ -46,10 +47,10 @@ public class TransactionManger {
         }
 
         Consumer<List<FlipV2>> onSuccess = (flips) -> {
-            for (FlipV2 f : flips) {
-                log.debug("server updated flip for {} closed qty {}, profit {}", f.getItemName(), f.getClosedQuantity(), f.getProfit());
+            if(!flips.isEmpty() && !accountsManager.exists(flips.get(0).getAccountId())){
+                accountsManager.add(flips.get(0).getAccountId(),displayName);
             }
-            flipManager.mergeFlips(flips, displayName);
+            flipManager.mergeFlips(flips);
             log.info("sending {} transactions took {}ms", toSend.size(), (System.nanoTime() - s) / 1000_000);
             synchronized (this) {
                 List<Transaction> unAckedTransactions  = getUnAckedTransactions(displayName);
@@ -82,7 +83,10 @@ public class TransactionManger {
         }
         MutableReference<Long> profit = new MutableReference<>(0L);
         if (OfferStatus.SELL.equals(transaction.getType())) {
-            profit.setValue(flipManager.estimateTransactionProfit(displayName, transaction));
+            Integer accountId = accountsManager.getAccountId(displayName);
+            if (accountId != null && accountId != -1) {
+                profit.setValue(flipManager.estimateTransactionProfit(accountId, transaction));
+            }
         }
         if (loginResponseManager.isLoggedIn()) {
             scheduleSyncIn(0, displayName);

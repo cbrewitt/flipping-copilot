@@ -1,4 +1,4 @@
-package com.flippingcopilot.manger;
+package com.flippingcopilot.manager;
 
 import com.flippingcopilot.controller.Persistance;
 import com.flippingcopilot.ui.graph.model.Config;

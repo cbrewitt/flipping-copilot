@@ -1,6 +1,9 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
+import com.flippingcopilot.controller.ItemController;
+import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -8,12 +11,13 @@ import okhttp3.OkHttpClient;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.swing.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * This class is essentially a cache of user flips that facilitates efficient access to the flips and statistics for
@@ -31,23 +35,23 @@ public class FlipManager {
     private static final int WEEK_SECS = 7 * 24 * 60 * 60;
 
     public static final Comparator<FlipV2> FLIP_STATUS_TIME_COMPARATOR =
-            Comparator.comparing(FlipV2::isClosed, Comparator.reverseOrder())
-                    .thenComparing(flip -> flip.isClosed() ? flip.getClosedTime() : flip.getOpenedTime());
+                Comparator.comparing(FlipV2::isClosed).reversed().thenComparing(f -> f.getClosedTime() > 0 ? f.getClosedTime() : f.getOpenedTime());
 
     // dependencies
     private final ApiRequestHandler api;
     private final ScheduledExecutorService executorService;
     private final OkHttpClient okHttpClient;
+    private final AccountsManager accountsManager;
+    private final ItemController itemController;
 
     @Setter
     private Runnable flipsChangedCallback = () -> {};
 
     // state
-    private String intervalDisplayName;
+    private Integer intervalAccount;
     private int intervalStartTime;
     private Stats intervalStats = new Stats();
 
-    final Map<String, Integer> displayNameToAccountId = new HashMap<>();
     final Map<Integer, Map<Integer, FlipV2>> lastOpenFlipByItemId = new HashMap<>();
     final Map<UUID, Integer> existingCloseTimes = new HashMap<>();
     final List<WeekAggregate> weeks = new ArrayList<>(365*5);
@@ -55,16 +59,11 @@ public class FlipManager {
     private int resetSeq = 0;
     public volatile boolean flipsLoaded;
 
-    public synchronized String getIntervalDisplayName() {
-        return intervalDisplayName;
+    public synchronized Integer getIntervalAccount() {
+        return intervalAccount;
     }
 
-    public synchronized List<String> getDisplayNameOptions() {
-        return displayNameToAccountId.keySet().stream().sorted().collect(Collectors.toList());
-    }
-
-    public synchronized long estimateTransactionProfit(String displayName, Transaction t) {
-        Integer accountId = displayNameToAccountId.get(displayName);
+    public synchronized long estimateTransactionProfit(Integer accountId, Transaction t) {
         if (accountId != null && lastOpenFlipByItemId.containsKey(accountId)) {
             FlipV2 flip = lastOpenFlipByItemId.get(accountId).get(t.getItemId());
             if(flip != null) {
@@ -74,12 +73,12 @@ public class FlipManager {
         return 0;
     }
 
-    public synchronized FlipV2 getLastFlipByItemId(String displayName, int itemId) {
-        Integer accountId = displayNameToAccountId.get(displayName);
+    public synchronized FlipV2 getLastFlipByItemId(Integer accountId, int itemId) {
         if (accountId != null && lastOpenFlipByItemId.containsKey(accountId)) {
             Map<Integer, FlipV2> flips = lastOpenFlipByItemId.get(accountId);
             FlipV2 flip = flips.get(itemId);
             if (flip != null) {
+                flip.setItemName(itemController.getItemName(flip.getItemId()));
                 return flip;
             }
         }
@@ -87,35 +86,29 @@ public class FlipManager {
     }
 
 
-    public synchronized void mergeFlips(List<FlipV2> flips, String displayName) {
-        if(!flips.isEmpty() && displayName != null) {
-            displayNameToAccountId.put(displayName, flips.get(0).getAccountId());
-        }
+    public synchronized void mergeFlips(List<FlipV2> flips) {
         flips.sort(FLIP_STATUS_TIME_COMPARATOR);
         flips.forEach(this::mergeFlip_);
-        flipsChangedCallback.run();
+        SwingUtilities.invokeLater(flipsChangedCallback);
     }
 
     public synchronized Stats getIntervalStats() {
         return intervalStats.copy();
     }
 
-    public synchronized Stats calculateStats(int startTime, String displayName) {
-        if(displayName == null) {
+    public synchronized Stats calculateStats(int startTime, Integer accountId) {
+        if(accountId == null) {
             return calculateStatsAllAccounts(startTime);
         } else {
-            return calculateStatsForAccount(startTime, displayNameToAccountId.getOrDefault(displayName, -1));
+            return calculateStatsForAccount(startTime, accountId);
         }
     }
 
-    public synchronized void setIntervalDisplayName(String displayName) {
-        if (Objects.equals(displayName, intervalDisplayName)) {
+    public synchronized void setIntervalAccount(Integer account) {
+        if (Objects.equals(account, intervalAccount)) {
             return;
         }
-        if (displayName != null && !displayNameToAccountId.containsKey(displayName)) {
-            displayNameToAccountId.put(displayName, -1);
-        }
-        intervalDisplayName = displayName;
+        intervalAccount = account;
         recalculateIntervalStats();
     }
 
@@ -129,13 +122,13 @@ public class FlipManager {
     }
 
     private void recalculateIntervalStats() {
-        if(intervalDisplayName == null) {
+        if(intervalAccount == null) {
             intervalStats = calculateStatsAllAccounts(intervalStartTime);
         } else {
-            intervalStats = calculateStatsForAccount(intervalStartTime, displayNameToAccountId.getOrDefault(intervalDisplayName, -1));
+            intervalStats = calculateStatsForAccount(intervalStartTime, intervalAccount);
         }
         log.debug("interval flips updated to {}, interval profit updated to {}", intervalStats.flipsMade, intervalStats.profit);
-        flipsChangedCallback.run();
+        SwingUtilities.invokeLater(flipsChangedCallback);
     }
 
     private Stats calculateStatsAllAccounts(int startTime) {
@@ -162,8 +155,49 @@ public class FlipManager {
         return stats;
     }
 
-    public synchronized List<FlipV2> getPageFlips(int page, int pageSize) {
-        Integer accountId = intervalDisplayName == null ? null : displayNameToAccountId.getOrDefault(intervalDisplayName, -1);
+    public List<FlipV2> getPageFlips(int page, int pageSize) {
+        return getPageFlips(page, pageSize,  intervalStartTime, intervalAccount, false);
+    }
+
+    public synchronized void aggregateFlips(int page, int pageSize, int intervalStartTime, Integer accountId, boolean includeBuyingFlips, Consumer<FlipV2> c) {
+        if (Objects.equals(accountId,-1)) {
+            return;
+        }
+
+        if(includeBuyingFlips) {
+            WeekAggregate openingFlips = getOrInitWeek(0);
+//            openingFlips.flipsAfter(-1, true).forEach(f -> c.accept(f.setItemName(itemController.getItemName(f.getItemId()))));
+            openingFlips.flipsAfter(-1, true).forEach(c);
+        }
+
+        int consumed = 0;
+        int toSkip = (page -1) * pageSize;
+        WeekAggregate intervalWeek = getOrInitWeek(intervalStartTime);
+        for(int i=weeks.size()-1; i >= intervalWeek.pos; i--) {
+            if (weeks.get(i).weekEnd <= intervalStartTime || consumed == pageSize) {
+                break;
+            }
+            WeekAggregate w = weeks.get(i);
+            List<FlipV2> weekFlips = accountId == null ? w.flipsAfter(intervalStartTime, true) : w.flipsAfterForAccount(intervalStartTime, accountId);
+            int n = weekFlips.size();
+            if (n > toSkip) {
+                // note: weekFlips are ascending order but we return pages of descending order
+                int end = n - toSkip;
+                int start = Math.max(0, end - (pageSize - consumed));
+                for(int ii=end-1; ii >= start; ii--) {
+                    consumed++;
+//                    c.accept(weekFlips.get(ii).setItemName(itemController.getItemName(weekFlips.get(ii).getItemId())));
+                    c.accept(weekFlips.get(ii));
+                }
+                toSkip = 0;
+            } else {
+                toSkip -= n;
+            }
+        }
+    }
+
+
+    public synchronized List<FlipV2> getPageFlips(int page, int pageSize, int intervalStartTime, Integer accountId, boolean includeBuyingFlips) {
         if (Objects.equals(accountId,-1)) {
             return new ArrayList<>();
         }
@@ -190,6 +224,15 @@ public class FlipManager {
                 toSkip -= n;
             }
         }
+
+        if(includeBuyingFlips) {
+            WeekAggregate openingFlips = getOrInitWeek(0);
+            List<FlipV2> flips = openingFlips.flipsAfter(-1, true);
+            flips.addAll(resultFlips);
+            flips.forEach(flip -> flip.setItemName(itemController.getItemName(flip.getItemId())));
+            return flips;
+        }
+        resultFlips.forEach(flip -> flip.setItemName(itemController.getItemName(flip.getItemId())));
         return resultFlips;
     }
 
@@ -208,7 +251,8 @@ public class FlipManager {
                     if (seq != resetSeq) {
                         return;
                     }
-                    displayNameToAccountId.putAll(names);
+                    names.forEach(
+                            (k, v) -> accountsManager.add(v, k));
                 }
                 log.debug("loading account names took {}ms", (System.nanoTime() - s) / 1000_000);
                 s = System.nanoTime();
@@ -219,11 +263,11 @@ public class FlipManager {
                     if (seq != resetSeq) {
                         return;
                     }
-                    mergeFlips(flips, null);
+                    mergeFlips(flips);
                     log.debug("merging flips to took {}ms", (System.nanoTime() - s) / 1000_000);
                     flipsLoaded = true;
                 }
-                flipsChangedCallback.run();
+                SwingUtilities.invokeLater(flipsChangedCallback);
             } catch (Exception e) {
                 if (this.resetSeq == seq) {
                     log.warn("failed to load historical flips from server {} try again in 10s", e.getMessage(), e);
@@ -235,10 +279,9 @@ public class FlipManager {
 
 
     public synchronized void reset() {
-        intervalDisplayName = null;
+        intervalAccount = null;
         intervalStartTime = 0;
         intervalStats = new Stats();
-        displayNameToAccountId.clear();
         lastOpenFlipByItemId.clear();
         existingCloseTimes.clear();
         weeks.clear();
@@ -248,22 +291,24 @@ public class FlipManager {
 
     private void mergeFlip_(FlipV2 flip) {
         Integer existingCloseTime = existingCloseTimes.get(flip.getId());
-        Integer intervalAccountId = intervalDisplayName == null ? null : displayNameToAccountId.getOrDefault(intervalDisplayName, -1);
 
         if(existingCloseTime != null) {
             WeekAggregate wa = getOrInitWeek(existingCloseTime);
             FlipV2 removed = wa.removeFlip(flip.getId(), existingCloseTime, flip.getAccountId());
-            if(removed.getClosedTime() >= intervalStartTime && (intervalAccountId == null || removed.getAccountId() == intervalAccountId)) {
+            if(removed.getClosedTime() >= intervalStartTime && (intervalAccount == null || removed.getAccountId() == intervalAccount)) {
                 intervalStats.subtractFlip(removed);
             }
         }
+        if(flip.isDeleted()) {
+            return;
+        }
         WeekAggregate wa = getOrInitWeek(flip.getClosedTime());
         wa.addFlip(flip);
-        if(flip.getClosedTime() >= intervalStartTime && (intervalAccountId == null || flip.getAccountId() == intervalAccountId)) {
+        if(flip.getClosedTime() >= intervalStartTime && (intervalAccount == null || flip.getAccountId() == intervalAccount)) {
             intervalStats.addFlip(flip);
         }
 
-        if(!flip.isClosed()) {
+        if(!flip.getStatus().equals(FlipStatus.FINISHED)) {
             lastOpenFlipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).put(flip.getItemId(), flip);
         } else {
             lastOpenFlipByItemId.computeIfAbsent(flip.getAccountId(), (k) -> new HashMap<>()).remove(flip.getItemId());
@@ -286,6 +331,21 @@ public class FlipManager {
         wf.pos = -i-1;
         weeks.add(wf.pos, wf);
         return wf;
+    }
+
+    public synchronized void deleteAccount(int accountId) {
+        for (WeekAggregate week : weeks) {
+            week.deleteAccountFlips(accountId);
+        }
+        if (intervalAccount != null && intervalAccount == accountId) {
+            // change the intervalAccount if it is the one being deleted
+            intervalAccount = null;
+            recalculateIntervalStats();
+        } else if (intervalAccount == null) {
+            recalculateIntervalStats();
+        }
+        lastOpenFlipByItemId.remove(accountId);
+        SwingUtilities.invokeLater(flipsChangedCallback);
     }
 
     class WeekAggregate {
@@ -325,7 +385,7 @@ public class FlipManager {
             if (time <= weekStart) {
                 return flips;
             }
-            int cut = -bisect(flips.size(), closedTimeCmp(flips, FlipV2.MAX_UUID, time)) - 1;
+            int cut = -bisect(flips.size(), closedTimeCmp(flips, Constants.MAX_UUID, time)) - 1;
             return flips.subList(cut, flips.size());
         }
 
@@ -340,11 +400,20 @@ public class FlipManager {
             }
             return combinedFlips;
         }
+        public void deleteAccountFlips(int accountId) {
+            accountIdToFlips.computeIfAbsent(accountId, (k) -> new ArrayList<>()).forEach((FlipV2 f) -> {
+                    allStats.subtractFlip(f);
+                }
+            );
+            accountIdToFlips.remove(accountId);
+            accountIdToStats.remove(accountId);
+        }
 
         @Override
         public String toString() {
             return String.format("WeekAggregate[start=%s, flips=%d]", Instant.ofEpochSecond(weekStart), allStats.flipsMade);
         }
+
     }
 
     private Function<Integer, Integer> closedTimeCmp(List<FlipV2> flips, UUID id, int time) {

@@ -28,7 +28,7 @@ public class GrandExchangeOfferEventHandler {
     private final Client client;
     private final OfferManager offerPersistence;
     private final GrandExchange grandExchange;
-    private final TransactionManger transactionManager;
+    private final TransactionManager transactionManager;
     private final OsrsLoginManager osrsLoginManager;
     private final OverlayManager overlayManager;
     private final GrandExchangeUncollectedManager grandExchangeUncollectedManager;
