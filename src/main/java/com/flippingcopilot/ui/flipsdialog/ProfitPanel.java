@@ -8,7 +8,6 @@ import com.flippingcopilot.model.SessionManager;
 import com.flippingcopilot.ui.components.AccountDropdown;
 import com.flippingcopilot.ui.components.IntervalDropdown;
 import com.flippingcopilot.ui.graph.model.Bounds;
-import com.flippingcopilot.ui.graph.model.Datapoint;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
@@ -105,7 +104,7 @@ public class ProfitPanel extends JPanel {
                     ProfitAggregator aggregator = new ProfitAggregator();
                     cachedIntervalStartTime = startTime;
                     cachedAccountId = accountId;
-                    flipManager.aggregateFlips(1, 1_000_000_000, cachedIntervalStartTime, cachedAccountId, false, aggregator);
+                    flipManager.aggregateFlips(cachedIntervalStartTime, cachedAccountId, false, aggregator);
                     Pair<List<ProfitGraphPanel.ProfitDataPoint>, Bounds> data = aggregator.generateProfitDataPoints();
                     cachedDataPoints = data.getLeft();
                     cachedBounds = data.getRight();
