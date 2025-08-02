@@ -190,7 +190,7 @@ public class FlipFilterAndSort {
                     cachedIncludeBuyingFlips = includeBuyingFlips;
                     cachedFlips.clear();
                     Predicate<FlipV2> flipFilter = filteredItems.isEmpty() ? f -> true : f -> filteredItems.contains(f.getItemId());
-                    flipManager.getPageFlips(1, 1_000_000_000, intervalStartTime, accountId, includeBuyingFlips).stream().filter(flipFilter).forEach(cachedFlips::add);
+                    flipManager.getPageFlips(1, Integer.MAX_VALUE, intervalStartTime, accountId, includeBuyingFlips).stream().filter(flipFilter).forEach(cachedFlips::add);
                     log.debug("loaded {} cached flips", cachedFlips.size());
                 }
 
@@ -246,7 +246,7 @@ public class FlipFilterAndSort {
             }
         };
         if (canUseFlipsManager()) {
-            flipManager.aggregateFlips(1, Integer.MAX_VALUE, intervalStartTime, accountId, includeBuyingFlips, c);
+            flipManager.aggregateFlips(intervalStartTime, accountId, includeBuyingFlips, c);
         } else {
             cachedFlips.forEach(c);
         }

@@ -158,7 +158,7 @@ public class ItemAggregateFilterSort {
                 cachedAggregates.clear();
                 Predicate<FlipV2> flipFilter = filteredItems.isEmpty() ? f -> true : f -> filteredItems.contains(f.getItemId());
                 Aggregator a = new Aggregator(flipFilter);
-                flipManager.aggregateFlips(1, 1_000_000_000, intervalStartTime, null, false, a);
+                flipManager.aggregateFlips(intervalStartTime, null, false, a);
                 cachedIntervalStartTime = intervalStartTime;
                 a.items.forEach((k, v) -> cachedAggregates.add(v.toItemAggregate(itemController.getItemName(k))));
                 log.debug("loaded {} cached item aggregates", cachedAggregates.size());
