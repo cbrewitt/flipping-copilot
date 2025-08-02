@@ -159,43 +159,28 @@ public class FlipManager {
         return getPageFlips(page, pageSize,  intervalStartTime, intervalAccount, false);
     }
 
-    public synchronized void aggregateFlips(int page, int pageSize, int intervalStartTime, Integer accountId, boolean includeBuyingFlips, Consumer<FlipV2> c) {
+    public synchronized void aggregateFlips(int intervalStartTime, Integer accountId, boolean includeBuyingFlips, Consumer<FlipV2> c) {
         if (Objects.equals(accountId,-1)) {
             return;
         }
-
         if(includeBuyingFlips) {
             WeekAggregate openingFlips = getOrInitWeek(0);
-//            openingFlips.flipsAfter(-1, true).forEach(f -> c.accept(f.setItemName(itemController.getItemName(f.getItemId()))));
             openingFlips.flipsAfter(-1, true).forEach(c);
         }
-
-        int consumed = 0;
-        int toSkip = (page -1) * pageSize;
         WeekAggregate intervalWeek = getOrInitWeek(intervalStartTime);
         for(int i=weeks.size()-1; i >= intervalWeek.pos; i--) {
-            if (weeks.get(i).weekEnd <= intervalStartTime || consumed == pageSize) {
+            if (weeks.get(i).weekEnd <= intervalStartTime) {
                 break;
             }
             WeekAggregate w = weeks.get(i);
             List<FlipV2> weekFlips = accountId == null ? w.flipsAfter(intervalStartTime, true) : w.flipsAfterForAccount(intervalStartTime, accountId);
             int n = weekFlips.size();
-            if (n > toSkip) {
-                // note: weekFlips are ascending order but we return pages of descending order
-                int end = n - toSkip;
-                int start = Math.max(0, end - (pageSize - consumed));
-                for(int ii=end-1; ii >= start; ii--) {
-                    consumed++;
-//                    c.accept(weekFlips.get(ii).setItemName(itemController.getItemName(weekFlips.get(ii).getItemId())));
-                    c.accept(weekFlips.get(ii));
-                }
-                toSkip = 0;
-            } else {
-                toSkip -= n;
+            // note: weekFlips are ascending order but we consume in descending order
+            for(int ii=n-1; ii >= 0; ii--) {
+                c.accept(weekFlips.get(ii));
             }
         }
     }
-
 
     public synchronized List<FlipV2> getPageFlips(int page, int pageSize, int intervalStartTime, Integer accountId, boolean includeBuyingFlips) {
         if (Objects.equals(accountId,-1)) {
@@ -204,7 +189,7 @@ public class FlipManager {
 
         int toSkip = (page -1) * pageSize;
         WeekAggregate intervalWeek = getOrInitWeek(intervalStartTime);
-        List<FlipV2> resultFlips = new ArrayList<>(pageSize);
+        List<FlipV2> resultFlips = new ArrayList<>(pageSize == Integer.MAX_VALUE ? 0 : pageSize);
         for(int i=weeks.size()-1; i >= intervalWeek.pos; i--) {
             if (weeks.get(i).weekEnd <= intervalStartTime || resultFlips.size() == pageSize) {
                 break;

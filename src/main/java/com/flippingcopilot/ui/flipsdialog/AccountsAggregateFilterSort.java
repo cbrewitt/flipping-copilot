@@ -68,7 +68,7 @@ public class AccountsAggregateFilterSort {
                 accountsManager.accountIDToDisplayNameMap().forEach(
                         (accountId, displayName)  -> a.accounts.put(accountId, new AccountAggregator(accountId))
                 );
-                flipManager.aggregateFlips(1, 1_000_000_000, intervalStartTime, null, false, a);
+                flipManager.aggregateFlips(intervalStartTime, null, false, a);
                 cachedIntervalStartTime = intervalStartTime;
                 a.accounts.forEach((k, v) -> cachedAggregates.add(v.toAccountAggregate(accountsManager.getDisplayName(k))));
                 log.debug("loaded {} account aggregates", cachedAggregates.size());
