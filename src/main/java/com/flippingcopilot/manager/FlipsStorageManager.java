@@ -1,6 +1,5 @@
 package com.flippingcopilot.manager;
 
-import com.flippingcopilot.model.AckedTransaction;
 import com.flippingcopilot.model.FlipV2;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,7 +8,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.IOException;
 import java.util.*;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -17,7 +16,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FlipsStorageManager {
 
-    public static final Comparator<AckedTransaction> TIME_ID_DESC =  Comparator.comparing(AckedTransaction::getTime).thenComparing(AckedTransaction::getId).reversed();
     public static final String FILE_PREFIX_TEMPLATE = "v1_flips_a{acc_id}_";
     public static final String FILE_TEMPLATE = FILE_PREFIX_TEMPLATE + "{year}_q{quarter}.dat";
 
@@ -25,34 +23,39 @@ public class FlipsStorageManager {
     private final ByteRecordSafeWriter safeWriter;
 
     // state
-    private final Map<Integer, Set<ByteRecordDataFile>> cachedDataFiles = new HashMap<>();
+    private final Map<Integer, List<ByteRecordDataFile>> cachedDataFiles = new HashMap<>();
 
 
-    public void loadUninitialisedAccounts(Iterable<Integer> accountsIds, Map<Integer, Integer> latestUpdatedTimes, Consumer<List<FlipV2>> c) throws IOException {
+    public Map<Integer, Integer> loadSavedFlips(Iterable<Integer> accountsIds,  Function<List<FlipV2>, Boolean> c) throws IOException {
+        Map<Integer, Integer> latestUpdatedTimes = new HashMap<>();
         for (Integer accountId : accountsIds) {
-            if(latestUpdatedTimes.containsKey(accountId)) {
-                continue;
+            if(!cachedDataFiles.containsKey(accountId)) {
+                List<ByteRecordDataFile> df = listAccountDataFiles(accountId);
+                cachedDataFiles.put(accountId, df);
             }
-            List<ByteRecordDataFile> accountFiles = cachedDataFiles.computeIfAbsent(accountId, k -> new HashSet<>())
-                    .stream()
-                    .sorted(Comparator.comparing(ByteRecordDataFile::getEndTime))
-                    .collect(Collectors.toList());
+            List<ByteRecordDataFile> df = cachedDataFiles.get(accountId);
             int maxUpdatedTime = 0;
-            for (ByteRecordDataFile file : accountFiles) {
+            List<FlipV2> flips = new ArrayList<>();
+            for (ByteRecordDataFile file : df) {
                 ByteRecordArray arr = safeWriter.load(file.filePath.toFile(),
-                        AckedTransaction.RAW_SIZE,
-                        AckedTransaction.TIME_BYTE_POS,
-                        AckedTransaction.UPDATE_TIME_BYTE_POS);
-                List<FlipV2> flips = FlipV2.listFromRaw(arr.data.array());
-                for (FlipV2 f : flips) {
+                        FlipV2.RAW_SIZE,
+                        FlipV2.OPENED_TIME_BYTE_POS,
+                        FlipV2.UPDATED_TIME_BYTE_POS);
+                for (int i = 0; i < arr.totalRecords(); i++) {
+                    FlipV2 f = FlipV2.fromRaw(arr.getRecordAtIndex(i).data.array());
                     if (f.getUpdatedTime() > maxUpdatedTime) {
                         maxUpdatedTime = f.getUpdatedTime();
                     }
+                    flips.add(f);
                 }
-                c.accept(flips);
             }
+            if (!c.apply(flips)) {
+                return latestUpdatedTimes;
+            }
+            log.info("loaded {} flips from disk for account {}, max update time {}", flips.size(), accountId, maxUpdatedTime);
             latestUpdatedTimes.put(accountId, maxUpdatedTime);
         }
+        return latestUpdatedTimes;
     }
 
     public synchronized void mergeFlips(List<FlipV2> flips) throws IOException {
@@ -71,9 +74,11 @@ public class FlipsStorageManager {
                     .map(FlipV2::toByteRecord)
                     .toArray(ByteRecord[]::new);
             safeWriter.upsertRecords(f.filePath.toFile(), records);
-            cachedDataFiles.computeIfAbsent(accountId, (k) -> new HashSet<>()).add(f);
+            cachedDataFiles.computeIfAbsent(accountId, (k) -> new ArrayList<>()).add(f);
         }
     }
 
-
+    private List<ByteRecordDataFile> listAccountDataFiles(int accountId) throws IOException {
+        return ByteRecordDataFile.listFiles(FILE_TEMPLATE).stream().filter(i -> i.accountId == accountId).collect(Collectors.toList());
+    }
 }

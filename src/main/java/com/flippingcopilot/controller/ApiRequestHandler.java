@@ -32,7 +32,7 @@ public class ApiRequestHandler {
     private static final String serverUrl = System.getenv("FLIPPING_COPILOT_HOST") != null ? System.getenv("FLIPPING_COPILOT_HOST")  : "https://api.flippingcopilot.com";
     public static final String DEFAULT_COPILOT_PRICE_ERROR_MESSAGE = "Unable to fetch price copilot price (possible server update)";
     public static final String DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE = "Error loading premium instance data (possible server update)";
-
+    public static final String NOT_AUTHENTICATED_MESSAGE = "Not authenticated.";
 
     // dependencies
     private final OkHttpClient client;
@@ -367,16 +367,12 @@ public class ApiRequestHandler {
     }
 
     public void asyncDeleteFlip(FlipV2 flip, Consumer<FlipV2> onSuccess, Runnable onFailure) {
-        String jwtToken = copilotLoginManager.getJwtToken();
-        if (jwtToken == null) {
-            throw new IllegalStateException("Not authenticated");
-        }
         JsonObject body = new JsonObject();
         body.addProperty("flip_id", flip.getId().toString());
 
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/delete-flip")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .header("Accept", "application/x-bytes")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .build();
@@ -459,7 +455,7 @@ public class ApiRequestHandler {
             @Override
             public void onFailure(Call call, IOException e) {
                 log.error("error loading user display names", e);
-                clientThread.invoke(() -> onFailure.accept("Unknown error"));
+                onFailure.accept("Unknown error");
             }
 
             @Override
@@ -475,7 +471,7 @@ public class ApiRequestHandler {
                     Type respType = new TypeToken<Map<String, Integer>>(){}.getType();
                     Map<String, Integer> names = gson.fromJson(responseBody, respType);
                     Map<String, Integer> result = names != null ? names : new HashMap<>();
-                    clientThread.invoke(() -> onSuccess.accept(result));
+                    onSuccess.accept(result);
                 } catch (Exception e) {
                     log.error("error reading/parsing user display names response body", e);
                     onFailure.accept("Unknown Error");
@@ -484,25 +480,24 @@ public class ApiRequestHandler {
         });
     }
 
-    public void asyncLoadFlips(BiConsumer<Integer, List<FlipV2>> onSuccess, Consumer<String> onFailure) {
+    public void asyncLoadFlips(Map<Integer, Integer> accountIdTime, BiConsumer<Integer, FlipsDeltaResult> onSuccess, Consumer<String> onFailure) {
+        Integer userId = copilotLoginManager.getCopilotUserId();
         String jwtToken = copilotLoginManager.getJwtToken();
-        if (jwtToken == null) {
-            onFailure.accept("Not authenticated");
-            return;
-        }
+        DataDeltaRequest body = new DataDeltaRequest(accountIdTime);
+        String bodyStr = gson.toJson(body);
 
         Request request = new Request.Builder()
-                .url(serverUrl + "/profit-tracking/client-flips")
+                .url(serverUrl + "/profit-tracking/client-flips-delta")
                 .addHeader("Authorization", "Bearer " + jwtToken)
                 .header("Accept", "application/x-bytes")
-                .method("GET", null)
+                .method("POST", RequestBody.create(MediaType.get("application/json; charset=utf-8"), bodyStr))
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 log.error("error loading flips", e);
-                clientThread.invoke(() -> onFailure.accept("Unknown error"));
+                onFailure.accept("Unknown error");
             }
 
             @Override
@@ -511,49 +506,16 @@ public class ApiRequestHandler {
                     if (!response.isSuccessful()) {
                         String errorMessage = extractErrorMessage(response);
                         log.error("load flips failed with http status code {}, error message {}", response.code(), errorMessage);
-                        clientThread.invoke(() -> onFailure.accept(errorMessage));
+                        onFailure.accept(errorMessage);
                         return;
                     }
-
-                    byte[] b = response.body().bytes();
-                    List<FlipV2> flips = FlipV2.listFromRaw(b);
-
-                    // The BiConsumer expects an Integer as the first parameter
-                    // This could be the response code or the number of flips
-                    // Based on the pattern, I'll use the number of flips
-                    int flipCount = flips != null ? flips.size() : 0;
-
-                    clientThread.invoke(() -> onSuccess.accept(flipCount, flips));
+                    FlipsDeltaResult res = FlipsDeltaResult.fromRaw(response.body().bytes());
+                    onSuccess.accept(userId, res);
                 } catch (Exception e) {
                     log.error("error reading/parsing flips response body", e);
-                    clientThread.invoke(() -> onFailure.accept("Unknown error"));
+                    onFailure.accept("Unknown error");
                 }
             }
         });
     }
-
-    public List<FlipV2> LoadFlips() throws HttpResponseException {
-        String jwtToken = copilotLoginManager.getJwtToken();
-        if (jwtToken == null) {
-            throw new IllegalStateException("Not authenticated");
-        }
-        Request request = new Request.Builder()
-                .url(serverUrl + "/profit-tracking/client-flips")
-                .addHeader("Authorization", "Bearer " + jwtToken)
-                .header("Accept", "application/x-bytes")
-                .method("GET", null)
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            if (response.isSuccessful()) {
-                byte[] b = response.body().bytes();
-                return FlipV2.listFromRaw(b);
-            } else {
-                throw new HttpResponseException(response.code(), extractErrorMessage(response));
-            }
-        } catch (Exception e) {
-            throw new HttpResponseException(-1, "Unknown server error (possible system update)", e);
-        }
-    }
-
 }

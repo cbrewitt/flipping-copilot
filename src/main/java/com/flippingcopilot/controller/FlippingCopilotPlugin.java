@@ -138,9 +138,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		statsPanel = mainPanel.copilotPanel.statsPanel;
 
 		mainPanel.refresh();
-		if(copilotLoginManager.isLoggedIn()) {
-			flipManager.loadFlipsAsync();
-		}
+
 		if(osrsLoginManager.getInvalidStateDisplayMessage() == null) {
 			flipManager.setIntervalAccount(null);
 			flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);

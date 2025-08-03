@@ -1,21 +1,16 @@
 package com.flippingcopilot.model;
 
-import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.OkHttpClient;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.*;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -38,16 +33,14 @@ public class FlipManager {
                 Comparator.comparing(FlipV2::isClosed).reversed().thenComparing(f -> f.getClosedTime() > 0 ? f.getClosedTime() : f.getOpenedTime());
 
     // dependencies
-    private final ApiRequestHandler api;
-    private final ScheduledExecutorService executorService;
-    private final OkHttpClient okHttpClient;
-    private final CopilotLoginManager copilotLoginManager;
     private final ItemController itemController;
 
     @Setter
     private Runnable flipsChangedCallback = () -> {};
 
     // state
+    @Setter
+    private volatile int copilotUserId;
     private Integer intervalAccount;
     private int intervalStartTime;
     private Stats intervalStats = new Stats();
@@ -84,10 +77,14 @@ public class FlipManager {
     }
 
 
-    public synchronized void mergeFlips(List<FlipV2> flips) {
+    public synchronized boolean mergeFlips(List<FlipV2> flips, int copilotUserId) {
+        if (copilotUserId != this.copilotUserId) {
+            return false;
+        }
         flips.sort(FLIP_STATUS_TIME_COMPARATOR);
         flips.forEach(this::mergeFlip_);
         SwingUtilities.invokeLater(flipsChangedCallback);
+        return true;
     }
 
     public synchronized Stats getIntervalStats() {
@@ -219,42 +216,10 @@ public class FlipManager {
         return resultFlips;
     }
 
-    public void loadFlipsAsync() {
-        executorService.execute(() -> this.loadFlips(resetSeq));
-    }
-
-    private void loadFlips(int seq) {
-        // ScheduledExecutorService only has one thread, we don't really want to block it. Need to
-        // refactor the API call to be async style but until then just run in okHttpClient's executor
-        okHttpClient.dispatcher().executorService().submit(() -> {
-            try {
-
-                long s = System.nanoTime();
-                List<FlipV2> flips = api.LoadFlips();
-                log.debug("loading {} flips took {}ms", flips.size(), (System.nanoTime() - s) / 1000_000);
-                s = System.nanoTime();
-                synchronized (this) {
-                    if (seq != resetSeq) {
-                        return;
-                    }
-                    mergeFlips(flips);
-                    log.debug("merging flips to took {}ms", (System.nanoTime() - s) / 1000_000);
-                    flipsLoaded = true;
-                }
-                SwingUtilities.invokeLater(flipsChangedCallback);
-            } catch (Exception e) {
-                if (this.resetSeq == seq) {
-                    log.warn("failed to load historical flips from server {} try again in 10s", e.getMessage(), e);
-                    executorService.schedule(() -> this.loadFlips(seq), 10, TimeUnit.SECONDS);
-                }
-            }
-        });
-    }
-
-
     public synchronized void reset() {
         intervalAccount = null;
         intervalStartTime = 0;
+        copilotUserId = 0;
         intervalStats = new Stats();
         lastOpenFlipByItemId.clear();
         existingCloseTimes.clear();

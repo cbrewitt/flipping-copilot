@@ -50,7 +50,7 @@ public class TransactionManager {
             if(!flips.isEmpty()) {
                 copilotLoginManager.addAccountIfMissing(flips.get(0).getAccountId(), displayName, userId);
             }
-            flipManager.mergeFlips(flips);
+            flipManager.mergeFlips(flips, userId);
             log.info("sending {} transactions took {}ms", toSend.size(), (System.nanoTime() - s) / 1000_000);
             synchronized (this) {
                 List<Transaction> unAckedTransactions  = getUnAckedTransactions(displayName);

@@ -131,6 +131,28 @@ public class FlipV2 {
     }
 
     public ByteRecord toByteRecord() {
-        return null;
+        ByteBuffer b = ByteBuffer.allocate(RAW_SIZE);
+        b.order(ByteOrder.BIG_ENDIAN);
+
+        // Write UUID (16 bytes)
+        b.putLong(id.getMostSignificantBits());
+        b.putLong(id.getLeastSignificantBits());
+        // Write primitive fields
+        b.putInt(accountId);           // 4 bytes
+        b.putInt(itemId);              // 4 bytes
+        b.putInt(openedTime);          // 4 bytes
+        b.putInt(openedQuantity);      // 4 bytes
+        b.putLong(spent);              // 8 bytes
+        b.putInt(closedTime);          // 4 bytes
+        b.putInt(closedQuantity);      // 4 bytes
+        b.putLong(receivedPostTax);    // 8 bytes
+        b.putLong(profit);             // 8 bytes
+        b.putLong(taxPaid);            // 8 bytes
+        // Write FlipStatus as int32 ordinal
+        b.putInt(status.ordinal());    // 4 bytes
+        b.putInt(updatedTime);         // 4 bytes
+        b.putInt(deleted ? 1 : 0);     // 4 bytes
+
+        return new ByteRecord(b, OPENED_TIME_BYTE_POS, UPDATED_TIME_BYTE_POS);
     }
 }

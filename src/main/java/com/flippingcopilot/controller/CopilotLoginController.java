@@ -8,18 +8,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.manager.FlipsStorageManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.LoginPanel;
 import com.flippingcopilot.ui.MainPanel;
+import com.google.common.collect.Sets;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.mutable.Mutable;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -61,8 +61,9 @@ public class CopilotLoginController {
         this.transactionManager = transactionManager;
         this.executorService = executorService;
         this.flipsStorageManager = flipsStorageManager;
-        loadCopilotAccounts(0);
-        syncFlips(copilotLoginManager.getCopilotUserId(), new HashMap<>(),0);
+        flipManager.setCopilotUserId(copilotLoginManager.getCopilotUserId());
+        executorService.schedule(() ->loadCopilotAccounts(0), 0, TimeUnit.SECONDS);
+        executorService.schedule(() -> syncFlips(copilotLoginManager.getCopilotUserId(), new HashMap<>(), 0), 5, TimeUnit.SECONDS);
     }
 
     private void loadCopilotAccounts(int previousFailures) {
@@ -78,7 +79,7 @@ public class CopilotLoginController {
         };
         Consumer<String> onFailure = (errorMessage) -> {
             if (copilotLoginManager.isLoggedIn()) {
-                long backOffSeconds = Math.max(15, (long) Math.exp(previousFailures));
+                long backOffSeconds = Math.min(15, (long) Math.exp(previousFailures));
                 log.info("failed to load copilot accounts ({}) retrying in {}s", errorMessage, backOffSeconds);
                 executorService.schedule(() -> loadCopilotAccounts(previousFailures + 1), backOffSeconds, TimeUnit.SECONDS);
             }
@@ -86,49 +87,59 @@ public class CopilotLoginController {
         apiRequestHandler.asyncLoadAccounts(onSuccess, onFailure);
     }
 
-    private void syncFlips(int userId, int previousFailures) {
+    private void syncFlips(int userId, Map<Integer, Integer> accountIdTime, int previousFailures) {
+        // this will continuously sync the flips from the copilot server
+
         if(copilotLoginManager.getCopilotUserId() != userId) {
-            log.info("copilot user {} no longer logged in, stopping syncFlips.", userId);
+            log.info("user={}, no longer logged in, stopping syncFlips.", userId);
             return;
         }
         Set<Integer> accountIds = copilotLoginManager.accountIds();
+        if(accountIds.isEmpty()) {
+            long backOffSeconds = Math.min(15, (long) 1+previousFailures);
+            log.info("user={}, no accounts loaded - re-scheduling runSyncFlips in {}s", userId, backOffSeconds);
+            executorService.schedule(() -> syncFlips(userId, accountIdTime, previousFailures+1), backOffSeconds, TimeUnit.SECONDS);
+            return;
+        }
         try {
-            flipsStorageManager.loadUninitialisedAccounts(accountIds, latestUpdatedTimes, flipManager::mergeFlips);
+            accountIdTime.putAll(flipsStorageManager.loadSavedFlips(Sets.difference(accountIds,  accountIdTime.keySet()), flips -> flipManager.mergeFlips(flips, userId)));
         } catch (IOException e) {
-            long backOffSeconds = Math.max(15, (long) Math.exp(previousFailures));
-            log.error("loading flips from disk for uninitialized accounts - re-scheduling runSyncFlips  in {}s", backOffSeconds, e);
-            executorService.schedule(() -> syncFlips(userId, latestUpdatedTimes, 0), 5, TimeUnit.SECONDS);
+            long backOffSeconds = Math.min(15, (long) Math.exp(previousFailures));
+            log.error("user={}, loading flips from disk - re-scheduling runSyncFlips in {}s", userId, backOffSeconds, e);
+            executorService.schedule(() -> syncFlips(userId, accountIdTime, 0), 5, TimeUnit.SECONDS);
+            return;
         }
         long s = System.nanoTime();
-        BiConsumer<Integer, List<FlipV2>> onSuccess = (Integer copilotUserId, List<FlipV2> flips) -> {
-            if (copilotUserId != userId) {
-                return;
-            }
-            if(!flips.isEmpty()) {
+        BiConsumer<Integer, FlipsDeltaResult> onSuccess = (Integer copilotUserId, FlipsDeltaResult r) -> {
+            Map<Integer, List<FlipV2>> flipsByAccountId = r.flips.stream().collect(Collectors.groupingBy(FlipV2::getAccountId));
+            for(Map.Entry<Integer, List<FlipV2>> entry : flipsByAccountId.entrySet()) {
                 try {
-                    flipsStorageManager.mergeFlips(flips);
+                    flipsStorageManager.mergeFlips(entry.getValue());
                 } catch (IOException e) {
-                    long backOffSeconds = Math.max(15, (long) Math.exp(previousFailures));
-                    log.error("merging updated flips to disk - re-scheduling syncFlips  in {}s", backOffSeconds, e);
-                    executorService.schedule(() -> syncFlips(userId, latestUpdatedTimes, 0), 5, TimeUnit.SECONDS);
+                    long backOffSeconds = Math.min(15, (long) Math.exp(previousFailures));
+                    log.error("user={}, merging updated flips to disk - re-scheduling syncFlips  in {}s", userId, backOffSeconds, e);
+                    executorService.schedule(() -> syncFlips(userId, accountIdTime, 0), 5, TimeUnit.SECONDS);
                 }
-                flipManager.mergeFlips(flips);
+                if(!flipManager.mergeFlips(r.flips, userId)) {
+                    log.info("user={}, no longer logged in, stopping syncFlips.", userId);
+                    return;
+                }
             }
-            log.info("loading {} updated flips - took {}ms", flips.size(), (System.nanoTime() - s) / 1000_000);
-            executorService.schedule(() -> syncFlips(userId, latestUpdatedTimes, 0), 5, TimeUnit.SECONDS);
+            log.info("user={}, loading {} updated flips - took {}ms", userId, r.flips.size(), (System.nanoTime() - s) / 1000_000);
+            accountIds.forEach((a) -> accountIdTime.put(a, r.time));
+            executorService.schedule(() -> syncFlips(userId, accountIdTime, 0), 5, TimeUnit.SECONDS);
         };
         Consumer<String> onFailure = (errorMessage) -> {
-            long backOffSeconds = Math.max(15, (long) Math.exp(previousFailures));
-            log.info("failed to load updated flips ({}) retrying in {}s", errorMessage, backOffSeconds);
-            executorService.schedule(() -> syncFlips(userId, latestUpdatedTimes, previousFailures + 1), backOffSeconds, TimeUnit.SECONDS);
+            long backOffSeconds = Math.min(15, (long) Math.exp(previousFailures));
+            log.info("user={},  failed to load updated flips ({}) retrying in {}s", userId, errorMessage, backOffSeconds);
+            executorService.schedule(() -> syncFlips(userId, accountIdTime, previousFailures + 1), backOffSeconds, TimeUnit.SECONDS);
         };
-        apiRequestHandler.asyncLoadFlips(onSuccess, onFailure);
+        apiRequestHandler.asyncLoadFlips(accountIdTime, onSuccess, onFailure);
     }
 
     public void onLoginPressed(ActionEvent event) {
         Consumer<LoginResponse> onSuccess = (LoginResponse loginResponse) -> {
             copilotLoginManager.setLoginResponse(loginResponse);
-            flipManager.loadFlipsAsync();
             mainPanel.refresh();
             String displayName = osrsLoginManager.getPlayerDisplayName();
             if(displayName != null) {

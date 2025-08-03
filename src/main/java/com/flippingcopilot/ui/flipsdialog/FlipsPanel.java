@@ -341,7 +341,7 @@ public class FlipsPanel extends JPanel {
                 setSpinnerVisible(true);
                 log.info("deleting flip with ID: {}", flip.getId());
                 Consumer<FlipV2> onSuccess = (f) -> {
-                    flipsManager.mergeFlips(Collections.singletonList(f));
+                    flipsManager.mergeFlips(Collections.singletonList(f),copilotLoginManager.getCopilotUserId());
                     setSpinnerVisible(false);
                     sortAndFilter.reloadFlips(true, true);
                 };
