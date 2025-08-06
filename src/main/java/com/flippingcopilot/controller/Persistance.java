@@ -1,10 +1,7 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.model.LoginResponse;
-import com.flippingcopilot.model.SessionData;
 import com.flippingcopilot.model.Transaction;
 import com.google.gson.Gson;
-import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.RuneLite;
@@ -17,12 +14,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
 import java.util.*;
 
 @Slf4j
@@ -30,7 +23,6 @@ public class Persistance {
     public static Gson gson;
     public static final File PARENT_DIRECTORY = new File(RuneLite.RUNELITE_DIR, "flipping-copilot");
     public static final String UN_ACKED_TRANSACTIONS_FILE_TEMPLATE = "%s_un_acked.jsonl";
-    public static final String ALL_TRANSACTIONS_FILE_TEMPLATE = "%s_all_transactions.jsonl";
     public static final String LOGIN_RESPONSE_JSON_FILE = "login-response.json";
     public static File directory;
 
@@ -68,37 +60,6 @@ public class Persistance {
         }
     }
 
-    public static LoginResponse loadLoginResponse() throws IOException {
-        String jsonString = getFileContent(LOGIN_RESPONSE_JSON_FILE);
-        return gson.fromJson(jsonString, LoginResponse.class);
-    }
-
-    public static void saveLoginResponse(LoginResponse loginResponse) {
-        if (loginResponse == null) {
-            return;
-        }
-        try {
-            File file = new File(directory, LOGIN_RESPONSE_JSON_FILE);
-            String json = gson.toJson(loginResponse);
-            Files.write(file.toPath(), json.getBytes());
-        } catch (IOException e) {
-            log.warn("error saving login response {}", e.getMessage(), e);
-        }
-    }
-
-    public static void deleteLoginResponse() {
-        File file = new File(directory, LOGIN_RESPONSE_JSON_FILE);
-        if (file.exists()) {
-            file.delete();
-        }
-    }
-
-    private static String getFileContent(String filename) throws IOException {
-        Path filePath = Paths.get(directory.getAbsolutePath(), filename);
-        byte[] fileBytes = Files.readAllBytes(filePath);
-        return new String(fileBytes);
-    }
-
 
     public static List<Transaction> loadUnAckedTransactions(String displayName) {
         List<Transaction> transactions = new ArrayList<>();
@@ -131,6 +92,9 @@ public class Persistance {
             return new ArrayList<>();
         } catch (IOException e) {
             log.warn("error loading un acked transaction file {}", file, e);
+            return new ArrayList<>();
+        } catch (JsonSyntaxException e) {
+            log.warn("corrupted un acked transaction file {}", file, e);
             return new ArrayList<>();
         }
         log.info("loaded {} stored transactions for {}", transactions.size(), displayName);

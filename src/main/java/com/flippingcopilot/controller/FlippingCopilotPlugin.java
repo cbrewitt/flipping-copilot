@@ -1,6 +1,6 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.manager.AccountsManager;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.*;
 import com.google.gson.Gson;
@@ -25,7 +25,6 @@ import net.runelite.client.util.ImageUtil;
 
 import javax.inject.Inject;
 import java.awt.image.BufferedImage;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -74,7 +73,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private OverlayManager overlayManager;
 	@Inject
-	private LoginResponseManager loginResponseManager;
+	private CopilotLoginManager copilotLoginManager;
 	@Inject
 	private HighlightController highlightController;
 	@Inject
@@ -95,8 +94,6 @@ public class FlippingCopilotPlugin extends Plugin {
 	private TooltipController tooltipController;
   	@Inject
 	private MenuHandler menuHandler;
-    @Inject
-	private AccountsManager accountsManager;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -130,7 +127,7 @@ public class FlippingCopilotPlugin extends Plugin {
 				.panel(mainPanel)
 				.build();
 		clientToolbar.addNavigation(navButton);
-
+		apiRequestHandler.setCopilotLoginController(copilotLoginController);
 		copilotLoginController.setLoginPanel(mainPanel.loginPanel);
 		copilotLoginController.setMainPanel(mainPanel);
 		suggestionController.setCopilotPanel(mainPanel.copilotPanel);
@@ -141,9 +138,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		statsPanel = mainPanel.copilotPanel.statsPanel;
 
 		mainPanel.refresh();
-		if(loginResponseManager.isLoggedIn()) {
-			flipManager.loadFlipsAsync();
-		}
+
 		if(osrsLoginManager.getInvalidStateDisplayMessage() == null) {
 			flipManager.setIntervalAccount(null);
 			flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
@@ -156,7 +151,7 @@ public class FlippingCopilotPlugin extends Plugin {
 					boolean isFlipping = accStatus != null && accStatus.currentlyFlipping();
 					long cashStack = accStatus == null ? 0 : accStatus.currentCashStack();
 					if(sessionManager.updateSessionStats(isFlipping, cashStack)) {
-						mainPanel.copilotPanel.statsPanel.refresh(false, loginResponseManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
+						mainPanel.copilotPanel.statsPanel.refresh(false, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
 					}
 				}
 			})
@@ -168,9 +163,9 @@ public class FlippingCopilotPlugin extends Plugin {
 		offerManager.saveAll();
 		highlightController.removeAll();
 		clientToolbar.removeNavigation(navButton);
-		if(loginResponseManager.isLoggedIn()) {
+		if(copilotLoginManager.isLoggedIn()) {
 			String displayName = osrsLoginManager.getLastDisplayName();
-			Integer accountId = accountsManager.getAccountId(displayName);
+			Integer accountId = copilotLoginManager.getAccountId(displayName);
 			if (accountId != null && accountId != -1) {
 				webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
 			}
@@ -252,7 +247,7 @@ public class FlippingCopilotPlugin extends Plugin {
 				osrsLoginManager.reset();
 				accountStatusManager.reset();
 				grandExchangeUncollectedManager.reset();
-				statsPanel.refresh(true, loginResponseManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
+				statsPanel.refresh(true, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
 				mainPanel.refresh();
 				break;
 			case LOGGING_IN:
@@ -273,16 +268,16 @@ public class FlippingCopilotPlugin extends Plugin {
 						return false;
 					}
 					statsPanel.resetIntervalDropdownToSession();
-					Integer accountId = accountsManager.getAccountId(name);
+					Integer accountId = copilotLoginManager.getAccountId(name);
 					if (accountId != null && accountId != -1) {
 						flipManager.setIntervalAccount(accountId);
 					} else {
 						flipManager.setIntervalAccount(null);
 					}
 					flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
-					statsPanel.refresh(true, loginResponseManager.isLoggedIn()  && osrsLoginManager.isValidLoginState());
+					statsPanel.refresh(true, copilotLoginManager.isLoggedIn()  && osrsLoginManager.isValidLoginState());
 					mainPanel.refresh();
-					if(loginResponseManager.isLoggedIn()) {
+					if(copilotLoginManager.isLoggedIn()) {
 						transactionManager.scheduleSyncIn(0, name);
 					}
 					return true;
@@ -299,9 +294,9 @@ public class FlippingCopilotPlugin extends Plugin {
 	public void onClientShutdown(ClientShutdown clientShutdownEvent) {
 		log.debug("client shutdown event received");
 		offerManager.saveAll();
-		if(loginResponseManager.isLoggedIn()) {
+		if(copilotLoginManager.isLoggedIn()) {
 			String displayName = osrsLoginManager.getLastDisplayName();
-			Integer accountId = accountsManager.getAccountId(displayName);
+			Integer accountId = copilotLoginManager.getAccountId(displayName);
 			if (accountId != null && accountId != -1) {
 				webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
 			}
@@ -313,7 +308,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		if (event.getGroup().equals("flippingcopilot")) {
 			log.debug("copilot config changed event received");
 			if (event.getKey().equals("profitAmountColor") || event.getKey().equals("lossAmountColor")) {
-				mainPanel.copilotPanel.statsPanel.refresh(true, loginResponseManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
+				mainPanel.copilotPanel.statsPanel.refresh(true, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
 			}
 			if (event.getKey().equals("suggestionHighlights")) {
 				clientThread.invokeLater(() -> highlightController.redraw());
