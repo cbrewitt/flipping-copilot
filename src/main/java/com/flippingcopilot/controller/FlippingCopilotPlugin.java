@@ -94,6 +94,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	private TooltipController tooltipController;
   	@Inject
 	private MenuHandler menuHandler;
+    @Inject
+	private GeHistoryTabController geHistoryTabController;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -219,11 +221,19 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onWidgetLoaded(WidgetLoaded event) {
+		if (event.getGroupId() == 383) {
+			clientThread.invokeLater(() -> {
+				geHistoryTabController.onGeHistoryTabOpened();
+			});
+		}
 		gameUiChangesHandler.onWidgetLoaded(event);
 	}
 
 	@Subscribe
 	public void onWidgetClosed(WidgetClosed event) {
+		if (event.getGroupId() == 383) {
+			geHistoryTabController.onGeHistoryTabClosed();
+		}
 		gameUiChangesHandler.onWidgetClosed(event);
 	}
 
@@ -245,6 +255,7 @@ public class FlippingCopilotPlugin extends Plugin {
 				sessionManager.reset();
 				suggestionManager.reset();
 				osrsLoginManager.reset();
+				geHistoryTabController.onGeHistoryTabClosed();
 				accountStatusManager.reset();
 				grandExchangeUncollectedManager.reset();
 				statsPanel.refresh(true, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());

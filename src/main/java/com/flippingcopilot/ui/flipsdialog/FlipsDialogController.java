@@ -102,7 +102,6 @@ public class FlipsDialogController {
             tabbedPane.addTab("Profit graph", profitPanel);
             tabbedPane.addTab("Transactions", transactionsPanel);
 
-            // Add tab change listener to load transactions when first selected
             tabbedPane.addChangeListener(e -> {
                 if (tabbedPane.getSelectedIndex() == 4) {
                     transactionsPanel.loadTransactionsIfNeeded();

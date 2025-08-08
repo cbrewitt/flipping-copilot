@@ -70,6 +70,7 @@ public class StatsPanelV2 extends JPanel {
 
     private volatile boolean lastValidState = false;
 
+    // Modified constructor
     @Inject
     public StatsPanelV2(CopilotLoginManager copilotLoginManager,
                         OsrsLoginManager osrsLoginManager,
@@ -78,7 +79,8 @@ public class StatsPanelV2 extends JPanel {
                         SessionManager sessionManager,
                         WebHookController webHookController,
                         ClientThread clientThread,
-                        FlipsDialogController flipsDialogController) {
+                        FlipsDialogController flipsDialogController,
+                        GeHistoryTransactionButton geHistoryTransactionButton) { // Added parameter
         this.copilotLoginManager = copilotLoginManager;
         this.osrsLoginManager = osrsLoginManager;
         this.sessionManager = sessionManager;
@@ -132,11 +134,16 @@ public class StatsPanelV2 extends JPanel {
         paginator = new Paginator((i) -> refresh(true, lastValidState));
 
         // Create container for paginator and flips dialog button
+        JPanel middleBottomPanel = new JPanel(new BorderLayout());
+        middleBottomPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        middleBottomPanel.add(paginator, BorderLayout.CENTER);
+        middleBottomPanel.add(flipsDialogButton, BorderLayout.EAST);
+
+        // Create the very bottom panel for the GE History button
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        bottomPanel.add(paginator, BorderLayout.CENTER);
-        bottomPanel.add(flipsDialogButton, BorderLayout.EAST);
-
+        bottomPanel.add(middleBottomPanel, BorderLayout.NORTH);
+        bottomPanel.add(geHistoryTransactionButton, BorderLayout.SOUTH);
 
         add(bottomPanel, BorderLayout.SOUTH);
 

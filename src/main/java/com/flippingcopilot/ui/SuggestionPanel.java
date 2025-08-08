@@ -411,9 +411,9 @@ public class SuggestionPanel extends JPanel {
         }
         if (collectNeeded) {
             suggestCollect();
-        } else if(suggestion.getType().equals("wait") && !grandExchange.isOpen() && accountStatus.emptySlotExists()) {
+        } else if(!suggestion.getType().equals("abort") && !grandExchange.isOpen()) {
             suggestOpenGe();
-        }else if (suggestion.getType().equals("wait") && accountStatus.moreGpNeeded()) {
+        } else if (suggestion.getType().equals("wait") && accountStatus.moreGpNeeded()) {
             suggestAddGp();
         }  else {
             updateSuggestion(suggestion);
