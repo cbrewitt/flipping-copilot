@@ -4,8 +4,10 @@ import com.flippingcopilot.model.ItemIdName;
 import com.flippingcopilot.ui.FuzzySearchScorer;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.ItemComposition;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.util.AsyncBufferedImage;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -14,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -26,6 +29,8 @@ public class ItemController {
 
     // dependencies
     private final FuzzySearchScorer fuzzySearchScorer;
+    private final ItemManager itemManager;
+    private final ClientThread clientThread;
 
     // state
     private final Map<Integer, String> cachedItemNames = new ConcurrentHashMap<>();
@@ -39,6 +44,8 @@ public class ItemController {
                           FuzzySearchScorer fuzzySearchScorer,
                           ScheduledExecutorService executorService) {
         this.fuzzySearchScorer = fuzzySearchScorer;
+        this.itemManager = itemManager;
+        this.clientThread = clientThread;
 
         Runnable initItems = () -> {
             // only allow one init attempt at a time
@@ -96,5 +103,11 @@ public class ItemController {
 
     public String getItemName(Integer itemId) {
         return cachedItemNames.getOrDefault(itemId, "Name unavailable");
+    }
+
+    public void loadImage(Integer itemId, Consumer<AsyncBufferedImage> c) {
+        clientThread.invokeLater(() -> {
+            c.accept(itemManager.getImage(itemId));
+        });
     }
 }
