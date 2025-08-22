@@ -55,14 +55,14 @@ public class FlipManager {
         return intervalAccount;
     }
 
-    public synchronized long estimateTransactionProfit(Integer accountId, Transaction t) {
+    public synchronized Long estimateTransactionProfit(Integer accountId, Transaction t) {
         if (accountId != null && lastOpenFlipByItemId.containsKey(accountId)) {
             FlipV2 flip = lastOpenFlipByItemId.get(accountId).get(t.getItemId());
             if(flip != null) {
                 return flip.calculateProfit(t);
             }
         }
-        return 0;
+        return null;
     }
 
     public synchronized FlipV2 getLastFlipByItemId(Integer accountId, int itemId) {

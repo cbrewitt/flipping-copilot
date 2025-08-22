@@ -15,8 +15,6 @@ import net.runelite.api.GameState;
 import net.runelite.api.GrandExchangeOffer;
 import net.runelite.api.GrandExchangeOfferState;
 import net.runelite.api.events.GrandExchangeOfferChanged;
-import net.runelite.api.events.ScriptPostFired;
-import net.runelite.api.events.ScriptPreFired;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import static com.flippingcopilot.model.OsrsLoginManager.GE_LOGIN_BURST_WINDOW;
@@ -26,7 +24,6 @@ import static com.flippingcopilot.model.OsrsLoginManager.GE_LOGIN_BURST_WINDOW;
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GrandExchangeOfferEventHandler {
 
-    private static final int GE_SLOTS = 8;
     // dependencies
     private final Client client;
     private final OfferManager offerPersistence;
@@ -44,30 +41,6 @@ public class GrandExchangeOfferEventHandler {
     public void onGameTick() {
         if(!transactionsToProcess.isEmpty()) {
             processTransactions();
-        }
-    }
-
-    public void onScriptPreFired(ScriptPreFired e) {
-        if (e.getScriptId() == 797) {
-            int slot = (int) e.getScriptEvent().getArguments()[10]; // 9th argument
-            if (slot < 0 || slot >= GE_SLOTS) {
-                log.error("Invalid GE slot {}", slot);
-                return;
-            }
-            GrandExchangeOffer[] grandExchangeOffers = client.getGrandExchangeOffers();
-            GrandExchangeOffer offer = grandExchangeOffers[slot];
-            if (offer.getState() == GrandExchangeOfferState.EMPTY) {
-                GrandExchangeOffer sinkOffer = getSinkOffer(slot);
-                // This might go from sink offer -> no offer, in which case we want to still record that
-                // (and there will be no GrandExchangeOfferChanged event)
-                if (sinkOffer != null) {
-                    offer = sinkOffer;
-                }
-            }
-            GrandExchangeOfferChanged o = new GrandExchangeOfferChanged();
-            o.setSlot(slot);
-            o.setOffer(offer);
-            onGrandExchangeOfferChanged(o);
         }
     }
 
@@ -104,12 +77,7 @@ public class GrandExchangeOfferEventHandler {
         if(t != null) {
             transactionsToProcess.add(t);
             processTransactions();
-            if (offerEvent.getOffer() instanceof SinkGrandExchangeOffer) {
-                log.info("inferred sink transaction {}", t);
-            } else {
-                log.debug("inferred transaction {}", t);
-
-            }
+            log.debug("inferred transaction {}", t);
         }
         updateUncollected(accountHash, slot, o, prev, consistent);
         offerPersistence.saveOffer(accountHash, slot, o);
@@ -231,50 +199,4 @@ public class GrandExchangeOfferEventHandler {
                 || prev.getQuantitySold() > updated.getQuantitySold()
                 || prev.getSpent() > updated.getSpent();
     }
-
-    private GrandExchangeOffer getSinkOffer(int slot)
-    {
-        int vid, vprice;
-        switch (slot)
-        {
-            case 0:
-                vid = 3204; // GE_SINK_SLOT0_ITEM
-                vprice = 3205; // GE_SINK_SLOT0_PRICE
-                break;
-            case 1:
-                vid = 3206; // GE_SINK_SLOT1_ITEM
-                vprice = 3207; // GE_SINK_SLOT1_PRICE
-                break;
-            case 2:
-                vid = 3208; // GE_SINK_SLOT2_ITEM
-                vprice = 3209; // GE_SINK_SLOT2_PRICE
-                break;
-            case 3:
-                vid = 3210; // GE_SINK_SLOT3_ITEM
-                vprice = 3211; // GE_SINK_SLOT3_PRICE
-                break;
-            case 4:
-                vid = 3212; // GE_SINK_SLOT4_ITEM
-                vprice = 3213; // GE_SINK_SLOT4_PRICE
-                break;
-            case 5:
-                vid = 3214; // GE_SINK_SLOT5_ITEM
-                vprice = 3215; // GE_SINK_SLOT5_PRICE
-                break;
-            case 6:
-                vid = 3216; // GE_SINK_SLOT6_ITEM
-                vprice = 3217; // GE_SINK_SLOT6_PRICE
-                break;
-            case 7:
-                vid = 3218; // GE_SINK_SLOT7_ITEM
-                vprice = 3219; // GE_SINK_SLOT7_PRICE
-                break;
-            default:
-                throw new IllegalArgumentException();
-        }
-        int id = client.getVar(vid);
-        int price = client.getVar(vprice);
-        return id == -1 ? null : new SinkGrandExchangeOffer(id, Math.max(0, price));
-    }
-
 }

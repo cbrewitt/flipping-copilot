@@ -50,19 +50,25 @@ public class GeHistoryTabController {
     private JDialog dialog;
 
     public void onGeHistoryTabClosed() {
-        geHistoryTransactionButton.setVisible(false);
+        SwingUtilities.invokeLater(() -> {
+            geHistoryTransactionButton.setVisible(false);
+            if (dialog != null) {
+                dialog.dispose();
+            }
+        });
     }
 
-
     public void onGeHistoryTabOpened() {
-        Widget[] widgets = client.getWidget(383, 3).getDynamicChildren();
-        List<List<Widget>> groupsOfWidgets = Lists.partition(Arrays.asList(widgets), 6);
-        List<Transaction> historyTransactions = groupsOfWidgets.stream().map(this::createTransaction).collect(Collectors.toList());
-        historyTransactions.forEach(tx ->
-                log.info("ge history transaction: {}", tx));
-
-        // Set up the button click handler
-        geHistoryTransactionButton.addActionListener(e -> openAddTransactionsDialog(historyTransactions));
+        geHistoryTransactionButton.addActionListener(e -> {
+            Widget w = client.getWidget(383, 3);
+            if( w != null) {
+                Widget[] widgets = w.getDynamicChildren();
+                List<List<Widget>> groupsOfWidgets = Lists.partition(Arrays.asList(widgets), 6);
+                List<Transaction> historyTransactions = groupsOfWidgets.stream().map(this::createTransaction).collect(Collectors.toList());
+                historyTransactions.forEach(tx -> log.debug("ge history transaction: {}", tx));
+                openAddTransactionsDialog(historyTransactions);
+            }
+        });
         geHistoryTransactionButton.setVisible(true);
     }
 

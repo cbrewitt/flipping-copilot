@@ -209,11 +209,6 @@ public class FlippingCopilotPlugin extends Plugin {
 	}
 
 	@Subscribe
-	public void onScriptPreFired(ScriptPreFired e) {
-		offerEventHandler.onScriptPreFired(e);
-	}
-
-	@Subscribe
 	public void onScriptPostFired(ScriptPostFired e) {
 		tooltipController.tooltip(e);
 	}

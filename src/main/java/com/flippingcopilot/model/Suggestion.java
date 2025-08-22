@@ -8,6 +8,7 @@ import lombok.*;
 import java.nio.ByteBuffer;
 import java.text.NumberFormat;
 
+@Setter
 @Getter
 @AllArgsConstructor
 @ToString
@@ -24,9 +25,10 @@ public class Suggestion {
     @SerializedName("command_id")
     private int id;
     private String message;
+    private Double expectedProfit;
+    private Double expectedDuration;
 
     @SerializedName("graph_data")
-    @Setter
     private Data graphData;
 
 
@@ -95,6 +97,12 @@ public class Suggestion {
                     break;
                 case "m":
                     s.message = (String) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "ed":
+                    s.expectedDuration = (Double) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "ep":
+                    s.expectedProfit = (Double) MsgPackUtil.decodePrimitive(b);
                     break;
                 case "gd":
                     s.graphData = Data.fromMsgPack(b);

@@ -85,7 +85,10 @@ public class TransactionManager {
         if (OfferStatus.SELL.equals(transaction.getType())) {
             Integer accountId = copilotLoginManager.getAccountId(displayName);
             if (accountId != null && accountId != -1) {
-                profit.setValue(flipManager.estimateTransactionProfit(accountId, transaction));
+                Long p = flipManager.estimateTransactionProfit(accountId, transaction);
+                if (p != null) {
+                    profit.setValue(p);
+                }
             }
         }
         if (copilotLoginManager.isLoggedIn()) {

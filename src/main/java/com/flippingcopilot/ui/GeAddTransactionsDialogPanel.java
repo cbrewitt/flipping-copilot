@@ -86,7 +86,12 @@ public class GeAddTransactionsDialogPanel extends JPanel {
             this.apiRequestHandler.asyncLoadRecentAccountTransactions(
                     this.displayName,
                     (int) (Instant.now().getEpochSecond()),
-                    this::onTransactionsLoaded,
+                    loadedTransactions -> SwingUtilities.invokeLater(() -> {
+                        this.serverTransactions = loadedTransactions;
+                        markAlreadyAdded(new ArrayList<>(serverTransactions), this.geTransactions);
+                        populateTransactionList();
+                        cardLayout.show(cardPanel, CARD_CONTENT);
+                    }),
                     error -> SwingUtilities.invokeLater(() -> {
                         showError("Error checking server transactions: " + error);
                     })
@@ -116,19 +121,16 @@ public class GeAddTransactionsDialogPanel extends JPanel {
         JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-        // Header
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         headerPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        JLabel titleLabel = new JLabel("Select transactions to add: (Only add transactions missed by copilot!)");
+        JLabel titleLabel = new JLabel("Select transactions to add:");
         titleLabel.setFont(FontManager.getRunescapeFont());
         titleLabel.setForeground(Color.WHITE);
         headerPanel.add(titleLabel, BorderLayout.NORTH);
-
         contentPanel.add(headerPanel, BorderLayout.NORTH);
 
-        // Transaction list with scroll
         transactionListPanel = new JPanel();
         transactionListPanel.setLayout(new BoxLayout(transactionListPanel, BoxLayout.Y_AXIS));
         transactionListPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -138,7 +140,21 @@ public class GeAddTransactionsDialogPanel extends JPanel {
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        contentPanel.add(scrollPane, BorderLayout.CENTER);
+
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        centerPanel.add(scrollPane, BorderLayout.CENTER);
+
+        JLabel warningLabel = new JLabel("<html><div style='text-align: left; width: 400px;'>" +
+                "Only add transactions not recorded by Copilot. It is your responsibility not to add duplicates." +
+                "</div></html>");
+        warningLabel.setFont(FontManager.getRunescapeFont());
+        warningLabel.setForeground(Color.RED);
+        warningLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        warningLabel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        centerPanel.add(warningLabel, BorderLayout.SOUTH);
+
+        contentPanel.add(centerPanel, BorderLayout.CENTER);
 
         // Button panel
         contentPanel.add(createButtonPanel(), BorderLayout.SOUTH);
@@ -187,14 +203,6 @@ public class GeAddTransactionsDialogPanel extends JPanel {
         populateTransactionList();
     }
 
-    private void onTransactionsLoaded(List<AckedTransaction> loadedTransactions) {
-        SwingUtilities.invokeLater(() -> {
-            this.serverTransactions = loadedTransactions;
-            populateTransactionList();
-            cardLayout.show(cardPanel, CARD_CONTENT);
-        });
-    }
-
     private void showError(String errorMessage) {
         errorCardLabel.setText(errorMessage);
         cardLayout.show(cardPanel, CARD_ERROR);
@@ -203,7 +211,6 @@ public class GeAddTransactionsDialogPanel extends JPanel {
     private void markAlreadyAdded(List<AckedTransaction> serverTransactions, List<Transaction> geTransactions) {
         log.debug("Checking already added transactions. Server txs: {}, GE txs: {}",
                 serverTransactions.size(), geTransactions.size());
-
         for (Transaction geTransaction : geTransactions) {
             int geQuantity = geTransaction.getType() == OfferStatus.BUY
                     ? geTransaction.getQuantity()
@@ -214,7 +221,6 @@ public class GeAddTransactionsDialogPanel extends JPanel {
                 if (serverTx.getItemId() == geTransaction.getItemId() &&
                         serverTx.getQuantity() == geQuantity &&
                         serverTx.getPrice() == geTransaction.getPrice()) {
-
                     geTransaction.setGeTransactionAlreadyAdded(true);
                     serverTransactions.remove(i);
                     break;
@@ -226,12 +232,13 @@ public class GeAddTransactionsDialogPanel extends JPanel {
     private void populateTransactionList() {
         transactionListPanel.removeAll();
         checkboxes.clear();
-        markAlreadyAdded(new ArrayList<>(serverTransactions), geTransactions);
         for (Transaction transaction : geTransactions) {
-            TransactionCheckbox checkbox = createTransactionRow(transaction);
-            checkboxes.add(checkbox);
-            transactionListPanel.add(checkbox.panel);
-            transactionListPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+            if(!transaction.isGeTransactionAlreadyAdded()) {
+                TransactionCheckbox checkbox = createTransactionRow(transaction);
+                checkboxes.add(checkbox);
+                transactionListPanel.add(checkbox.panel);
+                transactionListPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+            }
         }
         transactionListPanel.revalidate();
         transactionListPanel.repaint();
@@ -239,30 +246,23 @@ public class GeAddTransactionsDialogPanel extends JPanel {
 
     private TransactionCheckbox createTransactionRow(Transaction transaction) {
         JPanel rowPanel = new JPanel(new BorderLayout());
-
-        // Grey out the panel if it's a duplicate
-        Color bgColor = transaction.isGeTransactionAlreadyAdded()
-                ? ColorScheme.DARKER_GRAY_COLOR
-                : ColorScheme.DARK_GRAY_COLOR;
-
-        rowPanel.setBackground(bgColor);
+        rowPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         rowPanel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(ColorScheme.DARKER_GRAY_COLOR, 1),
                 new EmptyBorder(5, 10, 5, 10)
         ));
         rowPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
         JCheckBox checkbox = new JCheckBox();
-        checkbox.setBackground(bgColor);
-        checkbox.setEnabled(!transaction.isGeTransactionAlreadyAdded());
+        checkbox.setBackground(ColorScheme.DARK_GRAY_COLOR);
         checkbox.addActionListener(e -> updateAddButtonState());
         rowPanel.add(checkbox, BorderLayout.WEST);
-        rowPanel.add(createTransactionDetailsPanel(transaction, bgColor), BorderLayout.CENTER);
+        rowPanel.add(createTransactionDetailsPanel(transaction), BorderLayout.CENTER);
         return new TransactionCheckbox(checkbox, rowPanel, transaction);
     }
 
-    private JPanel createTransactionDetailsPanel(Transaction transaction, Color bgColor) {
+    private JPanel createTransactionDetailsPanel(Transaction transaction) {
         JPanel detailsPanel = new JPanel(new GridBagLayout());
-        detailsPanel.setBackground(bgColor);
+        detailsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(2, 10, 2, 10);
@@ -275,7 +275,6 @@ public class GeAddTransactionsDialogPanel extends JPanel {
         itemController.loadImage(transaction.getItemId(), i -> i.addTo(iconLabel));
         detailsPanel.add(iconLabel, gbc);
 
-        // Item name and quantity
         gbc.gridx = 1;
         gbc.gridy = 0;
         gbc.gridheight = 1;
@@ -283,29 +282,16 @@ public class GeAddTransactionsDialogPanel extends JPanel {
         String itemName = itemController.getItemName(transaction.getItemId());
         JLabel nameLabel = new JLabel(itemName + " x" + transaction.getQuantity());
         nameLabel.setFont(FontManager.getRunescapeBoldFont());
-        nameLabel.setForeground(transaction.isGeTransactionAlreadyAdded() ? Color.GRAY : Color.WHITE);
+        nameLabel.setForeground(Color.WHITE);
         detailsPanel.add(nameLabel, gbc);
 
-        // Transaction type and price
         gbc.gridy = 1;
         String typeText = transaction.getType() == OfferStatus.BUY ? "Bought" : "Sold";
         String priceText = String.format("%s for %,d gp each", typeText, transaction.getPrice());
         JLabel priceLabel = new JLabel(priceText);
         priceLabel.setFont(FontManager.getRunescapeSmallFont());
-        priceLabel.setForeground(transaction.isGeTransactionAlreadyAdded() ? Color.DARK_GRAY : Color.LIGHT_GRAY);
+        priceLabel.setForeground(Color.LIGHT_GRAY);
         detailsPanel.add(priceLabel, gbc);
-
-        // Add "Already added" label if duplicate
-        if (transaction.isGeTransactionAlreadyAdded()) {
-            gbc.gridx = 2;
-            gbc.gridy = 0;
-            gbc.gridheight = 2;
-            gbc.weightx = 0;
-            JLabel duplicateLabel = new JLabel("Already added");
-            duplicateLabel.setFont(FontManager.getRunescapeSmallFont());
-            duplicateLabel.setForeground(Color.GRAY);
-            detailsPanel.add(duplicateLabel, gbc);
-        }
 
         return detailsPanel;
     }
