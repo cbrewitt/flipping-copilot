@@ -325,7 +325,7 @@ public class SuggestionPanel extends JPanel {
             if (accountId != null) {
                 Long profit = flipManager.estimateTransactionProfit(accountId, t);
                 if (profit != null) {
-                    text = formatSellProfitLoss((double) profit);
+                    text = formatSellProfitLossAndDuration((double) profit, suggestion.getExpectedDuration());
                 }
             }
             setAdditionalInfoText(text + additionalInfoMessage);
@@ -505,14 +505,15 @@ public class SuggestionPanel extends JPanel {
         }
     }
 
-    private String formatSellProfitLoss(Double expectedProfit) {
+    private String formatSellProfitLossAndDuration(Double expectedProfit, Double expectedDuration) {
         String formattedProfit = formatProfit(expectedProfit);
+        String formattedDuration = formatDuration(expectedDuration);
         Color color = config.profitAmountColor();
         if(expectedProfit < 0) {
             color = config.lossAmountColor();
         }
         String colorHex = String.format("#%06X", (0xFFFFFF & color.getRGB()));
-        return "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit";
+        return "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit in <b>" + formattedDuration + "</b>";
     }
 
     private String formatExpectedProfitAndDuration(Double expectedProfit, Double expectedDuration) {
@@ -541,6 +542,7 @@ public class SuggestionPanel extends JPanel {
         int totalMinutes = (int) Math.round(durationSeconds / 60.0);
         // Round to nearest 5 minutes
         totalMinutes = Math.round(totalMinutes / 5.0f) * 5;
+        totalMinutes = Math.max(totalMinutes, 5);
         if (totalMinutes < 60) {
             return totalMinutes + "min";
         } else {
