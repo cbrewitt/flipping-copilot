@@ -507,13 +507,17 @@ public class SuggestionPanel extends JPanel {
 
     private String formatSellProfitLossAndDuration(Double expectedProfit, Double expectedDuration) {
         String formattedProfit = formatProfit(expectedProfit);
-        String formattedDuration = formatDuration(expectedDuration);
         Color color = config.profitAmountColor();
         if(expectedProfit < 0) {
             color = config.lossAmountColor();
         }
         String colorHex = String.format("#%06X", (0xFFFFFF & color.getRGB()));
-        return "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit in <b>" + formattedDuration + "</b>";
+        String text = "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit";
+        if (expectedDuration != null) {
+            String formattedDuration = formatDuration(expectedDuration);
+            text += "in <b>" + formattedDuration + "</b>";
+        }
+        return text;
     }
 
     private String formatExpectedProfitAndDuration(Double expectedProfit, Double expectedDuration) {
