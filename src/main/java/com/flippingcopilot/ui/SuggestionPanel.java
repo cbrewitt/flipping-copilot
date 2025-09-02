@@ -515,7 +515,7 @@ public class SuggestionPanel extends JPanel {
         String text = "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit";
         if (expectedDuration != null) {
             String formattedDuration = formatDuration(expectedDuration);
-            text += "in <b>" + formattedDuration + "</b>";
+            text += " in <b>" + formattedDuration + "</b>";
         }
         return text;
     }
