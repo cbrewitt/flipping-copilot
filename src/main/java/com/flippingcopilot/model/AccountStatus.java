@@ -85,10 +85,7 @@ public class AccountStatus {
         Set<String> requestedSuggestionTypes = new HashSet<>();
         if (!geOpen) {
             requestedSuggestionTypes.add("abort");
-            requestedSuggestionTypes.add("sell");
-        }
-        if(sellOnlyMode) {
-            requestedSuggestionTypes.clear();
+        } else if(sellOnlyMode) {
             requestedSuggestionTypes.add("abort");
             requestedSuggestionTypes.add("sell");
         }

@@ -578,6 +578,8 @@ public class ApiRequestHandler {
             }
         });
     }
+
+
     public void asyncOrphanTransaction(AckedTransaction transaction, BiConsumer<Integer, List<FlipV2>> onSuccess, Runnable onFailure) {
         JsonObject body = new JsonObject();
         body.addProperty("transaction_id", transaction.getId().toString());
@@ -612,6 +614,45 @@ public class ApiRequestHandler {
                 } catch (Exception e) {
                     log.error("orphaning transaction {}", transaction.getId(), e);
                     onFailure.run();
+                }
+            }
+        });
+    }
+
+    public void asyncLoadRecentAccountTransactions(String displayName, int endTime, Consumer<List<AckedTransaction>> onSuccess, Consumer<String> onFailure) {
+        JsonObject body = new JsonObject();
+        body.addProperty("limit", 30);
+        body.addProperty("end", endTime);
+        Request request = new Request.Builder()
+                .url(serverUrl + "/profit-tracking/account-client-transactions?display_name=" + displayName)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
+                .header("Accept", "application/x-bytes")
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.error("error loading transactions", e);
+                onFailure.accept(UNKNOWN_ERROR);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
+                        }
+                        String errorMessage = extractErrorMessage(response);
+                        log.error("load transactions failed with http status code {}, error message {}", response.code(), errorMessage);
+                        onFailure.accept(errorMessage);
+                        return;
+                    }
+                    onSuccess.accept(AckedTransaction.listFromRaw(response.body().bytes()));
+                } catch (Exception e) {
+                    log.error("error reading/parsing transactions response body", e);
+                    onFailure.accept(UNKNOWN_ERROR);
                 }
             }
         });

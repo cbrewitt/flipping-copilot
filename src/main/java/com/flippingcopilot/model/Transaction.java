@@ -29,6 +29,7 @@ public class Transaction {
     private int offerTotalQuantity;
     private boolean login;
     private boolean consistent;
+    private boolean geTransactionAlreadyAdded;
 
     public boolean equals(Transaction other) {
         return this.type == other.type &&

@@ -75,7 +75,8 @@ public class CopilotLoginController {
         Consumer<Map<String, Integer>> onSuccess = (displayNameToAccountId) -> {
             displayNameToAccountId.forEach((key, value) ->
                     copilotLoginManager.addAccountIfMissing(value, key, userId));
-            log.info("loading copilot accounts succeeded - took {}ms", (System.nanoTime() - s) / 1000_000);
+            mainPanel.refresh();
+            log.info("loading {} copilot accounts succeeded - took {}ms", displayNameToAccountId.size(), (System.nanoTime() - s) / 1000_000);
         };
         Consumer<String> onFailure = (errorMessage) -> {
             if (copilotLoginManager.isLoggedIn()) {

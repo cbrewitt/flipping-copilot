@@ -4,8 +4,10 @@ import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.GrandExchange;
 import com.flippingcopilot.controller.HighlightController;
 import com.flippingcopilot.controller.PremiumInstanceController;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.graph.PriceGraphController;
+import joptsimple.internal.Strings;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
@@ -48,10 +50,13 @@ public class SuggestionPanel extends JPanel {
     private final GrandExchange grandExchange;
     private final PriceGraphController priceGraphController;
     private final PremiumInstanceController premiumInstanceController;
+    private final FlipManager flipManager;
+    private final CopilotLoginManager copilotLoginManager;
 
     private final JLabel suggestionText = new JLabel();
     private final JLabel suggestionIcon = new JLabel(new ImageIcon(ImageUtil.loadImageResource(getClass(),"/small_open_arrow.png")));
     private final JPanel suggestionTextContainer = new JPanel();
+    private final JLabel additionalInfoText = new JLabel();
     public final Spinner spinner = new Spinner();
     private JLabel skipButton;
     private final JPanel buttonContainer = new JPanel();
@@ -81,7 +86,7 @@ public class SuggestionPanel extends JPanel {
                            ClientThread clientThread,
                            HighlightController highlightController,
                            ItemManager itemManager,
-                           GrandExchange grandExchange, PriceGraphController priceGraphController, PremiumInstanceController premiumInstanceController) {
+                           GrandExchange grandExchange, PriceGraphController priceGraphController, PremiumInstanceController premiumInstanceController, FlipManager flipManager, CopilotLoginManager copilotLoginManager) {
         this.preferencesPanel = preferencesPanel;
         this.config = config;
         this.suggestionManager = suggestionManager;
@@ -98,6 +103,8 @@ public class SuggestionPanel extends JPanel {
         this.grandExchange = grandExchange;
         this.priceGraphController = priceGraphController;
         this.premiumInstanceController = premiumInstanceController;
+        this.flipManager = flipManager;
+        this.copilotLoginManager = copilotLoginManager;
 
         // Create the layered pane first
         layeredPane.setLayout(null);  // LayeredPane needs null layout
@@ -105,19 +112,21 @@ public class SuggestionPanel extends JPanel {
         // Create a main panel that will hold all the regular components
         suggestedActionPanel = new JPanel(new BorderLayout());
         suggestedActionPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        suggestedActionPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        suggestedActionPanel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
         suggestedActionPanel.setBounds(0, 0, 300, 150);  // Set appropriate size
-        JLabel title = new JLabel("<html><center> <FONT COLOR=white><b>Suggested Action:" +
-                "</b></FONT></center></html>");
-        title.setHorizontalAlignment(SwingConstants.CENTER);
-        suggestedActionPanel.add(title, BorderLayout.NORTH);
 
-        JPanel suggestionContainer = new JPanel();
-        suggestionContainer.setLayout(new CardLayout());
+        JPanel suggestionContainer = new JPanel(new BorderLayout());
         suggestionContainer.setOpaque(true);
         suggestionContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         suggestionContainer.setPreferredSize(new Dimension(0, 85));
         suggestedActionPanel.add(suggestionContainer, BorderLayout.CENTER);
+
+        // Center panel for main suggestion content (icon and text)
+        JPanel suggestionMainPanel = new JPanel();
+        suggestionMainPanel.setLayout(new CardLayout());
+        suggestionMainPanel.setOpaque(true);
+        suggestionMainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        suggestionContainer.add(suggestionMainPanel, BorderLayout.CENTER);
 
         suggestionTextContainer.setLayout(new BoxLayout(suggestionTextContainer, BoxLayout.X_AXIS));
         suggestionTextContainer.add(Box.createHorizontalGlue());
@@ -132,10 +141,18 @@ public class SuggestionPanel extends JPanel {
         suggestionIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
 
         suggestionText.setHorizontalAlignment(SwingConstants.CENTER);
-        suggestionText.setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
-        suggestionContainer.add(suggestionTextContainer);
+        suggestionText.setBorder(BorderFactory.createEmptyBorder(0, 3, 0, 3));
+        suggestionMainPanel.add(suggestionTextContainer);
 
-        suggestionContainer.add(spinner);
+        suggestionMainPanel.add(spinner);
+
+        // Add expected profit text to SOUTH of suggestionContainer
+        additionalInfoText.setHorizontalAlignment(SwingConstants.CENTER);
+        additionalInfoText.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        additionalInfoText.setText("");
+        additionalInfoText.setBorder(BorderFactory.createEmptyBorder(0, 6, 8, 6)); // top, left, bottom, right
+        suggestionContainer.add(additionalInfoText, BorderLayout.SOUTH);
+
         setupButtonContainer();
         suggestedActionPanel.add(buttonContainer, BorderLayout.SOUTH);
 
@@ -200,13 +217,7 @@ public class SuggestionPanel extends JPanel {
         });
     }
 
-    // Add this as a private method in the class
     private void handleGearClick() {
-//        Data data = getPriceData();
-//
-//        Manager.showPriceGraph(graphButton, data);
-
-
         isPreferencesPanelVisible = !isPreferencesPanelVisible;
         preferencesPanel.setVisible(isPreferencesPanelVisible);
         suggestedActionPanel.setVisible(!isPreferencesPanelVisible);
@@ -218,10 +229,10 @@ public class SuggestionPanel extends JPanel {
     private void setupButtonContainer() {
         buttonContainer.setLayout(new BorderLayout());
         buttonContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-    
+
         JPanel centerPanel = new JPanel(new GridLayout(1, 5, 15, 0));
         centerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-    
+
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
         graphButton = buildButton(graphIcon, "Price graph", () -> {
             if(config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT)) {
@@ -234,13 +245,13 @@ public class SuggestionPanel extends JPanel {
             }
         });
         centerPanel.add(graphButton);
-    
+
         JPanel emptyPanel = new JPanel();
         emptyPanel.setOpaque(false);
         centerPanel.add(emptyPanel);
         centerPanel.add(pauseButton);
         centerPanel.add(blockButton);
-    
+
         BufferedImage skipIcon = ImageUtil.loadImageResource(getClass(), "/skip.png");
         skipButton = buildButton(skipIcon, "Skip suggestion", () -> {
             showLoading();
@@ -249,7 +260,7 @@ public class SuggestionPanel extends JPanel {
             suggestionManager.setSuggestionNeeded(true);
         });
         centerPanel.add(skipButton);
-        
+
         buttonContainer.add(centerPanel, BorderLayout.CENTER);
     }
 
@@ -262,12 +273,15 @@ public class SuggestionPanel extends JPanel {
         }
     }
 
+    public void setAdditionalInfoText(String text) {
+        additionalInfoText.setText("<html><center>" + text + "</center></html>");
+    }
 
     public void updateSuggestion(Suggestion suggestion) {
         NumberFormat formatter = NumberFormat.getNumberInstance();
         String suggestionString = "<html><center>";
         suggestionTextContainer.setVisible(false);
-
+        additionalInfoText.setText("");
         switch (suggestion.getType()) {
             case "wait":
                 suggestionString += "Wait <br>";
@@ -288,7 +302,8 @@ public class SuggestionPanel extends JPanel {
             default:
                 suggestionString += "Error processing suggestion<br>";
         }
-        suggestionString += suggestion.getMessage();
+        String additionalInfoMessage = Strings.isNullOrEmpty(suggestion.getMessage()) ? "" : "<br>" + suggestion.getMessage();
+
         suggestionString += "</center><html>";
         innerSuggestionMessage = "";
         if(!suggestion.getType().equals("wait")) {
@@ -296,6 +311,28 @@ public class SuggestionPanel extends JPanel {
         }
         suggestionText.setText(suggestionString);
         suggestionText.setMaximumSize(new Dimension(suggestionText.getPreferredSize().width, Integer.MAX_VALUE));
+        if (suggestion.getType().equals("buy")) {
+            setAdditionalInfoText(formatExpectedProfitAndDuration(suggestion.getExpectedProfit(), suggestion.getExpectedDuration()) + additionalInfoMessage);
+        } else if (suggestion.getType().equals("sell")) {
+            Transaction t = new Transaction();
+            t.setItemId(suggestion.getItemId());
+            t.setPrice(suggestion.getPrice());
+            t.setQuantity(suggestion.getQuantity());
+            t.setAmountSpent(suggestion.getPrice() * suggestion.getQuantity());
+            t.setType(OfferStatus.SELL);
+            Integer accountId = copilotLoginManager.getAccountId(osrsLoginManager.getLastDisplayName());
+            String text = "";
+            if (accountId != null) {
+                Long profit = flipManager.estimateTransactionProfit(accountId, t);
+                if (profit != null) {
+                    text = formatSellProfitLossAndDuration((double) profit, suggestion.getExpectedDuration());
+                }
+            }
+            setAdditionalInfoText(text + additionalInfoMessage);
+        } else {
+            setAdditionalInfoText(additionalInfoMessage);
+        }
+
         suggestionTextContainer.setVisible(true);
         suggestionTextContainer.revalidate();
         suggestionTextContainer.repaint();
@@ -310,8 +347,8 @@ public class SuggestionPanel extends JPanel {
         NumberFormat formatter = NumberFormat.getNumberInstance();
         setMessage("Add " +
                 "at least <FONT COLOR=" + highlightedColor + ">" + formatter.format(MIN_GP_NEEDED_TO_FLIP)
-                               + "</FONT> gp<br>to your inventory<br>"
-                               + "to get a flip suggestion");
+                + "</FONT> gp<br>to your inventory<br>"
+                + "to get a flip suggestion");
         setButtonsVisible(false);
     }
 
@@ -327,6 +364,7 @@ public class SuggestionPanel extends JPanel {
     }
 
     public void setMessage(String message) {
+        additionalInfoText.setVisible(false);
         innerSuggestionMessage = message;
         setButtonsVisible(false);
 
@@ -380,12 +418,15 @@ public class SuggestionPanel extends JPanel {
         spinner.show();
         setButtonsVisible(false);
         suggestionIcon.setVisible(false);
+        additionalInfoText.setText("");
+        additionalInfoText.setVisible(false);
         suggestionText.setText("");
     }
 
     public void hideLoading() {
         spinner.hide();
         suggestionTextContainer.setVisible(true);
+        additionalInfoText.setVisible(true);
     }
 
     private void setButtonsVisible(boolean visible) {
@@ -411,9 +452,9 @@ public class SuggestionPanel extends JPanel {
         }
         if (collectNeeded) {
             suggestCollect();
-        } else if(suggestion.getType().equals("wait") && !grandExchange.isOpen() && accountStatus.emptySlotExists()) {
+        } else if(!suggestion.getType().equals("abort") && !grandExchange.isOpen()) {
             suggestOpenGe();
-        }else if (suggestion.getType().equals("wait") && accountStatus.moreGpNeeded()) {
+        } else if (suggestion.getType().equals("wait") && accountStatus.moreGpNeeded()) {
             suggestAddGp();
         }  else {
             updateSuggestion(suggestion);
@@ -432,15 +473,16 @@ public class SuggestionPanel extends JPanel {
             preferencesPanel.refresh();
         }
         if (pausedManager.isPaused()) {
-            setIsPausedMessage();
             hideLoading();
+            setIsPausedMessage();
             return;
         }
 
         String errorMessage = osrsLoginManager.getInvalidStateDisplayMessage();
         if (errorMessage != null) {
-            setMessage(errorMessage);
             hideLoading();
+            setMessage(errorMessage);
+            return;
         }
 
         if(suggestionManager.isSuggestionRequestInProgress()) {
@@ -460,6 +502,61 @@ public class SuggestionPanel extends JPanel {
             clientThread.invoke(this::displaySuggestion);
         } else {
             displaySuggestion();
+        }
+    }
+
+    private String formatSellProfitLossAndDuration(Double expectedProfit, Double expectedDuration) {
+        String formattedProfit = formatProfit(expectedProfit);
+        Color color = config.profitAmountColor();
+        if(expectedProfit < 0) {
+            color = config.lossAmountColor();
+        }
+        String colorHex = String.format("#%06X", (0xFFFFFF & color.getRGB()));
+        String text = "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit";
+        if (expectedDuration != null) {
+            String formattedDuration = formatDuration(expectedDuration);
+            text += " in <b>" + formattedDuration + "</b>";
+        }
+        return text;
+    }
+
+    private String formatExpectedProfitAndDuration(Double expectedProfit, Double expectedDuration) {
+        if (expectedProfit == null || expectedDuration == null) {
+            return "";
+        }
+        String formattedProfit = formatProfit(expectedProfit);
+        String formattedDuration = formatDuration(expectedDuration);
+        Color profitColor = config.profitAmountColor();
+
+        String colorHex = String.format("#%06X", (0xFFFFFF & profitColor.getRGB()));
+        return "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit in <b>" + formattedDuration + "</b>";
+    }
+
+    private String formatProfit(double profit) {
+        if (Math.abs(profit) >= 1_000_000) {
+            return String.format("%.1fM", profit / 1_000_000).replace(".0", "");
+        } else if (Math.abs(profit) >= 1_000) {
+            return String.format("%.1fK", profit / 1_000).replace(".0", "");
+        } else {
+            return String.format("%.0f", profit);
+        }
+    }
+
+    private String formatDuration(double durationSeconds) {
+        int totalMinutes = (int) Math.round(durationSeconds / 60.0);
+        // Round to nearest 5 minutes
+        totalMinutes = Math.round(totalMinutes / 5.0f) * 5;
+        totalMinutes = Math.max(totalMinutes, 5);
+        if (totalMinutes < 60) {
+            return totalMinutes + "min";
+        } else {
+            int hours = totalMinutes / 60;
+            int minutes = totalMinutes % 60;
+            if (minutes == 0) {
+                return hours + "h";
+            } else {
+                return hours + "h " + minutes + "m";
+            }
         }
     }
 }

@@ -42,6 +42,9 @@ public class HighlightController {
         if(!config.suggestionHighlights()) {
             return;
         }
+        if(!grandExchange.isOpen()) {
+            return;
+        }
         if (offerManager.isOfferJustPlaced()) {
             return;
         }
