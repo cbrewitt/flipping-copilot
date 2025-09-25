@@ -20,7 +20,9 @@ public class Config {
 
     public static int HOVER_RADIUS = 8; // Distance in pixels to detect hovering
 
+    public static final Stroke THIN_STROKE = new BasicStroke(0.5f);
     public static final Stroke NORMAL_STROKE = new BasicStroke(1f);
+    public static final Stroke THICK_STROKE = new BasicStroke(2f);
     public static final Stroke DOTTED_STROKE = new BasicStroke(
             1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{5}, 0
     );

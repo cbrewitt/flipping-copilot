@@ -3,7 +3,7 @@ package com.flippingcopilot.ui.graph.model;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
-public class PriceAxis {
-    public int[] tickPrices;
-    public int[] gridOnlyPrices;
+public class YAxis {
+    public long[] tickValues;
+    public long[] gridOnlyValues;
 }

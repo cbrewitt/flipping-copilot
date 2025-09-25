@@ -5,47 +5,44 @@ import com.flippingcopilot.ui.graph.model.*;
 import java.awt.*;
 import java.awt.geom.Path2D;
 import java.util.List;
+import java.util.function.BiFunction;
 
 public class RenderV2 {
 
-    public void drawGrid(Graphics2D plotAreaG2,Config config,  PlotArea pa, TimeAxis xAxis, PriceAxis yAxis) {
-        plotAreaG2.setColor(config.gridColor);
-        plotAreaG2.setStroke(Config.GRID_STROKE);
+    public void drawGrid(Graphics2D g2, Config config, Rectangle pa, Bounds bounds, BiFunction<Rectangle, Long, Integer> toY, TimeAxis xAxis, YAxis yAxis) {
+        g2.setColor(config.gridColor);
+        g2.setStroke(Config.NORMAL_STROKE);
         for (int t : xAxis.dateOnlyTickTimes) {
-            Stroke originalStroke = plotAreaG2.getStroke();
-            int x = pa.timeToX(t);
-            plotAreaG2.setStroke(new BasicStroke(1.0f));
-            plotAreaG2.drawLine(x, 0, x, pa.h);
-            plotAreaG2.setStroke(originalStroke);
+            int x = bounds.toX(pa,t);
+            g2.drawLine(x, pa.y, x, pa.y + pa.height);
         }
+        g2.setStroke(Config.GRID_STROKE);
         for (int t : xAxis.timeOnlyTickTimes) {
-            int x = pa.timeToX(t);
-            plotAreaG2.drawLine(x, 0, x, pa.h);
+            int x = bounds.toX(pa,t);
+            g2.drawLine(x, pa.y, x, pa.y + pa.height);
         }
         for (int t : xAxis.gridOnlyTickTimes) {
-            int x = pa.timeToX(t);
-            plotAreaG2.drawLine(x, 0, x, pa.h);
+            int x = bounds.toX(pa,t);
+            g2.drawLine(x, pa.y, x, pa.y + pa.height);
         }
-        for (int p : yAxis.tickPrices) {
-            int y = pa.priceToY(p);
-            plotAreaG2.drawLine(0, y, pa.w, y);
+        for (long p : yAxis.tickValues) {
+            int y = toY.apply(pa,p);
+            g2.drawLine(pa.x, y, pa.x+pa.width, y);
         }
-        for (int p : yAxis.gridOnlyPrices) {
-            int y = pa.priceToY(p);
-            plotAreaG2.drawLine(0, y, pa.w, y);
+        for (long p : yAxis.gridOnlyValues) {
+            int y =toY.apply(pa,p);
+            g2.drawLine(pa.x, y, pa.x + pa.width, y);
         }
     }
 
-    public void drawAxes(Graphics2D g2, Config config,  PlotArea pa, TimeAxis xAxis, PriceAxis yAxis) {
+    public void drawAxes(Graphics2D g2, Config config,  Rectangle pa) {
         g2.setColor(config.axisColor);
         g2.setStroke(new BasicStroke(1.0f));
-        g2.drawLine(pa.leftPadding,  pa.topPadding + pa.h, pa.leftPadding + pa.w, pa.topPadding + pa.h);
-        g2.drawLine(pa.leftPadding, pa.topPadding, pa.leftPadding, pa.topPadding +pa.h);
-        drawXAxisLabels(g2,config, pa, xAxis);
-        drawYAxisLabels(g2, config,pa, yAxis);
+        g2.drawLine(pa.x,  pa.y + pa.height, pa.x + pa.width, pa.y + pa.height);
+        g2.drawLine(pa.x, pa.y, pa.x, pa.y +pa.height);
     }
 
-    public void drawXAxisLabels(Graphics2D g2, Config config, PlotArea pa, TimeAxis xAxis) {
+    public void drawXAxisLabels(Graphics2D g2, Config config, Rectangle pa, Bounds bounds, TimeAxis xAxis) {
         g2.setFont(g2.getFont().deriveFont(Config.FONT_SIZE));
         g2.setColor(config.textColor);
         FontMetrics metrics = g2.getFontMetrics();
@@ -55,47 +52,43 @@ public class RenderV2 {
 
         // Draw date labels (longer ticks)
         for (int time : xAxis.dateOnlyTickTimes) {
-            int x = pa.timeToX(time);
-            g2.drawLine(pa.leftPadding + x, pa.topPadding + pa.h, pa.leftPadding + x, pa.topPadding + pa.h + Config.TICK_SIZE * 2);
+            int x = bounds.toX(pa,time);
+            g2.drawLine(x, pa.y + pa.height,  x, pa.y + pa.height + Config.TICK_SIZE * 2);
             String label = dateFormat.format(new java.util.Date(time * 1000L));
             int labelWidth = metrics.stringWidth(label);
-            g2.drawString(label, pa.leftPadding + x - labelWidth / 2, pa.topPadding + pa.h + Config.TICK_SIZE * 2 + 9 + metrics.getHeight());
+            g2.drawString(label,  x - labelWidth / 2, pa.y + pa.height + Config.TICK_SIZE * 2 + 9 + metrics.getHeight());
         }
 
         // Draw time labels (shorter ticks)
         for (int time : xAxis.timeOnlyTickTimes) {
-            int x = pa.timeToX(time);
-
-            g2.drawLine(pa.leftPadding +x, pa.topPadding + pa.h, pa.leftPadding +x, pa.topPadding +  pa.h + Config.TICK_SIZE);
-
+            int x = bounds.toX(pa,time);
+            g2.drawLine(x, pa.y + pa.height, x, pa.y +  pa.height + Config.TICK_SIZE);
             String label = timeFormat.format(new java.util.Date(time * 1000L));
             int labelWidth = metrics.stringWidth(label);
-            g2.drawString(label, pa.leftPadding + x - labelWidth / 2, pa.topPadding +  pa.h + Config.TICK_SIZE + metrics.getHeight());
+            g2.drawString(label, x - labelWidth / 2, pa.y +  pa.height + Config.TICK_SIZE + metrics.getHeight());
         }
     }
 
-    public void drawYAxisLabels(Graphics2D g2, Config config, PlotArea pa, PriceAxis yAxis) {
+    public void drawYAxisLabels(Graphics2D g2, Config config, Rectangle pa, BiFunction<Rectangle, Long, Integer> toY, YAxis yAxis, boolean skipLast) {
         g2.setFont(g2.getFont().deriveFont(Config.FONT_SIZE));
         g2.setColor(config.textColor);
         FontMetrics metrics = g2.getFontMetrics();
-        for (int price : yAxis.tickPrices) {
-            int y = pa.priceToY(price);
-            g2.drawLine(pa.leftPadding - Config.TICK_SIZE,pa.topPadding + y, pa.leftPadding, pa.topPadding+ y);
-
-            // Format and draw the price label
-            String label = com.flippingcopilot.ui.UIUtilities.quantityToRSDecimalStack(price, true);
-            g2.drawString(label,
-                    pa.leftPadding - metrics.stringWidth(label) - Config.LABEL_PADDING,
-                    pa.topPadding + y + metrics.getHeight() / 3);
+        for (long v : yAxis.tickValues) {
+            int y = toY.apply(pa, v);
+            g2.drawLine(pa.x - Config.TICK_SIZE,y, pa.x, y);
+            String label = com.flippingcopilot.ui.UIUtilities.quantityToRSDecimalStack(v, true);
+            if(!skipLast || v != yAxis.tickValues[yAxis.tickValues.length-1]) {
+                g2.drawString(label, pa.x - metrics.stringWidth(label) - Config.LABEL_PADDING, y + metrics.getHeight() / 3);
+            }
         }
     }
 
 
-    public void drawPredictionIQR(Graphics2D plotAreaG2, Config config, PlotArea pa, int[] times, int[] lowerPrices, int[] upperPrices, boolean isLow) {
+    public void drawPredictionIQR(Graphics2D g2d,Config config, Rectangle pa,  Bounds bounds, int[] times, int[] lowerPrices, int[] upperPrices, boolean isLow) {
         if (times.length < 2) return;
 
         // Set appropriate color
-        plotAreaG2.setColor(isLow ? config.lowShadeColor : config.highShadeColor);
+        g2d.setColor(isLow ? config.lowShadeColor : config.highShadeColor);
 
         // Create path for shaded area with clipping
         Path2D path = new Path2D.Double();
@@ -104,9 +97,9 @@ public class RenderV2 {
         // Start at the first point that's in range
         for (int i = 0; i < times.length; i++) {
             int time = times[i];
-            if (time >= pa.bounds.xMin && time <=pa.bounds.xMax) {
-                int x = pa.timeToX(time);
-                int y = pa.priceToY(lowerPrices[i]);
+            if (time >= bounds.xMin && time <=bounds.xMax) {
+                int x = bounds.toX(pa,time);
+                int y = bounds.toY(pa,lowerPrices[i]);
 
                 if (!started) {
                     path.moveTo(x, y);
@@ -120,9 +113,9 @@ public class RenderV2 {
         // Draw the upper bound from right to left (for points in range)
         for (int i = times.length - 1; i >= 0; i--) {
             int time = times[i];
-            if (time >= pa.bounds.xMin && time <= pa.bounds.xMax) {
-                int x = pa.timeToX(time);
-                int y = pa.priceToY(upperPrices[i]);
+            if (time >= bounds.xMin && time <= bounds.xMax) {
+                int x = bounds.toX(pa,time);
+                int y = bounds.toY(pa,upperPrices[i]);
                 path.lineTo(x, y);
             }
         }
@@ -130,153 +123,108 @@ public class RenderV2 {
         // Close the path if we drew anything
         if (started) {
             path.closePath();
-            plotAreaG2.fill(path);
+            g2d.fill(path);
         }
     }
 
-    public void drawLines(Graphics2D plotAreaG2,
-                          PlotArea pa,
+    public void drawLines(Graphics2D g2d,
+                          Rectangle pa,
+                          Bounds bounds,
                           List<Datapoint> datapoints,
                           Color color,
                           Stroke stroke) {
         if (datapoints.isEmpty()) return;
 
-        // Set the specified stroke and color
-        plotAreaG2.setStroke(stroke);
-        plotAreaG2.setColor(color);
+        g2d.setStroke(stroke);
+        g2d.setColor(color);
+        java.awt.Shape originalClip = g2d.getClip();
+        g2d.setClip(pa.x, pa.y, pa.width, pa.height);
 
-        // Create a clip rectangle matching the plot area bounds
-        java.awt.Shape originalClip = plotAreaG2.getClip();
-        plotAreaG2.setClip(0, 0, pa.w, pa.h);
-
-        // Create path for line segments
         java.awt.geom.Path2D.Float path = new java.awt.geom.Path2D.Float();
 
         // Start the path at the first point
-        int x = pa.timeToX(datapoints.get(0).time);
-        int y = pa.priceToY(datapoints.get(0).price);
+        int x = bounds.toX(pa,datapoints.get(0).time);
+        int y = bounds.toY(pa,datapoints.get(0).price);
         path.moveTo(x, y);
 
         for (Datapoint d : datapoints.subList(1, datapoints.size())) {
-            x = pa.timeToX(d.time);
-            y = pa.priceToY(d.price);
+            x = bounds.toX(pa,d.time);
+            y = bounds.toY(pa,d.price);
             path.lineTo(x, y);
         }
 
-        plotAreaG2.draw(path);
-        plotAreaG2.setClip(originalClip);
+        g2d.draw(path);
+        g2d.setClip(originalClip);
     }
 
     public void drawStartPoints(Graphics2D plotAreaG2,
-                                PlotArea pa,
-                                List<Datapoint> startPoints,
+                                Rectangle pa,
+                                Bounds bounds, List<Datapoint> startPoints,
                                 Color color,
                                 int size
     ) {
         if (startPoints.isEmpty()) return;
 
-        // Save original color
-        Color originalColor = plotAreaG2.getColor();
-
-        // Set the specified color
         plotAreaG2.setColor(color);
-
-        // Create a clip rectangle matching the plot area bounds
         java.awt.Shape originalClip = plotAreaG2.getClip();
-        plotAreaG2.setClip(0, 0, pa.w, pa.h);
+        plotAreaG2.setClip(pa.x, pa.y, pa.width, pa.height);
 
-        // Draw each start point as a filled oval
         for (Datapoint d : startPoints) {
-            if (d.time < pa.bounds.xMin || d.time > pa.bounds.xMax) {
+            if (d.time < bounds.xMin || d.time > bounds.xMax) {
                 continue;
             }
+            int x = bounds.toX(pa,d.time);
+            int y = bounds.toY(pa,d.price);
 
-            // Get current point coordinates
-            int x = pa.timeToX(d.time);
-            int y = pa.priceToY(d.price);
-
-            // Draw an asterisk (*) at the point
-            // Save the original stroke
             Stroke originalStroke = plotAreaG2.getStroke();
-
-            // Set stroke based on size
             float strokeWidth = Math.max(1, size / 5);
             plotAreaG2.setStroke(new BasicStroke(strokeWidth));
 
-            // Draw the lines of the asterisk (*)
             int halfSize = size / 2;
-
-            // Horizontal line
             plotAreaG2.drawLine(x - halfSize, y, x + halfSize, y);
-
-            // Vertical line
             plotAreaG2.drawLine(x, y - halfSize, x, y + halfSize);
-
-            // Diagonal line from top-left to bottom-right
             plotAreaG2.drawLine(x - halfSize, y - halfSize, x + halfSize, y + halfSize);
-
-            // Diagonal line from top-right to bottom-left
             plotAreaG2.drawLine(x + halfSize, y - halfSize, x - halfSize, y + halfSize);
-
-            // Restore the original stroke
             plotAreaG2.setStroke(originalStroke);
         }
-
-        // Restore original clip and color
-        plotAreaG2.setClip(originalClip);
-        plotAreaG2.setColor(originalColor);
+        plotAreaG2.setClip(originalClip); // restore original clip
     }
 
-    public void drawPoints(Graphics2D plotAreaG2,
-                            PlotArea pa,
+    public void drawPoints(Graphics2D g2d,
+                            Rectangle pa,
+                            Bounds bounds,
                             List<Datapoint> datapoints,
                             Color color,
                             int size
     ) {
         if (datapoints.isEmpty()) return;
-
-        // Save original color
-        Color originalColor = plotAreaG2.getColor();
-
-        // Set the specified color
-        plotAreaG2.setColor(color);
-
-        // Create a clip rectangle matching the plot area bounds
-        java.awt.Shape originalClip = plotAreaG2.getClip();
-        plotAreaG2.setClip(0, 0, pa.w, pa.h);
+        g2d.setColor(color);
+        java.awt.Shape originalClip = g2d.getClip();
+        g2d.setClip(pa.x, pa.y, pa.width, pa.height);
 
         // Draw each point as a filled oval
         for (Datapoint d : datapoints) {
-            if (d.time < pa.bounds.xMin || d.time > pa.bounds.xMax) {
+            if (d.time < bounds.xMin || d.time > bounds.xMax) {
                 continue;
             }
-
-            // Get current point coordinates
-            int x = pa.timeToX(d.time);
-            int y = pa.priceToY(d.price);
-
-            // Calculate the top-left corner for the oval (centered on x,y)
+            int x = bounds.toX(pa,d.time);
+            int y = bounds.toY(pa,d.price);
             int ovalX = x - size / 2;
             int ovalY = y - size / 2;
-
             if (d.type == Datapoint.Type.PREDICTION || d.type == Datapoint.Type.INSTA_SELL_BUY) {
-                // filled oval for latest price points
-                plotAreaG2.fillOval(ovalX, ovalY, size, size);
+                g2d.fillOval(ovalX, ovalY, size, size);
             } else {
                 // rectangle for 5m/1h averages
                 int timeDelta = d.type == Datapoint.Type.FIVE_MIN_AVERAGE ? Constants.FIVE_MIN_SECONDS : Constants.HOUR_SECONDS;
-                int w = pa.timeDeltaToXDelta(timeDelta);
-                plotAreaG2.fillRect(x, y, w + size, size);
+                int w = bounds.toW(pa, timeDelta);
+                g2d.fillRect(x, y, w + size, size);
             }
         }
-
-        // Restore original clip and color
-        plotAreaG2.setClip(originalClip);
-        plotAreaG2.setColor(originalColor);
+        g2d.setClip(originalClip); // restore original clip
     }
 
-    public void drawLegend(Graphics2D g2, Config config, PlotArea pa) {
-        int xMid = pa.leftPadding + pa.w / 2;
+    public void drawLegend(Graphics2D g2, Config config, Rectangle pa) {
+        int xMid = pa.x + pa.width / 2;
         g2.setFont(g2.getFont().deriveFont(Font.PLAIN, Config.FONT_SIZE));
         FontMetrics metrics = g2.getFontMetrics();
 
@@ -285,7 +233,7 @@ public class RenderV2 {
         String[] labels2 = {"Low IQR", "High IQR"};  // New line for IQR entries
 
         // Calculate legend position - now above the plot area
-        int legendY = pa.topPadding / 2; // Half the padding from the top
+        int legendY = pa.y / 2; // Half the padding from the top
         int lineLength = 20;
         int itemHeight = 15;
         int itemPadding = 30; // Space between text end and next item start
@@ -378,5 +326,33 @@ public class RenderV2 {
         g2.fillRect(currentX2, legendY2 + itemHeight/2 - 5, lineLength, 10);
         g2.setColor(config.textColor);
         g2.drawString(labels2[1], currentX2 + lineLength + 5, legendY2 + itemHeight/2 + 4);
+    }
+
+    public void drawVolumeBars(Graphics2D g2d, Config config, Rectangle pa, Bounds bounds, List<Datapoint> volumes, Datapoint hoveredPoint) {
+        java.awt.Shape originalClip = g2d.getClip();
+        g2d.setClip(pa.x, pa.y, pa.width, pa.height);
+        Color high= new Color(config.highColor.getRed(), config.highColor.getGreen(), config.highColor.getBlue(), 128);
+        Color low = new Color(config.lowColor.getRed(), config.lowColor.getGreen(), config.lowColor.getBlue(), 128);
+        for (Datapoint v : volumes) {
+            int x1 = bounds.toX(pa, v.time);
+            int x2 = bounds.toX(pa, v.time + Constants.HOUR_SECONDS);
+            int y1 = bounds.toY2(pa, v.highVolume + v.lowVolume);
+            int y2 = bounds.toY2(pa, v.lowVolume);
+            int y3 = bounds.toY2(pa, 0);
+            g2d.setColor(high);
+            g2d.fillRect(x1, y1, x2-x1, y2-y1);
+            g2d.setColor(low);
+            g2d.fillRect(x1, y2, x2-x1, y3-y2);
+            if (hoveredPoint == v) {
+                g2d.setColor(Color.WHITE);
+                g2d.setStroke(Config.THICK_STROKE);
+                g2d.drawRect(x1, y1, x2 - x1, y3 - y1);
+            } else {
+                g2d.setColor(Color.GRAY);
+                g2d.setStroke(Config.THIN_STROKE);
+                g2d.drawRect(x1, y1, x2 - x1, y3 - y1);
+            }
+        }
+        g2d.setClip(originalClip); // restore original clip
     }
 }

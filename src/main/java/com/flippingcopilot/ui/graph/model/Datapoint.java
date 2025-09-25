@@ -1,10 +1,9 @@
 package com.flippingcopilot.ui.graph.model;
 
-import com.flippingcopilot.ui.graph.PlotArea;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.awt.Point;
+import java.awt.*;
 
 @Getter
 @Setter
@@ -18,6 +17,9 @@ public class Datapoint {
     // IQR values for prediction points
     public final Integer iqrLower;
     public final Integer iqrUpper;
+
+    public long lowVolume;
+    public long highVolume;
 
     public Datapoint(int time, int price, boolean isLow, Type type) {
         this.time = time;
@@ -37,13 +39,20 @@ public class Datapoint {
         this.iqrUpper = iqrUpper;
     }
 
-    public Point getHoverPosition(PlotArea pa) {
-        int x = pa.timeToX(time);
-        int y = pa.priceToY(price);
+    public static Datapoint newVolumeDatapoint(int time, long lowVolume, long highVolume) {
+        Datapoint dp = new Datapoint(time, 0,false, Type.VOLUME_1H);
+        dp.lowVolume = lowVolume;
+        dp.highVolume = highVolume;
+        return dp;
+    }
+
+    public Point getHoverPosition(Rectangle pa, Bounds bounds) {
+        int x = bounds.toX(pa,time);
+        int y = bounds.toY(pa, price);
         if (type == Type.FIVE_MIN_AVERAGE) {
-            x += pa.timeDeltaToXDelta(Constants.FIVE_MIN_SECONDS / 2);
+            x += bounds.toW(pa,Constants.FIVE_MIN_SECONDS / 2);
         } else if (type == Type.HOUR_AVERAGE) {
-            x += pa.timeDeltaToXDelta(Constants.HOUR_SECONDS / 2);
+            x += bounds.toW(pa,Constants.HOUR_SECONDS / 2);
         }
         return new Point(x, y);
     }
@@ -53,5 +62,6 @@ public class Datapoint {
         FIVE_MIN_AVERAGE,
         HOUR_AVERAGE,
         PREDICTION,
+        VOLUME_1H,
     }
 }

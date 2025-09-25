@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -17,8 +16,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
-
-import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
 
 @Slf4j
@@ -112,6 +109,6 @@ public class OfferManager {
 
     private File getFile(Long accountHash, Integer slot) {
         Map<Integer, File> slotToFile = files.computeIfAbsent(accountHash, (k) -> new HashMap<>());
-        return slotToFile.computeIfAbsent(slot, (k) -> new File(Persistance.PARENT_DIRECTORY, String.format(OFFER_FILE_TEMPLATE, accountHash, slot)));
+        return slotToFile.computeIfAbsent(slot, (k) -> new File(Persistance.COPILOT_DIR, String.format(OFFER_FILE_TEMPLATE, accountHash, slot)));
     }
 }

@@ -8,4 +8,5 @@ public class Constants {
     public static final int HOUR_SECONDS = 60*60;
     public static final SimpleDateFormat SECOND_DATE_FORMAT = new SimpleDateFormat("d MMM HH:mm:ss");
     public static final SimpleDateFormat MINUTE_DATE_FORMAT = new SimpleDateFormat("d MMM HH:mm");
+    public static final SimpleDateFormat MINUTE_TIME_FORMAT = new SimpleDateFormat("HH:mm");
 }

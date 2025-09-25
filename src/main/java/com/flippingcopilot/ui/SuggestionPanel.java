@@ -218,6 +218,7 @@ public class SuggestionPanel extends JPanel {
     }
 
     private void handleGearClick() {
+//        priceGraphController.loadAndAndShowPriceGraph(560);
         isPreferencesPanelVisible = !isPreferencesPanelVisible;
         preferencesPanel.setVisible(isPreferencesPanelVisible);
         suggestedActionPanel.setVisible(!isPreferencesPanelVisible);

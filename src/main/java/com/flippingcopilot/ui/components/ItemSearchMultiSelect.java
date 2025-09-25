@@ -1,11 +1,10 @@
 package com.flippingcopilot.ui.components;
 
 import com.flippingcopilot.model.ItemIdName;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.RuneLite;
+import net.runelite.client.config.RuneLiteConfig;
 import net.runelite.client.ui.ColorScheme;
-import org.apache.commons.lang3.tuple.Pair;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,7 +16,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 @Slf4j
-@Singleton
 public class ItemSearchMultiSelect extends JPanel {
 
     private static final int ITEM_HEIGHT = 20; // Fixed height for each item
@@ -36,13 +34,13 @@ public class ItemSearchMultiSelect extends JPanel {
     private final Supplier<Set<Integer>> selectedItemsGetter;
     private List<ItemIdName> currentSearchResults = new ArrayList<>();
 
-    @Inject
     public ItemSearchMultiSelect(
             Supplier<Set<Integer>> selectedItemsGetter,
             Supplier<Set<Integer>> allItemIdsSupplier,
             BiFunction<String, Set<Integer>, List<ItemIdName>> searchFunc,
             Consumer<Set<Integer>> onItemSelectionChanged,
-            String placeholderText) {
+            String placeholderText,
+            Window windowAncestor) {
         super();
         this.allItemIdsSupplier = allItemIdsSupplier;
         this.selectedItemsGetter = selectedItemsGetter;
@@ -73,8 +71,8 @@ public class ItemSearchMultiSelect extends JPanel {
         setOpaque(true);
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-        // Setup dropdown components
-        dropdownWindow = new JWindow();
+        dropdownWindow = new JWindow(windowAncestor);
+        dropdownWindow.setAlwaysOnTop(RuneLite.getInjector().getInstance(RuneLiteConfig.class).gameAlwaysOnTop());
         dropdownWindow.setFocusableWindowState(true);
 
         // Create action buttons panel (Select All / Unselect All)
@@ -286,8 +284,9 @@ public class ItemSearchMultiSelect extends JPanel {
             // Remove all components and add only visible ones
             removeAll();
 
+            Set<Integer> selectedItems = selectedItemsGetter.get();
             for (int i = firstVisibleIndex; i <= lastVisibleIndex; i++) {
-                JPanel itemPanel = getOrCreateItemPanel(i);
+                JPanel itemPanel = getOrCreateItemPanel(i, selectedItems);
                 itemPanel.setBounds(0, i * ITEM_HEIGHT, getWidth(), ITEM_HEIGHT);
                 add(itemPanel);
             }
@@ -296,23 +295,16 @@ public class ItemSearchMultiSelect extends JPanel {
             repaint();
         }
 
-        private JPanel getOrCreateItemPanel(int index) {
+        private JPanel getOrCreateItemPanel(int index, Set<Integer> selectedItems) {
             if (index < 0 || index >= items.size()) {
                 return new JPanel();
             }
-
-            // Check cache first
             if (panelCache.containsKey(index)) {
                 return panelCache.get(index);
             }
-
-            // Create new panel
             ItemIdName item = items.get(index);
-            JPanel panel = createItemPanel(item);
-
-            // Cache the panel
+            JPanel panel = createItemPanel(item, selectedItems);
             panelCache.put(index, panel);
-
             return panel;
         }
 
@@ -351,8 +343,7 @@ public class ItemSearchMultiSelect extends JPanel {
         }
     }
 
-    private JPanel createItemPanel(ItemIdName item) {
-        Set<Integer> selectedItems = selectedItemsGetter.get();
+    private JPanel createItemPanel(ItemIdName item, Set<Integer> selectedItems) {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(1, 2, 1, 2));
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, ITEM_HEIGHT));

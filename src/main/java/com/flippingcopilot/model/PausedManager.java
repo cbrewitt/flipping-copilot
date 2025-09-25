@@ -71,6 +71,6 @@ public class PausedManager {
 
     private File getFile(Long accountHash) {
         return accountHashToFile.computeIfAbsent(accountHash,
-                (k) -> new File(Persistance.PARENT_DIRECTORY, String.format(PAUSED_FILE_TEMPLATE, accountHash)));
+                (k) -> new File(Persistance.COPILOT_DIR, String.format(PAUSED_FILE_TEMPLATE, accountHash)));
     }
 }

@@ -1,7 +1,6 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.CopilotLoginController;
-import net.runelite.client.input.KeyListener;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
@@ -14,7 +13,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridLayout;
 import java.awt.Image;
-import java.awt.event.KeyEvent;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -25,11 +24,11 @@ public class LoginPanel extends JPanel {
 
     private final CopilotLoginController copilotLoginController;
 
-    private JPanel loginContainer;
-    private JButton loginButton;
-    private JTextField emailTextField;
-    private JTextField passwordTextField;
-    private JLabel errorMessageLabel;
+    private final JPanel loginContainer;
+    private final JButton loginButton;
+    private final JTextField emailTextField;
+    private final JTextField passwordTextField;
+    private final JLabel errorMessageLabel;
 
     public final Spinner spinner = new Spinner();
 
@@ -43,18 +42,35 @@ public class LoginPanel extends JPanel {
         loginContainer = new JPanel();
         loginContainer.setLayout(new BoxLayout(loginContainer, BoxLayout.PAGE_AXIS));
 
-        this.createLogo();
-        this.createSpinner();
-        this.createErrorMessageLabel();
-        this.createEmailInput();
-        this.createPasswordInput();
-        this.createLoginButton();
-        this.createCreateAccountLink();
+        JPanel logoContainer = this.buildLogo();
+        loginContainer.add(logoContainer, BorderLayout.CENTER);
+
+        JPanel spinnerContainer = this.buildSpinner();
+        loginContainer.add(spinnerContainer, BorderLayout.CENTER);
+
+        JPanel errorContainer = this.buildErrorMessageLabel();
+        errorMessageLabel = ((JLabel) errorContainer.getComponent(0));
+        loginContainer.add(errorContainer, BorderLayout.CENTER);
+
+        emailTextField = new JTextField();
+        emailTextField.setSize(PAGE_WIDTH, 40);
+        loginContainer.add(this.buildEmailInput(emailTextField), BorderLayout.CENTER);
+
+        passwordTextField = new JPasswordField();
+        passwordTextField.setSize(PAGE_WIDTH, 40);
+        loginContainer.add(this.buildPasswordInput(passwordTextField), BorderLayout.CENTER);
+
+        JPanel loginButtonContainer = this.buildLoginButton();
+        loginButton = ((JButton) loginButtonContainer.getComponent(0));
+        loginContainer.add(loginButtonContainer, BorderLayout.CENTER);
+
+        JPanel createAccountLink = this.buildCreateAccountLink();
+        loginContainer.add(createAccountLink, BorderLayout.CENTER);
 
         this.add(loginContainer, BorderLayout.NORTH);
     }
 
-    public void createLogo() {
+    public JPanel buildLogo() {
         JPanel container = new JPanel();
         ImageIcon icon = new ImageIcon(ImageUtil.loadImageResource(getClass(), "/logo.png"));
         Image resizedLogo = icon.getImage().getScaledInstance(50, 45, Image.SCALE_SMOOTH);
@@ -62,13 +78,13 @@ public class LoginPanel extends JPanel {
         logoLabel.setSize(50, 45);
         container.add(logoLabel, BorderLayout.CENTER);
         container.setBorder(new EmptyBorder(10, 0, 10, 0));
-        loginContainer.add(container, BorderLayout.CENTER);
+        return container;
     }
 
-    public void createSpinner() {
+    public JPanel buildSpinner() {
         JPanel container = new JPanel();
         container.add(spinner, BorderLayout.CENTER);
-        loginContainer.add(container, BorderLayout.CENTER);
+        return container;
     }
 
     public void startLoading() {
@@ -83,74 +99,36 @@ public class LoginPanel extends JPanel {
         loginButton.setEnabled(true);
     }
 
-    public void createErrorMessageLabel() {
+    public JPanel buildErrorMessageLabel() {
         JPanel container = new JPanel();
-        errorMessageLabel = new JLabel();
-        errorMessageLabel.setForeground(Color.RED);
-        errorMessageLabel.setHorizontalAlignment(SwingConstants.LEFT);
-        errorMessageLabel.setSize(PAGE_WIDTH, 40);
-        errorMessageLabel.setVisible(false);
-        container.add(errorMessageLabel); // Add the error message label under the logo
-        loginContainer.add(container, BorderLayout.CENTER);
+        JLabel errorLabel = new JLabel();
+        errorLabel.setForeground(Color.RED);
+        errorLabel.setHorizontalAlignment(SwingConstants.LEFT);
+        errorLabel.setSize(PAGE_WIDTH, 40);
+        errorLabel.setVisible(false);
+        container.add(errorLabel);
+        return container;
     }
 
-    public void createEmailInput() {
+    public JPanel buildEmailInput(JTextField textField) {
         JPanel container = new JPanel(new GridLayout(2, 1));
         container.setBorder(new EmptyBorder(0, 0, 10, 0));
-        emailTextField = new JTextField();
-        emailTextField.setSize(PAGE_WIDTH, 40);
-        emailTextField.addKeyListener(new KeyListener() {
-            @Override
-            public void keyTyped(KeyEvent event) {
-            }
-
-            @Override
-            public void keyReleased(KeyEvent event) {
-                JTextField textField = (JTextField) event.getSource();
-                String text = textField.getText();
-                copilotLoginController.onEmailTextChanged(text);
-            }
-
-            @Override
-            public void keyPressed(KeyEvent event) {
-            }
-        });
-        emailTextField.addActionListener(copilotLoginController::onLoginPressed);
         JLabel emailLabel = new JLabel("Email address");
         container.add(emailLabel, BorderLayout.WEST);
-        container.add(emailTextField);
-        loginContainer.add(container, BorderLayout.CENTER);
+        container.add(textField);
+        return container;
     }
 
-    public void createPasswordInput() {
+    public JPanel buildPasswordInput(JTextField textField) {
         JPanel container = new JPanel(new GridLayout(2, 1));
         container.setBorder(new EmptyBorder(0, 0, 10, 0));
-        passwordTextField = new JPasswordField();
-        passwordTextField.setSize(PAGE_WIDTH, 40);
-        passwordTextField.addKeyListener(new KeyListener() {
-            @Override
-            public void keyTyped(KeyEvent event) {
-            }
-
-            @Override
-            public void keyReleased(KeyEvent event) {
-                JTextField textField = (JTextField) event.getSource();
-                String text = textField.getText();
-                copilotLoginController.onPasswordTextChanged(text);
-            }
-
-            @Override
-            public void keyPressed(KeyEvent event) {
-            }
-        });
-        passwordTextField.addActionListener(copilotLoginController::onLoginPressed);
         JLabel passwordLabel = new JLabel("Password");
         container.add(passwordLabel);
-        container.add(passwordTextField);
-        loginContainer.add(container, BorderLayout.CENTER);
+        container.add(textField);
+        return container;
     }
 
-    public void createCreateAccountLink() {
+    public JPanel buildCreateAccountLink() {
         JPanel container = new JPanel();
         JLabel createAccountLabel = new JLabel("Don't have an account? Sign up.");
         createAccountLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
@@ -171,15 +149,17 @@ public class LoginPanel extends JPanel {
             }
         });
         container.add(createAccountLabel);
-        loginContainer.add(container, BorderLayout.CENTER);
+        return container;
     }
 
-    public void createLoginButton() {
+    public JPanel buildLoginButton() {
         JPanel container = new JPanel();
-        loginButton = new JButton("Login");
-        loginButton.addActionListener(copilotLoginController::onLoginPressed);
-        container.add(loginButton);
-        loginContainer.add(container, BorderLayout.CENTER);
+        JButton button = new JButton("Login");
+        button.addActionListener((ActionEvent a) -> {
+            copilotLoginController.onLoginPressed(emailTextField.getText(), passwordTextField.getText());
+        });
+        container.add(button);
+        return container;
     }
 
     public void showLoginErrorMessage(String message) {

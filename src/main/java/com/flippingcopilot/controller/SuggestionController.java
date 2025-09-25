@@ -80,7 +80,7 @@ public class SuggestionController {
         if (osrsLoginManager.hasJustLoggedIn()) {
             return;
         }
-        if ((suggestionManager.isSuggestionNeeded() || suggestionManager.suggestionOutOfDate()) && !(grandExchange.isSlotOpen() && !accountStatusManager.isSuggestionSkipped())) {
+        if (suggestionManager.suggestionsDelayedUntil < client.getTickCount() && (suggestionManager.isSuggestionNeeded() || suggestionManager.suggestionOutOfDate()) && !(grandExchange.isSlotOpen() && !accountStatusManager.isSuggestionSkipped())) {
             getSuggestionAsync();
         }
     }

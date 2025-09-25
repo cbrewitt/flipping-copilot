@@ -32,6 +32,7 @@ public class AccountStatusManager {
         ItemContainer itemContainer = client.getItemContainer(InventoryID.INV);
         Inventory inventory;
         if(itemContainer == null) {
+            log.warn("Item container was null!");
             inventory = new Inventory();
         } else {
             inventory = Inventory.fromRunelite(itemContainer, client);
@@ -48,8 +49,8 @@ public class AccountStatusManager {
         status.setDisplayName(osrsLoginManager.getPlayerDisplayName());
         status.setRsAccountHash(accountHash);
         status.setSkipSuggestion(skipSuggestion);
-        status.setSellOnlyMode(suggestionPreferencesManager.getPreferences().isSellOnlyMode());
-        status.setF2pOnlyMode(suggestionPreferencesManager.getPreferences().isF2pOnlyMode());
+        status.setSellOnlyMode(suggestionPreferencesManager.isSellOnlyMode());
+        status.setF2pOnlyMode(suggestionPreferencesManager.isF2pOnlyMode());
         status.setWorldMember(osrsLoginManager.isMembersWorld());
         status.setAccountMember(osrsLoginManager.isAccountMember());
         status.setSuggestionsPaused(pausedManager.isPaused());

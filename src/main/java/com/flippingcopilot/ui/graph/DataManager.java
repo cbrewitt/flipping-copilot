@@ -24,6 +24,7 @@ public class DataManager {
     public final List<Datapoint> lowDatapoints = new ArrayList<>();
     public final List<Datapoint> predictionLowDatapoints = new ArrayList<>();
     public final List<Datapoint> predictionHighDatapoints = new ArrayList<>();
+    public final List<Datapoint> volumes = new ArrayList<>();
 
     public final Data data;
     public double priceChange24H = 0;
@@ -43,7 +44,7 @@ public class DataManager {
         calculateStats();
     }
 
-    public Datapoint findClosestPoint(Point mousePos, int hoverRadius, PlotArea pa) {
+    public Datapoint findClosestPoint(Point mousePos, int hoverRadius, Rectangle pa, Bounds bounds) {
         if (mousePos == null) return null;
 
         Datapoint closest = null;
@@ -51,7 +52,7 @@ public class DataManager {
 
         for(List<Datapoint> datapoints : Arrays.asList(highDatapoints, lowDatapoints, predictionLowDatapoints, predictionHighDatapoints)) {
             for (Datapoint d : datapoints) {
-                Point hoverPosition = d.getHoverPosition(pa);
+                Point hoverPosition = d.getHoverPosition(pa, bounds);
                 double distance = mousePos.distance(hoverPosition);
                 if (distance < minDistance) {
                     minDistance = distance;
@@ -70,6 +71,8 @@ public class DataManager {
         b.xMax = Integer.MIN_VALUE;
         b.yMax =  Integer.MIN_VALUE;
         b.yMin = Integer.MAX_VALUE;
+        b.y2Min = 0;
+        b.y2Max = 10;
 
         long yMean = 0;
         long n = 0;
@@ -99,6 +102,12 @@ public class DataManager {
                 }
             }
         }
+        for (Datapoint d : volumes) {
+            if (p.test(d)) {
+                b.y2Max = Math.max(b.y2Max, d.highVolume + d.lowVolume);
+            }
+        }
+        b.y2Max = (int) (1.1*b.y2Max);
         int pricePadding = (int) (0.03 * yMean);
         if (pricePadding < 1) pricePadding = 1;
 
@@ -113,6 +122,7 @@ public class DataManager {
         lowDatapoints.clear();
         predictionHighDatapoints.clear();
         predictionLowDatapoints.clear();
+        volumes.clear();
         
         // here we combine the hour / 5min / latest wiki price data points into a continuous dataset where hour points 
         // transition into the 5min points that transition into the latest points. So we get increasingly finer granularity.
@@ -191,6 +201,21 @@ public class DataManager {
                     false
             ));
         }
+
+
+        for (int i = data.volume1hLows.length-1; i >= 0; i--) {
+            volumes.add(0, Datapoint.newVolumeDatapoint(data.volume1hTimes[i], data.volume1hLows[i], data.volume1hHighs[i]));
+        }
+        int current1hTime = data.volume1hTimes[data.volume1hTimes.length-1] + Constants.HOUR_SECONDS;
+        int currentHourLowVolume = 0;
+        int currentHoursHighVolume =0;
+        for (int i = data.volume5mLows.length-1; i >= 0; i--) {
+            if (data.volume5mTimes[i] >= current1hTime) {
+                currentHourLowVolume += data.volume5mLows[i];
+                currentHoursHighVolume += data.volume5mHighs[i];
+            }
+        }
+        volumes.add(Datapoint.newVolumeDatapoint(current1hTime, currentHourLowVolume, currentHoursHighVolume));
     }
 
     private void calculateStats() {
@@ -243,5 +268,18 @@ public class DataManager {
                 true,
                 Datapoint.Type.PREDICTION
         ));
+    }
+
+    public Datapoint closedVolumeBar(Point mousePosition, Rectangle pa, Bounds bounds) {
+        Datapoint winner =  null;
+        int winnerDist = Integer.MAX_VALUE;
+        for (Datapoint v : volumes) {
+            int dist = Math.abs(bounds.toX(pa, v.time + Constants.HOUR_SECONDS / 2) - mousePosition.x);
+            if (dist < winnerDist) {
+                winnerDist = dist;
+                winner = v;
+            }
+        }
+        return winner;
     }
 }

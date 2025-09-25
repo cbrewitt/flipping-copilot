@@ -5,14 +5,25 @@ import com.flippingcopilot.controller.PremiumInstanceController;
 import com.flippingcopilot.model.SuggestionPreferencesManager;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+@Slf4j
 @Singleton
 public class PreferencesPanel extends JPanel {
 
@@ -22,6 +33,9 @@ public class PreferencesPanel extends JPanel {
     private final JPanel f2pOnlyButton;
     private final PreferencesToggleButton f2pOnlyModeToggleButton;
     private final ItemSearchMultiSelect blocklistDropdownPanel;
+    private final JComboBox<String> profileSelector;
+    private final JButton addProfileButton;
+    private final JButton deleteProfileButton;
 
     @Inject
     public PreferencesPanel(
@@ -31,6 +45,7 @@ public class PreferencesPanel extends JPanel {
             ItemController itemController) {
         super();
         this.preferencesManager = preferencesManager;
+
         blocklistDropdownPanel = new ItemSearchMultiSelect(
                 () -> new HashSet<>(preferencesManager.blockedItems()),
                 itemController::allItemIds,
@@ -39,7 +54,9 @@ public class PreferencesPanel extends JPanel {
                     preferencesManager.setBlockedItems(bl);
                     suggestionManager.setSuggestionNeeded(true);
                 },
-                "Item blocklist...");
+                "Item blocklist...",
+                SwingUtilities.getWindowAncestor(this));
+
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
         setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
@@ -54,9 +71,105 @@ public class PreferencesPanel extends JPanel {
         preferencesTitle.setHorizontalAlignment(SwingConstants.CENTER);
         add(preferencesTitle);
         add(Box.createRigidArea(new Dimension(0, 8)));
-        blocklistDropdownPanel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0), blocklistDropdownPanel.getBorder()));
+
+        // Profile selector panel
+        JPanel profilePanel = new JPanel();
+        profilePanel.setLayout(new BorderLayout());
+        profilePanel.setOpaque(false);
+        profilePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
+
+        // Panel for dropdown and buttons
+        JPanel profileControlPanel = new JPanel();
+        profileControlPanel.setLayout(new BoxLayout(profileControlPanel, BoxLayout.X_AXIS));
+        profileControlPanel.setOpaque(false);
+
+        // Initialize profile model with default
+        profileSelector = new JComboBox<>();
+        profileSelector.setPreferredSize(new Dimension(160, 25));
+        profileSelector.setMaximumSize(new Dimension(160, 25));
+        profileSelector.addActionListener(e -> {
+            String selectedProfile = (String) profileSelector.getSelectedItem();
+            if (selectedProfile != null && !selectedProfile.equals(preferencesManager.getCurrentProfile())) {
+                preferencesManager.setCurrentProfile(selectedProfile);
+                refresh();
+            }
+        });
+
+        // Add button for creating new profiles
+        addProfileButton = new JButton("+");
+        addProfileButton.setPreferredSize(new Dimension(15, 25));
+        addProfileButton.setMaximumSize(new Dimension(15, 25));
+        addProfileButton.setToolTipText("Add new profile");
+        addProfileButton.addActionListener(e -> {
+            String newProfileName = JOptionPane.showInputDialog(
+                    SwingUtilities.getWindowAncestor(this),
+                    "Enter new profile name (must be valid file name):",
+                    "New preferences profile",
+                    JOptionPane.PLAIN_MESSAGE);
+            if (newProfileName != null && !newProfileName.trim().isEmpty()) {
+                newProfileName = newProfileName.trim();
+                try {
+                    preferencesManager.addProfile(newProfileName);
+                    refresh();
+                } catch (IOException ex) {
+                    log.error("adding new profile: {}", newProfileName, ex);
+                    JOptionPane.showMessageDialog(
+                            SwingUtilities.getWindowAncestor(this),
+                            "Error adding new profile: "+ ex.getMessage(),
+                            "Add profile failed",
+                            JOptionPane.WARNING_MESSAGE);
+                }
+            }
+        });
+
+        // Delete button for removing custom profiles
+        deleteProfileButton = new JButton("-");
+        deleteProfileButton.setPreferredSize(new Dimension(15, 25));
+        deleteProfileButton.setMaximumSize(new Dimension(15, 25));
+        deleteProfileButton.setToolTipText("Delete current profile");
+        deleteProfileButton.addActionListener(e -> {
+            String selectedProfile = (String) profileSelector.getSelectedItem();
+            if (selectedProfile != null) {
+                int result = JOptionPane.showConfirmDialog(
+                        SwingUtilities.getWindowAncestor(this),
+                        "Delete profile '" + selectedProfile + "'?",
+                        "Delete Profile",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE);
+                if (result == JOptionPane.YES_OPTION) {
+                    ((DefaultComboBoxModel<String>) profileSelector.getModel()).removeElement(selectedProfile);
+                    try {
+                        preferencesManager.deleteSelectedProfile();
+                        profileSelector.setSelectedItem(preferencesManager.getCurrentProfile());
+                    } catch (IOException ex) {
+                        log.error("removing profile: {}", selectedProfile, ex);
+                        JOptionPane.showMessageDialog(
+                                SwingUtilities.getWindowAncestor(this),
+                                "Error deleting profile: "+ ex.getMessage(),
+                                "Remove profile failed",
+                                JOptionPane.WARNING_MESSAGE);
+                    }
+                    refresh();
+                }
+            }
+        });
+
+        profileControlPanel.add(profileSelector);
+        profileControlPanel.add(Box.createRigidArea(new Dimension(5, 0)));
+        profileControlPanel.add(addProfileButton);
+        profileControlPanel.add(Box.createRigidArea(new Dimension(2, 0)));
+        profileControlPanel.add(deleteProfileButton);
+
+        profilePanel.add(profileControlPanel, BorderLayout.LINE_START);
+        add(profilePanel);
+
+        // Blocklist dropdown panel
+        blocklistDropdownPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createEmptyBorder(5, 0, 5, 0),
+                blocklistDropdownPanel.getBorder()));
         add(blocklistDropdownPanel);
 
+        // Sell-only mode toggle
         sellOnlyModeToggleButton = new PreferencesToggleButton("Disable sell-only mode", "Enable sell-only mode");
         sellOnlyButton = new JPanel();
         sellOnlyButton.setLayout(new BorderLayout());
@@ -65,13 +178,13 @@ public class PreferencesPanel extends JPanel {
         JLabel buttonText = new JLabel("Sell-only mode");
         sellOnlyButton.add(buttonText, BorderLayout.LINE_START);
         sellOnlyButton.add(sellOnlyModeToggleButton, BorderLayout.LINE_END);
-        sellOnlyModeToggleButton.addItemListener(i ->
-        {
+        sellOnlyModeToggleButton.addItemListener(i -> {
             preferencesManager.setSellOnlyMode(sellOnlyModeToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
         });
         add(Box.createRigidArea(new Dimension(0, 3)));
 
+        // F2P-only mode toggle
         f2pOnlyModeToggleButton = new PreferencesToggleButton("Disable F2P-only mode",  "Enable F2P-only mode");
         f2pOnlyButton = new JPanel();
         f2pOnlyButton.setLayout(new BorderLayout());
@@ -80,8 +193,7 @@ public class PreferencesPanel extends JPanel {
         JLabel f2pOnlyButtonText = new JLabel("F2P-only mode");
         f2pOnlyButton.add(f2pOnlyButtonText, BorderLayout.LINE_START);
         f2pOnlyButton.add(f2pOnlyModeToggleButton, BorderLayout.LINE_END);
-        f2pOnlyModeToggleButton.addItemListener(i ->
-        {
+        f2pOnlyModeToggleButton.addItemListener(i -> {
             preferencesManager.setF2pOnlyMode(f2pOnlyModeToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
         });
@@ -101,17 +213,30 @@ public class PreferencesPanel extends JPanel {
         add(premiumInstancesPanel);
     }
 
+
     public void refresh() {
-        if(!SwingUtilities.isEventDispatchThread()) {
+        if (!SwingUtilities.isEventDispatchThread()) {
             // we always execute this in the Swing EDT thread
             SwingUtilities.invokeLater(this::refresh);
             return;
         }
 
-        sellOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isSellOnlyMode());
+
+        sellOnlyModeToggleButton.setSelected(preferencesManager.isSellOnlyMode());
         sellOnlyButton.setVisible(true);
-        f2pOnlyModeToggleButton.setSelected(preferencesManager.getPreferences().isF2pOnlyMode());
+        f2pOnlyModeToggleButton.setSelected(preferencesManager.isF2pOnlyMode());
         f2pOnlyButton.setVisible(true);
         blocklistDropdownPanel.setVisible(true);
+        List<String> existingOptions = IntStream.range(0, profileSelector.getModel().getSize()).mapToObj(i -> profileSelector.getModel().getElementAt(i)).collect(Collectors.toList());
+
+        deleteProfileButton.setVisible(!preferencesManager.isDefaultProfileSelected());
+
+        List<String> correctOptions = preferencesManager.getAvailableProfiles();
+        if (!Objects.equals(correctOptions, existingOptions)) {
+            DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) profileSelector.getModel();
+            model.removeAllElements();
+            model.addAll(correctOptions);
+            model.setSelectedItem(preferencesManager.getCurrentProfile());
+        }
     }
 }

@@ -1,31 +1,34 @@
 package com.flippingcopilot.ui.graph;
 
-import com.flippingcopilot.ui.UIUtilities;
+import com.flippingcopilot.ui.graph.model.Bounds;
 import com.flippingcopilot.ui.graph.model.Config;
 import com.flippingcopilot.ui.graph.model.Constants;
 import com.flippingcopilot.ui.graph.model.Datapoint;
 import lombok.Getter;
-import net.runelite.client.util.QuantityFormatter;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 @Getter
 public class DatapointTooltip {
 
-    private Rectangle bounds;
     private int padding;
 
     public DatapointTooltip() {
-        this.bounds = new Rectangle();
         this.padding = 8; // Padding inside tooltip
     }
 
-    public void draw(Graphics2D g2, Config config, PlotArea pa, Datapoint point) {
+    public void draw(Graphics2D g2, Config config, Rectangle pa, Bounds paBounds, Datapoint point) {
         // Prepare tooltip text
         NumberFormat format = new DecimalFormat("#,###", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
         String priceStr = format.format(point.getPrice());
@@ -65,22 +68,19 @@ public class DatapointTooltip {
         int tooltipWidth = textWidth + padding * 2;
         int tooltipHeight = textHeight + padding * 2;
 
-        Point hoverPosition = point.getHoverPosition(pa);
+        Point hoverPosition = point.getHoverPosition(pa, paBounds);
 
         // Position tooltip near point but ensure it stays within panel bounds
         int tooltipX = hoverPosition.x + 15;
         int tooltipY = hoverPosition.y - tooltipHeight - 5;
 
         // Adjust if tooltip would go off screen
-        if (tooltipX + tooltipWidth > pa.w) {
+        if (tooltipX + tooltipWidth > pa.width) {
             tooltipX = hoverPosition.x - tooltipWidth - 5;
         }
         if (tooltipY < 0) {
             tooltipY = hoverPosition.y + 15;
         }
-
-        // Update bounds for later hit testing if needed
-        bounds.setBounds(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
 
         // Draw tooltip background
         g2.setColor(Config.TOOLTIP_BACKGROUND);
@@ -111,7 +111,6 @@ public class DatapointTooltip {
         }
 
         // Draw larger point to highlight hover
-
         int highlightSize = 8;
         g2.fillOval(hoverPosition.x - highlightSize / 2,
                 hoverPosition.y - highlightSize / 2,
@@ -121,5 +120,46 @@ public class DatapointTooltip {
         g2.drawOval(hoverPosition.x - highlightSize / 2 - 1,
                 hoverPosition.y - highlightSize / 2 - 1,
                 highlightSize + 2, highlightSize + 2);
+    }
+
+    public void drawVolume(Graphics2D g2d, Config config, Rectangle pa, Bounds bounds, Datapoint point) {
+        NumberFormat format = new DecimalFormat("#,###", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+
+        String headerLine = "1h volume";
+        String timeLine = Constants.MINUTE_DATE_FORMAT.format(new Date(point.getTime() * 1000L)) + " - " + Constants.MINUTE_TIME_FORMAT.format(new Date((point.getTime()+ Constants.HOUR_SECONDS) * 1000L));
+        String lowLine = "low (insta-sell): "+format.format(point.getLowVolume());
+        String highLine = "high (insta-buy): "+format.format(point.getHighVolume());
+
+
+        List<String> lines = Arrays.asList(headerLine, timeLine, lowLine, highLine);
+
+        g2d.setFont(g2d.getFont().deriveFont(Config.FONT_SIZE));
+        FontMetrics fm = g2d.getFontMetrics();
+        int textWidth = lines.stream().mapToInt(fm::stringWidth).max().orElse(0);
+        int textHeight = fm.getHeight() * 4;
+
+        int y = bounds.toY2(pa, point.lowVolume + point.highVolume) - textHeight - 8 - 2*padding;
+        
+        int x = bounds.toX(pa, point.time + Constants.HOUR_SECONDS / 2) - textWidth / 2;
+        
+        if (x < pa.x) {
+            x = pa.x + 2;
+        } else if ( x + textWidth > pa.x + pa.width) {
+            x -= (x + textWidth - pa.x - pa.width) -2;
+        }
+
+        g2d.setColor(Config.TOOLTIP_BACKGROUND);
+        g2d.fillRoundRect(x, y, textWidth + 2*padding, textHeight + 2* padding, 8, 8);
+
+        g2d.setColor(Config.TOOLTIP_BORDER);
+        g2d.drawRoundRect(x, y, textWidth + 2*padding, textHeight + 2*padding, 8, 8);
+
+
+        int yPos = y + fm.getHeight()+padding /2;
+        g2d.setColor(config.textColor);
+        for(String line : lines) {
+            g2d.drawString(line, x + padding, yPos);
+            yPos += fm.getHeight();
+        }
     }
 }

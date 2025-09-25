@@ -18,18 +18,14 @@ import javax.inject.Named;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.GridBagLayout;
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
@@ -84,7 +80,8 @@ public class TransactionsPanel extends JPanel {
                              ItemController itemController,
                              @Named("copilotExecutor") ExecutorService executorService,
                              ApiRequestHandler apiRequestHandler,
-                             FlippingCopilotConfig config, FlipManager flipManager) {
+                             FlippingCopilotConfig config,
+                             FlipManager flipManager) {
         this.copilotLoginManager = copilotLoginManager;
         this.itemController = itemController;
         this.executorService = executorService;
@@ -120,7 +117,8 @@ public class TransactionsPanel extends JPanel {
                         applyFilters(true);
                     }
                 },
-                "Items filter...");
+                "Items filter...",
+                SwingUtilities.getWindowAncestor(this));
         searchField.setMinimumSize(new Dimension(300, 0));
         searchField.setToolTipText("Search by item name");
 

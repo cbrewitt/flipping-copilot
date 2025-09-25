@@ -9,8 +9,10 @@ import com.flippingcopilot.model.SessionManager;
 import com.google.inject.name.Named;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.RuneLite;
+import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.ColorScheme;
-import okhttp3.OkHttpClient;
+import net.runelite.client.ui.ContainableFrame;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -33,6 +35,7 @@ public class FlipsDialogController {
     private final CopilotLoginManager copilotLoginManager;
     private final FlippingCopilotConfig config;
     private final ApiRequestHandler apiRequestHandler;
+    private final ClientUI clientUI;
 
     private JDialog currentDialog = null;
     private Point lastDialogPosition = null;
@@ -56,6 +59,7 @@ public class FlipsDialogController {
 
             JDialog dialog = new JDialog();
             dialog.setTitle("Flipping Copilot - Flips & Transactions");
+//            dialog.setAlwaysOnTop(true);
             dialog.setResizable(true);
             dialog.setMinimumSize(new Dimension(800, 600));
 

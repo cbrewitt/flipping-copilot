@@ -53,7 +53,7 @@ public class StatsPanelV2 extends JPanel {
 
     // state
     private IntervalDropdown intervalDropdown;
-    private AccountDropdown accountDropdown;
+    private final AccountDropdown accountDropdown;
     private final JButton sessionResetButton = new JButton("  Reset session ");
     private JPanel profitAndSubInfoPanel;
     private JPanel subInfoPanel;

@@ -45,7 +45,7 @@ public class AccountDropdown extends JComboBox<String> {
 
     public Integer getSelectedAccountId() {
         String value = (String) getSelectedItem();
-        if (value == null || ALL_ACCOUNTS_DROPDOWN_OPTION.equals(value)) {
+        if (value == null || ALL_ACCOUNTS_DROPDOWN_OPTION.equals(value) || cachedAccounts == null) {
             return null;
         }
         return cachedAccounts.getOrDefault(value, -1);
@@ -54,27 +54,32 @@ public class AccountDropdown extends JComboBox<String> {
     public void refresh() {
         Map<String, Integer> displayNameOptions = accountsGetter.get();
         if (!Objects.equals(displayNameOptions, cachedAccounts)) {
-            cachedAccounts = displayNameOptions;
             String previousSelectedItem = (String) getSelectedItem();
-            refreshInProgress = true;
-            DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) getModel();
-            model.removeAllElements();
-            cachedAccounts.forEach((k, v) -> {
-                model.addElement(k);
-            });
-            model.addElement(ALL_ACCOUNTS_DROPDOWN_OPTION);
-            setVisible(model.getSize() > 1);
+            refreshAccountOptions();
             refreshInProgress = false;
             setSelectedItem(MoreObjects.firstNonNull(previousSelectedItem, ALL_ACCOUNTS_DROPDOWN_OPTION));
         }
     }
+
+    public void refreshAccountOptions() {
+        cachedAccounts = accountsGetter.get();
+        refreshInProgress = true;
+        DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) getModel();
+        model.removeAllElements();
+        cachedAccounts.forEach((k, v) -> {
+            model.addElement(k);
+        });
+        model.addElement(ALL_ACCOUNTS_DROPDOWN_OPTION);
+        setVisible(model.getSize() > 1);
+    }
+
 
     public void setSelectedAccountId(Integer accountId) {
         if (accountId == null) {
             setSelectedItem(ALL_ACCOUNTS_DROPDOWN_OPTION);
         } else {
             if(cachedAccounts == null) {
-                cachedAccounts = accountsGetter.get();
+                refreshAccountOptions();
             }
             for (Map.Entry<String, Integer> a : cachedAccounts.entrySet()) {
                 if(a.getValue().equals(accountId)) {

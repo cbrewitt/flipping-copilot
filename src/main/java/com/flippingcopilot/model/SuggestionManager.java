@@ -28,6 +28,8 @@ public class SuggestionManager {
     private OfferStatus suggestionOfferStatusOnOfferSubmitted = null;
 
 
+    public volatile int suggestionsDelayedUntil = 0;
+
     public void setSuggestion(Suggestion suggestion) {
         this.suggestion = suggestion;
         suggestionReceivedAt = Instant.now();

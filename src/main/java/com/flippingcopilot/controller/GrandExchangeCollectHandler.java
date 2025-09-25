@@ -2,15 +2,19 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.GrandExchangeUncollectedManager;
 import com.flippingcopilot.model.OsrsLoginManager;
+import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.SuggestionPanel;
 import com.google.inject.Singleton;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
 
 import javax.inject.Inject;
 
+@Slf4j
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GrandExchangeCollectHandler {
@@ -18,6 +22,9 @@ public class GrandExchangeCollectHandler {
     // dependencies
     private final OsrsLoginManager osrsLoginManager;
     private final GrandExchangeUncollectedManager geUncollected;
+    private final SuggestionManager suggestionManager;
+    private final Client client;
+
     @Setter
     private SuggestionPanel suggestionPanel;
 
@@ -29,6 +36,16 @@ public class GrandExchangeCollectHandler {
             handleCollectWithSlotOpen(menuOption, widget, slot);
             handleCollectionBoxCollectAll(menuOption, widget);
             handleCollectionBoxCollectItem(menuOption, widget);
+            handleModifyOffer(menuOption, widget);
+        }
+    }
+
+    private void handleModifyOffer(String menuOption, Widget widget) {
+        if (menuOption.equals("Modify offer")) {
+            int slot = widget.getId() - 30474247;
+            log.debug("modify offer clicked on slot {}", slot);
+            suggestionManager.suggestionsDelayedUntil = client.getTickCount() + 2;
+            geUncollected.clearSlotUncollected(osrsLoginManager.getAccountHash(), slot);
         }
     }
 

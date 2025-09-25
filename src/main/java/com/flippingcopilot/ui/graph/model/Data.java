@@ -4,6 +4,7 @@ import com.flippingcopilot.util.MsgPackUtil;
 import com.google.gson.annotations.SerializedName;
 import lombok.Getter;
 import java.nio.ByteBuffer;
+import java.util.Random;
 
 public class Data {
 
@@ -73,6 +74,15 @@ public class Data {
     @SerializedName("prediction_high_iqr_lower")
     public int[] predictionHighIQRLower;
 
+    // the volumes are for UTC hour bins and the current time is assumed to be (predictionTimes[0] - 60) epoch seconds
+    public int[] volume1hLows;
+    public int[] volume1hHighs;
+    public int[] volume1hTimes;
+
+    public int[] volume5mLows;
+    public int[] volume5mHighs;
+    public int[] volume5mTimes;
+    
     // stats
     @SerializedName("item_id")
     public int itemId;
@@ -170,12 +180,29 @@ public class Data {
                 case "bp":
                     d.buyPrice = (long) MsgPackUtil.decodePrimitive(b);
                     break;
+                case "v1ht":
+                    d.volume1hTimes = MsgPackUtil.decodeInt32Array(b);
+                    break;
+                case "v1hl":
+                    d.volume1hLows = MsgPackUtil.decodeInt32Array(b);
+                    break;
+                case "v1hh":
+                    d.volume1hHighs = MsgPackUtil.decodeInt32Array(b);
+                    break;
+                case "v5mt":
+                    d.volume5mTimes = MsgPackUtil.decodeInt32Array(b);
+                    break;
+                case "v5ml":
+                    d.volume5mLows = MsgPackUtil.decodeInt32Array(b);
+                    break;
+                case "v5mh":
+                    d.volume5mHighs = MsgPackUtil.decodeInt32Array(b);
+                    break;
                 default:
                     // discard value for unrecognised key
                     MsgPackUtil.decodePrimitive(b);
             }
         }
-
         return d;
     }
 }

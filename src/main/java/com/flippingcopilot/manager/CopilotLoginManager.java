@@ -29,7 +29,7 @@ public class CopilotLoginManager {
 
     public static final String LOGIN_RESPONSE_JSON_FILE = "login-response.json";
 
-    private final File file = new File(Persistance.PARENT_DIRECTORY, LOGIN_RESPONSE_JSON_FILE);
+    private final File file = new File(Persistance.COPILOT_DIR, LOGIN_RESPONSE_JSON_FILE);
 
     // dependencies
     private final Gson gson;

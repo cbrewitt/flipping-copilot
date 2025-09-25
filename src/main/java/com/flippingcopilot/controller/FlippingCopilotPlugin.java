@@ -19,11 +19,13 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
 import javax.inject.Inject;
+import javax.swing.*;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -118,7 +120,6 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Override
 	protected void startUp() throws Exception {
 		Persistance.setUp(gson);
-
 		// seems we need to delay instantiating the UI till here as otherwise the panels look different
 		mainPanel = injector.getInstance(MainPanel.class);
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/icon-small.png");
@@ -191,6 +192,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	public void onItemContainerChanged(ItemContainerChanged event) {
 		if (event.getContainerId() == InventoryID.INV && grandExchange.isOpen()) {
 			suggestionManager.setSuggestionNeeded(true);
+//			log.debug("inventory change item {} qty {}", lastItems, event.getItemContainer().getItems());
 			clientThread.invokeLater(() -> highlightController.redraw());
 		}
 	}
