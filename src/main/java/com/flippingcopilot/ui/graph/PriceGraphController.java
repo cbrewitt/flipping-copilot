@@ -2,6 +2,7 @@ package com.flippingcopilot.ui.graph;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.ItemPrice;
 import com.flippingcopilot.model.OsrsLoginManager;
@@ -12,7 +13,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ItemComposition;
-import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.ImageUtil;
@@ -40,7 +40,7 @@ public class PriceGraphController {
     private final FlippingCopilotConfig copilotConfig;
     private final ApiRequestHandler apiRequestHandler;
     private final OsrsLoginManager osrsLoginManager;
-    private final ItemManager itemManager;
+    private final ItemController itemController;
 
     // state
     private GraphPanel graphPanel;
@@ -109,9 +109,9 @@ public class PriceGraphController {
             d.loadingErrorMessage = i.getMessage();
             setUserItemGraphData(d);
         };
-        ItemComposition item = itemManager.getItemComposition(itemId);
-        apiRequestHandler.asyncGetItemPriceWithGraphData(itemId, osrsLoginManager.getPlayerDisplayName(), consumer, true);
-        showPriceGraph(item.getName(), false);
+        String itemName = itemController.getItemName(itemId);
+        apiRequestHandler.asyncGetItemPriceWithGraphData(itemId, "FlipCopilot", consumer, true);
+        showPriceGraph(itemName, false);
     }
 
     public void showPriceGraph(String itemName, boolean isSuggestedItem) {
@@ -135,6 +135,7 @@ public class PriceGraphController {
 
             // Create new dialog with decorations for moving and resizing
             JDialog dialog = new JDialog();
+//            dialog.setAlwaysOnTop(true);
             dialog.setUndecorated(false); // Keep window decorations to allow resizing
             dialog.setTitle(itemName + " statistics");
             dialog.setResizable(true); // Allow resizing
@@ -431,11 +432,12 @@ public class PriceGraphController {
 
     private void setItemIcon(int itemId) {
         itemIcon.setVisible(false);
-        AsyncBufferedImage image = itemManager.getImage(itemId);
-        if (image != null) {
-            image.addTo(itemIcon);
-            itemIcon.setVisible(true);
-        }
+        itemController.loadImage(itemId, (image) -> {
+            if (image != null) {
+                image.addTo(itemIcon);
+                itemIcon.setVisible(true);
+            }
+        });
     }
 
     public static enum View {

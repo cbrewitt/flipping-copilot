@@ -18,6 +18,7 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 public class UIUtilities {
+    public static final String redditIcon = "/reddit-icon.png";
     public static final String discordIcon = "/discord.png";
     public static final String githubIcon = "/github.png";
     public static final String logoutIcon = "/logout.png";
@@ -42,6 +43,8 @@ public class UIUtilities {
 
     public static synchronized String quantityToRSDecimalStack(long quantity, boolean precise)
     {
+        String sign = quantity > 0 ? "" : "-";
+        quantity = Math.abs(quantity);
         if (Long.toString(quantity).length() <= 4)
         {
             return QuantityFormatter.formatNumber(quantity);
@@ -54,7 +57,7 @@ public class UIUtilities {
                 ? PRECISE_DECIMAL_FORMATTER
                 : DECIMAL_FORMATTER;
 
-        return format.format(quantity / Math.pow(10, (Long.divideUnsigned(power, 3)) * 3))
+        return sign+format.format(quantity / Math.pow(10, (Long.divideUnsigned(power, 3)) * 3))
                 + new String[] {"", "K", "M", "B", "T"}[(int) (power / 3)];
     }
 
@@ -69,11 +72,11 @@ public class UIUtilities {
     }
 
     public static String formatProfit(long profit) {
-        return (profit >= 0 ? "" : "-") + quantityToRSDecimalStack(Math.abs(profit), true) + " gp";
+        return quantityToRSDecimalStack(profit, true) + " gp";
     }
 
     public static String formatProfitWithoutGp(long profit) {
-        return (profit >= 0 ? "" : "-") + quantityToRSDecimalStack(Math.abs(profit), true);
+        return quantityToRSDecimalStack(profit, true);
     }
 
     public static String truncateString(String string, int length) {

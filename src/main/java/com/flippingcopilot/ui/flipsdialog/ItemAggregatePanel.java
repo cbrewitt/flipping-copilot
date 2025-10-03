@@ -80,7 +80,8 @@ public class ItemAggregatePanel extends JPanel {
                 itemController::allItemIds,
                 itemController::search,
                 sortAndFilter::setFilteredItems,
-                "Items filter...");
+                "Items filter...",
+                SwingUtilities.getWindowAncestor(this));
         searchField.setMinimumSize(new Dimension(300, 0));
         searchField.setToolTipText("Search by item name");
 

@@ -38,9 +38,6 @@ public class CopilotLoginController {
     private final TransactionManager transactionManager;
     private final ScheduledExecutorService executorService;
 
-    // state
-    private String email;
-    private String password;
 
     @Inject
     public CopilotLoginController(ApiRequestHandler apiRequestHandler,
@@ -62,8 +59,7 @@ public class CopilotLoginController {
         this.transactionManager = transactionManager;
         this.executorService = executorService;
         flipManager.setCopilotUserId(copilotLoginManager.getCopilotUserId());
-        executorService.schedule(() ->loadCopilotAccounts(0), 0, TimeUnit.SECONDS);
-        executorService.schedule(() -> syncFlips(copilotLoginManager.getCopilotUserId(), new HashMap<>(), 0), 5, TimeUnit.SECONDS);
+        loadCopilotAccounts(0);
     }
 
     private void loadCopilotAccounts(int previousFailures) {
@@ -76,6 +72,7 @@ public class CopilotLoginController {
             displayNameToAccountId.forEach((key, value) ->
                     copilotLoginManager.addAccountIfMissing(value, key, userId));
             log.info("loading {} copilot accounts succeeded - took {}ms", displayNameToAccountId.size(), (System.nanoTime() - s) / 1000_000);
+            syncFlips(copilotLoginManager.getCopilotUserId(), new HashMap<>(), 0);
         };
         Consumer<String> onFailure = (errorMessage) -> {
             if (copilotLoginManager.isLoggedIn()) {
@@ -95,7 +92,7 @@ public class CopilotLoginController {
         }
         Set<Integer> accountIds = copilotLoginManager.accountIds();
         if(accountIds.isEmpty()) {
-            long backOffSeconds = Math.min(30, (long) 1+previousFailures);
+            long backOffSeconds = Math.min(45, (long) 1+previousFailures);
             log.info("user={}, no accounts loaded - re-scheduling runSyncFlips in {}s", userId, backOffSeconds);
             executorService.schedule(() -> syncFlips(userId, accountIdTime, previousFailures+1), backOffSeconds, TimeUnit.SECONDS);
             return;
@@ -112,14 +109,14 @@ public class CopilotLoginController {
             executorService.schedule(() -> syncFlips(userId, accountIdTime, 0), 5, TimeUnit.SECONDS);
         };
         Consumer<String> onFailure = (errorMessage) -> {
-            long backOffSeconds = Math.min(30, (long) Math.exp(previousFailures));
+            long backOffSeconds = Math.min(45, (long) Math.exp(previousFailures));
             log.info("user={}, failed to load updated flips ({}) retrying in {}s", userId, errorMessage, backOffSeconds);
             executorService.schedule(() -> syncFlips(userId, accountIdTime, previousFailures + 1), backOffSeconds, TimeUnit.SECONDS);
         };
         apiRequestHandler.asyncLoadFlips(accountIdTime, onSuccess, onFailure);
     }
 
-    public void onLoginPressed(ActionEvent event) {
+    public void onLoginPressed(String email, String password) {
         Consumer<LoginResponse> onSuccess = (LoginResponse loginResponse) -> {
             copilotLoginManager.setLoginResponse(loginResponse);
             mainPanel.refresh();
@@ -131,7 +128,6 @@ public class CopilotLoginController {
             }
             flipManager.setCopilotUserId(loginResponse.getUserId());
             loadCopilotAccounts(0);
-            syncFlips(copilotLoginManager.getCopilotUserId(), new HashMap<>(),0);
             loginPanel.endLoading();
         };
         Consumer<String> onFailure = (String errorMessage) -> {
@@ -139,11 +135,11 @@ public class CopilotLoginController {
             loginPanel.showLoginErrorMessage(errorMessage);
             loginPanel.endLoading();
         };
-        if (this.email == null || this.password == null) {
+        if (email == null || password == null) {
             return;
         }
         loginPanel.startLoading();
-        apiRequestHandler.authenticate(this.email, this.password, onSuccess, onFailure);
+        apiRequestHandler.authenticate(email, password, onSuccess, onFailure);
     }
 
     public void onLogout() {
@@ -152,13 +148,5 @@ public class CopilotLoginController {
         suggestionManager.reset();
         highlightController.removeAll();
         mainPanel.refresh();
-    }
-
-    public void onEmailTextChanged(String newEmail) {
-        this.email = newEmail;
-    }
-
-    public void onPasswordTextChanged(String newPassword) {
-        this.password = newPassword;
     }
 }

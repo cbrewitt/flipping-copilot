@@ -88,6 +88,11 @@ public class MainPanel extends PluginPanel {
         int columns = isLoggedIn ? 4 : 3;
         topBar.setLayout(new GridLayout(1, columns));
 
+        JLabel reddit = buildTopBarUriButton(UIUtilities.redditIcon,
+                "Flipping Copilot reddit",
+                "https://www.reddit.com/r/FlippingCopilot/");
+        topBar.add(reddit);
+
         JLabel discord = buildTopBarUriButton(UIUtilities.discordIcon,
                 "Flipping Copilot Discord",
                 "https://discord.gg/UyQxA4QJAq");
@@ -97,6 +102,7 @@ public class MainPanel extends PluginPanel {
                 "Flipping Copilot website",
                 "https://flippingcopilot.com");
         topBar.add(website);
+
 
         if (isLoggedIn) {
             BufferedImage icon = ImageUtil.loadImageResource(getClass(), UIUtilities.logoutIcon);

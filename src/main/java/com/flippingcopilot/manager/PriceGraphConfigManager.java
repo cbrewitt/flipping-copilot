@@ -22,7 +22,7 @@ public class PriceGraphConfigManager {
 
     public static final String JSON_FILE = "price_graph_config.json";
 
-    private final File file = new File(Persistance.PARENT_DIRECTORY, JSON_FILE);
+    private final File file = new File(Persistance.COPILOT_DIR, JSON_FILE);
 
     // dependencies
     private final Gson gson;

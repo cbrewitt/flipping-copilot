@@ -21,7 +21,7 @@ import java.util.*;
 @Slf4j
 public class Persistance {
     public static Gson gson;
-    public static final File PARENT_DIRECTORY = new File(RuneLite.RUNELITE_DIR, "flipping-copilot");
+    public static final File COPILOT_DIR = new File(RuneLite.RUNELITE_DIR, "flipping-copilot");
     public static final String UN_ACKED_TRANSACTIONS_FILE_TEMPLATE = "%s_un_acked.jsonl";
     public static final String LOGIN_RESPONSE_JSON_FILE = "login-response.json";
     public static File directory;
@@ -34,8 +34,8 @@ public class Persistance {
 
     public static void setUp(Gson gson) throws IOException {
         Persistance.gson = gson;
-        directory = PARENT_DIRECTORY;
-        createDirectory(PARENT_DIRECTORY);
+        directory = COPILOT_DIR;
+        createDirectory(COPILOT_DIR);
         createRequiredFiles();
     }
 
@@ -63,7 +63,7 @@ public class Persistance {
 
     public static List<Transaction> loadUnAckedTransactions(String displayName) {
         List<Transaction> transactions = new ArrayList<>();
-        File file = new File(PARENT_DIRECTORY, String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
+        File file = new File(COPILOT_DIR, String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
         if (!file.exists()) {
             log.info("no existing un acked transactions file for {}", displayName);
             return new ArrayList<>();
@@ -102,7 +102,7 @@ public class Persistance {
     }
 
     public static void storeUnAckedTransactions(List<Transaction> transactions, String displayName) {
-        File unackedTransactionsFile = new File(PARENT_DIRECTORY, String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
+        File unackedTransactionsFile = new File(COPILOT_DIR, String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
         try (BufferedWriter w = new BufferedWriter(new FileWriter(unackedTransactionsFile, false))) {
             for (Transaction transaction : transactions) {
                 String json = gson.toJson(transaction);

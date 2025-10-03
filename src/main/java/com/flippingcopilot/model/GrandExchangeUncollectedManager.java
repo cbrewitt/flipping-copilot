@@ -63,7 +63,7 @@ public class GrandExchangeUncollectedManager {
            itemIdToQuantity.clear();
         }
         if(quantity > 0) {
-            log.debug("tick {} added {} of item {} to uncollected", client.getTickCount(), itemId, quantity);
+            log.debug("tick {} added {} of item {} to uncollected", client.getTickCount(), quantity, itemId);
             itemIdToQuantity.merge(itemId, quantity, Long::sum);
         }
         if (gp > 0) {

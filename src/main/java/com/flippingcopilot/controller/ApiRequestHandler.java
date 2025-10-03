@@ -89,6 +89,7 @@ public class ApiRequestHandler {
                 .url(serverUrl + "/suggestion")
                 .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .addHeader("Accept", "application/x-msgpack")
+                .addHeader("X-VERSION", "1")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), status.toString()))
                 .build();
 
@@ -265,7 +266,7 @@ public class ApiRequestHandler {
         JsonObject body = new JsonObject();
         body.add("item_id", new JsonPrimitive(itemId));
         body.add("display_name", new JsonPrimitive(displayName));
-        body.addProperty("f2p_only", preferencesManager.getPreferences().isF2pOnlyMode());
+        body.addProperty("f2p_only", preferencesManager.isF2pOnlyMode());
         body.addProperty("timeframe_minutes", preferencesManager.getTimeframe());
         body.addProperty("include_graph_data", includeGraphData);
         log.debug("requesting price graph data for item {}", itemId);
@@ -273,6 +274,7 @@ public class ApiRequestHandler {
                 .url(serverUrl +"/prices")
                 .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .addHeader("Accept", "application/x-msgpack")
+                .addHeader("X-VERSION", "1")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .build();
 

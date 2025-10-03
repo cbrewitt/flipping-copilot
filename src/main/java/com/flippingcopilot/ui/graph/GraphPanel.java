@@ -16,7 +16,12 @@ public class GraphPanel extends JPanel {
     private final RenderV2 renderer;
     public final ZoomHandler zoomHandler;
     private final DatapointTooltip tooltip;
-    public final PlotArea pa;
+
+    public final Bounds bounds;
+
+    public Rectangle pricePa;
+    public Rectangle volumePa;
+
 
     // For point hovering
     private Point mousePosition = new Point(0,0);
@@ -37,12 +42,12 @@ public class GraphPanel extends JPanel {
         setPreferredSize(new Dimension(500, 300));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        this.pa = new PlotArea();
         zoomHandler.maxViewBounds = dataManager.calculateBounds((p) -> true);
         zoomHandler.homeViewBounds = dataManager.calculateBounds((p) -> p.time > zoomHandler.maxViewBounds.xMax - 4 * Constants.DAY_SECONDS);
         zoomHandler.weekViewBounds = dataManager.calculateBounds((p) -> p.time > zoomHandler.maxViewBounds.xMax - 7 * Constants.DAY_SECONDS);
         zoomHandler.monthViewBounds = dataManager.calculateBounds((p) -> p.time > zoomHandler.maxViewBounds.xMax - 30 * Constants.DAY_SECONDS);
-        pa.bounds = zoomHandler.homeViewBounds.copy();
+        bounds = zoomHandler.homeViewBounds.copy();
+
         setupMouseListeners();
     }
 
@@ -52,50 +57,55 @@ public class GraphPanel extends JPanel {
             @Override
             public void mouseMoved(MouseEvent e) {
                 mousePosition = e.getPoint();
-                hoveredPoint = dataManager.findClosestPoint(pa.relativePoint(e.getPoint()), Config.HOVER_RADIUS, pa);
+                if(pricePa.contains(mousePosition)) {
+                    hoveredPoint = dataManager.findClosestPoint(mousePosition, Config.HOVER_RADIUS, pricePa, bounds);
+                }else if(volumePa.contains(mousePosition)) {
+                    hoveredPoint = dataManager.closedVolumeBar(mousePosition, volumePa, bounds);
+                } else {
+                    hoveredPoint = null;
+                }
                 repaint();
             }
 
             @Override
             public void mousePressed(MouseEvent e) {
                 mousePosition = e.getPoint();
-                Point plotPoint = pa.relativePoint(mousePosition);
-                if (!pa.pointInPlotArea(plotPoint)) {
+                if (!pricePa.contains(mousePosition)) {
                     return;
                 }
 
-                if (zoomHandler.isOverHomeButton(plotPoint)) {
-                    zoomHandler.applyHomeView(pa);
+                if (zoomHandler.isOverHomeButton(mousePosition)) {
+                    zoomHandler.applyHomeView(bounds);
                     repaint();
                     return;
                 }
-                if (zoomHandler.isOverMaxButton(plotPoint)) {
-                    zoomHandler.applyMaxView(pa);
+                if (zoomHandler.isOverMaxButton(mousePosition)) {
+                    zoomHandler.applyMaxView(bounds);
                     repaint();
                     return;
                 }
-                if (zoomHandler.isOverZoomInButton(plotPoint)) {
-                    zoomHandler.applyZoomIn(pa);
+                if (zoomHandler.isOverZoomInButton(mousePosition)) {
+                    zoomHandler.applyZoomIn(bounds);
                     repaint();
                     return;
                 }
-                if (zoomHandler.isOverZoomOutButton(plotPoint)) {
-                    zoomHandler.applyZoomOut(pa);
+                if (zoomHandler.isOverZoomOutButton(mousePosition)) {
+                    zoomHandler.applyZoomOut(bounds);
                     repaint();
                     return;
                 }
-                if (zoomHandler.isOverWeekButton(plotPoint)) {
-                    zoomHandler.applyWeekView(pa);
+                if (zoomHandler.isOverWeekButton(mousePosition)) {
+                    zoomHandler.applyWeekView(bounds);
                     repaint();
                     return;
                 }
-                if (zoomHandler.isOverMonthButton(plotPoint)) {
-                    zoomHandler.applyMonthView(pa);
+                if (zoomHandler.isOverMonthButton(mousePosition)) {
+                    zoomHandler.applyMonthView(bounds);
                     repaint();
                     return;
                 }
 
-                zoomHandler.startSelection(plotPoint);
+                zoomHandler.startSelection(mousePosition);
                 hoveredPoint = null;
                 setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
                 repaint();
@@ -105,7 +115,8 @@ public class GraphPanel extends JPanel {
             public void mouseDragged(MouseEvent e) {
                 mousePosition = e.getPoint();
                 if (zoomHandler.isSelecting()) {
-                    zoomHandler.setSelectionEnd(pa.relativePoint(mousePosition));
+                    Point p = new Point(mousePosition.x-pricePa.x, mousePosition.y-pricePa.y);
+                    zoomHandler.setSelectionEnd(p);
                     repaint();
                 }
             }
@@ -115,8 +126,8 @@ public class GraphPanel extends JPanel {
                 mousePosition = e.getPoint();
                 if (zoomHandler.isSelecting()) {
                     setCursor(Cursor.getDefaultCursor());
-                    zoomHandler.setSelectionEnd(pa.relativePoint(mousePosition));
-                    zoomHandler.applySelection(pa);
+                    zoomHandler.setSelectionEnd(mousePosition);
+                    zoomHandler.applySelection(pricePa, bounds);
                     repaint();
                 }
             }
@@ -138,59 +149,81 @@ public class GraphPanel extends JPanel {
     protected void paintComponent(Graphics g) {
 
         super.paintComponent(g);
-        pa.w = getWidth() - pa.leftPadding - pa.rightPadding;
-        pa.h = getHeight() - pa.topPadding - pa.bottomPadding;
-
+        final int leftPadding = 80;
+        final int topPadding = 100;
+        final int rightPadding = 20;
+        final int bottomPadding = 50;
+        
+        
+        int w = getWidth() - leftPadding - rightPadding;
+        int ah = getHeight() - topPadding - bottomPadding;
+        int h1 = (int) (ah * 0.75);
+        int h2 = ah - h1;
+        
+        pricePa = new Rectangle(leftPadding, topPadding, w, h1);
+        volumePa = new Rectangle(leftPadding, topPadding+h1, w, h2);
 
         Data data = dataManager.getData();
         if (data == null) return;
         Config config = configManager.getConfig();
         setBackground(config.backgroundColor);
-        Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-
-        Graphics2D plotAreaG2 = (Graphics2D) g2.create(pa.leftPadding, pa.topPadding, pa.w, pa.h);
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
         // First draw the legend above the plot area
-        renderer.drawLegend(g2, config, pa);
+        renderer.drawLegend(g2d, config, pricePa);
 
         // Draw the plot area background with dynamic padding
-        plotAreaG2.setColor(config.plotAreaColor);
-        plotAreaG2.fillRect(0,0, pa.w, pa.h);
+        g2d.setColor(config.plotAreaColor);
+        g2d.fillRect(pricePa.x, pricePa.y, pricePa.width, pricePa.height);
+        g2d.fillRect(volumePa.x, volumePa.y,  volumePa.width, volumePa.height);
+        
+        TimeAxis xAxis = AxisCalculator.calculateTimeAxis(bounds, AxisCalculator.getLocalTimeOffsetSeconds());
+        YAxis yAxis = AxisCalculator.calculatePriceAxis(bounds);
+        YAxis y2Axis = AxisCalculator.calculateVolumeAxis(bounds);
 
-        TimeAxis xAxis = AxisCalculator.calculateTimeAxis(pa, AxisCalculator.getLocalTimeOffsetSeconds());
-        PriceAxis yAxis = AxisCalculator.calculatePriceAxis(pa);
-        renderer.drawGrid(plotAreaG2, config, pa, xAxis, yAxis);
-        renderer.drawAxes(g2, config, pa, xAxis, yAxis);
+        renderer.drawGrid(g2d, config, pricePa, bounds, bounds::toY, xAxis, yAxis);
+        renderer.drawGrid(g2d, config, volumePa, bounds, bounds:: toY2, xAxis, y2Axis);
+        renderer.drawAxes(g2d, config, pricePa);
+        renderer.drawYAxisLabels(g2d, config, pricePa, bounds::toY, yAxis, false);
+        renderer.drawAxes(g2d, config, volumePa);
+        renderer.drawYAxisLabels(g2d, config, volumePa, bounds::toY2, y2Axis, true);
+        renderer.drawXAxisLabels(g2d, config, volumePa, bounds, xAxis);
 
 
-        int pointSize = dynamicPointSize(Config.BASE_POINT_SIZE, pa);
-        renderer.drawPoints(plotAreaG2, pa, dataManager.lowDatapoints, config.lowColor, pointSize);
-        renderer.drawPoints(plotAreaG2, pa, dataManager.highDatapoints, config.highColor, pointSize);
+        int pointSize = dynamicPointSize(Config.BASE_POINT_SIZE, bounds);
+        renderer.drawPoints(g2d, pricePa, bounds, dataManager.lowDatapoints, config.lowColor, pointSize);
+        renderer.drawPoints(g2d, pricePa, bounds, dataManager.highDatapoints, config.highColor, pointSize);
         if (config.connectPoints) {
-            renderer.drawLines(plotAreaG2, pa, dataManager.lowDatapoints, config.lowColor, Config.NORMAL_STROKE);
-            renderer.drawLines(plotAreaG2, pa, dataManager.highDatapoints, config.highColor, Config.NORMAL_STROKE);
+            renderer.drawLines(g2d, pricePa, bounds, dataManager.lowDatapoints, config.lowColor, Config.NORMAL_STROKE);
+            renderer.drawLines(g2d, pricePa, bounds, dataManager.highDatapoints, config.highColor, Config.NORMAL_STROKE);
         }
-        renderer.drawStartPoints(plotAreaG2, pa, dataManager.buyPriceDataPoint(), Color.WHITE, pointSize);
-        renderer.drawStartPoints(plotAreaG2, pa, dataManager.sellPriceDataPoint(), Color.WHITE, pointSize);
+        renderer.drawStartPoints(g2d, pricePa, bounds, dataManager.buyPriceDataPoint(), Color.WHITE, pointSize);
+        renderer.drawStartPoints(g2d, pricePa, bounds, dataManager.sellPriceDataPoint(), Color.WHITE, pointSize);
 
-        renderer.drawLines(plotAreaG2, pa, dataManager.predictionLowDatapoints, config.lowColor, Config.DOTTED_STROKE);
-        renderer.drawLines(plotAreaG2, pa, dataManager.predictionHighDatapoints, config.highColor, Config.DOTTED_STROKE);
-        renderer.drawPredictionIQR(plotAreaG2, config, pa, data.predictionTimes, data.predictionLowIQRLower, data.predictionLowIQRUpper, true);
-        renderer.drawPredictionIQR(plotAreaG2, config, pa, data.predictionTimes, data.predictionHighIQRLower, data.predictionHighIQRUpper, false);
-        zoomHandler.drawButtons(plotAreaG2, pa, pa.relativePoint(mousePosition));
-        zoomHandler.drawSelectionRectangle(plotAreaG2);
+        renderer.drawLines(g2d, pricePa, bounds, dataManager.predictionLowDatapoints, config.lowColor, Config.DOTTED_STROKE);
+        renderer.drawLines(g2d, pricePa, bounds, dataManager.predictionHighDatapoints, config.highColor, Config.DOTTED_STROKE);
+        renderer.drawPredictionIQR(g2d, config, pricePa, bounds, data.predictionTimes, data.predictionLowIQRLower, data.predictionLowIQRUpper, true);
+        renderer.drawPredictionIQR(g2d, config, pricePa, bounds, data.predictionTimes, data.predictionHighIQRLower, data.predictionHighIQRUpper, false);
+        zoomHandler.drawButtons(g2d, pricePa, mousePosition);
+        zoomHandler.drawSelectionRectangle(g2d, pricePa);
+
+        renderer.drawVolumeBars(g2d, config, volumePa, bounds, dataManager.volumes, hoveredPoint);
 
         // Draw tooltip for hovered point
         if (hoveredPoint != null) {
-            tooltip.draw(plotAreaG2, config, pa, hoveredPoint);
+            if (hoveredPoint.type == Datapoint.Type.VOLUME_1H) {
+                tooltip.drawVolume(g2d, config, volumePa, bounds, hoveredPoint);
+            } else {
+                tooltip.draw(g2d, config, pricePa, bounds, hoveredPoint);
+            }
         }
     }
 
-    private int dynamicPointSize(int baseSize, PlotArea pa) {
-        int td = pa.bounds.xMax - pa.bounds.xMin;
+    private int dynamicPointSize(int baseSize, Bounds bounds) {
+        int td = bounds.xMax - bounds.xMin;
         if (td < Constants.DAY_SECONDS) {
             return (int) ((float) baseSize * 1.25);
         } else if (td > Constants.DAY_SECONDS * 20) {
