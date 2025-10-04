@@ -115,8 +115,7 @@ public class GraphPanel extends JPanel {
             public void mouseDragged(MouseEvent e) {
                 mousePosition = e.getPoint();
                 if (zoomHandler.isSelecting()) {
-                    Point p = new Point(mousePosition.x-pricePa.x, mousePosition.y-pricePa.y);
-                    zoomHandler.setSelectionEnd(p);
+                    zoomHandler.setSelectionEnd(mousePosition);
                     repaint();
                 }
             }

@@ -48,11 +48,12 @@ public class ZoomHandler {
         int x2 = MathUtil.clamp(Math.max(selectionStart.x, selectionEnd.x), pa.x, pa.x+pa.width);
         int y2 = MathUtil.clamp(Math.max(selectionStart.y, selectionEnd.y), pa.y, pa.y+pa.height);
 
-        int newTimeMin = bounds.xMin + (int)(((long)bounds.xDelta() * (long)(x1)) / pa.width);
-        int newTimeMax = bounds.xMin + (int)(((long)bounds.xDelta() * (long)(x2)) / pa.width);
 
-        int newPriceMax = (int) (bounds.yMax - ((bounds.yDelta() * (long)(y1)) / pa.height));
-        int newPriceMin = (int) (bounds.yMax - ((bounds.yDelta() * (long)(y2)) / pa.height));
+        int newTimeMin = bounds.xMin + (int)(((long)bounds.xDelta() * (long)(x1 - pa.x)) / ((long) pa.width));
+        int newTimeMax = bounds.xMin + (int)(((long)bounds.xDelta() * (long)(x2 - pa.x)) / ((long) pa.width));
+
+        int newPriceMax = (int) (bounds.yMax - ((bounds.yDelta() * (long)(y1 - pa.y)) / ((long) pa.height)));
+        int newPriceMin = (int) (bounds.yMax - ((bounds.yDelta() * (long)(y2 - pa.y)) / ((long) pa.height)));
 
         if (newTimeMax - newTimeMin < MIN_TIME_DELTA) {
             log.debug("zoomed time delta {}s too small", newTimeMax - newTimeMin);
