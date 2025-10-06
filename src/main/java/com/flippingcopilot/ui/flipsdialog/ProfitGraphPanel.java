@@ -25,10 +25,10 @@ public class ProfitGraphPanel extends JPanel {
     private static final int BASE_PADDING_BOTTOM = 40;
 
     // Scaled layout values
-    private final int PADDING_LEFT = scale(BASE_PADDING_LEFT);
-    private final int PADDING_RIGHT = scale(BASE_PADDING_RIGHT);
-    private final int PADDING_TOP = scale(BASE_PADDING_TOP);
-    private final int PADDING_BOTTOM = scale(BASE_PADDING_BOTTOM);
+    private final int PADDING_LEFT = BASE_PADDING_LEFT;
+    private final int PADDING_RIGHT = BASE_PADDING_RIGHT;
+    private final int PADDING_TOP = BASE_PADDING_TOP;
+    private final int PADDING_BOTTOM = BASE_PADDING_BOTTOM;
 
     // Visual constants
     private static final Color BACKGROUND_COLOR = new Color(43, 43, 43);
@@ -38,20 +38,20 @@ public class ProfitGraphPanel extends JPanel {
     private static final Color TEXT_COLOR = new Color(225, 225, 225);
 
     // Base font size that will be scaled
-    private static final float BASE_FONT_SIZE = 16f;
+    private static final float BASE_FONT_SIZE = 18f;
 
     // Scaled strokes
-    private final Stroke LINE_STROKE = new BasicStroke(scale(2f));
+    private final Stroke LINE_STROKE = new BasicStroke(2f);
     private final Stroke GRID_STROKE = new BasicStroke(
-            scale(0.8f), BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{scale(3f)}, 0
+            1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{3f}, 0
     );
-    private final Stroke AXIS_STROKE = new BasicStroke(scale(1.0f));
+    private final Stroke AXIS_STROKE = new BasicStroke(1.0f);
 
     private final Color lossColor;
     private final Color profitColor;
 
     // Point size for data points
-    private final int POINT_RADIUS = scale(3);
+    private final int POINT_RADIUS = 3;
 
     // Calculated bounds
     private List<Datapoint> data;
@@ -65,16 +65,7 @@ public class ProfitGraphPanel extends JPanel {
     private Rectangle lowerPa;
     private Bounds lowerPlotBounds;
     private Bounds upperPlotBounds;
-
-
-    // Helper method to scale values based on DPI
-    private static int scale(int value) {
-        return (int) Math.round(value * DPI_SCALE);
-    }
-
-    private static float scale(float value) {
-        return (float) (value * DPI_SCALE);
-    }
+    
 
     public void setData(List<Datapoint> newData) {
         this.data = newData;
@@ -112,8 +103,8 @@ public class ProfitGraphPanel extends JPanel {
         this.lossColor = lossColor;
 
         setBackground(BACKGROUND_COLOR);
-        setPreferredSize(new Dimension(scale(600), scale(400)));
-        setBorder(BorderFactory.createEmptyBorder(scale(10), scale(10), scale(10), scale(10)));
+        setPreferredSize(new Dimension(600, 400));
+        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         addMouseMotionListener(new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
@@ -216,13 +207,13 @@ public class ProfitGraphPanel extends JPanel {
 
     private void drawTitle(Graphics2D g2, Rectangle pa, String text) {
         // Use a slightly larger font for the title
-        Font titleFont = g2.getFont().deriveFont(Font.PLAIN, scale(BASE_FONT_SIZE * 1.1f));
+        Font titleFont = g2.getFont().deriveFont(Font.PLAIN, BASE_FONT_SIZE * 1.1f);
         g2.setFont(titleFont);
         g2.setColor(TEXT_COLOR);
         FontMetrics fm = g2.getFontMetrics();
         int textWidth = fm.stringWidth(text);
         int x = pa.x + (pa.width - textWidth) / 2;
-        int y = pa.y - scale(5);
+        int y = pa.y - 5;
         g2.drawString(text, x, y);
     }
 
@@ -331,25 +322,25 @@ public class ProfitGraphPanel extends JPanel {
 
     private void drawXAxisLabels(Graphics2D g2, Rectangle pa, List<Tick> xTicks, Bounds bounds) {
         // Scale font based on DPI
-        Font scaledFont = g2.getFont().deriveFont(scale(BASE_FONT_SIZE));
+        Font scaledFont = g2.getFont().deriveFont(BASE_FONT_SIZE);
         g2.setFont(scaledFont);
         g2.setColor(TEXT_COLOR);
         FontMetrics fm = g2.getFontMetrics();
         for (Tick t : xTicks) {
             int x = bounds.toX(pa, (int) t.value);
             int labelWidth = fm.stringWidth(t.label);
-            g2.drawString(t.label, x - labelWidth / 2,  pa.y + pa.height + scale(20));
+            g2.drawString(t.label, x - labelWidth / 2,  pa.y + pa.height + 20);
         }
     }
     private void drawYAxisLabels(Graphics2D g2, Rectangle pa,  List<Tick> yTicks, Bounds bounds) {
-        Font scaledFont = g2.getFont().deriveFont(scale(BASE_FONT_SIZE));
+        Font scaledFont = g2.getFont().deriveFont(BASE_FONT_SIZE);
         g2.setFont(scaledFont);
         g2.setColor(TEXT_COLOR);
         FontMetrics boldFm = g2.getFontMetrics();
         for (Tick t : yTicks) {
             int y = bounds.toY(pa, t.value);
             int labelWidth = boldFm.stringWidth(t.label);
-            g2.drawString(t.label, PADDING_LEFT - labelWidth - scale(10),
+            g2.drawString(t.label, PADDING_LEFT - labelWidth - 10,
                     y + boldFm.getHeight() / 3);
         }
     }
@@ -399,7 +390,7 @@ public class ProfitGraphPanel extends JPanel {
         String dailyProfitStr = String.format("%,d", v);
         String dateStr = t.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"));
 
-        g2.setFont(g2.getFont().deriveFont(scale(12f))); // Config.FONT_SIZE from DatapointTooltip
+        g2.setFont(g2.getFont().deriveFont(12f)); // Config.FONT_SIZE from DatapointTooltip
         FontMetrics fm = g2.getFontMetrics();
 
         int dateWidth = fm.stringWidth(dateStr);
@@ -414,15 +405,15 @@ public class ProfitGraphPanel extends JPanel {
         int tooltipY = p.y;
 
         if (tooltipX < lowerPa.x) {
-            tooltipX = lowerPa.x + scale(5);
+            tooltipX = lowerPa.x + 5;
         } else if (tooltipX + tooltipWidth > lowerPa.x + lowerPa.width) {
-            tooltipX = lowerPa.x + lowerPa.width - tooltipWidth - scale(5);
+            tooltipX = lowerPa.x + lowerPa.width - tooltipWidth - 5;
         }
         g2.setColor(TOOLTIP_BACKGROUND);
         g2.fillRoundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 8, 8);
 
         g2.setColor(TOOLTIP_BORDER);
-        g2.setStroke(new BasicStroke(scale(1.0f)));
+        g2.setStroke(new BasicStroke(1.0f));
         g2.drawRoundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 8, 8);
         g2.setColor(TEXT_COLOR);
         int yPos = tooltipY + TOOLTIP_PADDING + fm.getAscent();
