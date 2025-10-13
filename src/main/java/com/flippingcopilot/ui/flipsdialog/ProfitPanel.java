@@ -56,13 +56,13 @@ public class ProfitPanel extends JPanel {
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         leftPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        intervalDropdown = new IntervalDropdown((units, value) -> refreshGraph(), IntervalDropdown.ALL_TIME, false);
+        intervalDropdown = new IntervalDropdown((units, value) -> refreshGraph(false), IntervalDropdown.ALL_TIME, false);
         intervalDropdown.setPreferredSize(new Dimension(150, intervalDropdown.getPreferredSize().height));
         intervalDropdown.setToolTipText("Select time interval");
 
         accountDropdown = new AccountDropdown(
                 copilotLoginManager::displayNameToAccountIdMap,
-                accountId -> refreshGraph(),
+                accountId -> refreshGraph(false),
                 AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
         );
         accountDropdown.setPreferredSize(new Dimension(120, accountDropdown.getPreferredSize().height));
@@ -93,20 +93,20 @@ public class ProfitPanel extends JPanel {
         scrollPane.getViewport().setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         add(scrollPane, BorderLayout.CENTER);
-        refreshGraph();
     }
 
-    private void refreshGraph() {
+    public void refreshGraph(boolean forceRecalculate) {
         executorService.submit(() -> {
             try {
                 // not fully initialised
                 if(accountDropdown == null || intervalDropdown == null) {
                     return;
                 }
+                accountDropdown.refresh();
                 // Check if we need to regenerate the data
                 Integer accountId = accountDropdown.getSelectedAccountId();
                 int startTime = (int) IntervalDropdown.calculateStartTime(intervalDropdown.getSelectedIntervalTimeUnit(), intervalDropdown.getSelectedIntervalValue(), 0);
-                boolean needsRegeneration = cachedDatapoints.isEmpty() ||
+                boolean needsRegeneration = forceRecalculate || cachedDatapoints.isEmpty() ||
                         !Objects.equals(cachedAccountId, accountId) ||
                         cachedIntervalStartTime != startTime;
 

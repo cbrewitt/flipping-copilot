@@ -44,7 +44,9 @@ public class IntervalDropdown extends JComboBox<String> {
     @Getter
     private int selectedIntervalValue = -1;
 
-    public IntervalDropdown(BiConsumer<IntervalTimeUnit, Integer> onIntervalChanged, String initialValue, boolean includeSessionOption) {
+    public IntervalDropdown(BiConsumer<IntervalTimeUnit, Integer> onIntervalChanged,
+                            String initialValue,
+                            boolean includeSessionOption) {
         super(Arrays.stream(TIME_INTERVAL_STRINGS).filter(i -> !i.equals(SESSION) || includeSessionOption).toArray(String[]::new));
         this.onIntervalChanged = onIntervalChanged;
 
@@ -52,25 +54,8 @@ public class IntervalDropdown extends JComboBox<String> {
         setSelectedItem(initialValue);
         setMaximumSize(new Dimension(Integer.MAX_VALUE, getPreferredSize().height));
         setBorder(BorderFactory.createEmptyBorder());
-
-        // Create a custom editor to handle both selection and manual input
-        ComboBoxEditor editor = new BasicComboBoxEditor() {
-            @Override
-            public void setItem(Object item) {
-                super.setItem(item);
-                if (item != null) {
-                    String value = item.toString();
-                    if (PICK_START_DATE.equals(value)) {
-                        // Don't process immediately, wait for action listener
-                        return;
-                    }
-                    if (extractAndUpdateTimeInterval(value)) {
-                        onIntervalChanged.accept(selectedIntervalTimeUnit, selectedIntervalValue);
-                    }
-                }
-            }
-        };
-        setEditor(editor);
+        extractAndUpdateTimeInterval(initialValue);
+        setEditor(new BasicComboBoxEditor());
 
         // Add action listener for selection changes and manual edits
         addActionListener(e -> {
@@ -162,27 +147,29 @@ public class IntervalDropdown extends JComboBox<String> {
 
     private boolean extractAndUpdateTimeInterval(String value) {
         if (value != null) {
-            if ("Session".equals(value)) {
-                selectedIntervalTimeUnit = IntervalTimeUnit.SESSION;
-                selectedIntervalValue = -1;
-                return true;
-            } else if (ALL_TIME.equals(value)) {
-                selectedIntervalTimeUnit = IntervalTimeUnit.ALL;
-                selectedIntervalValue = -1;
-                return true;
-            } else if (PICK_START_DATE.equals(value)) {
-                // Don't update here, handled in action listener
-                return false;
-            } else {
-                Matcher matcher = INTERVAL_PATTERN.matcher(value);
-                if (matcher.matches()) {
-                    String numberStr = matcher.group(1);
-                    // Handle decimal values by rounding
-                    double doubleValue = Double.parseDouble(numberStr);
-                    selectedIntervalValue = (int) Math.round(doubleValue);
-                    selectedIntervalTimeUnit = IntervalTimeUnit.fromString(matcher.group(2));
+            switch (value) {
+                case "Session":
+                    selectedIntervalTimeUnit = IntervalTimeUnit.SESSION;
+                    selectedIntervalValue = -1;
                     return true;
-                }
+                case ALL_TIME:
+                    selectedIntervalTimeUnit = IntervalTimeUnit.ALL;
+                    selectedIntervalValue = -1;
+                    return true;
+                case PICK_START_DATE:
+                    // Don't update here, handled in action listener
+                    return false;
+                default:
+                    Matcher matcher = INTERVAL_PATTERN.matcher(value);
+                    if (matcher.matches()) {
+                        String numberStr = matcher.group(1);
+                        // Handle decimal values by rounding
+                        double doubleValue = Double.parseDouble(numberStr);
+                        selectedIntervalValue = (int) Math.round(doubleValue);
+                        selectedIntervalTimeUnit = IntervalTimeUnit.fromString(matcher.group(2));
+                        return true;
+                    }
+                    break;
             }
         }
         return false;

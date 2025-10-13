@@ -205,4 +205,14 @@ public class Data {
         }
         return d;
     }
+    
+    public void clearPredictionData() {
+        predictionHighIQRLower = null;
+        predictionHighIQRUpper = null;
+        predictionHighMeans = null;
+        predictionLowIQRLower = null;
+        predictionLowIQRUpper = null;
+        predictionLowMeans = null;
+        predictionTimes = null;
+    }
 }

@@ -59,6 +59,13 @@ public class RenderV2 {
             g2.drawString(label,  x - labelWidth / 2, pa.y + pa.height + Config.TICK_SIZE * 2 + 9 + metrics.getHeight());
         }
 
+        if (xAxis.dateOnlyTickTimes.length == 0 && xAxis.timeOnlyTickTimes.length > 0) {
+            int x = pa.x + pa.width / 2;
+            String label = dateFormat.format(new java.util.Date(bounds.xMid() * 1000L));
+            int labelWidth = metrics.stringWidth(label);
+            g2.drawString(label,  x - labelWidth / 2, pa.y + pa.height + Config.TICK_SIZE * 2 + 9 + metrics.getHeight());
+        }
+
         // Draw time labels (shorter ticks)
         for (int time : xAxis.timeOnlyTickTimes) {
             int x = bounds.toX(pa,time);
@@ -223,21 +230,21 @@ public class RenderV2 {
         g2d.setClip(originalClip); // restore original clip
     }
 
-    public void drawLegend(Graphics2D g2, Config config, Rectangle pa) {
+    public void drawLegend(Graphics2D g2, Config config, Rectangle pa, boolean addPredictionLabels) {
         int xMid = pa.x + pa.width / 2;
         g2.setFont(g2.getFont().deriveFont(Font.PLAIN, Config.FONT_SIZE));
         FontMetrics metrics = g2.getFontMetrics();
 
-        // Legend item text labels - now with additional entries
-        String[] labels = {"Lows (insta-sell)", "Highs (insta-buy)", "Low prediction", "High prediction"};
-        String[] labels2 = {"Low IQR", "High IQR"};  // New line for IQR entries
+        // Legend item text labels
+        String[] labels = addPredictionLabels
+                ? new String[]{"Lows (insta-sell)", "Highs (insta-buy)", "Low prediction", "High prediction", "Low IQR", "High IQR"}
+                : new String[]{"Lows (insta-sell)", "Highs (insta-buy)"};
 
-        // Calculate legend position - now above the plot area
-        int legendY = pa.y / 2; // Half the padding from the top
+        // Calculate legend position - above the plot area
+        int legendY = pa.y / 2;
         int lineLength = 20;
         int itemHeight = 15;
         int itemPadding = 30; // Space between text end and next item start
-        int lineSpacing = 20; // Space between first and second row
 
         // Calculate widths for each legend item based on text length
         int[] itemWidths = new int[labels.length];
@@ -248,14 +255,10 @@ public class RenderV2 {
             totalWidth += itemWidths[i];
         }
 
-        // Add padding between items to total width
         totalWidth += itemPadding * (labels.length - 1);
 
-        // Calculate starting X position to center the legend
         int legendStartX = xMid - totalWidth / 2;
         int currentX = legendStartX;
-
-        // First row of legend items
 
         // Low prices
         g2.setColor(config.lowColor);
@@ -279,53 +282,36 @@ public class RenderV2 {
         g2.drawString(labels[1], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
         currentX += itemWidths[1] + itemPadding;
 
-        // Low prediction mean
-        g2.setColor(config.lowColor);
-        g2.setStroke(Config.DOTTED_STROKE);
-        g2.drawLine(currentX, legendY + itemHeight/2, currentX + lineLength, legendY + itemHeight/2);
-        g2.setColor(config.textColor);
-        g2.drawString(labels[2], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
-        currentX += itemWidths[2] + itemPadding;
+        if (addPredictionLabels) {
+            // Low prediction
+            g2.setColor(config.lowColor);
+            g2.setStroke(Config.DOTTED_STROKE);
+            g2.drawLine(currentX, legendY + itemHeight/2, currentX + lineLength, legendY + itemHeight/2);
+            g2.setColor(config.textColor);
+            g2.drawString(labels[2], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
+            currentX += itemWidths[2] + itemPadding;
 
-        // High prediction mean
-        g2.setColor(config.highColor);
-        g2.setStroke(Config.DOTTED_STROKE);
-        g2.drawLine(currentX, legendY + itemHeight/2, currentX + lineLength, legendY + itemHeight/2);
-        g2.setColor(config.textColor);
-        g2.drawString(labels[3], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
+            // High prediction
+            g2.setColor(config.highColor);
+            g2.setStroke(Config.DOTTED_STROKE);
+            g2.drawLine(currentX, legendY + itemHeight/2, currentX + lineLength, legendY + itemHeight/2);
+            g2.setColor(config.textColor);
+            g2.drawString(labels[3], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
+            currentX += itemWidths[3] + itemPadding;
 
-        // Second row with IQR entries
-        // Calculate widths for second row items
-        int[] itemWidths2 = new int[labels2.length];
-        int totalWidth2 = 0;
+            // Low IQR
+            g2.setColor(config.lowShadeColor);
+            g2.fillRect(currentX, legendY + itemHeight/2 - 5, lineLength, 10);
+            g2.setColor(config.textColor);
+            g2.drawString(labels[4], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
+            currentX += itemWidths[4] + itemPadding;
 
-        for (int i = 0; i < labels2.length; i++) {
-            itemWidths2[i] = lineLength + 5 + metrics.stringWidth(labels2[i]);
-            totalWidth2 += itemWidths2[i];
+            // High IQR
+            g2.setColor(config.highShadeColor);
+            g2.fillRect(currentX, legendY + itemHeight/2 - 5, lineLength, 10);
+            g2.setColor(config.textColor);
+            g2.drawString(labels[5], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
         }
-
-        // Add padding between items to total width for second row
-        totalWidth2 += itemPadding * (labels2.length - 1);
-
-        // Calculate starting X position to center the second row
-        int legendStartX2 = xMid - totalWidth2 / 2;
-        int currentX2 = legendStartX2;
-        int legendY2 = legendY + itemHeight + 13; // Position for second row
-
-        // Low IQR
-        g2.setColor(config.lowShadeColor);
-        // Draw a small filled rectangle to represent the shaded area
-        g2.fillRect(currentX2, legendY2 + itemHeight/2 - 5, lineLength, 10);
-        g2.setColor(config.textColor);
-        g2.drawString(labels2[0], currentX2 + lineLength + 5, legendY2 + itemHeight/2 + 4);
-        currentX2 += itemWidths2[0] + itemPadding;
-
-        // High IQR
-        g2.setColor(config.highShadeColor);
-        // Draw a small filled rectangle to represent the shaded area
-        g2.fillRect(currentX2, legendY2 + itemHeight/2 - 5, lineLength, 10);
-        g2.setColor(config.textColor);
-        g2.drawString(labels2[1], currentX2 + lineLength + 5, legendY2 + itemHeight/2 + 4);
     }
 
     public void drawVolumeBars(Graphics2D g2d, Config config, Rectangle pa, Bounds bounds, List<Datapoint> volumes, Datapoint hoveredPoint) {
@@ -354,5 +340,51 @@ public class RenderV2 {
             }
         }
         g2d.setClip(originalClip); // restore original clip
+    }
+
+    public void drawTxsDatapoints(Graphics2D g2d,
+                                  Rectangle pa,
+                                  Bounds bounds,
+                                  List<Datapoint> txDatapoints,
+                                  Datapoint hoveredPoint,
+                                  Config config) {
+        if (txDatapoints == null || txDatapoints.isEmpty()) return;
+
+        java.awt.Shape originalClip = g2d.getClip();
+        g2d.setClip(pa.x, pa.y, pa.width, pa.height);
+
+        int circleSize = 24;
+        int radius = circleSize / 2;
+
+        g2d.setFont(g2d.getFont().deriveFont(Font.BOLD, 14f));
+        FontMetrics metrics = g2d.getFontMetrics();
+
+        for (Datapoint d : txDatapoints) {
+            if (d.time < bounds.xMin || d.time > bounds.xMax) {
+                continue;
+            }
+
+            int x = bounds.toX(pa, d.time);
+            int y = bounds.toY(pa, d.price);
+
+            g2d.setColor(d.isLow ? config.lowColor : config.highColor);
+            g2d.fillOval(x - radius, y - radius, circleSize, circleSize);
+
+            g2d.setColor(hoveredPoint == d ? Color.BLACK : Color.WHITE);
+            g2d.setStroke(new BasicStroke(2.0f));
+            g2d.drawOval(x - radius, y - radius, circleSize, circleSize);
+
+            String text = d.isLow ? "B" : "S";
+            int textWidth = metrics.stringWidth(text);
+            int textHeight = metrics.getAscent();
+
+            g2d.setColor(Color.WHITE);
+            g2d.drawString(text,
+                    x - textWidth / 2,
+                    y + textHeight / 3); // Adjust vertical centering
+        }
+
+        // Restore original clip
+        g2d.setClip(originalClip);
     }
 }

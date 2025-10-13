@@ -131,7 +131,7 @@ public class ItemAggregateFilterSort {
         }
     }
 
-    private void reloadAggregates(boolean totalPagesMaybeChanged) {
+    public void reloadAggregates(boolean totalPagesMaybeChanged) {
         executorService.submit(() -> _reloadAggregates(totalPagesMaybeChanged));
     }
 

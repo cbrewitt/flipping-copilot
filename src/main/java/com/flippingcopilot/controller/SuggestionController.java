@@ -3,7 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.*;
-import com.flippingcopilot.ui.graph.PriceGraphController;
+import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.google.gson.Gson;
 import lombok.Getter;
@@ -18,6 +18,7 @@ import net.runelite.client.chat.ChatMessageBuilder;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.swing.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
@@ -45,7 +46,7 @@ public class SuggestionController {
     private final SuggestionManager suggestionManager;
     private final AccountStatusManager accountStatusManager;
     private final GrandExchangeUncollectedManager uncollectedManager;
-    private final PriceGraphController graphPriceGraphController;
+    private final FlipsDialogController flipDialogController;
 
     private MainPanel mainPanel;
     private LoginPanel loginPanel;
@@ -125,9 +126,12 @@ public class SuggestionController {
             offerManager.setOfferJustPlaced(false);
             suggestionPanel.refresh();
             showNotifications(oldSuggestion, newSuggestion, accountStatus);
+            if(!newSuggestion.getType().equals("wait")) {
+                SwingUtilities.invokeLater(() ->flipDialogController.priceGraphPanel.newSuggestedItemId(newSuggestion.getItemId()));
+            }
         };
         Consumer<Data> graphDataConsumer = (d) -> {
-            graphPriceGraphController.setSuggestedItemGraphData(d);
+            SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.setSuggestionPriceData(d));
             suggestionManager.setGraphDataReadingInProgress(false);
         };
         Consumer<HttpResponseException> onFailure = (e) -> {
@@ -147,7 +151,6 @@ public class SuggestionController {
         log.debug("tick {} getting suggestion", client.getTickCount());
         apiRequestHandler.getSuggestionAsync(accountStatus.toJson(gson, grandExchange.isOpen(), config.priceGraphWebsite() == FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT), suggestionConsumer, graphDataConsumer, onFailure);
     }
-
 
     void showNotifications(Suggestion oldSuggestion, Suggestion newSuggestion, AccountStatus accountStatus) {
         if (shouldNotify(newSuggestion, oldSuggestion)) {
