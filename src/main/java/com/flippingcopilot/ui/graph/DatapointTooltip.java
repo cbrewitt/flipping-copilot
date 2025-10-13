@@ -52,6 +52,11 @@ public class DatapointTooltip {
                 typeText = point.isLow() ? "low prediction" : "high prediction";
                 timeText = Constants.SECOND_DATE_FORMAT.format(new Date(point.getTime() * 1000L));
                 break;
+            case FLIP_TRANSACTION:
+                String volumeStr = format.format(Math.abs(point.qty));
+                typeText = point.isLow() ? "Buy " + volumeStr : "Sell "+ volumeStr;
+                timeText = Constants.SECOND_DATE_FORMAT.format(new Date(point.getTime() * 1000L));
+                break;
             default:
                 throw new IllegalArgumentException("invalid point type: "+ point.type);
         }
@@ -104,22 +109,24 @@ public class DatapointTooltip {
         g2.drawString(priceStr, tooltipX + padding, yPos);
 
         // Highlight the hovered point
-        if (point.isLow()) {
-            g2.setColor(config.lowColor);
-        } else {
-            g2.setColor(config.highColor);
+        if (point.type != Datapoint.Type.FLIP_TRANSACTION) {
+            if (point.isLow()) {
+                g2.setColor(config.lowColor);
+            } else {
+                g2.setColor(config.highColor);
+            }
+
+            // Draw larger point to highlight hover
+            int highlightSize = 8;
+            g2.fillOval(hoverPosition.x - highlightSize / 2,
+                    hoverPosition.y - highlightSize / 2,
+                    highlightSize, highlightSize);
+
+            g2.setColor(Color.WHITE);
+            g2.drawOval(hoverPosition.x - highlightSize / 2 - 1,
+                    hoverPosition.y - highlightSize / 2 - 1,
+                    highlightSize + 2, highlightSize + 2);
         }
-
-        // Draw larger point to highlight hover
-        int highlightSize = 8;
-        g2.fillOval(hoverPosition.x - highlightSize / 2,
-                hoverPosition.y - highlightSize / 2,
-                highlightSize, highlightSize);
-
-        g2.setColor(Color.WHITE);
-        g2.drawOval(hoverPosition.x - highlightSize / 2 - 1,
-                hoverPosition.y - highlightSize / 2 - 1,
-                highlightSize + 2, highlightSize + 2);
     }
 
     public void drawVolume(Graphics2D g2d, Config config, Rectangle pa, Bounds bounds, Datapoint point) {

@@ -4,15 +4,14 @@ import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.CopilotLoginManager;
+import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.SessionManager;
 import com.google.inject.name.Named;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.client.RuneLite;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.ui.ContainableFrame;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -36,6 +35,7 @@ public class FlipsDialogController {
     private final FlippingCopilotConfig config;
     private final ApiRequestHandler apiRequestHandler;
     private final ClientUI clientUI;
+    private final PriceGraphConfigManager priceGraphConfigManager;
 
     private JDialog currentDialog = null;
     private Point lastDialogPosition = null;
@@ -67,10 +67,25 @@ public class FlipsDialogController {
             tabbedPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
             // Initialize all panels upfront
-            log.debug("Creating FlipsPanel...");
+
+            log.debug("Creating VisualizeFlipPanel...");
             long startTime = System.currentTimeMillis();
+            VisualizeFlipPanel visualizeFlipPanel = new VisualizeFlipPanel(
+                    itemController,
+                    priceGraphConfigManager,
+                    config,
+                    apiRequestHandler
+            );
+            log.debug("VisualizeFlipPanel created in {}s", (System.currentTimeMillis() - startTime) / 1000.0);
+
+
+            log.debug("Creating FlipsPanel...");
+            startTime = System.currentTimeMillis();
             FlipsPanel flipsPanel = new FlipsPanel(flipsManager, itemController, copilotLoginManager,
-                    executorService, config, apiRequestHandler);
+                    executorService, config, apiRequestHandler, (f) -> {
+                visualizeFlipPanel.showFlipVisualization(f);
+                tabbedPane.setSelectedIndex(6);
+            });
             log.debug("FlipsPanel created in {}s", (System.currentTimeMillis() - startTime) / 1000.0);
 
             log.debug("Creating ItemAggregatePanel...");
@@ -97,6 +112,16 @@ public class FlipsDialogController {
                     executorService, apiRequestHandler, config, flipsManager);
             log.debug("TransactionsPanel created in {}s", (System.currentTimeMillis() - startTime) / 1000.0);
 
+            log.debug("Creating PriceGraphPanel...");
+            startTime = System.currentTimeMillis();
+            PriceGraphPanel priceGraphPanel = new PriceGraphPanel(
+                    itemController,
+                    priceGraphConfigManager,
+                    config,
+                    apiRequestHandler
+            );
+            log.debug("PriceGraphPanel created in {}s", (System.currentTimeMillis() - startTime) / 1000.0);
+
 
 
             // Add all tabs
@@ -105,16 +130,19 @@ public class FlipsDialogController {
             tabbedPane.addTab("Accounts", accountsPanel);
             tabbedPane.addTab("Profit graph", profitPanel);
             tabbedPane.addTab("Transactions", transactionsPanel);
+            tabbedPane.addTab("Price graph", priceGraphPanel);
+            tabbedPane.addTab("Visualize flip", visualizeFlipPanel);
 
             tabbedPane.addChangeListener(e -> {
-                if (tabbedPane.getSelectedIndex() == 4) {
+                int selectedIndex = tabbedPane.getSelectedIndex();
+                if (selectedIndex == 4) {
                     transactionsPanel.loadTransactionsIfNeeded();
-                } else if (tabbedPane.getSelectedIndex() == 0) {
+                } else if (selectedIndex == 0) {
                     flipsPanel.sortAndFilter.reloadFlips(true, true);
+                } else if (selectedIndex == 5) {
+                    priceGraphPanel.onPanelShown();
                 }
             });
-
-
             dialog.setContentPane(tabbedPane);
 
             // Set size and position
