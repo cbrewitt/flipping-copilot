@@ -28,7 +28,7 @@ public class ControlPanel extends JPanel {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
         setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
-        setBounds(0, 0, 300, 150);
+        setBounds(0, 0, MainPanel.CONTENT_WIDTH, 150);
 
         // Add timeframe buttons
         timeframePanel = new JPanel();

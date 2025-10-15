@@ -106,19 +106,17 @@ public class SuggestionPanel extends JPanel {
         this.flipManager = flipManager;
         this.copilotLoginManager = copilotLoginManager;
 
-        // Create the layered pane first
-        layeredPane.setLayout(null);  // LayeredPane needs null layout
-
-        // Create a main panel that will hold all the regular components
+        layeredPane.setLayout(null);
+        setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, 150));
         suggestedActionPanel = new JPanel(new BorderLayout());
         suggestedActionPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         suggestedActionPanel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
-        suggestedActionPanel.setBounds(0, 0, 300, 150);  // Set appropriate size
+        suggestedActionPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, 150);
 
         JPanel suggestionContainer = new JPanel(new BorderLayout());
         suggestionContainer.setOpaque(true);
         suggestionContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        suggestionContainer.setPreferredSize(new Dimension(0, 85));
+        suggestionContainer.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH - 10, 85));
         suggestedActionPanel.add(suggestionContainer, BorderLayout.CENTER);
 
         // Center panel for main suggestion content (icon and text)
@@ -156,12 +154,10 @@ public class SuggestionPanel extends JPanel {
         setupButtonContainer();
         suggestedActionPanel.add(buttonContainer, BorderLayout.SOUTH);
 
-
         layeredPane.add(suggestedActionPanel, JLayeredPane.DEFAULT_LAYER);
-
-        // Build the suggestion preferences panel:
         this.preferencesPanel.setVisible(false);
-        layeredPane.add(this.preferencesPanel, JLayeredPane.DEFAULT_LAYER);
+
+        layeredPane.add(this.preferencesPanel, JLayeredPane.PALETTE_LAYER);
 
         // Create and add the gear button
         BufferedImage gearIcon = ImageUtil.loadImageResource(getClass(), "/preferences-icon.png");
@@ -174,22 +170,15 @@ public class SuggestionPanel extends JPanel {
         gearButton.setOpaque(true);
         ImageIcon iconOff = new ImageIcon(recoloredIcon);
         ImageIcon iconOn = new ImageIcon(ImageUtil.luminanceScale(recoloredIcon, BUTTON_HOVER_LUMINANCE));
-        // Replace the existing gear button MouseAdapter with this implementation
         gearButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (!SwingUtilities.isEventDispatchThread()) {
-                    SwingUtilities.invokeLater(() -> handleGearClick());
-                    return;
-                }
                 handleGearClick();
             }
-
             @Override
             public void mouseEntered(MouseEvent e) {
                 gearButton.setIcon(iconOn);
             }
-
             @Override
             public void mouseExited(MouseEvent e) {
                 gearButton.setIcon(iconOff);
@@ -197,31 +186,26 @@ public class SuggestionPanel extends JPanel {
         });
         gearButton.setOpaque(true);
         gearButton.setBounds(5, 5, 20, 20);
-        layeredPane.add(gearButton, JLayeredPane.PALETTE_LAYER);
 
-        // Set up the main panel
+        layeredPane.add(gearButton, JLayeredPane.MODAL_LAYER);
+
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        setPreferredSize(new Dimension(0, 150));
+        preferencesPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, 180);
 
         add(layeredPane);
-
-        // Add a component listener to handle resizing
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                preferencesPanel.setBounds(0, 0, getWidth(), getHeight());
-                suggestedActionPanel.setBounds(0, 0, getWidth(), getHeight());
-                layeredPane.setPreferredSize(new Dimension(getWidth(), getHeight()));
-            }
-        });
     }
 
     private void handleGearClick() {
-//        priceGraphController.loadAndAndShowPriceGraph(560);
         isPreferencesPanelVisible = !isPreferencesPanelVisible;
+        int newHeight = isPreferencesPanelVisible ? 180 : 150;
+        layeredPane.setSize(MainPanel.CONTENT_WIDTH, newHeight);
+        layeredPane.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, newHeight));
+        setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, newHeight));
+
         preferencesPanel.setVisible(isPreferencesPanelVisible);
         suggestedActionPanel.setVisible(!isPreferencesPanelVisible);
+
         refresh();
         layeredPane.revalidate();
         layeredPane.repaint();
@@ -472,6 +456,7 @@ public class SuggestionPanel extends JPanel {
         }
         if(isPreferencesPanelVisible) {
             preferencesPanel.refresh();
+            return;
         }
         if (pausedManager.isPaused()) {
             hideLoading();

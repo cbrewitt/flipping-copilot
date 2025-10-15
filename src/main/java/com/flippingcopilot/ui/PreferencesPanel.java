@@ -60,14 +60,13 @@ public class PreferencesPanel extends JPanel {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
         setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
-        setBounds(0, 0, 300, 150);
 
         JLabel preferencesTitle = new JLabel("Suggestion Settings");
         preferencesTitle.setForeground(Color.WHITE);
         preferencesTitle.setFont(preferencesTitle.getFont().deriveFont(Font.BOLD));
         preferencesTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-        preferencesTitle.setMinimumSize(new Dimension(300, preferencesTitle.getPreferredSize().height));
-        preferencesTitle.setMaximumSize(new Dimension(300, preferencesTitle.getPreferredSize().height));
+        preferencesTitle.setMinimumSize(new Dimension(MainPanel.CONTENT_WIDTH - 30, preferencesTitle.getPreferredSize().height));
+        preferencesTitle.setMaximumSize(new Dimension(MainPanel.CONTENT_WIDTH - 30, preferencesTitle.getPreferredSize().height));
         preferencesTitle.setHorizontalAlignment(SwingConstants.CENTER);
         add(preferencesTitle);
         add(Box.createRigidArea(new Dimension(0, 8)));
@@ -220,17 +219,11 @@ public class PreferencesPanel extends JPanel {
             SwingUtilities.invokeLater(this::refresh);
             return;
         }
-
-
         sellOnlyModeToggleButton.setSelected(preferencesManager.isSellOnlyMode());
-        sellOnlyButton.setVisible(true);
         f2pOnlyModeToggleButton.setSelected(preferencesManager.isF2pOnlyMode());
-        f2pOnlyButton.setVisible(true);
-        blocklistDropdownPanel.setVisible(true);
         List<String> existingOptions = IntStream.range(0, profileSelector.getModel().getSize()).mapToObj(i -> profileSelector.getModel().getElementAt(i)).collect(Collectors.toList());
 
         deleteProfileButton.setVisible(!preferencesManager.isDefaultProfileSelected());
-
         List<String> correctOptions = preferencesManager.getAvailableProfiles();
         if (!Objects.equals(correctOptions, existingOptions)) {
             DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) profileSelector.getModel();

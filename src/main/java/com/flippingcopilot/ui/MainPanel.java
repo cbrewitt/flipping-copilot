@@ -2,6 +2,7 @@ package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.CopilotLoginController;
 import com.flippingcopilot.manager.CopilotLoginManager;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
@@ -12,12 +13,15 @@ import javax.inject.Singleton;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.image.BufferedImage;;
+import java.awt.image.BufferedImage;
 
 import static com.flippingcopilot.ui.UIUtilities.buildButton;
 
 @Singleton
+@Slf4j
 public class MainPanel extends PluginPanel {
+
+    public static final int CONTENT_WIDTH = 242 - 12;
 
     // dependencies
     public final LoginPanel loginPanel;
@@ -25,7 +29,8 @@ public class MainPanel extends PluginPanel {
     private final CopilotLoginManager copilotLoginManager;
     private final CopilotLoginController copilotLoginController;
 
-    private Boolean isLoggedInView;
+    // UI components
+    private final CardLayout cardLayout = new CardLayout();
 
     @Inject
     public MainPanel(CopilotPanel copilotPanel,
@@ -33,56 +38,73 @@ public class MainPanel extends PluginPanel {
                      CopilotLoginManager copilotLoginManager,
                      CopilotLoginController copilotLoginController) {
         super(false);
-        setLayout(new BorderLayout());
-        setBorder(BorderFactory.createEmptyBorder(5, 6, 5, 6));
         this.copilotLoginManager = copilotLoginManager;
         this.copilotPanel = copilotPanel;
         this.loginPanel = loginPanel;
         this.copilotLoginController = copilotLoginController;
+
+        setLayout(cardLayout);
+        setBorder(BorderFactory.createEmptyBorder(5, 6, 5, 6));
+        add(buildLoggedInView(), "logged-in");
+        add(buildLoggedOutView(), "logged-out");
+        cardLayout.show(this, copilotLoginManager.isLoggedIn() ? "logged-in" : "logged-out");
+
     }
 
+    private JPanel buildLoggedOutView() {
+        JPanel wrapper = new JPanel();
+        wrapper.setLayout(new BorderLayout());
+        JPanel topBar = constructTopBar(false);
+        wrapper.add(topBar, BorderLayout.NORTH);
+        wrapper.add(loginPanel, BorderLayout.CENTER);
+        return wrapper;
+    }
+
+    private JPanel buildLoggedInView() {
+        JPanel wrapper = new JPanel();
+        wrapper.setLayout(new BorderLayout());
+        JPanel topBar = constructTopBar(true);
+        wrapper.add(topBar, BorderLayout.NORTH);
+        wrapper.add(copilotPanel, BorderLayout.CENTER);
+        return wrapper;
+    }
+
+
+
     public void refresh() {
-        if(!SwingUtilities.isEventDispatchThread()) {
-            // we always execute this in the Swing EDT thread
+        if (!SwingUtilities.isEventDispatchThread()) {
+            // Always execute this in the Swing EDT thread
             SwingUtilities.invokeLater(this::refresh);
             return;
         }
-        boolean shouldBeLoggedInView = copilotLoginManager.isLoggedIn();
-        if(shouldBeLoggedInView) {
-            if (isLoggedInView == null || !isLoggedInView) {
-                renderLoggedInView();
-            }
+        if (copilotLoginManager.isLoggedIn()) {
+            showLoggedInView();
             copilotPanel.refresh();
         } else {
-            if (isLoggedInView == null || isLoggedInView) {
-                renderLoggedOutView();
-            }
+            showLoggedOutView();
             loginPanel.refresh();
             copilotPanel.suggestionPanel.refresh();
         }
     }
 
-    public void renderLoggedOutView() {
-        removeAll();
-        add(constructTopBar(false), BorderLayout.NORTH);
+    private void showLoggedOutView() {
         loginPanel.showLoginErrorMessage("");
-        add(loginPanel, BorderLayout.CENTER);
+        cardLayout.show(this, "logged-out");
         revalidate();
-        isLoggedInView = false;
+        repaint();
     }
 
-    public void renderLoggedInView() {
-        removeAll();
-        add(constructTopBar(true), BorderLayout.NORTH);
-        add(copilotPanel, BorderLayout.CENTER);
+    private void showLoggedInView() {
+        cardLayout.show(this, "logged-in");
         revalidate();
-        isLoggedInView = true;
+        repaint();
     }
 
     private JPanel constructTopBar(boolean isLoggedIn) {
         JPanel container = new JPanel();
         container.setBackground(ColorScheme.DARK_GRAY_COLOR);
         container.setLayout(new BorderLayout());
+
         JPanel topBar = new JPanel();
         topBar.setBackground(ColorScheme.DARK_GRAY_COLOR);
         int columns = isLoggedIn ? 4 : 3;
@@ -108,7 +130,7 @@ public class MainPanel extends PluginPanel {
             BufferedImage icon = ImageUtil.loadImageResource(getClass(), UIUtilities.logoutIcon);
             JLabel logout = buildButton(icon, "Log out", () -> {
                 copilotLoginController.onLogout();
-                renderLoggedOutView();
+                showLoggedOutView();
             });
             topBar.add(logout);
         }
@@ -124,5 +146,4 @@ public class MainPanel extends PluginPanel {
             LinkBrowser.browse(uriString);
         });
     }
-
 }

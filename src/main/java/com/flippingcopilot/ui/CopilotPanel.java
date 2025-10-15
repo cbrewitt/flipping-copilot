@@ -19,16 +19,18 @@ public class CopilotPanel extends JPanel {
         this.statsPanel = statsPanel;
         this.suggestionPanel = suggestionPanel;
         this.controlPanel = controlPanel;
-        
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        suggestionPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, suggestionPanel.getPreferredSize().height));
-        suggestionPanel.setMinimumSize(new Dimension(Integer.MIN_VALUE, suggestionPanel.getPreferredSize().height));
-        add(suggestionPanel);
-        add(Box.createRigidArea(new Dimension(0, 5)));
-        add(controlPanel);
-        add(Box.createRigidArea(new Dimension(0, 5)));
-        add(Box.createVerticalGlue());
-        add(statsPanel);
+
+        setLayout(new BorderLayout());
+
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+        topPanel.add(suggestionPanel);
+        topPanel.add(Box.createRigidArea(new Dimension(MainPanel.CONTENT_WIDTH, 5)));
+        topPanel.add(controlPanel);
+        topPanel.add(Box.createRigidArea(new Dimension(MainPanel.CONTENT_WIDTH, 5)));
+
+        add(topPanel, BorderLayout.NORTH);
+        add(statsPanel, BorderLayout.CENTER);
     }
 
     public void refresh() {
