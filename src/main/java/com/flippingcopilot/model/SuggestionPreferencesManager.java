@@ -2,7 +2,7 @@ package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.Persistance;
 import com.google.gson.Gson;
-import lombok.AllArgsConstructor;
+import com.google.inject.name.Named;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +15,7 @@ import java.nio.channels.FileLock;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -36,19 +37,22 @@ public class SuggestionPreferencesManager {
     private Path selectedProfile;
     private List<Path> availableProfiles;
 
-
     @Getter
     @Setter
     private volatile boolean sellOnlyMode = false;
 
     @Inject
-    public SuggestionPreferencesManager(Gson gson, ScheduledExecutorService executorService) {
+    public SuggestionPreferencesManager(Gson gson, @Named("copilotExecutor") ScheduledExecutorService executorService) {
         this.gson = gson;
         this.executorService = executorService;
         init();
         loadAvailableProfiles();
         selectedProfile = DEFAULT_PROFILE_PATH;
         loadCurrentProfile();
+        executorService.scheduleAtFixedRate(() -> {
+            this.loadAvailableProfiles();
+            this.loadCurrentProfile();
+        }, 5L, 5L, TimeUnit.SECONDS);
     }
 
     private void init() {
@@ -171,7 +175,7 @@ public class SuggestionPreferencesManager {
         }
     }
 
-    private void loadCurrentProfile() {
+    private synchronized void loadCurrentProfile() {
         try {
             if (Files.exists(selectedProfile)) {
                 cachedPreferences = gson.fromJson(Files.readString(selectedProfile), SuggestionPreferences.class);
@@ -210,6 +214,7 @@ public class SuggestionPreferencesManager {
             Files.deleteIfExists(lockFile);
         }
         selectedProfile = DEFAULT_PROFILE_PATH;
+        loadCurrentProfile();
         loadAvailableProfiles();
     }
 

@@ -19,9 +19,6 @@ import java.awt.Font;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 @Slf4j
 @Singleton
@@ -221,15 +218,12 @@ public class PreferencesPanel extends JPanel {
         }
         sellOnlyModeToggleButton.setSelected(preferencesManager.isSellOnlyMode());
         f2pOnlyModeToggleButton.setSelected(preferencesManager.isF2pOnlyMode());
-        List<String> existingOptions = IntStream.range(0, profileSelector.getModel().getSize()).mapToObj(i -> profileSelector.getModel().getElementAt(i)).collect(Collectors.toList());
 
         deleteProfileButton.setVisible(!preferencesManager.isDefaultProfileSelected());
         List<String> correctOptions = preferencesManager.getAvailableProfiles();
-        if (!Objects.equals(correctOptions, existingOptions)) {
-            DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) profileSelector.getModel();
-            model.removeAllElements();
-            model.addAll(correctOptions);
-            model.setSelectedItem(preferencesManager.getCurrentProfile());
-        }
+        DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) profileSelector.getModel();
+        model.removeAllElements();
+        model.addAll(correctOptions);
+        model.setSelectedItem(preferencesManager.getCurrentProfile());
     }
 }
