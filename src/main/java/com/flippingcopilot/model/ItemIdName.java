@@ -8,4 +8,8 @@ import lombok.Data;
 public class ItemIdName {
     public final Integer itemId;
     public final String name;
+
+    public String toString() {
+        return name;
+    }
 }

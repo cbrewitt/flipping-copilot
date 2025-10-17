@@ -28,9 +28,11 @@ import java.text.NumberFormat;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static com.flippingcopilot.util.DateUtil.formatEpoch;
 
@@ -59,6 +61,7 @@ public class FlipsPanel extends JPanel {
     private final JPanel spinnerOverlay;
     private final ItemSearchMultiSelect searchField;
     private final JCheckBox showOpeningFlipsCheckbox;
+    private final Consumer<FlipV2> onVisualizeFlip;
     private IntervalDropdown timeIntervalDropdown;
     private AccountDropdown accountDropdown;
     private final JComboBox<Integer> pageSizeComboBox;
@@ -74,7 +77,9 @@ public class FlipsPanel extends JPanel {
                       CopilotLoginManager copilotLoginManager,
                       @Named("copilotExecutor") ExecutorService executorService,
                       FlippingCopilotConfig config,
-                      ApiRequestHandler apiRequestHandler) {
+                      ApiRequestHandler apiRequestHandler,
+                      Consumer<FlipV2> onVisualizeFlip) {
+        this.onVisualizeFlip = onVisualizeFlip;
         this.copilotLoginManager = copilotLoginManager;
         this.apiRequestHandler = apiRequestHandler;
 
@@ -333,6 +338,12 @@ public class FlipsPanel extends JPanel {
         FlipV2 flip = currentFlips.get(row);
 
         JPopupMenu menu = new JPopupMenu();
+        JMenuItem visualizeFlip = new JMenuItem("Visualize flip");
+        visualizeFlip.addActionListener(evt -> {
+            onVisualizeFlip.accept(flip);
+        });
+        menu.add(visualizeFlip);
+        
         JMenuItem deleteItem = new JMenuItem("Delete flip");
         deleteItem.addActionListener(evt -> {
             int result = JOptionPane.showConfirmDialog(this,

@@ -12,9 +12,7 @@ import com.flippingcopilot.ui.graph.model.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ItemComposition;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.ImageUtil;
 
 import javax.inject.Inject;
@@ -32,8 +30,6 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class PriceGraphController {
-
-    private final JLabel itemIcon = new JLabel(new ImageIcon(ImageUtil.loadImageResource(getClass(),"/small_open_arrow.png")));
 
     // dependencies
     private final PriceGraphConfigManager configManager;
@@ -296,24 +292,18 @@ public class PriceGraphController {
             log.error("Cannot show graph view, main panel or data is null");
             return;
         }
-        if(graphPanel != null && graphPanel.itemName.equals(itemName) && View.GRAPH.equals(currentView)) {
+        if(graphPanel != null && View.GRAPH.equals(currentView)) {
             // if it's the same item just update the data and repaint
-            DataManager dm = new DataManager(data);
-            graphPanel.dataManager = dm;
-            graphPanel.zoomHandler.maxViewBounds = dm.calculateBounds((p) -> true);
-            graphPanel.zoomHandler.homeViewBounds = dm.calculateBounds((p) -> p.time > graphPanel.zoomHandler.maxViewBounds.xMax - 4 * Constants.DAY_SECONDS);
-            graphPanel.zoomHandler.weekViewBounds = dm.calculateBounds((p) -> p.time > graphPanel.zoomHandler.maxViewBounds.xMax - 7 * Constants.DAY_SECONDS);
-            graphPanel.zoomHandler.monthViewBounds = dm.calculateBounds((p) -> p.time > graphPanel.zoomHandler.maxViewBounds.xMax - 30 * Constants.DAY_SECONDS);
-            graphPanel.repaint();
+            DataManager dm = new DataManager(data, null);
+            graphPanel.setData(dm);
             return;
         }
 
         currentView = View.GRAPH;
         // Clear the main panel
-        setItemIcon(data.itemId);
         mainPanel.removeAll();
-        DataManager dm = new DataManager(data);
-        graphPanel = new GraphPanel(dm, configManager);
+        DataManager dm = new DataManager(data, null);
+        graphPanel = new GraphPanel(configManager);
 
         // Create settings button with gear icon
         JPanel statsHeaderPanel = new JPanel(new BorderLayout());
@@ -338,7 +328,8 @@ public class PriceGraphController {
         }
 
         // Create the stats panel
-        StatsPanel statsPanel = new StatsPanel(dm, configManager, copilotConfig);
+        StatsPanel statsPanel = new StatsPanel(configManager, copilotConfig);
+        statsPanel.populate(dm, itemController);
         statsPanel.setBackground(configManager.getConfig().backgroundColor);
 
         // Create a panel to contain both the item icon and stats panel
@@ -347,22 +338,7 @@ public class PriceGraphController {
         statsContentPanel.setBackground(configManager.getConfig().backgroundColor);
         statsContentPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 10));
 
-        // Create an icon panel with no bottom margin
-        JPanel iconPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        iconPanel.setBackground(configManager.getConfig().backgroundColor);
-        iconPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 15, 0)); // Only top and left padding
-
-        // Add icon and name
-        itemIcon.setBorder(null); // Remove any border from the icon
-        iconPanel.add(itemIcon);
-
-        JLabel itemNameLabel = new JLabel(itemName);
-        itemNameLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        itemNameLabel.setFont(itemNameLabel.getFont().deriveFont(Font.BOLD, 16f));
-        iconPanel.add(itemNameLabel);
-
         // Add the icon panel to the content panel
-        statsContentPanel.add(iconPanel);
         statsPanel.setBorder(null);
         statsContentPanel.add(statsPanel);
 
@@ -427,17 +403,6 @@ public class PriceGraphController {
 
         mainPanel.revalidate();
         mainPanel.repaint();
-    }
-
-
-    private void setItemIcon(int itemId) {
-        itemIcon.setVisible(false);
-        itemController.loadImage(itemId, (image) -> {
-            if (image != null) {
-                image.addTo(itemIcon);
-                itemIcon.setVisible(true);
-            }
-        });
     }
 
     public static enum View {
