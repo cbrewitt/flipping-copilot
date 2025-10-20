@@ -40,6 +40,7 @@ public class SuggestionPreferencesManager {
     @Getter
     @Setter
     private volatile boolean sellOnlyMode = false;
+    private int timeFrame = 5;
 
     @Inject
     public SuggestionPreferencesManager(Gson gson, @Named("copilotExecutor") ScheduledExecutorService executorService) {
@@ -90,16 +91,11 @@ public class SuggestionPreferencesManager {
     }
 
     public synchronized void setTimeframe(int minutes) {
-        Consumer<SuggestionPreferences> update = (s) -> {
-            s.setTimeframe(minutes);
-        };
-        update.accept(cachedPreferences);
-        executorService.submit(() -> updateProfile(selectedProfile, update));
-        log.debug("Timeframe is now: {} minutes", minutes);
+        timeFrame = minutes;
     }
 
     public synchronized int getTimeframe() {
-        return getPreferences().getTimeframe();
+        return timeFrame;
     }
 
     public synchronized void setBlockedItems(Set<Integer> blockedItems) {

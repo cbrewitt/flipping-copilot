@@ -110,7 +110,7 @@ public class PriceGraphController {
             setUserItemGraphData(d);
         };
         String itemName = itemController.getItemName(itemId);
-        apiRequestHandler.asyncGetItemPriceWithGraphData(itemId, "FlipCopilot", consumer, true);
+        apiRequestHandler.asyncGetItemPriceWithGraphData(itemId, osrsLoginManager.getPlayerDisplayName(), consumer, true);
         showPriceGraph(itemName, false);
     }
 
