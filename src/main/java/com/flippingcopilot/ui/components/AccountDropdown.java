@@ -56,7 +56,6 @@ public class AccountDropdown extends JComboBox<String> {
         if (!Objects.equals(displayNameOptions, cachedAccounts)) {
             String previousSelectedItem = (String) getSelectedItem();
             refreshAccountOptions();
-            refreshInProgress = false;
             setSelectedItem(MoreObjects.firstNonNull(previousSelectedItem, ALL_ACCOUNTS_DROPDOWN_OPTION));
         }
     }
@@ -71,6 +70,7 @@ public class AccountDropdown extends JComboBox<String> {
         });
         model.addElement(ALL_ACCOUNTS_DROPDOWN_OPTION);
         setVisible(model.getSize() > 1);
+        refreshInProgress = false;
     }
 
 
