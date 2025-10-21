@@ -59,6 +59,10 @@ public class MenuHandler {
             return;
         }
 
+        if (!grandExchange.isOpen()) {
+            return;
+        }
+
         if(offerDetailsCorrect()) {
             return;
         }
