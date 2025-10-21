@@ -40,6 +40,7 @@ public class SuggestionPreferencesManager {
     @Getter
     @Setter
     private volatile boolean sellOnlyMode = false;
+    private boolean f2pOnlyMode = false;
     private int timeFrame = 5;
 
     @Inject
@@ -79,15 +80,11 @@ public class SuggestionPreferencesManager {
     }
 
     public synchronized boolean isF2pOnlyMode() {
-        return cachedPreferences.f2pOnlyMode;
+        return f2pOnlyMode;
     }
 
     public synchronized void setF2pOnlyMode(boolean f2pOnlyMode) {
-        Consumer<SuggestionPreferences> update = (s) -> {
-            s.setF2pOnlyMode(f2pOnlyMode);
-        };
-        update.accept(cachedPreferences);
-        executorService.submit(() -> updateProfile(selectedProfile, update));
+        this.f2pOnlyMode = f2pOnlyMode;
     }
 
     public synchronized void setTimeframe(int minutes) {
