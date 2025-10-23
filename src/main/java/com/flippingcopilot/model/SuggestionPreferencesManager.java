@@ -18,6 +18,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Singleton
 @Slf4j
@@ -181,8 +182,9 @@ public class SuggestionPreferencesManager {
     }
 
     private synchronized void loadAvailableProfiles() {
-        try {
-            availableProfiles = Files.list(Persistance.COPILOT_DIR.toPath()).filter(p -> p.toString().endsWith(PROFILE_SUFFIX))
+        try (Stream<Path> paths = Files.list(Persistance.COPILOT_DIR.toPath())) {
+            availableProfiles = paths
+                    .filter(p -> p.toString().endsWith(PROFILE_SUFFIX))
                     .collect(Collectors.toList());
         } catch (IOException e) {
             availableProfiles = new ArrayList<>();
