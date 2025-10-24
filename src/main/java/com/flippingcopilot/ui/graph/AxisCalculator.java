@@ -16,8 +16,13 @@ public class AxisCalculator {
 
         int timeMin = bounds.xMin;
         int timeMax = bounds.xMax;
+        int timeDelta = bounds.xDelta();
 
-        int days = bounds.xDelta() / Constants.DAY_SECONDS;
+        if (timeDelta < Constants.DAY_SECONDS) {
+            return calculateSubDayTimeAxis(timeMin, timeMax, timeDelta, localTimeOffsetSeconds);
+        }
+
+        int days = timeDelta / Constants.DAY_SECONDS;
         int daysStep = Math.max(1, days / 7);
 
         int maxDay = ((timeMax + localTimeOffsetSeconds) / Constants.DAY_SECONDS) * Constants.DAY_SECONDS - localTimeOffsetSeconds;
@@ -62,6 +67,36 @@ public class AxisCalculator {
                 dayTicks,
                 timeTicks,
                 new int[]{}
+        );
+    }
+
+    private static TimeAxis calculateSubDayTimeAxis(int timeMin, int timeMax, int timeDelta, int localTimeOffsetSeconds) {
+        int[] ticks = new int[]{};
+        int tickInterval;
+        if (timeDelta < Constants.HOUR_SECONDS) {
+            tickInterval = Constants.TEN_MIN_SECONDS;
+        } else if (timeDelta < Constants.HOUR_SECONDS * 3) {
+            tickInterval  = Constants.THIRTY_MIN_SECONDS;
+        } else if (timeDelta < Constants.HOUR_SECONDS * 6) {
+            tickInterval = Constants.HOUR_SECONDS;
+        } else {
+            tickInterval = Constants.HOUR_SECONDS*3;
+        }
+
+        int firstTick = ((timeMin+localTimeOffsetSeconds) / tickInterval) * tickInterval - localTimeOffsetSeconds;
+        if (firstTick < (timeMin+localTimeOffsetSeconds)) {
+            firstTick += tickInterval;
+        }
+
+        int currentTick = firstTick;
+        while (currentTick <= timeMax) {
+            ticks = append(ticks, currentTick);
+            currentTick += tickInterval;
+        }
+        return new TimeAxis(
+                new int[]{},
+                ticks,
+                ticks
         );
     }
 

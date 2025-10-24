@@ -218,7 +218,6 @@ public class PreferencesPanel extends JPanel {
         }
         sellOnlyModeToggleButton.setSelected(preferencesManager.isSellOnlyMode());
         f2pOnlyModeToggleButton.setSelected(preferencesManager.isF2pOnlyMode());
-
         deleteProfileButton.setVisible(!preferencesManager.isDefaultProfileSelected());
         List<String> correctOptions = preferencesManager.getAvailableProfiles();
         DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) profileSelector.getModel();

@@ -3,6 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.*;
+import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.google.gson.Gson;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -98,6 +99,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	private MenuHandler menuHandler;
     @Inject
 	private GeHistoryTabController geHistoryTabController;
+	@Inject
+	private FlipsDialogController flipsDialogController;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -146,6 +149,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			flipManager.setIntervalAccount(null);
 			flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
 		}
+		flipsDialogController.initDialog();
 		executorService.scheduleAtFixedRate(() ->
 			clientThread.invoke(() -> {
 				boolean loginValid = osrsLoginManager.isValidLoginState();

@@ -15,9 +15,6 @@ import java.util.List;
 @Slf4j
 public class ProfitGraphPanel extends JPanel {
 
-    // Get DPI scale factor
-    private static final double DPI_SCALE = Toolkit.getDefaultToolkit().getScreenResolution() / 96.0;
-
     // Layout constants (base values that will be scaled)
     private static final int BASE_PADDING_LEFT = 65;
     private static final int BASE_PADDING_RIGHT = 30;
@@ -36,9 +33,6 @@ public class ProfitGraphPanel extends JPanel {
     private static final Color GRID_COLOR = new Color(85, 85, 85, 90);
     private static final Color AXIS_COLOR = new Color(150, 150, 150);
     private static final Color TEXT_COLOR = new Color(225, 225, 225);
-
-    // Base font size that will be scaled
-    private static final float BASE_FONT_SIZE = 18f;
 
     // Scaled strokes
     private final Stroke LINE_STROKE = new BasicStroke(2f);
@@ -207,8 +201,7 @@ public class ProfitGraphPanel extends JPanel {
 
     private void drawTitle(Graphics2D g2, Rectangle pa, String text) {
         // Use a slightly larger font for the title
-        Font titleFont = g2.getFont().deriveFont(Font.PLAIN, BASE_FONT_SIZE * 1.1f);
-        g2.setFont(titleFont);
+        g2.setFont(Font.getFont(Font.MONOSPACED));
         g2.setColor(TEXT_COLOR);
         FontMetrics fm = g2.getFontMetrics();
         int textWidth = fm.stringWidth(text);
@@ -321,9 +314,6 @@ public class ProfitGraphPanel extends JPanel {
 
 
     private void drawXAxisLabels(Graphics2D g2, Rectangle pa, List<Tick> xTicks, Bounds bounds) {
-        // Scale font based on DPI
-        Font scaledFont = g2.getFont().deriveFont(BASE_FONT_SIZE);
-        g2.setFont(scaledFont);
         g2.setColor(TEXT_COLOR);
         FontMetrics fm = g2.getFontMetrics();
         for (Tick t : xTicks) {
@@ -333,8 +323,6 @@ public class ProfitGraphPanel extends JPanel {
         }
     }
     private void drawYAxisLabels(Graphics2D g2, Rectangle pa,  List<Tick> yTicks, Bounds bounds) {
-        Font scaledFont = g2.getFont().deriveFont(BASE_FONT_SIZE);
-        g2.setFont(scaledFont);
         g2.setColor(TEXT_COLOR);
         FontMetrics boldFm = g2.getFontMetrics();
         for (Tick t : yTicks) {
@@ -390,7 +378,6 @@ public class ProfitGraphPanel extends JPanel {
         String dailyProfitStr = String.format("%,d", v);
         String dateStr = t.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"));
 
-        g2.setFont(g2.getFont().deriveFont(12f)); // Config.FONT_SIZE from DatapointTooltip
         FontMetrics fm = g2.getFontMetrics();
 
         int dateWidth = fm.stringWidth(dateStr);

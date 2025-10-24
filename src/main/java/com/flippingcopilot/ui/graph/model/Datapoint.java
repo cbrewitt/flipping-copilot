@@ -9,7 +9,7 @@ import java.awt.*;
 @Setter
 public class Datapoint {
 
-    public final int time;
+    public int time;
     public final int price;
     public final Type type;
     public final boolean isLow; // true if buy/low point, false if sell/high point
@@ -18,8 +18,12 @@ public class Datapoint {
     public final Integer iqrLower;
     public final Integer iqrUpper;
 
+    // volume
     public long lowVolume;
     public long highVolume;
+
+    // tx
+    public long qty;
 
     public Datapoint(int time, int price, boolean isLow, Type type) {
         this.time = time;
@@ -57,11 +61,25 @@ public class Datapoint {
         return new Point(x, y);
     }
 
+    public static Datapoint newBuyTx(int time, int price, long qty) {
+        Datapoint dp = new Datapoint(time, price,true, Type.FLIP_TRANSACTION);
+        dp.qty = qty;
+        return dp;
+    }
+
+    public static Datapoint newSellTx(int time, int price, long qty) {
+        Datapoint dp = new Datapoint(time, price,false, Type.FLIP_TRANSACTION);
+        dp.qty = qty;
+        return dp;
+    }
+
+
     public enum Type {
         INSTA_SELL_BUY,
         FIVE_MIN_AVERAGE,
         HOUR_AVERAGE,
         PREDICTION,
         VOLUME_1H,
+        FLIP_TRANSACTION
     }
 }

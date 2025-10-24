@@ -3,12 +3,11 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
-import com.flippingcopilot.ui.graph.PriceGraphController;
+import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.MenuEntryAdded;
-import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
 
 import javax.inject.Inject;
@@ -25,9 +24,9 @@ public class MenuHandler {
     private final FlippingCopilotConfig config;
     private final Client client;
     private final OfferManager offerManager;
-    private final PriceGraphController priceGraphController;
     private final GrandExchange grandExchange;
     private final SuggestionManager suggestionManager;
+    private final FlipsDialogController flipsDialogController;
 
 
     public void injectCopilotPriceGraphMenuEntry(MenuEntryAdded event) {
@@ -45,8 +44,7 @@ public class MenuHandler {
                             Widget slotWidget = client.getWidget(465, 7 + i);
                             if (slotWidget != null && slotWidget.getId() == slotWidgetId) {
                                 int itemId = offers[i].getItemId();
-                                priceGraphController.setUserItemGraphData(null);
-                                priceGraphController.loadAndAndShowPriceGraph(itemId);
+                                flipsDialogController.showPriceGraphTab(itemId, false);
                                 log.debug("matched widget to slot {}, item {}", i, offers[i].getItemId());
                             }
                         }

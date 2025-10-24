@@ -262,6 +262,52 @@ public class ApiRequestHandler {
         return UNKNOWN_ERROR;
     }
 
+
+    public void asyncGetVisualizeFlipData(UUID flipID, String displayName, Consumer<VisualizeFlipResponse> onSuccess, Consumer<String> onFailure) {
+        JsonObject body = new JsonObject();
+        body.add("flip_id", new JsonPrimitive(flipID.toString()));
+        body.add("display_name", new JsonPrimitive(displayName));
+        log.debug("requesting visualize data for flip {}", flipID);
+        Request request = new Request.Builder()
+                .url(serverUrl +"/profit-tracking/visualize-flip")
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
+                .addHeader("Accept", "application/x-msgpack")
+                .addHeader("X-VERSION", "1")
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
+                .build();
+
+        client.newBuilder()
+                .callTimeout(30, TimeUnit.SECONDS) // Overall timeout
+                .build()
+                .newCall(request)
+                .enqueue(new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        onFailure.accept(e.toString());
+                    }
+                    @Override
+                    public void onResponse(Call call, Response response) {
+                        try {
+                            if (!response.isSuccessful()) {
+                                if(response.code() == UNAUTHORIZED_CODE) {
+                                    copilotLoginController.onLogout();
+                                }
+                                log.error("get visualize data for flip {} failed with http status code {}", flipID, response.code());
+                                onFailure.accept(UNKNOWN_ERROR);
+                            } else {
+                                byte[] d = response.body().bytes();
+                                VisualizeFlipResponse rsp = VisualizeFlipResponse.fromMsgPack(ByteBuffer.wrap(d));
+                                log.debug("visualize data received for flip {}", flipID);
+                                onSuccess.accept(rsp);
+                            }
+                        } catch (Exception e) {
+                            log.error("error visualize data received for flip {}", flipID, e);
+                            onFailure.accept(UNKNOWN_ERROR);
+                        }
+                    }
+                });
+    }
+
     public void asyncGetItemPriceWithGraphData(int itemId, String displayName, Consumer<ItemPrice> consumer, boolean includeGraphData) {
         JsonObject body = new JsonObject();
         body.add("item_id", new JsonPrimitive(itemId));

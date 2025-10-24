@@ -233,7 +233,6 @@ public class ItemAggregatePanel extends JPanel {
         bottomPanel.add(paginatorPanel, BorderLayout.CENTER);
 
         add(bottomPanel, BorderLayout.SOUTH);
-        sortAndFilter.setPageSize(ItemAggregateFilterSort.DEFAULT_PAGE_SIZE);
     }
 
     private void setSpinnerVisible(boolean visible) {
@@ -307,5 +306,10 @@ public class ItemAggregatePanel extends JPanel {
 
     private String formatGp(long amount) {
         return GP_FORMAT.format(amount);
+    }
+
+    public void onTabShown() {
+        sortAndFilter.reloadAggregates(true);
+        accountDropdown.refresh();
     }
 }
