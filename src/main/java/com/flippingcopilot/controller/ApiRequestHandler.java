@@ -268,6 +268,7 @@ public class ApiRequestHandler {
         body.add("display_name", new JsonPrimitive(displayName));
         body.addProperty("f2p_only", preferencesManager.isF2pOnlyMode());
         body.addProperty("timeframe_minutes", preferencesManager.getTimeframe());
+        body.addProperty("risk_level", preferencesManager.getRiskLevel().toApiValue());
         body.addProperty("include_graph_data", includeGraphData);
         log.debug("requesting price graph data for item {}", itemId);
         Request request = new Request.Builder()
