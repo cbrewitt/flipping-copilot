@@ -1,5 +1,6 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.model.RiskLevel;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.model.SuggestionPreferencesManager;
 import net.runelite.client.ui.ColorScheme;
@@ -31,6 +32,18 @@ public class ControlPanel extends JPanel
     private final JToggleButton btn2h;
     private final JToggleButton btn8h;
     private final JToggleButton btnCustom; // "..." button
+    private final JToggleButton btnRiskLow;
+    private final JToggleButton btnRiskMedium;
+    private final JToggleButton btnRiskHigh;
+
+    private boolean suppressTimeframeSliderEvents;
+    private boolean customExplicitlySelected;
+
+    private static final Color RISK_LOW_SELECTED_COLOR = ColorScheme.GRAND_EXCHANGE_PRICE;
+    private static final Color RISK_HIGH_SELECTED_COLOR = Color.red;
+    private static final String RISK_LOW_LABEL = "Low";
+    private static final String RISK_MEDIUM_LABEL = "Med";
+    private static final String RISK_HIGH_LABEL = "High";
 
     private final JSlider timeframeSlider;
     private final JLabel valueLabel; // fixed-size text showing selected time
@@ -103,6 +116,7 @@ public class ControlPanel extends JPanel
         customPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
         int initMinutes = clampMinutes(preferencesManager.getTimeframe());
+        customExplicitlySelected = !isPreset(initMinutes);
         timeframeSlider = new JSlider(JSlider.HORIZONTAL, 0, STEPS, minutesToPos(initMinutes));
         timeframeSlider.setOpaque(false);
         timeframeSlider.setPaintTicks(false);   // NO TICKS
@@ -135,6 +149,10 @@ public class ControlPanel extends JPanel
         timeframeSlider.addChangeListener((ChangeEvent e) -> {
             int minutesPreview = posToMinutes(timeframeSlider.getValue());
             updateValueLabel(minutesPreview);
+            if (suppressTimeframeSliderEvents)
+            {
+                return;
+            }
             if (!timeframeSlider.getValueIsAdjusting())
             {
                 applyTimeframe(minutesPreview, suggestionManager, /*updateSlider*/ false, /*updateButtons*/ true);
@@ -148,6 +166,48 @@ public class ControlPanel extends JPanel
         customPanel.add(sliderRow);
 
         timeframePanel.add(customPanel);
+
+        timeframePanel.add(Box.createRigidArea(new Dimension(0, 10)));
+
+        JLabel riskLabel = new JLabel("Risk level: ");
+        riskLabel.setHorizontalAlignment(SwingConstants.LEFT);
+        riskLabel.setMaximumSize(riskLabel.getPreferredSize());
+
+        JPanel riskButtonPanel = new JPanel();
+        riskButtonPanel.setLayout(new GridLayout(1, 3, 0, 0));
+        riskButtonPanel.setOpaque(false);
+
+        ButtonGroup riskButtonGroup = new ButtonGroup();
+        RiskLevel initialRiskLevel = preferencesManager.getRiskLevel();
+        if (initialRiskLevel == null)
+        {
+            initialRiskLevel = RiskLevel.MEDIUM;
+            preferencesManager.setRiskLevel(initialRiskLevel);
+        }
+
+        btnRiskLow = createRiskButton(RISK_LOW_LABEL, RiskLevel.LOW, suggestionManager);
+        btnRiskMedium = createRiskButton(RISK_MEDIUM_LABEL, RiskLevel.MEDIUM, suggestionManager);
+        btnRiskHigh = createRiskButton(RISK_HIGH_LABEL, RiskLevel.HIGH, suggestionManager);
+
+        riskButtonGroup.add(btnRiskLow);
+        riskButtonGroup.add(btnRiskMedium);
+        riskButtonGroup.add(btnRiskHigh);
+
+        riskButtonPanel.add(btnRiskLow);
+        riskButtonPanel.add(btnRiskMedium);
+        riskButtonPanel.add(btnRiskHigh);
+
+        JPanel riskRow = new JPanel();
+        riskRow.setLayout(new BoxLayout(riskRow, BoxLayout.X_AXIS));
+        riskRow.setOpaque(false);
+        riskRow.add(riskLabel);
+        riskRow.add(Box.createRigidArea(new Dimension(10, 0)));
+        riskRow.add(riskButtonPanel);
+        riskRow.add(Box.createHorizontalGlue());
+
+        timeframePanel.add(riskRow);
+
+        updateRiskButtons(initialRiskLevel);
         add(timeframePanel);
 
         // Initial sync & visibility
@@ -208,7 +268,66 @@ public class ControlPanel extends JPanel
         timeframePanel.repaint();
     }
 
+    private void updateRiskButtons(RiskLevel level)
+    {
+        RiskLevel effective = level != null ? level : RiskLevel.MEDIUM;
+        btnRiskLow.setSelected(effective == RiskLevel.LOW);
+        btnRiskMedium.setSelected(effective == RiskLevel.MEDIUM);
+        btnRiskHigh.setSelected(effective == RiskLevel.HIGH);
+    }
+
+    private void applyRiskButtonStyle(JToggleButton button, String label, RiskLevel level, boolean selected)
+    {
+        Color background;
+        Color textColor;
+
+        if (selected)
+        {
+            switch (level)
+            {
+                case LOW:
+                    background = RISK_LOW_SELECTED_COLOR;
+                    textColor = Color.BLACK;
+                    break;
+                case HIGH:
+                    background = RISK_HIGH_SELECTED_COLOR;
+                    textColor = Color.WHITE;
+                    break;
+                case MEDIUM:
+                default:
+                    background = ColorScheme.BRAND_ORANGE;
+                    textColor = Color.BLACK;
+                    break;
+            }
+        }
+        else
+        {
+            background = ColorScheme.DARKER_GRAY_COLOR;
+            textColor = ColorScheme.TEXT_COLOR;
+        }
+
+        button.setBackground(background);
+        button.setText(String.format("<html><font color='%s'>%s</font></html>", toHtmlColor(textColor), label));
+    }
+
+    private static String toHtmlColor(Color color)
+    {
+        return String.format("#%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue());
+    }
+
     // ---------- UI wiring ----------
+    private void applyRiskLevel(RiskLevel level, SuggestionManager suggestionManager, boolean updateButtons)
+    {
+        RiskLevel effective = level != null ? level : RiskLevel.MEDIUM;
+        preferencesManager.setRiskLevel(effective);
+        suggestionManager.setSuggestionNeeded(true);
+
+        if (updateButtons)
+        {
+            updateRiskButtons(effective);
+        }
+    }
+
     private void applyTimeframe(int minutes, SuggestionManager suggestionManager, boolean updateSlider, boolean updateButtons)
     {
         preferencesManager.setTimeframe(minutes);
@@ -216,18 +335,44 @@ public class ControlPanel extends JPanel
 
         if (updateSlider)
         {
-            timeframeSlider.setValue(minutesToPos(minutes));
+            try
+            {
+                suppressTimeframeSliderEvents = true;
+                timeframeSlider.setValue(minutesToPos(minutes));
+            }
+            finally
+            {
+                suppressTimeframeSliderEvents = false;
+            }
             updateValueLabel(minutes);
         }
 
         if (updateButtons)
         {
-            boolean matched = false;
-            btn5m.setSelected(matched = (minutes == PRESET_5M));
-            if (!matched) btn30m.setSelected(matched = (minutes == PRESET_30M));
-            if (!matched) btn2h.setSelected(matched = (minutes == PRESET_2H));
-            if (!matched) btn8h.setSelected(matched = (minutes == PRESET_8H));
-            btnCustom.setSelected(!matched);
+            boolean isPreset = isPreset(minutes);
+            if (!isPreset)
+            {
+                customExplicitlySelected = true;
+            }
+
+            if (customExplicitlySelected)
+            {
+                btn5m.setSelected(false);
+                btn30m.setSelected(false);
+                btn2h.setSelected(false);
+                btn8h.setSelected(false);
+                btnCustom.setSelected(true);
+            }
+            else
+            {
+                boolean matched = false;
+                btn5m.setSelected(matched = (minutes == PRESET_5M));
+                if (!matched) btn30m.setSelected(matched = (minutes == PRESET_30M));
+                if (!matched) btn2h.setSelected(matched = (minutes == PRESET_2H));
+                if (!matched) btn8h.setSelected(matched = (minutes == PRESET_8H));
+                btnCustom.setSelected(!matched);
+                customExplicitlySelected = !matched;
+            }
             updateCustomVisibility();
         }
     }
@@ -236,6 +381,7 @@ public class ControlPanel extends JPanel
     {
         JToggleButton button = new JToggleButton();
         button.addActionListener(e -> {
+            customExplicitlySelected = false;
             applyTimeframe(value, suggestionManager, /*updateSlider*/ true, /*updateButtons*/ true);
             updateCustomVisibility(); // hides slider
         });
@@ -267,9 +413,12 @@ public class ControlPanel extends JPanel
     {
         JToggleButton button = new JToggleButton();
         button.addActionListener(e -> {
+            customExplicitlySelected = true;
             // Selecting "..." reveals the slider and shows current value
             int current = clampMinutes(preferencesManager.getTimeframe());
+            suppressTimeframeSliderEvents = true;
             timeframeSlider.setValue(minutesToPos(current));
+            suppressTimeframeSliderEvents = false;
             updateValueLabel(current);
             updateCustomVisibility(); // shows slider
         });
@@ -297,6 +446,21 @@ public class ControlPanel extends JPanel
         return button;
     }
 
+    private JToggleButton createRiskButton(String label, RiskLevel level, SuggestionManager suggestionManager)
+    {
+        JToggleButton button = new JToggleButton();
+        button.addActionListener(e -> applyRiskLevel(level, suggestionManager, true));
+        button.setMargin(new Insets(2, 4, 2, 4));
+        button.setFocusPainted(false);
+        button.setOpaque(true);
+        button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        button.addChangeListener(e2 -> applyRiskButtonStyle(button, label, level, button.isSelected()));
+        applyRiskButtonStyle(button, label, level, false);
+
+        return button;
+    }
+
     public void refresh()
     {
         if (!SwingUtilities.isEventDispatchThread())
@@ -307,17 +471,44 @@ public class ControlPanel extends JPanel
 
         int tf = clampMinutes(preferencesManager.getTimeframe());
 
-        // Sync buttons based on current preference
-        boolean matched = false;
-        btn5m.setSelected(matched = (tf == PRESET_5M));
-        if (!matched) btn30m.setSelected(matched = (tf == PRESET_30M));
-        if (!matched) btn2h.setSelected(matched = (tf == PRESET_2H));
-        if (!matched) btn8h.setSelected(matched = (tf == PRESET_8H));
-        btnCustom.setSelected(!matched);
+        if (!customExplicitlySelected && !isPreset(tf))
+        {
+            customExplicitlySelected = true;
+        }
+
+        if (customExplicitlySelected)
+        {
+            btn5m.setSelected(false);
+            btn30m.setSelected(false);
+            btn2h.setSelected(false);
+            btn8h.setSelected(false);
+            btnCustom.setSelected(true);
+        }
+        else
+        {
+            boolean matched = false;
+            btn5m.setSelected(matched = (tf == PRESET_5M));
+            if (!matched) btn30m.setSelected(matched = (tf == PRESET_30M));
+            if (!matched) btn2h.setSelected(matched = (tf == PRESET_2H));
+            if (!matched) btn8h.setSelected(matched = (tf == PRESET_8H));
+            btnCustom.setSelected(!matched);
+            customExplicitlySelected = !matched;
+        }
 
         // Sync slider & label
-        timeframeSlider.setValue(minutesToPos(tf));
+        try
+        {
+            suppressTimeframeSliderEvents = true;
+            timeframeSlider.setValue(minutesToPos(tf));
+        }
+        finally
+        {
+            suppressTimeframeSliderEvents = false;
+        }
         updateValueLabel(tf);
+
+        // Sync risk level buttons
+        updateRiskButtons(preferencesManager.getRiskLevel());
 
         // Show/hide custom area
         updateCustomVisibility();
