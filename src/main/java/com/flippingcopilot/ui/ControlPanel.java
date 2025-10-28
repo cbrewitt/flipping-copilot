@@ -10,6 +10,10 @@ import javax.inject.Singleton;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import java.awt.*;
+import java.awt.event.*;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Singleton
 public class ControlPanel extends JPanel
@@ -25,6 +29,7 @@ public class ControlPanel extends JPanel
     private static final int PRESET_2H  = 2 * 60;
     private static final int PRESET_8H  = 8 * 60;
 
+    private final SuggestionManager suggestionManager;
     private final SuggestionPreferencesManager preferencesManager;
     private final JPanel timeframePanel;
     private final JToggleButton btn5m;
@@ -47,18 +52,24 @@ public class ControlPanel extends JPanel
 
     private final JSlider timeframeSlider;
     private final JLabel valueLabel; // fixed-size text showing selected time
+    private final JTextField valueEditor; // temporary editor shown during inline edits
     private final JPanel customPanel; // contains only the slider row (no label)
+    private final JPanel sliderRow;
+    private boolean editingCustomValue;
+    private int editingOriginalMinutes;
 
     // Sqrt domain precomputed
     private static final double SQRT_MIN = Math.sqrt(MIN_MINUTES);
     private static final double SQRT_MAX = Math.sqrt(MAX_MINUTES);
     private static final double SQRT_RANGE = SQRT_MAX - SQRT_MIN;
+    private static final Pattern TIME_TOKEN_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(h|hr|hrs|hour|hours|m|min|mins|minute|minutes)?", Pattern.CASE_INSENSITIVE);
 
     @Inject
     public ControlPanel(
             SuggestionManager suggestionManager,
             SuggestionPreferencesManager preferencesManager)
     {
+        this.suggestionManager = suggestionManager;
         this.preferencesManager = preferencesManager;
 
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -130,6 +141,8 @@ public class ControlPanel extends JPanel
 
         valueLabel = new JLabel(formatMinutes(initMinutes), SwingConstants.RIGHT);
         valueLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        valueLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        valueLabel.setToolTipText("Click to enter a custom time interval");
 
         // Fixed label size based on widest expected text
         String widest = "24h 00m";
@@ -141,7 +154,61 @@ public class ControlPanel extends JPanel
         valueLabel.setPreferredSize(fixed);
         valueLabel.setMaximumSize(fixed);
 
-        JPanel sliderRow = new JPanel(new BorderLayout(8, 0));
+        valueEditor = new JTextField();
+        valueEditor.setHorizontalAlignment(JTextField.RIGHT);
+        valueEditor.setMinimumSize(fixed);
+        valueEditor.setPreferredSize(fixed);
+        valueEditor.setMaximumSize(fixed);
+        valueEditor.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        valueEditor.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        valueEditor.setCaretColor(ColorScheme.BRAND_ORANGE);
+        valueEditor.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(ColorScheme.DARKER_GRAY_COLOR),
+                BorderFactory.createEmptyBorder(0, 4, 0, 4)));
+
+        valueLabel.addMouseListener(new MouseAdapter()
+        {
+            @Override
+            public void mouseClicked(MouseEvent e)
+            {
+                if (!SwingUtilities.isLeftMouseButton(e) || e.getClickCount() != 1)
+                {
+                    return;
+                }
+                beginCustomTimeEditing();
+            }
+        });
+
+        valueEditor.addActionListener(e -> commitCustomTime(true));
+        valueEditor.addFocusListener(new FocusAdapter()
+        {
+            @Override
+            public void focusLost(FocusEvent e)
+            {
+                if (!editingCustomValue)
+                {
+                    return;
+                }
+                if (!commitCustomTime(false))
+                {
+                    cancelCustomTimeEditing();
+                }
+            }
+        });
+
+        InputMap inputMap = valueEditor.getInputMap(JComponent.WHEN_FOCUSED);
+        ActionMap actionMap = valueEditor.getActionMap();
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel-edit");
+        actionMap.put("cancel-edit", new AbstractAction()
+        {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                cancelCustomTimeEditing();
+            }
+        });
+
+        sliderRow = new JPanel(new BorderLayout(8, 0));
         sliderRow.setOpaque(false);
         sliderRow.add(timeframeSlider, BorderLayout.CENTER);
         sliderRow.add(valueLabel, BorderLayout.EAST);
@@ -266,6 +333,185 @@ public class ControlPanel extends JPanel
         customPanel.repaint();
         timeframePanel.revalidate();
         timeframePanel.repaint();
+    }
+
+    private void beginCustomTimeEditing()
+    {
+        if (editingCustomValue)
+        {
+            return;
+        }
+
+        editingCustomValue = true;
+        editingOriginalMinutes = posToMinutes(timeframeSlider.getValue());
+
+        sliderRow.remove(valueLabel);
+        sliderRow.add(valueEditor, BorderLayout.EAST);
+        sliderRow.revalidate();
+        sliderRow.repaint();
+
+        valueEditor.setText(formatMinutes(editingOriginalMinutes));
+        valueEditor.selectAll();
+        valueEditor.requestFocusInWindow();
+    }
+
+    private boolean commitCustomTime(boolean showError)
+    {
+        Integer minutes = parseCustomTimeMinutes(valueEditor.getText());
+        if (minutes == null)
+        {
+            if (showError)
+            {
+                JOptionPane.showMessageDialog(this,
+                        "Couldn't understand that time. Try 90m, 1h 30m, or 1:30.",
+                        "Invalid custom time",
+                        JOptionPane.ERROR_MESSAGE);
+                valueEditor.requestFocusInWindow();
+                valueEditor.selectAll();
+            }
+            return false;
+        }
+
+        if (minutes < MIN_MINUTES || minutes > MAX_MINUTES)
+        {
+            if (showError)
+            {
+                JOptionPane.showMessageDialog(this,
+                        String.format(Locale.ROOT, "Time must be between %dm and %dh 00m.", MIN_MINUTES, MAX_MINUTES / 60),
+                        "Invalid custom time",
+                        JOptionPane.ERROR_MESSAGE);
+                valueEditor.requestFocusInWindow();
+                valueEditor.selectAll();
+            }
+            return false;
+        }
+
+        applyTimeframe(minutes, suggestionManager, /*updateSlider*/ true, /*updateButtons*/ true);
+        restoreValueLabelComponent();
+        return true;
+    }
+
+    private void cancelCustomTimeEditing()
+    {
+        if (!editingCustomValue)
+        {
+            return;
+        }
+
+        updateValueLabel(posToMinutes(timeframeSlider.getValue()));
+        restoreValueLabelComponent();
+    }
+
+    private void restoreValueLabelComponent()
+    {
+        sliderRow.remove(valueEditor);
+        sliderRow.add(valueLabel, BorderLayout.EAST);
+        sliderRow.revalidate();
+        sliderRow.repaint();
+        editingCustomValue = false;
+    }
+
+    private Integer parseCustomTimeMinutes(String input)
+    {
+        if (input == null)
+        {
+            return null;
+        }
+
+        String trimmed = input.trim();
+        if (trimmed.isEmpty())
+        {
+            return null;
+        }
+
+        String normalized = trimmed.toLowerCase(Locale.ROOT);
+
+        if (normalized.contains(":"))
+        {
+            String[] parts = normalized.split(":");
+            if (parts.length != 2)
+            {
+                return null;
+            }
+
+            try
+            {
+                int hours = Integer.parseInt(parts[0].trim());
+                int minutes = Integer.parseInt(parts[1].trim());
+                if (hours < 0 || minutes < 0 || minutes >= 60)
+                {
+                    return null;
+                }
+                return hours * 60 + minutes;
+            }
+            catch (NumberFormatException ex)
+            {
+                return null;
+            }
+        }
+
+        Matcher matcher = TIME_TOKEN_PATTERN.matcher(normalized);
+        int total = 0;
+        int lastEnd = 0;
+        boolean matched = false;
+
+        while (matcher.find())
+        {
+            String between = normalized.substring(lastEnd, matcher.start());
+            if (!between.trim().isEmpty())
+            {
+                return null;
+            }
+
+            String numberPart = matcher.group(1);
+            String unit = matcher.group(2);
+
+            double value;
+            try
+            {
+                value = Double.parseDouble(numberPart);
+            }
+            catch (NumberFormatException ex)
+            {
+                return null;
+            }
+
+            if (unit == null || unit.toLowerCase(Locale.ROOT).startsWith("m"))
+            {
+                if (numberPart.contains("."))
+                {
+                    return null;
+                }
+                total += (int) value;
+            }
+            else
+            {
+                total += (int) Math.round(value * 60.0);
+            }
+
+            matched = true;
+            lastEnd = matcher.end();
+        }
+
+        if (matched)
+        {
+            String trailing = normalized.substring(lastEnd).trim();
+            if (!trailing.isEmpty())
+            {
+                return null;
+            }
+            return total > 0 ? total : null;
+        }
+
+        try
+        {
+            int minutes = Integer.parseInt(normalized);
+            return minutes > 0 ? minutes : null;
+        }
+        catch (NumberFormatException ex)
+        {
+            return null;
+        }
     }
 
     private void updateRiskButtons(RiskLevel level)
