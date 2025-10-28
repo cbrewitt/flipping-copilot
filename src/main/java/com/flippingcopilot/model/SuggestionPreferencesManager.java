@@ -198,15 +198,6 @@ public class SuggestionPreferencesManager {
             } else {
                 cachedPreferences = new SuggestionPreferences();
             }
-            if (cachedPreferences == null) {
-                cachedPreferences = new SuggestionPreferences();
-            }
-
-            cachedPreferences.setTimeframe(DEFAULT_TIMEFRAME);
-            timeFrame = DEFAULT_TIMEFRAME;
-
-            cachedPreferences.setRiskLevel(RiskLevel.MEDIUM);
-            riskLevel = RiskLevel.MEDIUM;
         } catch (IOException e) {
             log.error("reading profile {}", selectedProfile, e);
         }

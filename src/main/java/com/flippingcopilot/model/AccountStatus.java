@@ -96,6 +96,8 @@ public class AccountStatus {
            requestedSuggestionTypes.forEach(rstArray::add);
            statusJson.add("requested_suggestion_types", rstArray);
         }
+        log.info(statusJson.get("risk_level").toString());
+        log.info(statusJson.get("timeframe").toString());
         return statusJson;
     }
 
