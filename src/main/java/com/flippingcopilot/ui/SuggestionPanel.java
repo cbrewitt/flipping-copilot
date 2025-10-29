@@ -6,7 +6,7 @@ import com.flippingcopilot.controller.HighlightController;
 import com.flippingcopilot.controller.PremiumInstanceController;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.ui.graph.PriceGraphController;
+import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import joptsimple.internal.Strings;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -48,10 +48,11 @@ public class SuggestionPanel extends JPanel {
     private final HighlightController highlightController;
     private final ItemManager itemManager;
     private final GrandExchange grandExchange;
-    private final PriceGraphController priceGraphController;
     private final PremiumInstanceController premiumInstanceController;
     private final FlipManager flipManager;
     private final CopilotLoginManager copilotLoginManager;
+    private final FlipsDialogController flipsDialogController;
+
 
     private final JLabel suggestionText = new JLabel();
     private final JLabel suggestionIcon = new JLabel(new ImageIcon(ImageUtil.loadImageResource(getClass(),"/small_open_arrow.png")));
@@ -86,7 +87,7 @@ public class SuggestionPanel extends JPanel {
                            ClientThread clientThread,
                            HighlightController highlightController,
                            ItemManager itemManager,
-                           GrandExchange grandExchange, PriceGraphController priceGraphController, PremiumInstanceController premiumInstanceController, FlipManager flipManager, CopilotLoginManager copilotLoginManager) {
+                           GrandExchange grandExchange,  PremiumInstanceController premiumInstanceController, FlipManager flipManager, CopilotLoginManager copilotLoginManager, FlipsDialogController flipsDialogController) {
         this.preferencesPanel = preferencesPanel;
         this.config = config;
         this.suggestionManager = suggestionManager;
@@ -101,10 +102,10 @@ public class SuggestionPanel extends JPanel {
         this.highlightController = highlightController;
         this.itemManager = itemManager;
         this.grandExchange = grandExchange;
-        this.priceGraphController = priceGraphController;
         this.premiumInstanceController = premiumInstanceController;
         this.flipManager = flipManager;
         this.copilotLoginManager = copilotLoginManager;
+        this.flipsDialogController = flipsDialogController;
 
         layeredPane.setLayout(null);
         setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, 150));
@@ -222,7 +223,11 @@ public class SuggestionPanel extends JPanel {
         graphButton = buildButton(graphIcon, "Price graph", () -> {
             if(config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT)) {
                 Suggestion suggestion = suggestionManager.getSuggestion();
-                priceGraphController.showPriceGraph( suggestion.getName(),true);
+                if(suggestion != null && !suggestion.getType().equals("wait")) {
+                    flipsDialogController.showPriceGraphTab(null, true);
+                } else {
+                    flipsDialogController.showPriceGraphTab(null, false);
+                }
             } else {
                 Suggestion suggestion = suggestionManager.getSuggestion();
                 String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());
@@ -417,7 +422,6 @@ public class SuggestionPanel extends JPanel {
     private void setButtonsVisible(boolean visible) {
         skipButton.setVisible(visible);
         blockButton.setVisible(visible);
-        graphButton.setVisible(visible);
         suggestionIcon.setVisible(visible);
     }
 

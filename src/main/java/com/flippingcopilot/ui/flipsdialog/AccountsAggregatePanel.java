@@ -279,4 +279,8 @@ public class AccountsAggregatePanel extends JPanel {
     private String formatGp(long amount) {
         return GP_FORMAT.format(amount);
     }
+
+    public void onTabShown() {
+        sortAndFilter.reloadAggregates(true);
+    }
 }

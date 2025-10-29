@@ -26,6 +26,7 @@ public class SuggestionPreferencesManager {
 
 
     private static final Path DEPRECATED_PREFERENCES_FILE = Paths.get(Persistance.COPILOT_DIR.getPath(),"shared_preferences.json");
+    private static final int DEFAULT_TIMEFRAME = 5;
 
     public static final Path DEFAULT_PROFILE_PATH = Paths.get(Persistance.COPILOT_DIR.getPath(), "Default profile.profile.json");
     public static final String PROFILE_SUFFIX = ".profile.json";
@@ -42,7 +43,8 @@ public class SuggestionPreferencesManager {
     @Setter
     private volatile boolean sellOnlyMode = false;
     private boolean f2pOnlyMode = false;
-    private int timeFrame = 5;
+    private int timeFrame = DEFAULT_TIMEFRAME;
+    private RiskLevel riskLevel = RiskLevel.MEDIUM;
 
     @Inject
     public SuggestionPreferencesManager(Gson gson, @Named("copilotExecutor") ScheduledExecutorService executorService) {
@@ -89,11 +91,31 @@ public class SuggestionPreferencesManager {
     }
 
     public synchronized void setTimeframe(int minutes) {
-        timeFrame = minutes;
+        timeFrame = minutes > 0 ? minutes : DEFAULT_TIMEFRAME;
+        if (cachedPreferences != null) {
+            cachedPreferences.setTimeframe(timeFrame);
+        }
     }
 
     public synchronized int getTimeframe() {
+        if (timeFrame <= 0) {
+            timeFrame = DEFAULT_TIMEFRAME;
+            if (cachedPreferences != null) {
+                cachedPreferences.setTimeframe(timeFrame);
+            }
+        }
         return timeFrame;
+    }
+
+    public synchronized void setRiskLevel(RiskLevel riskLevel) {
+        this.riskLevel = riskLevel == null ? RiskLevel.MEDIUM : riskLevel;
+        if (cachedPreferences != null) {
+            cachedPreferences.setRiskLevel(this.riskLevel);
+        }
+    }
+
+    public synchronized RiskLevel getRiskLevel() {
+        return riskLevel;
     }
 
     public synchronized void setBlockedItems(Set<Integer> blockedItems) {

@@ -1,9 +1,7 @@
 package com.flippingcopilot.ui.graph;
 
-import com.flippingcopilot.ui.graph.model.Bounds;
-import com.flippingcopilot.ui.graph.model.Constants;
-import com.flippingcopilot.ui.graph.model.Data;
-import com.flippingcopilot.ui.graph.model.Datapoint;
+import com.flippingcopilot.model.VisualizeFlipResponse;
+import com.flippingcopilot.ui.graph.model.*;
 import com.flippingcopilot.util.GeTax;
 import lombok.Getter;
 
@@ -26,7 +24,14 @@ public class DataManager {
     public final List<Datapoint> predictionHighDatapoints = new ArrayList<>();
     public final List<Datapoint> volumes = new ArrayList<>();
 
+    public final List<Datapoint> flipEntryDatapoints = new ArrayList<>();
+    public final List<Datapoint> flipCloseDatapoints = new ArrayList<>();
+    public int minEntryTime;
+    public int maxCloseTime;
+    public Bounds maxBounds = new Bounds();
+
     public final Data data;
+    private final VisualizeFlipResponse fpr;
     public double priceChange24H = 0;
     public double priceChangeWeek = 0;
     public int lastLowTime = 0;
@@ -37,9 +42,9 @@ public class DataManager {
     public long tax;
     public long profit;
 
-
-    public DataManager(Data data) {
+    public DataManager(Data data, VisualizeFlipResponse fpr) {
         this.data = data;
+        this.fpr = fpr;
         processDatapoints();
         calculateStats();
     }
@@ -48,7 +53,24 @@ public class DataManager {
         if (mousePos == null) return null;
 
         Datapoint closest = null;
-        double minDistance = hoverRadius;
+        double minDistance = hoverRadius*2;
+
+        // prioritize hovering on the flip transaction datapoints
+        for(List<Datapoint> datapoints : Arrays.asList(flipEntryDatapoints, flipCloseDatapoints)) {
+            for (Datapoint d : datapoints) {
+                Point hoverPosition = d.getHoverPosition(pa, bounds);
+                double distance = mousePos.distance(hoverPosition);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closest = d;
+                }
+            }
+        }
+        if (closest != null) {
+            return closest;
+        }
+
+        minDistance = hoverRadius;
 
         for(List<Datapoint> datapoints : Arrays.asList(highDatapoints, lowDatapoints, predictionLowDatapoints, predictionHighDatapoints)) {
             for (Datapoint d : datapoints) {
@@ -61,6 +83,39 @@ public class DataManager {
             }
         }
         return closest;
+    }
+
+
+    public Bounds calculateHomeBounds() {
+        int xMax = flipCloseDatapoints.isEmpty() ? maxBounds.xMax : maxCloseTime;
+        int xMin = flipEntryDatapoints.isEmpty() ? maxBounds.xMax - 4*Constants.DAY_SECONDS : minEntryTime;
+        int range = xMax - xMin;
+        if(!flipEntryDatapoints.isEmpty()) {
+            xMin -= Math.max(range / 10, Constants.FIVE_MIN_SECONDS);
+        }
+        if(!flipCloseDatapoints.isEmpty()) {
+            xMax += Math.max(range / 10, Constants.FIVE_MIN_SECONDS);
+        }
+        int finalXMax = xMax;
+        int finalXMin = xMin;
+        Bounds b = calculateBounds((p) -> p.time > finalXMin && p.time < finalXMax);
+        b.xMax = xMax;
+        b.xMin = xMin;
+        return b;
+    }
+
+    public Bounds calculateWeekBounds() {
+        Bounds b = calculateBounds((p) -> p.time > maxBounds.xMax - 7 * Constants.DAY_SECONDS);
+        b.xMin= ((b.xMin) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS;
+        b.xMax = ((b.xMax) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS + Constants.HOUR_SECONDS;
+        return b;
+    }
+
+    public Bounds calculateMonthBounds() {
+        Bounds b = calculateBounds((p) -> p.time > maxBounds.xMax - 30 * Constants.DAY_SECONDS);
+        b.xMin= ((b.xMin) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS;
+        b.xMax = ((b.xMax) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS + Constants.HOUR_SECONDS;
+        return b;
     }
 
 
@@ -77,7 +132,7 @@ public class DataManager {
         long yMean = 0;
         long n = 0;
 
-        for(List<Datapoint> datapoints : Arrays.asList(highDatapoints, lowDatapoints, predictionLowDatapoints, predictionHighDatapoints)) {
+        for(List<Datapoint> datapoints : Arrays.asList(highDatapoints, lowDatapoints, predictionLowDatapoints, predictionHighDatapoints, flipEntryDatapoints, flipCloseDatapoints)) {
             for (Datapoint d : datapoints) {
                 if (p.test(d)) {
                     yMean = (n * yMean + (long) d.price) / (n+1);
@@ -106,6 +161,11 @@ public class DataManager {
             if (p.test(d)) {
                 b.y2Max = Math.max(b.y2Max, d.highVolume + d.lowVolume);
             }
+            d.time += Constants.HOUR_SECONDS;
+            if (p.test(d)) {
+                b.y2Max = Math.max(b.y2Max, d.highVolume + d.lowVolume);
+            }
+            d.time -= Constants.HOUR_SECONDS;
         }
         b.y2Max = (int) (1.1*b.y2Max);
         int pricePadding = (int) (0.03 * yMean);
@@ -123,10 +183,16 @@ public class DataManager {
         predictionHighDatapoints.clear();
         predictionLowDatapoints.clear();
         volumes.clear();
+        flipEntryDatapoints.clear();
+        flipCloseDatapoints.clear();
         
         // here we combine the hour / 5min / latest wiki price data points into a continuous dataset where hour points 
         // transition into the 5min points that transition into the latest points. So we get increasingly finer granularity.
         // We truncate the points correctly at the boundaries to ensure no overlap.
+
+        if (data.lowLatestTimes == null) {
+            return;
+        }
 
         for (int i = 0; i < data.lowLatestTimes.length; i++) {
             lowDatapoints.add(new Datapoint(data.lowLatestTimes[i], data.lowLatestPrices[i], true, Datapoint.Type.INSTA_SELL_BUY));
@@ -183,25 +249,26 @@ public class DataManager {
                 highDatapoints.add(0, new Datapoint(data.high1hTimes[i], data.high1hPrices[i], false, Datapoint.Type.HOUR_AVERAGE));
             }
         }
-        
-        // add the prediction data points
-        for (int i = 0; i < data.predictionTimes.length; i++) {
-            predictionLowDatapoints.add(new Datapoint(
-                    data.predictionTimes[i],
-                    data.predictionLowMeans[i],
-                    data.predictionLowIQRLower[i],
-                    data.predictionLowIQRUpper[i],
-                    true
-            ));
-            predictionHighDatapoints.add(new Datapoint(
-                    data.predictionTimes[i],
-                    data.predictionHighMeans[i],
-                    data.predictionHighIQRLower[i],
-                    data.predictionHighIQRUpper[i],
-                    false
-            ));
-        }
 
+
+        if(data.predictionTimes != null) {
+            for (int i = 0; i < data.predictionTimes.length; i++) {
+                predictionLowDatapoints.add(new Datapoint(
+                        data.predictionTimes[i],
+                        data.predictionLowMeans[i],
+                        data.predictionLowIQRLower[i],
+                        data.predictionLowIQRUpper[i],
+                        true
+                ));
+                predictionHighDatapoints.add(new Datapoint(
+                        data.predictionTimes[i],
+                        data.predictionHighMeans[i],
+                        data.predictionHighIQRLower[i],
+                        data.predictionHighIQRUpper[i],
+                        false
+                ));
+            }
+        }
 
         for (int i = data.volume1hLows.length-1; i >= 0; i--) {
             volumes.add(0, Datapoint.newVolumeDatapoint(data.volume1hTimes[i], data.volume1hLows[i], data.volume1hHighs[i]));
@@ -216,6 +283,35 @@ public class DataManager {
             }
         }
         volumes.add(Datapoint.newVolumeDatapoint(current1hTime, currentHourLowVolume, currentHoursHighVolume));
+
+        minEntryTime = Integer.MAX_VALUE;
+        maxCloseTime = 0;
+        if(fpr != null){
+            if(fpr.buyTimes != null) {
+                for (int i = 0; i < fpr.buyTimes.length; i++) {
+                    flipEntryDatapoints.add(Datapoint.newBuyTx(
+                            fpr.buyTimes[i],
+                            fpr.buyPrices[i],
+                            fpr.buyVolumes[i]
+                    ));
+                    minEntryTime = Math.min(fpr.buyTimes[i], minEntryTime);
+                }
+            }
+            if(fpr.sellTimes != null) {
+                for (int i = 0; i < fpr.sellTimes.length; i++) {
+                    flipCloseDatapoints.add(Datapoint.newSellTx(
+                            fpr.sellTimes[i],
+                            fpr.sellPrices[i],
+                            fpr.sellVolumes[i]
+                    ));
+                    maxCloseTime = Math.max(fpr.sellTimes[i], maxCloseTime);
+                }
+            }
+        }
+
+        maxBounds = calculateBounds((p) -> true);
+        maxBounds.xMin= ((maxBounds.xMin) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS;
+        maxBounds.xMax = ((maxBounds.xMax) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS + Constants.HOUR_SECONDS;
     }
 
     private void calculateStats() {

@@ -32,6 +32,7 @@ public class AccountStatus {
     private boolean f2pOnlyMode = false;
     private List<Integer> blockedItems;
     private int timeframe = 5; // Default to 5 minutes
+    private RiskLevel riskLevel = RiskLevel.MEDIUM;
 
     public AccountStatus() {
         offers = new StatusOfferList();
@@ -60,7 +61,6 @@ public class AccountStatus {
 
     public synchronized JsonObject toJson(Gson gson, boolean geOpen, boolean sendGraphData) {
         JsonObject statusJson = new JsonObject();
-        statusJson.addProperty("timeframe", 5);
         statusJson.addProperty("display_name", displayName);
         statusJson.addProperty("sell_only", sellOnlyMode);
         statusJson.addProperty("f2p_only", f2pOnlyMode);
@@ -69,6 +69,8 @@ public class AccountStatus {
         statusJson.addProperty("skip_suggestion", skipSuggestion);
         statusJson.addProperty("send_graph_data", sendGraphData);
         statusJson.addProperty("timeframe", timeframe);
+        RiskLevel effectiveRiskLevel = riskLevel != null ? riskLevel : RiskLevel.MEDIUM;
+        statusJson.addProperty("risk_level", effectiveRiskLevel.toApiValue());
         if (suggestionsPaused != null) {
             statusJson.addProperty("suggestions_paused", suggestionsPaused);
         }

@@ -59,6 +59,7 @@ public class FlipsPanel extends JPanel {
     private final JPanel spinnerOverlay;
     private final ItemSearchMultiSelect searchField;
     private final JCheckBox showOpeningFlipsCheckbox;
+    private final Consumer<FlipV2> onVisualizeFlip;
     private IntervalDropdown timeIntervalDropdown;
     private AccountDropdown accountDropdown;
     private final JComboBox<Integer> pageSizeComboBox;
@@ -68,13 +69,14 @@ public class FlipsPanel extends JPanel {
     public FlipFilterAndSort sortAndFilter;
 
 
-
     public FlipsPanel(FlipManager flipsManager,
                       ItemController itemController,
                       CopilotLoginManager copilotLoginManager,
                       @Named("copilotExecutor") ExecutorService executorService,
                       FlippingCopilotConfig config,
-                      ApiRequestHandler apiRequestHandler) {
+                      ApiRequestHandler apiRequestHandler,
+                      Consumer<FlipV2> onVisualizeFlip) {
+        this.onVisualizeFlip = onVisualizeFlip;
         this.copilotLoginManager = copilotLoginManager;
         this.apiRequestHandler = apiRequestHandler;
 
@@ -244,7 +246,18 @@ public class FlipsPanel extends JPanel {
         table.getColumnModel().getColumn(5).setCellRenderer(centerRenderer); // Bought
         table.getColumnModel().getColumn(6).setCellRenderer(centerRenderer); // Sold
 
-        setupDropdowns();
+        accountDropdown = new AccountDropdown(
+                this.copilotLoginManager::displayNameToAccountIdMap,
+                sortAndFilter::setAccountId,
+                AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
+        );
+        accountDropdown.setPreferredSize(new Dimension(120, accountDropdown.getPreferredSize().height));
+        accountDropdown.setToolTipText("Select account");
+
+        timeIntervalDropdown = new IntervalDropdown(sortAndFilter::setInterval, IntervalDropdown.ALL_TIME, false);
+        timeIntervalDropdown.setPreferredSize(new Dimension(150, timeIntervalDropdown.getPreferredSize().height));
+        timeIntervalDropdown.setToolTipText("Select time interval");
+
 
         leftPanel.add(searchField);
         leftPanel.add(Box.createRigidArea(new Dimension(3,0)));
@@ -290,7 +303,6 @@ public class FlipsPanel extends JPanel {
         bottomPanel.add(paginatorPanel, BorderLayout.CENTER);
 
         add(bottomPanel, BorderLayout.SOUTH);
-        sortAndFilter.setPageSize(FlipFilterAndSort.DEFAULT_PAGE_SIZE);
     }
 
     private void setSpinnerVisible(boolean visible) {
@@ -314,25 +326,16 @@ public class FlipsPanel extends JPanel {
         return button;
     }
 
-    private void setupDropdowns() {
-        accountDropdown = new AccountDropdown(
-                copilotLoginManager::displayNameToAccountIdMap,
-                sortAndFilter::setAccountId,
-                AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
-        );
-        accountDropdown.setPreferredSize(new Dimension(120, accountDropdown.getPreferredSize().height));
-        accountDropdown.setToolTipText("Select account");
-        accountDropdown.refresh();
-
-        timeIntervalDropdown = new IntervalDropdown(sortAndFilter::setInterval, IntervalDropdown.ALL_TIME, false);
-        timeIntervalDropdown.setPreferredSize(new Dimension(150, timeIntervalDropdown.getPreferredSize().height));
-        timeIntervalDropdown.setToolTipText("Select time interval");
-    }
-
     private void showFlipMenu(MouseEvent e, int row) {
         FlipV2 flip = currentFlips.get(row);
 
         JPopupMenu menu = new JPopupMenu();
+        JMenuItem visualizeFlip = new JMenuItem("Visualize flip");
+        visualizeFlip.addActionListener(evt -> {
+            onVisualizeFlip.accept(flip);
+        });
+        menu.add(visualizeFlip);
+        
         JMenuItem deleteItem = new JMenuItem("Delete flip");
         deleteItem.addActionListener(evt -> {
             int result = JOptionPane.showConfirmDialog(this,
@@ -507,5 +510,10 @@ public class FlipsPanel extends JPanel {
             return "N/A";
         }
         return formatEpoch(epochSeconds);
+    }
+
+    public void onTabShown() {
+        sortAndFilter.reloadFlips(true, true);
+        accountDropdown.refresh();
     }
 }

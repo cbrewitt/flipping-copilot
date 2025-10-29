@@ -33,6 +33,10 @@ public class Bounds {
         return xMax - xMin;
     }
 
+    public int xMid() {
+        return xMin + (xMax - xMin)/2;
+    }
+
     public Bounds copy() {
         return new Bounds(xMin, xMax, yMin, yMax, y2Min, y2Max);
     }

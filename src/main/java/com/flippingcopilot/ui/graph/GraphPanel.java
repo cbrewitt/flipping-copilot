@@ -8,47 +8,45 @@ import java.awt.*;
 import java.awt.event.*;
 
 public class GraphPanel extends JPanel {
-    public final String itemName;
 
-    // Component references
     private final PriceGraphConfigManager configManager;
     public DataManager dataManager;
     private final RenderV2 renderer;
     public final ZoomHandler zoomHandler;
     private final DatapointTooltip tooltip;
 
-    public final Bounds bounds;
+    public Bounds bounds;
 
     public Rectangle pricePa;
     public Rectangle volumePa;
 
-
-    // For point hovering
     private Point mousePosition = new Point(0,0);
     private Datapoint hoveredPoint = null;
 
-    public GraphPanel(DataManager dm, PriceGraphConfigManager configManager) {
-        this.itemName = dm.data.name;
+    public GraphPanel(PriceGraphConfigManager configManager) {
 
-        // Initialize components
-        this.dataManager = dm;
         this.configManager = configManager;
         this.renderer = new RenderV2();
         this.zoomHandler = new ZoomHandler();
         this.tooltip = new DatapointTooltip();
 
-        // Set up panel
         setBackground(configManager.getConfig().backgroundColor);
         setPreferredSize(new Dimension(500, 300));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        zoomHandler.maxViewBounds = dataManager.calculateBounds((p) -> true);
-        zoomHandler.homeViewBounds = dataManager.calculateBounds((p) -> p.time > zoomHandler.maxViewBounds.xMax - 4 * Constants.DAY_SECONDS);
-        zoomHandler.weekViewBounds = dataManager.calculateBounds((p) -> p.time > zoomHandler.maxViewBounds.xMax - 7 * Constants.DAY_SECONDS);
-        zoomHandler.monthViewBounds = dataManager.calculateBounds((p) -> p.time > zoomHandler.maxViewBounds.xMax - 30 * Constants.DAY_SECONDS);
-        bounds = zoomHandler.homeViewBounds.copy();
-
+        setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
         setupMouseListeners();
+    }
+
+    public void setData(DataManager dm) {
+        int oldItemID = dataManager == null ? -1 : dataManager.data.itemId;
+        dataManager = dm;
+        zoomHandler.maxViewBounds = dataManager.maxBounds;
+        zoomHandler.homeViewBounds = dataManager.calculateHomeBounds();
+        zoomHandler.weekViewBounds = dataManager.calculateWeekBounds();
+        zoomHandler.monthViewBounds = dataManager.calculateMonthBounds();
+        if(oldItemID != dataManager.data.itemId) {
+            bounds = zoomHandler.homeViewBounds.copy();
+        }
+        repaint();
     }
 
 
@@ -56,6 +54,9 @@ public class GraphPanel extends JPanel {
         MouseAdapter mouseAdapter = new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
+                if(dataManager == null){
+                    return;
+                }
                 mousePosition = e.getPoint();
                 if(pricePa.contains(mousePosition)) {
                     hoveredPoint = dataManager.findClosestPoint(mousePosition, Config.HOVER_RADIUS, pricePa, bounds);
@@ -69,6 +70,9 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mousePressed(MouseEvent e) {
+                if(dataManager == null){
+                    return;
+                }
                 mousePosition = e.getPoint();
                 if (!pricePa.contains(mousePosition)) {
                     return;
@@ -113,6 +117,9 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mouseDragged(MouseEvent e) {
+                if(dataManager == null){
+                    return;
+                }
                 mousePosition = e.getPoint();
                 if (zoomHandler.isSelecting()) {
                     zoomHandler.setSelectionEnd(mousePosition);
@@ -122,6 +129,9 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mouseReleased(MouseEvent e) {
+                if(dataManager == null){
+                    return;
+                }
                 mousePosition = e.getPoint();
                 if (zoomHandler.isSelecting()) {
                     setCursor(Cursor.getDefaultCursor());
@@ -133,6 +143,9 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mouseExited(MouseEvent e) {
+                if(dataManager == null){
+                    return;
+                }
                 mousePosition = e.getPoint();
                 hoveredPoint = null;
                 repaint();
@@ -146,13 +159,13 @@ public class GraphPanel extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
-
         super.paintComponent(g);
+
+
         final int leftPadding = 80;
-        final int topPadding = 100;
+        final int topPadding = 50;
         final int rightPadding = 20;
         final int bottomPadding = 50;
-        
         
         int w = getWidth() - leftPadding - rightPadding;
         int ah = getHeight() - topPadding - bottomPadding;
@@ -161,7 +174,9 @@ public class GraphPanel extends JPanel {
         
         pricePa = new Rectangle(leftPadding, topPadding, w, h1);
         volumePa = new Rectangle(leftPadding, topPadding+h1, w, h2);
-
+        if(dataManager == null) {
+            return;
+        }
         Data data = dataManager.getData();
         if (data == null) return;
         Config config = configManager.getConfig();
@@ -172,7 +187,7 @@ public class GraphPanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
         // First draw the legend above the plot area
-        renderer.drawLegend(g2d, config, pricePa);
+        renderer.drawLegend(g2d, config, pricePa, data.predictionTimes != null);
 
         // Draw the plot area background with dynamic padding
         g2d.setColor(config.plotAreaColor);
@@ -204,12 +219,23 @@ public class GraphPanel extends JPanel {
 
         renderer.drawLines(g2d, pricePa, bounds, dataManager.predictionLowDatapoints, config.lowColor, Config.DOTTED_STROKE);
         renderer.drawLines(g2d, pricePa, bounds, dataManager.predictionHighDatapoints, config.highColor, Config.DOTTED_STROKE);
-        renderer.drawPredictionIQR(g2d, config, pricePa, bounds, data.predictionTimes, data.predictionLowIQRLower, data.predictionLowIQRUpper, true);
-        renderer.drawPredictionIQR(g2d, config, pricePa, bounds, data.predictionTimes, data.predictionHighIQRLower, data.predictionHighIQRUpper, false);
+        if(data.predictionTimes != null) {
+            renderer.drawPredictionIQR(g2d, config, pricePa, bounds, data.predictionTimes, data.predictionLowIQRLower, data.predictionLowIQRUpper, true);
+            renderer.drawPredictionIQR(g2d, config, pricePa, bounds, data.predictionTimes, data.predictionHighIQRLower, data.predictionHighIQRUpper, false);
+        }
         zoomHandler.drawButtons(g2d, pricePa, mousePosition);
         zoomHandler.drawSelectionRectangle(g2d, pricePa);
 
         renderer.drawVolumeBars(g2d, config, volumePa, bounds, dataManager.volumes, hoveredPoint);
+
+
+        if(!this.dataManager.flipEntryDatapoints.isEmpty()) {
+            renderer.drawTxsDatapoints(g2d, pricePa, bounds, this.dataManager.flipEntryDatapoints, hoveredPoint, config);
+        }
+
+        if(!this.dataManager.flipCloseDatapoints.isEmpty()) {
+            renderer.drawTxsDatapoints(g2d, pricePa, bounds, this.dataManager.flipCloseDatapoints, hoveredPoint, config);
+        }
 
         // Draw tooltip for hovered point
         if (hoveredPoint != null) {
