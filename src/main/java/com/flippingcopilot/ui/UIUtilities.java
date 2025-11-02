@@ -25,7 +25,7 @@ public class UIUtilities {
     public static final String internetIcon = "/internet.png";
     public static final String graphIcon = "/graph.png";
 
-    static final float BUTTON_HOVER_LUMINANCE = 0.65f;
+    public static final float BUTTON_HOVER_LUMINANCE = 0.65f;
     public static final Color OUTDATED_COLOR = new Color(250, 74, 75);
     public static final Color BLUE_HIGHLIGHT_COLOR =  new Color(27, 173, 255, 79);
     public static final Color RED_HIGHLIGHT_COLOR = new Color(255, 20, 20, 79);
@@ -86,7 +86,7 @@ public class UIUtilities {
         return string;
     }
 
-    static JLabel buildButton(BufferedImage icon, String tooltip, Runnable onClick) {
+    public static JLabel buildButton(BufferedImage icon, String tooltip, Runnable onClick) {
         JLabel label = new JLabel();
         label.setToolTipText(tooltip);
         label.setHorizontalAlignment(JLabel.CENTER);
@@ -101,6 +101,7 @@ public class UIUtilities {
             }
             @Override
             public void mouseEntered(MouseEvent e) {
+                label.setCursor(new Cursor(Cursor.HAND_CURSOR));
                 label.setIcon(iconOn);
             }
 

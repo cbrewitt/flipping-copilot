@@ -101,6 +101,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	private GeHistoryTabController geHistoryTabController;
 	@Inject
 	private FlipsDialogController flipsDialogController;
+	@Inject
+	private SuggestionPreferencesManager preferencesManager;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -297,6 +299,8 @@ public class FlippingCopilotPlugin extends Plugin {
 					if(copilotLoginManager.isLoggedIn()) {
 						transactionManager.scheduleSyncIn(0, name);
 					}
+					preferencesManager.loadAccountPreferences();
+
 					return true;
 				});
 		}

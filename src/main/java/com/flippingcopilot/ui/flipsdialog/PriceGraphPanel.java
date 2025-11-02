@@ -7,31 +7,27 @@ import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.ItemPrice;
 import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.ui.Spinner;
+import com.flippingcopilot.ui.UIUtilities;
 import com.flippingcopilot.ui.components.ItemSearchBox;
 import com.flippingcopilot.ui.components.TrackingCardLayout;
+import com.flippingcopilot.ui.graph.ConfigPanel;
 import com.flippingcopilot.ui.graph.DataManager;
 import com.flippingcopilot.ui.graph.GraphPanel;
 import com.flippingcopilot.ui.graph.StatsPanel;
 import com.flippingcopilot.ui.graph.model.Data;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.ImageUtil;
 
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JSplitPane;
-import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.util.function.Consumer;
 
+import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
+import static com.flippingcopilot.ui.UIUtilities.buildButton;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 @Slf4j
@@ -41,6 +37,7 @@ public class PriceGraphPanel extends JPanel {
     private final ItemController itemController;
     private final ApiRequestHandler apiRequestHandler;
     private final OsrsLoginManager osrsLoginManager;
+    private final PriceGraphConfigManager priceGraphConfigManager;
 
     // UI Components
     public final ItemSearchBox searchBox;
@@ -63,10 +60,11 @@ public class PriceGraphPanel extends JPanel {
                            PriceGraphConfigManager configManager,
                            FlippingCopilotConfig copilotConfig,
                            ApiRequestHandler apiRequestHandler,
-                           OsrsLoginManager osrsLoginManager) {
+                           OsrsLoginManager osrsLoginManager, PriceGraphConfigManager priceGraphConfigManager) {
         this.itemController = itemController;
         this.apiRequestHandler = apiRequestHandler;
         this.osrsLoginManager = osrsLoginManager;
+        this.priceGraphConfigManager = priceGraphConfigManager;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -81,6 +79,7 @@ public class PriceGraphPanel extends JPanel {
         JLabel searchLabel = new JLabel("Search item:");
         searchLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
         searchPanel.add(searchLabel);
+
 
         searchBox = new ItemSearchBox(
                 (searchText, ignoredSet) -> itemController.search(searchText, itemController.allItemIds()),
@@ -105,6 +104,24 @@ public class PriceGraphPanel extends JPanel {
         });
         rightPanel.add(showSuggestionButton);
 
+        contentPanel = new JPanel(contentCardLayout);
+
+        try {
+            BufferedImage gearIcon = ImageUtil.loadImageResource(getClass(), "/preferences-icon.png");
+            gearIcon = ImageUtil.resizeImage(gearIcon, 20, 20);
+            BufferedImage recoloredIcon = ImageUtil.recolorImage(gearIcon, ColorScheme.LIGHT_GRAY_COLOR);
+            JLabel gearButton = UIUtilities.buildButton(recoloredIcon, "Graph Settings", ()-> {
+                if(contentCardLayout.getCurrentCard().equals(Cards.SETTINGS_CARD.name())) {
+                    contentCardLayout.showPrevious(contentPanel);
+                } else {
+                    contentCardLayout.show(contentPanel, Cards.SETTINGS_CARD.name());
+                }
+            });
+            rightPanel.add(gearButton, BorderLayout.EAST);
+        } catch (Exception e) {
+            log.error("error creating graph settings button", e);
+        }
+
         topPanel.add(rightPanel, BorderLayout.EAST);
 
         add(topPanel, BorderLayout.NORTH);
@@ -114,7 +131,6 @@ public class PriceGraphPanel extends JPanel {
         statsPanel.setBackground(configManager.getConfig().backgroundColor);
         statsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        contentPanel = new JPanel(contentCardLayout);
         contentPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         contentPanel.add(buildLandingCard(), Cards.LANDING_CARD.name());
@@ -122,6 +138,7 @@ public class PriceGraphPanel extends JPanel {
         contentPanel.add(buildLoadingCard(), Cards.LOADING_CARD.name());
         contentPanel.add(buildGraphCard(), Cards.GRAPH_CARD.name());
         contentPanel.add(buildErrorCard(), Cards.ERROR_CARD.name());
+        contentPanel.add(buildSettingsCard(), Cards.SETTINGS_CARD.name());
 
 
         errorLabel.setForeground(Color.RED);
@@ -131,6 +148,11 @@ public class PriceGraphPanel extends JPanel {
         add(contentPanel, BorderLayout.CENTER);
 
         contentCardLayout.show(contentPanel, Cards.LANDING_CARD.name());
+    }
+
+    private JPanel buildSettingsCard() {
+        JPanel settingsPanel = new ConfigPanel(priceGraphConfigManager, () -> {});
+        return settingsPanel;
     }
 
     private void onItemSelected(Integer itemId) {
@@ -295,6 +317,7 @@ public class PriceGraphPanel extends JPanel {
         LOGIN_PROMPT,
         GRAPH_CARD,
         LOADING_CARD,
-        ERROR_CARD
+        ERROR_CARD,
+        SETTINGS_CARD,
     }
 }

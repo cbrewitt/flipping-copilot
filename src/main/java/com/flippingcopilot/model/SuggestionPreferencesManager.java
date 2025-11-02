@@ -24,33 +24,31 @@ import java.util.stream.Stream;
 @Slf4j
 public class SuggestionPreferencesManager {
 
-
-    private static final Path DEPRECATED_PREFERENCES_FILE = Paths.get(Persistance.COPILOT_DIR.getPath(),"shared_preferences.json");
     private static final int DEFAULT_TIMEFRAME = 5;
 
     public static final Path DEFAULT_PROFILE_PATH = Paths.get(Persistance.COPILOT_DIR.getPath(), "Default profile.profile.json");
     public static final String PROFILE_SUFFIX = ".profile.json";
+
     // dependencies
     private final Gson gson;
     private final ScheduledExecutorService executorService;
+    private final OsrsLoginManager osrsLoginManager;
 
     // state
-    private SuggestionPreferences cachedPreferences;
+    private AccountSuggestionPreferences accountSuggestionPreferences = new AccountSuggestionPreferences();
+    private ProfileSuggestionPreferences cachedPreferences;
     private Path selectedProfile;
     private List<Path> availableProfiles;
 
     @Getter
     @Setter
     private volatile boolean sellOnlyMode = false;
-    private boolean f2pOnlyMode = false;
-    private int timeFrame = DEFAULT_TIMEFRAME;
-    private RiskLevel riskLevel = RiskLevel.MEDIUM;
 
     @Inject
-    public SuggestionPreferencesManager(Gson gson, @Named("copilotExecutor") ScheduledExecutorService executorService) {
+    public SuggestionPreferencesManager(Gson gson, @Named("copilotExecutor") ScheduledExecutorService executorService, OsrsLoginManager osrsLoginManager) {
         this.gson = gson;
         this.executorService = executorService;
-        init();
+        this.osrsLoginManager = osrsLoginManager;
         loadAvailableProfiles();
         selectedProfile = DEFAULT_PROFILE_PATH;
         loadCurrentProfile();
@@ -60,68 +58,41 @@ public class SuggestionPreferencesManager {
         }, 5L, 5L, TimeUnit.SECONDS);
     }
 
-    private void init() {
-        try {
-            if (!Files.exists(DEFAULT_PROFILE_PATH)) {
-                if(Files.exists(DEPRECATED_PREFERENCES_FILE)) {
-                    Files.move(DEPRECATED_PREFERENCES_FILE, DEFAULT_PROFILE_PATH, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-                } else {
-                    Files.writeString(DEFAULT_PROFILE_PATH,"{}");
-                }
-            }
-        } catch (IOException e) {
-            log.error("failed to init profiles {}", DEPRECATED_PREFERENCES_FILE, e);
-        }
-    }
-
     public synchronized List<String> getAvailableProfiles() {
         return availableProfiles.stream().map(this::toDisplayName).collect(Collectors.toList());
     }
 
-    public synchronized SuggestionPreferences getPreferences() {
-        return cachedPreferences;
-    }
-
     public synchronized boolean isF2pOnlyMode() {
-        return f2pOnlyMode;
+        return accountSuggestionPreferences.isF2pOnlyMode();
     }
 
     public synchronized void setF2pOnlyMode(boolean f2pOnlyMode) {
-        this.f2pOnlyMode = f2pOnlyMode;
+        accountSuggestionPreferences.setF2pOnlyMode(f2pOnlyMode);
+        executorService.submit(() -> updateAccountPreferences(accountSuggestionPreferences));
     }
 
     public synchronized void setTimeframe(int minutes) {
-        timeFrame = minutes > 0 ? minutes : DEFAULT_TIMEFRAME;
-        if (cachedPreferences != null) {
-            cachedPreferences.setTimeframe(timeFrame);
-        }
+        accountSuggestionPreferences.setTimeframe(minutes > 0 ? minutes : DEFAULT_TIMEFRAME);
+        executorService.submit(() -> updateAccountPreferences(accountSuggestionPreferences));
     }
 
     public synchronized int getTimeframe() {
-        if (timeFrame <= 0) {
-            timeFrame = DEFAULT_TIMEFRAME;
-            if (cachedPreferences != null) {
-                cachedPreferences.setTimeframe(timeFrame);
-            }
-        }
-        return timeFrame;
+        return accountSuggestionPreferences.getTimeframe();
     }
 
     public synchronized void setRiskLevel(RiskLevel riskLevel) {
-        this.riskLevel = riskLevel == null ? RiskLevel.MEDIUM : riskLevel;
-        if (cachedPreferences != null) {
-            cachedPreferences.setRiskLevel(this.riskLevel);
-        }
+        accountSuggestionPreferences.setRiskLevel(riskLevel == null ? RiskLevel.MEDIUM : riskLevel);
+        executorService.submit(() -> updateAccountPreferences(accountSuggestionPreferences));
     }
 
     public synchronized RiskLevel getRiskLevel() {
-        return riskLevel;
+        return accountSuggestionPreferences.getRiskLevel();
     }
 
     public synchronized void setBlockedItems(Set<Integer> blockedItems) {
         List<Integer> toUnblock = cachedPreferences.blockedItemIds.stream().filter(i -> !blockedItems.contains(i)).collect(Collectors.toList());
         List<Integer> toBlock = blockedItems.stream().filter(i -> !cachedPreferences.blockedItemIds.contains(i)).collect(Collectors.toList());
-        Consumer<SuggestionPreferences> update = (s) -> {
+        Consumer<ProfileSuggestionPreferences> update = (s) -> {
             s.blockedItemIds.removeIf(toUnblock::contains);
             toBlock.forEach(i -> {
                 if(!s.blockedItemIds.contains(i)) {
@@ -135,7 +106,7 @@ public class SuggestionPreferencesManager {
     }
 
     public synchronized void blockItem(int itemId) {
-        Consumer<SuggestionPreferences> update = (s) -> {
+        Consumer<ProfileSuggestionPreferences> update = (s) -> {
             if(!s.blockedItemIds.contains(itemId)) {
                 s.blockedItemIds.add(itemId);
             }
@@ -170,11 +141,11 @@ public class SuggestionPreferencesManager {
         loadCurrentProfile();
     }
 
-    private synchronized void updateProfile(Path profile, Consumer<SuggestionPreferences> changes) {
+    private synchronized void updateProfile(Path profile, Consumer<ProfileSuggestionPreferences> changes) {
         Path lockFile = Paths.get(profile+ ".lock");
         Path tmpFile = Paths.get(profile+ ".tmp");
         try {
-            SuggestionPreferences preferences = gson.fromJson(Files.readString(profile), SuggestionPreferences.class);
+            ProfileSuggestionPreferences preferences = gson.fromJson(Files.readString(profile), ProfileSuggestionPreferences.class);
             changes.accept(preferences);
             String toWrite = gson.toJson(preferences);
             // acquire <file>.lock
@@ -194,9 +165,9 @@ public class SuggestionPreferencesManager {
     private synchronized void loadCurrentProfile() {
         try {
             if (Files.exists(selectedProfile)) {
-                cachedPreferences = gson.fromJson(Files.readString(selectedProfile), SuggestionPreferences.class);
+                cachedPreferences = gson.fromJson(Files.readString(selectedProfile), ProfileSuggestionPreferences.class);
             } else {
-                cachedPreferences = new SuggestionPreferences();
+                cachedPreferences = new ProfileSuggestionPreferences();
             }
         } catch (IOException e) {
             log.error("reading profile {}", selectedProfile, e);
@@ -247,5 +218,46 @@ public class SuggestionPreferencesManager {
         } finally {
             Files.deleteIfExists(lockFile);
         }
+    }
+
+    public synchronized void loadAccountPreferences() {
+        if(osrsLoginManager.getAccountHash() == null){
+            return;
+        }
+        Path f = accountPreferencesPath();
+        try {
+            if(Files.exists(f)) {
+                accountSuggestionPreferences = gson.fromJson(Files.readString(f), AccountSuggestionPreferences.class);
+            } else {
+                accountSuggestionPreferences = new AccountSuggestionPreferences();
+            }
+        } catch (IOException e) {
+            log.warn("error loading account preferences json file {}", f, e);
+        }
+    }
+
+    private synchronized void updateAccountPreferences(AccountSuggestionPreferences ap) {
+        Long osrsAccountHash = osrsLoginManager.getAccountHash();
+        if (osrsAccountHash == null) {
+            return;
+        }
+        Path f = accountPreferencesPath();
+        Path tmpFile = Paths.get(f + ".tmp");
+        try {
+            String toWrite = gson.toJson(ap);
+            // acquire <file>.lock
+            try {
+                Files.writeString(tmpFile,toWrite );
+                Files.move(tmpFile, f, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } finally {
+                Files.deleteIfExists(tmpFile);
+            }
+        } catch (IOException e) {
+            log.warn("error saving preferences json file {}", f, e);
+        }
+    }
+
+    private Path accountPreferencesPath() {
+        return Paths.get(Persistance.COPILOT_DIR.getPath(), "acc_" + osrsLoginManager.getAccountHash() + "_prefs.json");
     }
 }

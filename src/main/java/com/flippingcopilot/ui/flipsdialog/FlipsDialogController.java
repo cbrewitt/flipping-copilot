@@ -89,7 +89,8 @@ public class FlipsDialogController {
                     priceGraphConfigManager,
                     config,
                     apiRequestHandler,
-                    osrsLoginManager
+                    osrsLoginManager,
+                    priceGraphConfigManager
             );
             tabbedPane.addTab("Flips", flipsPanel);
             tabbedPane.addTab("Items", itemsPanel);

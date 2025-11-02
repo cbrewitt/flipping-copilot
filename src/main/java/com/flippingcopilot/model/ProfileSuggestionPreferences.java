@@ -6,10 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-public class SuggestionPreferences {
+public class ProfileSuggestionPreferences {
 
     public List<Integer> blockedItemIds = new ArrayList<>();
-    public int timeframe = 5;
-    public boolean f2pOnlyMode = false;
-    public RiskLevel riskLevel = RiskLevel.MEDIUM;
 }
