@@ -78,6 +78,7 @@ public class TooltipController {
                 tooltip.revalidate();
                 border.revalidate();
                 background.revalidate();
+                text.revalidate();
             }
         }
     }
