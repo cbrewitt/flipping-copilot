@@ -4,6 +4,7 @@ import lombok.Data;
 import net.runelite.api.GrandExchangeOffer;
 import net.runelite.api.GrandExchangeOfferState;
 
+import java.time.Instant;
 import java.util.Objects;
 
 @Data
@@ -17,6 +18,7 @@ public class SavedOffer
 	private GrandExchangeOfferState state;
 	private boolean copilotPriceUsed;
 	private boolean wasCopilotSuggestion;
+	private Long tradeStartTime; // Epoch seconds when the offer was placed
 
 
 	public static SavedOffer fromGrandExchangeOffer(GrandExchangeOffer offer) {

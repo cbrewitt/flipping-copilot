@@ -1,6 +1,8 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.Persistance;
+import com.flippingcopilot.controller.FlippingCopilotPlugin;
+import com.flippingcopilot.ui.SlotActivityTimer;
 import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -8,11 +10,14 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.*;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
@@ -52,6 +57,10 @@ public class OfferManager {
     private final Map<Long, Map<Integer, SavedOffer>> cachedOffers = new HashMap<>();
     private final Map<Long, Map<Integer, File>> files = new HashMap<>();
     private final Map<Long, Map<Integer, SavedOffer>> lastSaved = new HashMap<>();
+    
+    // Slot timers
+    @Getter
+    private final List<SlotActivityTimer> slotTimers = new ArrayList<>();
 
     public synchronized SavedOffer loadOffer(Long accountHash, Integer slot) {
         Map<Integer, SavedOffer> slotToOffer = cachedOffers.computeIfAbsent(accountHash, (k) -> new HashMap<>());
@@ -110,5 +119,31 @@ public class OfferManager {
     private File getFile(Long accountHash, Integer slot) {
         Map<Integer, File> slotToFile = files.computeIfAbsent(accountHash, (k) -> new HashMap<>());
         return slotToFile.computeIfAbsent(slot, (k) -> new File(Persistance.COPILOT_DIR, String.format(OFFER_FILE_TEMPLATE, accountHash, slot)));
+    }
+
+    /**
+     * Initializes slot timers. Should be called during plugin startup.
+     */
+    public void initializeSlotTimers(FlippingCopilotPlugin plugin, Client client, SuggestionPreferencesManager preferencesManager) {
+        if (slotTimers.isEmpty()) {
+            for (int i = 0; i < 8; i++) {
+                SlotActivityTimer timer = new SlotActivityTimer(i);
+                timer.setClient(client);
+                timer.setPlugin(plugin);
+                timer.setPreferencesManager(preferencesManager);
+                slotTimers.add(timer);
+            }
+            log.debug("Initialized {} slot timers", slotTimers.size());
+        }
+    }
+
+    /**
+     * Gets the timer for a specific slot.
+     */
+    public SlotActivityTimer getSlotTimer(int slotIndex) {
+        if (slotIndex >= 0 && slotIndex < slotTimers.size()) {
+            return slotTimers.get(slotIndex);
+        }
+        return null;
     }
 }

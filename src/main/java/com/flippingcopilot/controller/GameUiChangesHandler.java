@@ -5,6 +5,8 @@ import com.flippingcopilot.model.OfferStatus;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.OfferEditor;
+import com.flippingcopilot.ui.SlotActivityTimer;
+import com.flippingcopilot.ui.SlotStateDrawer;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +35,9 @@ public class GameUiChangesHandler {
     private final GrandExchange grandExchange;
     private final OfferManager offerManager;
     private final OfferHandler offerHandler;
+    private final SlotStateDrawer slotStateDrawer;
+    private final FlippingCopilotConfig config;
+    private final FlippingCopilotPlugin plugin;
     // state
     boolean quantityOrPriceChatboxOpen;
     boolean itemSearchChatboxOpen = false;
@@ -147,5 +152,61 @@ public class GameUiChangesHandler {
         } else {
             return null;
         }
+    }
+
+    /**
+     * Handles script post fired events for GE slot modifications.
+     */
+    public void onScriptPostFired(ScriptPostFired event) {
+        // Script 782: GE collect button and other updates
+        // Script 804: GE slot redraws
+        if (event.getScriptId() == 782 || event.getScriptId() == 804) {
+            clientThread.invokeLater(() -> {
+                setWidgetsOnSlotTimers();
+                setWidgetsOnSlotStateDrawer();
+            });
+        }
+    }
+
+    /**
+     * Sets widgets on slot timers and updates their display.
+     */
+    private void setWidgetsOnSlotTimers() {
+        // Always disable slot modifications when Flipping Utilities is running to prevent conflicts
+        if (!config.slotTimersEnabled() || plugin.isFlippingUtilitiesEnabled()) {
+            return;
+        }
+
+        for (int slotIndex = 0; slotIndex < 8; slotIndex++) {
+            SlotActivityTimer timer = offerManager.getSlotTimer(slotIndex);
+            if (timer == null) {
+                continue;
+            }
+
+            Widget offerSlot = client.getWidget(465, 7 + slotIndex);
+            if (timer.getSlotWidget() == null && offerSlot != null) {
+                timer.setWidget(offerSlot);
+            }
+            
+            timer.updateTimerDisplay();
+        }
+    }
+
+    /**
+     * Sets widgets on slot state drawer and refreshes visuals.
+     */
+    private void setWidgetsOnSlotStateDrawer() {
+        // Always disable slot modifications when Flipping Utilities is running to prevent conflicts
+        if (!config.coloredSlotsEnabled() || plugin.isFlippingUtilitiesEnabled()) {
+            return;
+        }
+
+        Widget[] slotWidgets = new Widget[8];
+        for (int i = 0; i < 8; i++) {
+            slotWidgets[i] = client.getWidget(465, 7 + i);
+        }
+        
+        slotStateDrawer.setSlotWidgets(slotWidgets);
+        slotStateDrawer.refreshSlotVisuals();
     }
 }

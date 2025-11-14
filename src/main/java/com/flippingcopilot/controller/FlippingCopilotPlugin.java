@@ -4,10 +4,12 @@ import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
+import com.flippingcopilot.ui.SlotActivityTimer;
 import com.google.gson.Gson;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.gameval.InventoryID;
@@ -17,8 +19,10 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ClientShutdown;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.PluginChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.NavigationButton;
@@ -28,9 +32,11 @@ import net.runelite.client.util.ImageUtil;
 import javax.inject.Inject;
 import javax.swing.*;
 import java.awt.image.BufferedImage;
+import java.util.concurrent.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -40,7 +46,8 @@ import java.util.concurrent.TimeUnit;
 )
 public class FlippingCopilotPlugin extends Plugin {
 
-	@Inject
+	@Getter
+    @Inject
 	private FlippingCopilotConfig config;
 	@Inject
 	private Client client;
@@ -103,6 +110,10 @@ public class FlippingCopilotPlugin extends Plugin {
 	private FlipsDialogController flipsDialogController;
 	@Inject
 	private SuggestionPreferencesManager preferencesManager;
+	@Inject
+	private SlotStateDrawer slotStateDrawer;
+	@Inject
+	private PluginManager pluginManager;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -121,10 +132,35 @@ public class FlippingCopilotPlugin extends Plugin {
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
 	private NavigationButton navButton;
+	private ScheduledFuture<?> slotTimersTask;
+
+    /**
+	 * Checks if the Flipping Utilities plugin is currently enabled.
+	 * @return true if Flipping Utilities is enabled, false otherwise
+	 */
+	public boolean isFlippingUtilitiesEnabled() {
+		try {
+			Plugin flippingPlugin = pluginManager.getPlugins().stream()
+				.filter(p -> p.getClass().getName().equals("com.flippingutilities.controller.FlippingPlugin"))
+				.findFirst()
+				.orElse(null);
+			return flippingPlugin != null && pluginManager.isPluginEnabled(flippingPlugin);
+		} catch (Exception e) {
+			log.debug("Error checking Flipping Utilities status", e);
+			return false;
+		}
+	}
 
 	@Override
 	protected void startUp() throws Exception {
 		Persistance.setUp(gson);
+		
+		// Initialize custom GE slot sprites
+		GeSpriteLoader.setClientSpriteOverrides(client);
+		
+		// Initialize slot timers
+		offerManager.initializeSlotTimers(this, client, preferencesManager);
+		
 		// seems we need to delay instantiating the UI till here as otherwise the panels look different
 		mainPanel = injector.getInstance(MainPanel.class);
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/icon-small.png");
@@ -172,6 +208,23 @@ public class FlippingCopilotPlugin extends Plugin {
 		offerManager.saveAll();
 		highlightController.removeAll();
 		clientToolbar.removeNavigation(navButton);
+		
+		// Stop slot timers
+		if (slotTimersTask != null && !slotTimersTask.isCancelled()) {
+			slotTimersTask.cancel(true);
+		}
+		slotTimersTask = null;
+		
+		// Reset all slot timers to default
+		clientThread.invokeLater(() -> {
+			for (SlotActivityTimer timer : offerManager.getSlotTimers()) {
+				timer.resetToDefault();
+			}
+		});
+		
+		// Reset all slot borders to default
+		slotStateDrawer.resetAllSlots();
+		
 		if(copilotLoginManager.isLoggedIn()) {
 			String displayName = osrsLoginManager.getLastDisplayName();
 			Integer accountId = copilotLoginManager.getAccountId(displayName);
@@ -219,6 +272,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Subscribe
 	public void onScriptPostFired(ScriptPostFired e) {
 		tooltipController.tooltip(e);
+		gameUiChangesHandler.onScriptPostFired(e);
 	}
 
 	@Subscribe
@@ -268,6 +322,15 @@ public class FlippingCopilotPlugin extends Plugin {
 				grandExchangeUncollectedManager.reset();
 				statsPanel.refresh(true, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
 				mainPanel.refresh();
+				
+				// Stop slot timers
+				if (slotTimersTask != null && !slotTimersTask.isCancelled()) {
+					slotTimersTask.cancel(true);
+				}
+				slotTimersTask = null;
+				
+				// Reset slot visuals
+				slotStateDrawer.resetAllSlots();
 				break;
 			case LOGGING_IN:
 			case HOPPING:
@@ -300,6 +363,11 @@ public class FlippingCopilotPlugin extends Plugin {
 						transactionManager.scheduleSyncIn(0, name);
 					}
 					preferencesManager.loadAccountPreferences();
+					
+					// Start slot timers
+					if (config.slotTimersEnabled() && slotTimersTask == null) {
+						slotTimersTask = startSlotTimers();
+					}
 
 					return true;
 				});
@@ -334,6 +402,82 @@ public class FlippingCopilotPlugin extends Plugin {
 			if (event.getKey().equals("suggestionHighlights")) {
 				clientThread.invokeLater(() -> highlightController.redraw());
 			}
+			if (event.getKey().equals("slotTimersEnabled")) {
+				handleSlotTimersConfigChange();
+			}
+			if (event.getKey().equals("coloredSlotsEnabled")) {
+				clientThread.invokeLater(() -> {
+					if (config.coloredSlotsEnabled()) {
+						gameUiChangesHandler.onScriptPostFired(new ScriptPostFired(804));
+					} else {
+						slotStateDrawer.resetAllSlots();
+					}
+				});
+			}
 		}
+	}
+
+	@Subscribe
+	public void onPluginChanged(PluginChanged event) {
+		// Check if Flipping Utilities plugin state changed
+		if (event.getPlugin().getClass().getName().equals("com.flippingutilities.controller.FlippingPlugin")) {
+			clientThread.invokeLater(() -> {
+				boolean flippingUtilitiesEnabled = isFlippingUtilitiesEnabled();
+				log.debug("Flipping Utilities plugin state changed, enabled: {}", flippingUtilitiesEnabled);
+				
+				if (flippingUtilitiesEnabled) {
+					// Disable our slot features when Flipping Utilities is enabled
+					if (slotTimersTask != null && !slotTimersTask.isCancelled()) {
+						slotTimersTask.cancel(true);
+						slotTimersTask = null;
+					}
+					// Reset all slot timers
+					for (SlotActivityTimer timer : offerManager.getSlotTimers()) {
+						timer.resetToDefault();
+					}
+					// Reset all slot borders
+					slotStateDrawer.resetAllSlots();
+				} else {
+					// Re-enable our slot features when Flipping Utilities is disabled
+					if (config.slotTimersEnabled() && slotTimersTask == null && osrsLoginManager.isValidLoginState()) {
+						slotTimersTask = startSlotTimers();
+					}
+					if (config.coloredSlotsEnabled()) {
+						gameUiChangesHandler.onScriptPostFired(new ScriptPostFired(804));
+					}
+				}
+			});
+		}
+	}
+
+	private void handleSlotTimersConfigChange() {
+		if (config.slotTimersEnabled()) {
+			if (slotTimersTask == null && osrsLoginManager.isValidLoginState()) {
+				slotTimersTask = startSlotTimers();
+			}
+		} else {
+			if (slotTimersTask != null && !slotTimersTask.isCancelled()) {
+				slotTimersTask.cancel(true);
+			}
+			slotTimersTask = null;
+			// Reset all timers to default
+			clientThread.invokeLater(() -> {
+				for (SlotActivityTimer timer : offerManager.getSlotTimers()) {
+					timer.resetToDefault();
+				}
+			});
+		}
+	}
+
+	private ScheduledFuture<?> startSlotTimers() {
+		return executorService.scheduleAtFixedRate(() ->
+			offerManager.getSlotTimers().forEach(timer ->
+				clientThread.invokeLater(() -> {
+					try {
+						timer.updateTimerDisplay();
+					} catch (Exception e) {
+						log.error("exception updating timer for slot {}", timer.getSlotIndex(), e);
+					}
+				})), 1000, 1000, TimeUnit.MILLISECONDS);
 	}
 }

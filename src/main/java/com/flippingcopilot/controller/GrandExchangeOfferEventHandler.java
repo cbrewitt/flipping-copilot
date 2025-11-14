@@ -1,6 +1,7 @@
 package com.flippingcopilot.controller;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.GpDropOverlay;
+import com.flippingcopilot.ui.SlotActivityTimer;
 
 import java.time.Instant;
 import java.util.*;
@@ -81,6 +82,9 @@ public class GrandExchangeOfferEventHandler {
         }
         updateUncollected(accountHash, slot, o, prev, consistent);
         offerPersistence.saveOffer(accountHash, slot, o);
+
+        // Update slot timer
+        updateSlotTimer(slot, o, prev);
 
         // Always fetch suggestion to ensure fast response for better UX
         suggestionManager.setSuggestionNeeded(true);
@@ -198,5 +202,32 @@ public class GrandExchangeOfferEventHandler {
                 || prev.getTotalQuantity() != updated.getTotalQuantity()
                 || prev.getQuantitySold() > updated.getQuantitySold()
                 || prev.getSpent() > updated.getSpent();
+    }
+
+    /**
+     * Updates the slot timer based on offer state changes.
+     */
+    private void updateSlotTimer(int slot, SavedOffer offer, SavedOffer prev) {
+        SlotActivityTimer timer = offerManager.getSlotTimer(slot);
+        if (timer == null) {
+            return;
+        }
+
+        GrandExchangeOfferState state = offer.getState();
+        
+        // Reset timer for completed/cancelled/empty offers
+        if (state == GrandExchangeOfferState.EMPTY ||
+            state == GrandExchangeOfferState.BOUGHT ||
+            state == GrandExchangeOfferState.SOLD ||
+            state == GrandExchangeOfferState.CANCELLED_BUY ||
+            state == GrandExchangeOfferState.CANCELLED_SELL) {
+            timer.reset();
+        } else if (isNewOffer(prev, offer)) {
+            // New active offer - start timer
+            timer.setCurrentOffer(offer);
+        } else {
+            // Existing offer updated (e.g., partial fill) - just update reference
+            timer.setCurrentOffer(offer);
+        }
     }
 }
