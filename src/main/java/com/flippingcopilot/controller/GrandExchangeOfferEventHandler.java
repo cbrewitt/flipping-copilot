@@ -83,7 +83,6 @@ public class GrandExchangeOfferEventHandler {
         updateUncollected(accountHash, slot, o, prev, consistent);
         offerPersistence.saveOffer(accountHash, slot, o);
 
-        // Update slot timer
         updateSlotTimer(slot, o, prev);
 
         // Always fetch suggestion to ensure fast response for better UX
