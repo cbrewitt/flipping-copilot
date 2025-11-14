@@ -57,8 +57,7 @@ public class OfferManager {
     private final Map<Long, Map<Integer, SavedOffer>> cachedOffers = new HashMap<>();
     private final Map<Long, Map<Integer, File>> files = new HashMap<>();
     private final Map<Long, Map<Integer, SavedOffer>> lastSaved = new HashMap<>();
-    
-    // Slot timers
+
     @Getter
     private final List<SlotActivityTimer> slotTimers = new ArrayList<>();
 

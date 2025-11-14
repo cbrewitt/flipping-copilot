@@ -82,11 +82,9 @@ public class GeSpriteLoader {
      * Should be called during plugin startup.
      */
     public static void setClientSpriteOverrides(Client client) {
-        log.debug("Loading custom GE slot sprites");
         setClientSpriteOverrides(client, "red", CustomSpriteIds.RED_SLOT_SPRITES);
         setClientSpriteOverrides(client, "blue", CustomSpriteIds.BLUE_SLOT_SPRITES);
         setClientSpriteOverrides(client, "yellow", CustomSpriteIds.YELLOW_SLOT_SPRITES);
-        log.debug("Custom GE slot sprites loaded successfully");
     }
 
     /**
