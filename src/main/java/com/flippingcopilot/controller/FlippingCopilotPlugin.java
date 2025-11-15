@@ -103,6 +103,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	private FlipsDialogController flipsDialogController;
 	@Inject
 	private SuggestionPreferencesManager preferencesManager;
+	@Inject
+	private SlotProfitColorizer slotProfitColorizer;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -171,6 +173,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	protected void shutDown() throws Exception {
 		offerManager.saveAll();
 		highlightController.removeAll();
+		clientThread.invokeLater(() -> slotProfitColorizer.resetAllSlots());
 		clientToolbar.removeNavigation(navButton);
 		if(copilotLoginManager.isLoggedIn()) {
 			String displayName = osrsLoginManager.getLastDisplayName();
@@ -210,6 +213,11 @@ public class FlippingCopilotPlugin extends Plugin {
 	}
 
 	@Subscribe
+	public void onBeforeRender(BeforeRender event) {
+		gameUiChangesHandler.onBeforeRender(event);
+	}
+
+	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked event) {
 		int slot = grandExchange.getOpenSlot();
 		grandExchangeCollectHandler.handleCollect(event, slot);
@@ -219,6 +227,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Subscribe
 	public void onScriptPostFired(ScriptPostFired e) {
 		tooltipController.tooltip(e);
+		gameUiChangesHandler.onScriptPostFired(e);
 	}
 
 	@Subscribe
@@ -334,6 +343,23 @@ public class FlippingCopilotPlugin extends Plugin {
 			if (event.getKey().equals("suggestionHighlights")) {
 				clientThread.invokeLater(() -> highlightController.redraw());
 			}
+			if (event.getKey().equals("slotPriceColorEnabled")) {
+				handleSlotPriceColorConfigChange();
+			}
+			if (event.getKey().equals("slotPriceProfitableColor") || event.getKey().equals("slotPriceUnprofitableColor")) {
+				clientThread.invokeLater(() -> {
+					slotProfitColorizer.updateAllSlots();
+					highlightController.redraw();
+				});
+			}
+		}
+	}
+
+	private void handleSlotPriceColorConfigChange() {
+		if (config.slotPriceColorEnabled()) {
+			clientThread.invokeLater(() -> slotProfitColorizer.updateAllSlots());
+		} else {
+			clientThread.invokeLater(() -> slotProfitColorizer.resetAllSlots());
 		}
 	}
 }

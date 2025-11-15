@@ -10,19 +10,24 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
+import net.runelite.api.gameval.VarClientID;
+import net.runelite.api.gameval.VarPlayerID;
+import net.runelite.api.gameval.VarbitID;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.*;
 import net.runelite.client.callback.ClientThread;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
-import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
 @Slf4j
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GameUiChangesHandler {
     private static final int GE_HISTORY_TAB_WIDGET_ID = 149;
+    private static final int SCRIPT_GE_COLLECT = 782;
+    private static final int SCRIPT_GE_SLOT_REDRAW = 804;
 
     // dependencies
     private final ClientThread clientThread;
@@ -33,6 +38,7 @@ public class GameUiChangesHandler {
     private final GrandExchange grandExchange;
     private final OfferManager offerManager;
     private final OfferHandler offerHandler;
+    private final SlotProfitColorizer slotProfitColorizer;
     // state
     boolean quantityOrPriceChatboxOpen;
     boolean itemSearchChatboxOpen = false;
@@ -40,24 +46,24 @@ public class GameUiChangesHandler {
     OfferEditor flippingWidget = null;
 
     public void onVarClientIntChanged(VarClientIntChanged event) {
-        if (event.getIndex() == VarClientInt.INPUT_TYPE
-                && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 14
+        if (event.getIndex() == VarClientID.MESLAYERMODE
+                && client.getVarcIntValue(VarClientID.MESLAYERMODE) == 14
                 && client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS) != null) {
             itemSearchChatboxOpen = true;
             clientThread.invokeLater(gePreviousSearch::showSuggestedItemInSearch);
         }
 
         if (quantityOrPriceChatboxOpen
-                && event.getIndex() == VarClientInt.INPUT_TYPE
-                && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 0
+                && event.getIndex() == VarClientID.MESLAYERMODE
+                && client.getVarcIntValue(VarClientID.MESLAYERMODE) == 0
         ) {
             quantityOrPriceChatboxOpen = false;
             return;
         }
 
         if (itemSearchChatboxOpen
-                && event.getIndex() == VarClientInt.INPUT_TYPE
-                && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 0
+                && event.getIndex() == VarClientID.MESLAYERMODE
+                && client.getVarcIntValue(VarClientID.MESLAYERMODE) == 0
         ) {
             clientThread.invokeLater(highlightController::redraw);
             itemSearchChatboxOpen = false;
@@ -65,9 +71,9 @@ public class GameUiChangesHandler {
         }
 
         //Check that it was the chat input that got enabled.
-        if (event.getIndex() != VarClientInt.INPUT_TYPE
+        if (event.getIndex() != VarClientID.MESLAYERMODE
                 || client.getWidget(ComponentID.CHATBOX_TITLE) == null
-                || client.getVarcIntValue(VarClientInt.INPUT_TYPE) != 7
+                || client.getVarcIntValue(VarClientID.MESLAYERMODE) != 7
                 || client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER) == null) {
             return;
         }
@@ -84,17 +90,18 @@ public class GameUiChangesHandler {
     }
 
     public void onVarClientStrChanged(VarClientStrChanged event) {
-        if (event.getIndex() == VarClientStr.INPUT_TEXT && itemSearchChatboxOpen) {
+        if (event.getIndex() == VarClientID.MESLAYERINPUT && itemSearchChatboxOpen) {
             clientThread.invokeLater(highlightController::redraw);
         }
     }
 
     public void onWidgetLoaded(WidgetLoaded event) {
-        if (event.getGroupId() == InterfaceID.GRAND_EXCHANGE) {
+        if (event.getGroupId() == InterfaceID.GE_OFFERS) {
             suggestionManager.setSuggestionNeeded(true);
+            clientThread.invokeLater(slotProfitColorizer::updateAllSlots);
         }
         if (event.getGroupId() == 383
-                || event.getGroupId() == InterfaceID.GRAND_EXCHANGE
+                || event.getGroupId() == InterfaceID.GE_OFFERS
                 || event.getGroupId() == 213
                 || event.getGroupId() == GE_HISTORY_TAB_WIDGET_ID) {
             clientThread.invokeLater(highlightController::redraw);
@@ -102,7 +109,7 @@ public class GameUiChangesHandler {
     }
 
     public void onWidgetClosed(WidgetClosed event) {
-        if (event.getGroupId() == InterfaceID.GRAND_EXCHANGE) {
+        if (event.getGroupId() == InterfaceID.GE_OFFERS) {
             clientThread.invokeLater(highlightController::removeAll);
             suggestionManager.setSuggestionNeeded(true);
         }
@@ -110,14 +117,14 @@ public class GameUiChangesHandler {
 
     public void onVarbitChanged(VarbitChanged event) {
         if (event.getVarpId() == 375
-                || event.getVarpId() == CURRENT_GE_ITEM
-                || event.getVarbitId() == 4396
-                || event.getVarbitId() == 4398
-                || event.getVarbitId() == 4439) {
+                || event.getVarpId() == VarPlayerID.TRADINGPOST_SEARCH
+                || event.getVarbitId() == VarbitID.GE_NEWOFFER_QUANTITY
+                || event.getVarbitId() == VarbitID.GE_NEWOFFER_PRICE
+                || event.getVarbitId() == VarbitID.GE_SELECTEDSLOT) {
             clientThread.invokeLater(highlightController::redraw);
         }
 
-        if (event.getVarpId() == CURRENT_GE_ITEM) {
+        if (event.getVarpId() == VarPlayerID.TRADINGPOST_SEARCH) {
             clientThread.invokeLater(() -> offerHandler.fetchSlotItemPrice(event.getValue() > -1, this::getFlippingWidget));
         }
     }
@@ -146,6 +153,18 @@ public class GameUiChangesHandler {
             return OfferStatus.BUY;
         } else {
             return null;
+        }
+    }
+
+    public void onScriptPostFired(ScriptPostFired event) {
+        if (event.getScriptId() == SCRIPT_GE_COLLECT || event.getScriptId() == SCRIPT_GE_SLOT_REDRAW) {
+            clientThread.invokeLater(slotProfitColorizer::updateAllSlots);
+        }
+    }
+
+    public void onBeforeRender(BeforeRender event) {
+        if (grandExchange.isOpen()) {
+            slotProfitColorizer.updateAllSlots();
         }
     }
 }

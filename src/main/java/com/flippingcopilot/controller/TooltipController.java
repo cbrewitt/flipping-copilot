@@ -1,8 +1,7 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.manager.CopilotLoginManager;
-import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.UIUtilities;
+import com.flippingcopilot.util.ProfitCalculator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
@@ -19,23 +18,18 @@ import javax.inject.Singleton;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.flippingcopilot.model.OfferStatus.SELL;
-import static com.flippingcopilot.util.GeTax.getPostTaxPrice;
-
 @Singleton
 @Slf4j
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class TooltipController {
     private static final int SCRIPT_TOOLTIP_GE = 526;
+    private static final int TOOLTIP_HEIGHT_WITH_PROFIT = 45;
 
     private static final FontMetrics FONT_METRICS = Toolkit.getDefaultToolkit().getFontMetrics(FontManager.getRunescapeFont());
     private static final int WIDTH_PADDING = 4;
 
     private final Client client;
-    private final OfferManager offerManager;
-    private final FlipManager flipManager;
-    private final OsrsLoginManager osrsLoginManager;
-    private final CopilotLoginManager copilotLoginManager;
+    private final ProfitCalculator profitCalculator;
 
     public void tooltip(ScriptPostFired e) {
         if(e.getScriptId() != SCRIPT_TOOLTIP_GE) {
@@ -65,11 +59,11 @@ public class TooltipController {
             String name = getItemNameFromTooltipText(text.getText());
 
             if(name != null) {
-                long profit = getProfitFromItemName(name);
+                long profit = profitCalculator.getProfitByItemName(name);
                 text.setText(text.getText()  + "<br>Profit: " + UIUtilities.quantityToRSDecimalStack(profit, false) + " gp");
 
-                tooltip.setOriginalHeight(45);
-                text.setOriginalHeight(45);
+                tooltip.setOriginalHeight(TOOLTIP_HEIGHT_WITH_PROFIT);
+                text.setOriginalHeight(TOOLTIP_HEIGHT_WITH_PROFIT);
 
                 int width = calculateTooltipWidth(text.getText());
                 tooltip.setOriginalWidth(width);
@@ -93,32 +87,6 @@ public class TooltipController {
         } else {
             return false; // or handle as you wish
         }
-    }
-
-    public long getProfitFromItemName(String itemName) {
-        String displayName = osrsLoginManager.getPlayerDisplayName();
-
-        for(int i = 0; i < 8; i++) {
-            long accountHash = client.getAccountHash();
-            SavedOffer offer = offerManager.loadOffer(accountHash, i);
-
-            if(offer.getOfferStatus().equals(SELL)) {
-                Integer accountId = copilotLoginManager.getAccountId(displayName);
-                if(accountId != null && accountId != -1) {
-                    FlipV2 flip = flipManager.getLastFlipByItemId(accountId, offer.getItemId());
-
-                    if (flip == null || FlipStatus.FINISHED.equals(flip.getStatus())) {
-                        continue;
-                    }
-
-                    if(flip.getCachedItemName().equals(itemName)) {
-                        return ((long) getPostTaxPrice(offer.getItemId(), offer.getPrice()) * offer.getTotalQuantity()) - (flip.getAvgBuyPrice() * offer.getTotalQuantity());
-                    }
-                }
-            }
-        }
-
-        return 0;
     }
 
     public String getItemNameFromTooltipText(String text) {

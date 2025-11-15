@@ -7,6 +7,7 @@ import com.flippingcopilot.controller.PremiumInstanceController;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
+import com.flippingcopilot.util.ProfitCalculator;
 import joptsimple.internal.Strings;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,7 @@ public class SuggestionPanel extends JPanel {
     private final FlipManager flipManager;
     private final CopilotLoginManager copilotLoginManager;
     private final FlipsDialogController flipsDialogController;
+    private final ProfitCalculator profitCalculator;
 
 
     private final JLabel suggestionText = new JLabel();
@@ -87,7 +89,7 @@ public class SuggestionPanel extends JPanel {
                            ClientThread clientThread,
                            HighlightController highlightController,
                            ItemManager itemManager,
-                           GrandExchange grandExchange,  PremiumInstanceController premiumInstanceController, FlipManager flipManager, CopilotLoginManager copilotLoginManager, FlipsDialogController flipsDialogController) {
+                           GrandExchange grandExchange,  PremiumInstanceController premiumInstanceController, FlipManager flipManager, CopilotLoginManager copilotLoginManager, FlipsDialogController flipsDialogController, ProfitCalculator profitCalculator) {
         this.preferencesPanel = preferencesPanel;
         this.config = config;
         this.suggestionManager = suggestionManager;
@@ -106,6 +108,7 @@ public class SuggestionPanel extends JPanel {
         this.flipManager = flipManager;
         this.copilotLoginManager = copilotLoginManager;
         this.flipsDialogController = flipsDialogController;
+        this.profitCalculator = profitCalculator;
 
         layeredPane.setLayout(null);
         setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, 150));
@@ -304,19 +307,10 @@ public class SuggestionPanel extends JPanel {
         if (suggestion.getType().equals("buy")) {
             setAdditionalInfoText(formatExpectedProfitAndDuration(suggestion.getExpectedProfit(), suggestion.getExpectedDuration()) + additionalInfoMessage);
         } else if (suggestion.getType().equals("sell")) {
-            Transaction t = new Transaction();
-            t.setItemId(suggestion.getItemId());
-            t.setPrice(suggestion.getPrice());
-            t.setQuantity(suggestion.getQuantity());
-            t.setAmountSpent(suggestion.getPrice() * suggestion.getQuantity());
-            t.setType(OfferStatus.SELL);
-            Integer accountId = copilotLoginManager.getAccountId(osrsLoginManager.getLastDisplayName());
             String text = "";
-            if (accountId != null) {
-                Long profit = flipManager.estimateTransactionProfit(accountId, t);
-                if (profit != null) {
-                    text = formatSellProfitLossAndDuration((double) profit, suggestion.getExpectedDuration());
-                }
+            Long profit = profitCalculator.calculateSuggestionProfit(suggestion);
+            if (profit != null) {
+                text = formatSellProfitLossAndDuration((double) profit, suggestion.getExpectedDuration());
             }
             setAdditionalInfoText(text + additionalInfoMessage);
         } else {
