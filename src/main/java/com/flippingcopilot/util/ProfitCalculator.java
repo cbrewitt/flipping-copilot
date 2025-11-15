@@ -19,6 +19,7 @@ import java.util.HashSet;
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class ProfitCalculator {
+    private static final int GE_SLOT_COUNT = 8;
     private final static int MAX_PRICE_FOR_GE_TAX = 250000000;
     private final static int GE_TAX_CAP = 5000000;
     private final static double GE_TAX = 0.02;
