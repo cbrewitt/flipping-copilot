@@ -8,13 +8,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.gameval.VarPlayerID;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.Widget;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-
-import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
-import static net.runelite.api.Varbits.GE_OFFER_CREATION_TYPE;
 
 @Slf4j
 @Singleton
@@ -76,16 +75,14 @@ public class MenuHandler {
         if (suggestion == null) {
             return false;
         }
-        String offerType = client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
-        if (client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId() && offerType.equals(suggestion.getType())) {
+        String offerType = grandExchange.isOfferTypeSell() ? "sell" : "buy";
+        if (client.getVarpValue(VarPlayerID.TRADINGPOST_SEARCH) == suggestion.getItemId() && offerType.equals(suggestion.getType())) {
             return grandExchange.getOfferPrice() == suggestion.getPrice()
                     && grandExchange.getOfferQuantity() == suggestion.getQuantity();
-        } else if (client.getVarpValue(CURRENT_GE_ITEM) == offerManager.getViewedSlotItemId()
+        } else if (client.getVarpValue(VarPlayerID.TRADINGPOST_SEARCH) == offerManager.getViewedSlotItemId()
                 && offerManager.getViewedSlotItemPrice() > 0) {
             return grandExchange.getOfferPrice() == offerManager.getViewedSlotItemPrice();
         }
         return false;
     }
 }
-
-

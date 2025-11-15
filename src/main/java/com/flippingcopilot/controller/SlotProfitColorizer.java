@@ -3,6 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.OfferStatus;
 import com.flippingcopilot.model.SavedOffer;
+import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.util.ProfitCalculator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +45,7 @@ public class SlotProfitColorizer {
 
     /**
      * Helper method to load an offer for a given slot.
-     * 
+     *
      * @param slotIndex The slot index (0-7)
      * @return The SavedOffer, or null if not found
      */
@@ -74,21 +75,21 @@ public class SlotProfitColorizer {
         }
 
         for (int slotIndex = 0; slotIndex < GE_SLOT_COUNT; slotIndex++) {
-            updateSlot(slotIndex);
+            updateOverviewSlot(slotIndex);
         }
     }
 
     /**
      * Updates a single slot's price text color based on profitability.
-     * 
+     *
      * @param slotIndex The slot index (0-7)
      */
-    private void updateSlot(int slotIndex) {
+    private void updateOverviewSlot(int slotIndex) {
         try {
             Widget slotWidget = getSlotWidget(slotIndex);
             Widget priceTextWidget = getPriceTextWidget(slotWidget);
-            
-            updatePriceTextColor(priceTextWidget, slotIndex, DEFAULT_COLOR);
+
+            updatePriceTextColor(priceTextWidget, slotIndex, Color.decode("#" + DEFAULT_COLOR));
         } catch (Exception e) {
             log.error("Error updating slot {} price color", slotIndex, e);
         }
@@ -99,15 +100,15 @@ public class SlotProfitColorizer {
      * Widget path: 465.15[25]
      */
     private void updateDetailView(int openSlot) {
-        try {
-            if (openSlot == -1) {
-                return; // No slot is open
-            }
+        if (openSlot == -1) {
+            return;
+        }
 
+        try {
             Widget detailViewWidget = client.getWidget(InterfaceID.GE_OFFERS, DETAIL_VIEW_CHILD_ID);
             Widget priceTextWidget = detailViewWidget != null ? detailViewWidget.getChild(DETAIL_PRICE_TEXT_CHILD_INDEX) : null;
-            
-            updatePriceTextColor(priceTextWidget, openSlot, DETAIL_AND_SETUP_DEFAULT_COLOR);
+
+            updatePriceTextColor(priceTextWidget, openSlot, Color.decode("#" + DETAIL_AND_SETUP_DEFAULT_COLOR));
         } catch (Exception e) {
             log.debug("Error updating detail view price color", e);
         }
@@ -115,36 +116,35 @@ public class SlotProfitColorizer {
 
     /**
      * Updates the price text color for a given widget based on slot profitability.
-     * 
+     *
      * @param priceTextWidget The widget containing the price text
      * @param slotIndex The slot index (0-7)
      * @param defaultColor The default color to use if not profitable/unprofitable
      */
-    private void updatePriceTextColor(Widget priceTextWidget, int slotIndex, String defaultColor) {
+    private void updatePriceTextColor(Widget priceTextWidget, int slotIndex, Color defaultColor) {
         if (!hasValidText(priceTextWidget)) {
             return;
         }
 
-        // Determine if this is a buy or sell offer
-        boolean isBuyOffer = isBuyOffer(slotIndex);
-        boolean isTracked = isOfferTracked(slotIndex);
+        Color targetColor = defaultColor;
 
-        // Calculate profitability for this slot
-        Long profit = calculateSlotProfit(slotIndex);
+        if (! isBuyOffer(slotIndex)) {
+            targetColor = determineProfitColor(calculateSlotProfit(slotIndex), defaultColor);
+        } else if (isOfferTracked(slotIndex)) {
+            targetColor = config.slotPriceProfitableColor();
+        }
 
-        // Apply appropriate color
-        String colorizedText = applyColorToText(priceTextWidget.getText(), profit, isBuyOffer, isTracked, defaultColor);
-        priceTextWidget.setText(colorizedText);
+        priceTextWidget.setText(applyColorTag(priceTextWidget.getText(), targetColor));
     }
 
     /**
      * Updates the offer setup screen price text color based on suggestion profit.
      * Should be called from HighlightController when highlighting suggestion fields.
      * Widget path: 465.26[41]
-     * 
+     *
      * @param suggestion The current suggestion (buy or sell)
      */
-    public void colorOfferSetupPrice(com.flippingcopilot.model.Suggestion suggestion) {
+    public void colorOfferSetupPrice(Suggestion suggestion) {
         try {
             if (suggestion == null) {
                 return;
@@ -160,37 +160,50 @@ public class SlotProfitColorizer {
                 return;
             }
 
-            // Determine color based on offer type and profitability
-            Color color = getColorForSuggestion(suggestion);
-            if (color != null) {
-                priceTextWidget.setTextColor(color.getRGB() & 0xFFFFFF);
-            }
+            Color defaultColor = Color.decode("#" + DETAIL_AND_SETUP_DEFAULT_COLOR);
+            Color color = determineOfferSetupColor(suggestion, defaultColor);
+
+            priceTextWidget.setTextColor(color.getRGB() & 0xFFFFFF);
         } catch (Exception e) {
             log.debug("Error coloring offer setup price", e);
         }
     }
 
     /**
-     * Determines the appropriate color for a suggestion based on its type and profitability.
-     * 
-     * @param suggestion The suggestion
-     * @return The color to use, or null to use default
+     * Determine the Offer Setup screen price text color based on suggestion profit.
+     *
+     * When buying, the price will be highlighted if it matches the suggestion price.
+     * When selling, any item that will result in a profit will be shown as profitable.
+     * When selling, any item that will result in a loss will be shown as unprofitable.
+     * In all other cases, the default color is used.
      */
-    private Color getColorForSuggestion(com.flippingcopilot.model.Suggestion suggestion) {
-        if ("buy".equals(suggestion.getType())) {
-            return config.slotPriceProfitableColor();
-        }
-
-        if ("sell".equals(suggestion.getType())) {
-            Long profit = profitCalculator.calculateSuggestionProfit(suggestion);
-            if (profit != null && profit < 0) {
-                return config.slotPriceUnprofitableColor();
+    private Color determineOfferSetupColor(Suggestion suggestion, Color defaultColor) {
+        if (! grandExchange.isOfferTypeSell()) {
+            if ("buy".equals(suggestion.getType()) && suggestion.getPrice() == grandExchange.getOfferPrice()) {
+                return config.slotPriceProfitableColor();
             }
 
-            return config.slotPriceProfitableColor();
+            return defaultColor;
         }
 
-        return null;
+        Long profit = profitCalculator.calculateProfitPerItem(suggestion.getItemId(), grandExchange.getOfferPrice());
+
+        return determineProfitColor(profit, defaultColor);
+    }
+
+    /**
+     * Determine the color to apply based on profitability.
+     */
+    private Color determineProfitColor(Long profit, Color defaultColor) {
+        if (profit == null || profit == 0) {
+            return defaultColor;
+        }
+
+        if (profit < 0) {
+            return config.slotPriceUnprofitableColor();
+        } else {
+            return config.slotPriceProfitableColor();
+        }
     }
 
     /**
@@ -328,32 +341,11 @@ public class SlotProfitColorizer {
      * Applies the appropriate color to text based on profit and offer type.
      * 
      * @param text The original text
-     * @param profit The profit amount (null if unknown/not calculated)
-     * @param isBuyOffer true if this is a buy offer, false if sell offer
-     * @param isTracked true if this offer has a SavedOffer (is being tracked)
-     * @param defaultColor The default color to use for unknown/untracked offers
+     * @param determinedColor The color to apply (without <col=>)
      * @return Text with color tags applied
      */
-    private String applyColorToText(String text, Long profit, boolean isBuyOffer, boolean isTracked, String defaultColor) {
-        String plainText = stripColorTags(text);
-        
-        String colorHex;
-        if (isBuyOffer && isTracked) {
-            // Buy offers that are tracked always use blue (profitable color)
-            colorHex = colorToHex(config.slotPriceProfitableColor());
-        } else if (profit != null) {
-            // Sell offers with calculated profit: red if unprofitable, blue if profitable
-            if (profit < 0) {
-                colorHex = colorToHex(config.slotPriceUnprofitableColor());
-            } else {
-                colorHex = colorToHex(config.slotPriceProfitableColor());
-            }
-        } else {
-            // Unknown/untracked - use default game color
-            colorHex = defaultColor;
-        }
-        
-        return "<col=" + colorHex + ">" + plainText + "</col>";
+    private String applyColorTag(String text, Color determinedColor) {
+        return "<col=" + colorToHex(determinedColor) + ">" + stripColorTags(text) + "</col>";
     }
 
     /**

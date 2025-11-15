@@ -34,15 +34,38 @@ public class ProfitCalculator {
     private final OsrsLoginManager osrsLoginManager;
     private final CopilotLoginManager copilotLoginManager;
 
+    /**
+     * Calculates the post-tax price for an item.
+     */
     public static int getPostTaxPrice(int itemId, int price) {
+        return price - getTaxAmount(itemId, price);
+    }
+
+    /**
+     * Calculates the GE tax amount for an item.
+     */
+    public static int getTaxAmount(int itemId, int price) {
         if (GE_TAX_EXEMPT_ITEMS.contains(itemId)) {
-            return price;
+            return 0;
         }
+
         if (price >= MAX_PRICE_FOR_GE_TAX) {
-            return price - GE_TAX_CAP;
+            return GE_TAX_CAP;
         }
-        int tax = (int)Math.floor(price * GE_TAX);
-        return price - tax;
+
+        return (int)Math.floor(price * GE_TAX);
+    }
+
+    /**
+     * Calculates the profit per item for a sell at the given price.
+     * 
+     * @param itemId The item ID
+     * @param sellPrice The price to sell at
+     * @param avgBuyPrice The average buy price
+     * @return The profit per item in GP (post-tax)
+     */
+    public static long calculateProfitPerItem(int itemId, int sellPrice, long avgBuyPrice) {
+        return getPostTaxPrice(itemId, sellPrice) - avgBuyPrice;
     }
 
     /**
@@ -53,9 +76,8 @@ public class ProfitCalculator {
      * @return The profit in GP (post-tax)
      */
     public static long calculateOfferProfit(SavedOffer offer, FlipV2 flip) {
-        long postTaxRevenue = (long) getPostTaxPrice(offer.getItemId(), offer.getPrice()) * offer.getTotalQuantity();
-        long buyTotal = flip.getAvgBuyPrice() * offer.getTotalQuantity();
-        return postTaxRevenue - buyTotal;
+        long profitPerItem = calculateProfitPerItem(offer.getItemId(), offer.getPrice(), flip.getAvgBuyPrice());
+        return profitPerItem * offer.getTotalQuantity();
     }
 
     /**
@@ -122,6 +144,43 @@ public class ProfitCalculator {
         t.setType(OfferStatus.SELL);
 
         return flipManager.estimateTransactionProfit(accountId, t);
+    }
+
+    /**
+     * Calculates the profit per item for a given item and price for the current player.
+     * This is useful for determining profitability before placing an offer.
+     * Only calculates for flips that are not yet finished.
+     * 
+     * @param itemId The item ID
+     * @param sellPrice The price to sell at
+     * @return Profit per item in GP (post-tax revenue minus buy price), or null if cannot be calculated
+     */
+    public Long calculateProfitPerItem(int itemId, int sellPrice) {
+        if (sellPrice <= 0) {
+            return null;
+        }
+
+        String displayName = osrsLoginManager.getPlayerDisplayName();
+        if (displayName == null) {
+            return null;
+        }
+
+        Integer accountId = copilotLoginManager.getAccountId(displayName);
+        if (accountId == null || accountId == -1) {
+            return null;
+        }
+
+        FlipV2 flip = flipManager.getLastFlipByItemId(accountId, itemId);
+        if (flip == null || FlipStatus.FINISHED.equals(flip.getStatus())) {
+            return null;
+        }
+
+        long avgBuyPrice = flip.getAvgBuyPrice();
+        if (avgBuyPrice <= 0) {
+            return null;
+        }
+
+        return calculateProfitPerItem(itemId, sellPrice, avgBuyPrice);
     }
 
     /**
