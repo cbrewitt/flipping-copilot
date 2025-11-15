@@ -9,7 +9,7 @@ import com.flippingcopilot.ui.Paginator;
 import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.components.AccountDropdown;
 import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
-import com.flippingcopilot.util.GeTax;
+import com.flippingcopilot.util.ProfitCalculator;
 import joptsimple.internal.Strings;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
@@ -421,7 +421,7 @@ public class TransactionsPanel extends JPanel {
     private long calculateTax(AckedTransaction tx) {
         if (tx.getQuantity() < 0) {
             int pricePerItem = tx.getAmountSpent() / tx.getQuantity();
-            int pricePostTax = GeTax.getPostTaxPrice(tx.getItemId(), pricePerItem);
+            int pricePostTax = ProfitCalculator.getPostTaxPrice(tx.getItemId(), pricePerItem);
             return (long)(pricePerItem - pricePostTax) * tx.getQuantity();
         }
         return 0;

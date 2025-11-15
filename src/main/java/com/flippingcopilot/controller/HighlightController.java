@@ -33,6 +33,7 @@ public class HighlightController {
     private final OfferManager offerManager;
     private final OverlayManager overlayManager;
     private final HighlightColorController highlightColorController;
+    private final SlotProfitColorizer slotProfitColorizer;
 
     // state
     private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
@@ -97,6 +98,10 @@ public class HighlightController {
         if (offerTypeWidget != null) {
             if (offerType.equals(suggestion.getType())) {
                 if (client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
+                    if (config.slotPriceColorEnabled()) {
+                        slotProfitColorizer.colorOfferSetupPrice(suggestion);
+                    }
+                    
                     if (offerDetailsCorrect(suggestion)) {
                         highlightConfirm();
                     } else {
