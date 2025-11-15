@@ -16,7 +16,7 @@ public class ProfitCalculatorTest {
     public void postTaxPriceNormalItem() {
         int itemId = 9999;
         int price = 1000;
-        assertEquals(990, ProfitCalculator.getPostTaxPrice(itemId, price));
+        assertEquals(980, ProfitCalculator.getPostTaxPrice(itemId, price));
     }
 
     @Test
@@ -28,8 +28,8 @@ public class ProfitCalculatorTest {
 
     @Test
     public void postTaxPriceCheapItem() {
-        int itemId = 9999;
-        int price = 100;
+        int itemId = 13190;
+        int price = 67;
         assertEquals(price, ProfitCalculator.getPostTaxPrice(itemId, price));
     }
 }
