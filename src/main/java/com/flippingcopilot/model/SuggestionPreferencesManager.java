@@ -145,7 +145,12 @@ public class SuggestionPreferencesManager {
         Path lockFile = Paths.get(profile+ ".lock");
         Path tmpFile = Paths.get(profile+ ".tmp");
         try {
-            ProfileSuggestionPreferences preferences = gson.fromJson(Files.readString(profile), ProfileSuggestionPreferences.class);
+            ProfileSuggestionPreferences preferences;
+            if (Files.exists(profile)) {
+                preferences = gson.fromJson(Files.readString(profile), ProfileSuggestionPreferences.class);
+            } else {
+                preferences = new ProfileSuggestionPreferences();
+            }
             changes.accept(preferences);
             String toWrite = gson.toJson(preferences);
             // acquire <file>.lock
