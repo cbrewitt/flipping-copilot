@@ -192,8 +192,8 @@ public interface FlippingCopilotConfig extends Config
 
     @ConfigItem(
             keyName = "slotPriceProfitableColor",
-            name = "Active price color",
-            description = "The color for actively tracked GE offers (buys and profitable sells)",
+            name = "Buy/Profitable color",
+            description = "The color for buy offers at the suggested price, and profitable sell offers (flips)",
             section = slotPriceColorSection,
             position = 2
     )
@@ -204,8 +204,8 @@ public interface FlippingCopilotConfig extends Config
 
     @ConfigItem(
             keyName = "slotPriceUnprofitableColor",
-            name = "Unprofitable price color",
-            description = "The color for actively tracked sell offers that will lose money",
+            name = "Unprofitable color",
+            description = "The color for sell offers (flips) that will result in a loss",
             section = slotPriceColorSection,
             position = 3
     )
