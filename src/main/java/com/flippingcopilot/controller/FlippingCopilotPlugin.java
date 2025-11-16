@@ -151,7 +151,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			flipManager.setIntervalAccount(null);
 			flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
 		}
-		flipsDialogController.initDialog();
+		flipsDialogController.initDialog(SwingUtilities.getWindowAncestor(mainPanel));
 		executorService.scheduleAtFixedRate(() ->
 			clientThread.invoke(() -> {
 				boolean loginValid = osrsLoginManager.isValidLoginState();

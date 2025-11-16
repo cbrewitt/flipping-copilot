@@ -179,8 +179,7 @@ public class StatsPanelV2 extends JPanel {
     private void setupSessionResetButton() {
         sessionResetButton.setBorder(BorderFactory.createEmptyBorder());
         sessionResetButton.addActionListener((l) -> {
-            JLabel resetIcon = new JLabel(new ImageIcon(TRASH_ICON));
-            final int result = JOptionPane.showOptionDialog(resetIcon, "<html>Are you sure you want to reset the session?</html>",
+            final int result = JOptionPane.showOptionDialog(SwingUtilities.getWindowAncestor(this), "<html>Are you sure you want to reset the session?</html>",
                     "Are you sure?", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
                     null, new String[]{"Yes", "No"}, "No");
             if (result == JOptionPane.YES_OPTION) {
