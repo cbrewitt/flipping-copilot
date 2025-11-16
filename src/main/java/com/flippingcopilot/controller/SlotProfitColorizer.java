@@ -138,18 +138,14 @@ public class SlotProfitColorizer {
     }
 
     /**
-     * Updates the offer setup screen price text color based on suggestion profit.
-     * Should be called from HighlightController when highlighting suggestion fields.
+     * Updates the offer setup screen price text color.
      * Widget path: 465.26[41]
      *
-     * @param suggestion The current suggestion (buy or sell)
+     * @param itemId The item ID
+     * @param targetPrice The target/suggested price to compare against
      */
-    public void colorOfferSetupPrice(Suggestion suggestion) {
+    public void colorOfferSetupPrice(int itemId, int targetPrice) {
         try {
-            if (suggestion == null) {
-                return;
-            }
-
             Widget offerSetupWidget = client.getWidget(InterfaceID.GE_OFFERS, OFFER_SETUP_CHILD_ID);
             if (offerSetupWidget == null || offerSetupWidget.isHidden()) {
                 return;
@@ -161,7 +157,7 @@ public class SlotProfitColorizer {
             }
 
             Color defaultColor = Color.decode("#" + DETAIL_AND_SETUP_DEFAULT_COLOR);
-            Color color = determineOfferSetupColor(suggestion, defaultColor);
+            Color color = determineOfferSetupColor(itemId, targetPrice, defaultColor);
 
             priceTextWidget.setTextColor(color.getRGB() & 0xFFFFFF);
         } catch (Exception e) {
@@ -170,23 +166,30 @@ public class SlotProfitColorizer {
     }
 
     /**
-     * Determine the Offer Setup screen price text color based on suggestion profit.
+     * Determine the Offer Setup screen price text color.
      *
-     * When buying, the price will be highlighted if it matches the suggestion price.
+     * When buying, the price will be highlighted if it matches the target price.
      * When selling, any item that will result in a profit will be shown as profitable.
      * When selling, any item that will result in a loss will be shown as unprofitable.
      * In all other cases, the default color is used.
+     *
+     * @param itemId The item ID
+     * @param targetPrice The target/suggested price to compare against
+     * @param defaultColor The default color to use
      */
-    private Color determineOfferSetupColor(Suggestion suggestion, Color defaultColor) {
+    private Color determineOfferSetupColor(int itemId, int targetPrice, Color defaultColor) {
         if (! grandExchange.isOfferTypeSell()) {
-            if ("buy".equals(suggestion.getType()) && suggestion.getPrice() == grandExchange.getOfferPrice()) {
+            // For buy offers, highlight if the current price matches the target price
+            int offerPrice = grandExchange.getOfferPrice();
+            if (offerPrice > 0 && targetPrice == offerPrice) {
                 return config.slotPriceProfitableColor();
             }
 
             return defaultColor;
         }
 
-        Long profit = profitCalculator.calculateProfitPerItem(suggestion.getItemId(), grandExchange.getOfferPrice());
+        // For sell offers, calculate profit based on the current price
+        Long profit = profitCalculator.calculateProfitPerItem(itemId, grandExchange.getOfferPrice());
 
         return determineProfitColor(profit, defaultColor);
     }
@@ -260,7 +263,7 @@ public class SlotProfitColorizer {
     /**
      * Resets the offer setup screen to default color.
      */
-    private void resetOfferSetup() {
+    public void resetOfferSetup() {
         try {
             Widget offerSetupWidget = client.getWidget(InterfaceID.GE_OFFERS, OFFER_SETUP_CHILD_ID);
             if (offerSetupWidget == null) {

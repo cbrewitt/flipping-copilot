@@ -94,37 +94,51 @@ public class HighlightController {
 
     private void drawOfferScreenHighlights(Suggestion suggestion) {
         Widget offerTypeWidget = grandExchange.getOfferTypeWidget();
+        if (offerTypeWidget == null) {
+            return;
+        }
+
+        int currentItemId = client.getVarpValue(CURRENT_GE_ITEM);
+
         String offerType = client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
-        if (offerTypeWidget != null) {
-            if (offerType.equals(suggestion.getType())) {
-                if (client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
-                    if (config.slotPriceColorEnabled()) {
-                        slotProfitColorizer.colorOfferSetupPrice(suggestion);
-                    }
-                    
-                    if (offerDetailsCorrect(suggestion)) {
-                        highlightConfirm();
-                    } else {
-                        if (grandExchange.getOfferPrice() != suggestion.getPrice()) {
-                            highlightPrice();
-                        }
-                        highlightQuantity(suggestion);
-                    }
-                } else if (client.getVarpValue(CURRENT_GE_ITEM ) == -1){
-                    highlightItemInSearch(suggestion);
+        boolean matchesSuggestionOfferType = offerType.equals(suggestion.getType());
+
+        if (matchesSuggestionOfferType) {
+            if (currentItemId == suggestion.getItemId()) {
+                if (config.slotPriceColorEnabled()) {
+                    slotProfitColorizer.colorOfferSetupPrice(suggestion.getItemId(), suggestion.getPrice());
                 }
+
+                if (offerDetailsCorrect(suggestion)) {
+                    highlightConfirm();
+                } else {
+                    if (grandExchange.getOfferPrice() != suggestion.getPrice()) {
+                        highlightPrice();
+                    }
+                    highlightQuantity(suggestion);
+                }
+            } else if (currentItemId == -1){
+                highlightItemInSearch(suggestion);
             }
-            // Check if unsuggested item/offer type is selected
-            if (client.getVarpValue(CURRENT_GE_ITEM) != -1
-                    && (client.getVarpValue(CURRENT_GE_ITEM) != suggestion.getItemId()
-                        || !offerType.equals(suggestion.getType()))
-                    && client.getVarpValue(CURRENT_GE_ITEM) == offerManager.getViewedSlotItemId()
-                    && offerManager.getViewedSlotItemPrice() > 0) {
+        }
+
+        // Check if unsuggested item/offer type is selected
+        if (currentItemId != -1
+            && (currentItemId != suggestion.getItemId() || !matchesSuggestionOfferType)
+            && currentItemId == offerManager.getViewedSlotItemId()
+        ) {
+            if (offerManager.getViewedSlotItemPrice() > 0) {
+                if (config.slotPriceColorEnabled()) {
+                    slotProfitColorizer.colorOfferSetupPrice(currentItemId, offerManager.getViewedSlotItemPrice());
+                }
+
                 if (grandExchange.getOfferPrice() == offerManager.getViewedSlotItemPrice()) {
                     highlightConfirm();
                 } else {
                     highlightPrice();
                 }
+            } else if (config.slotPriceColorEnabled()) {
+                slotProfitColorizer.resetOfferSetup();
             }
         }
     }
