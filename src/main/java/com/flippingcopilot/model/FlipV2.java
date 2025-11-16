@@ -1,6 +1,6 @@
 package com.flippingcopilot.model;
 
-import com.flippingcopilot.util.GeTax;
+import com.flippingcopilot.util.ProfitCalculator;
 import lombok.Data;
 
 import java.nio.ByteBuffer;
@@ -44,7 +44,7 @@ public class FlipV2 {
         }
         long gpOut = (spent * amountToClose) / openedQuantity;
         int sellPrice  = transaction.getAmountSpent() / transaction.getQuantity();
-        int sellPricePostTax = GeTax.getPostTaxPrice(transaction.getItemId(), sellPrice);
+        int sellPricePostTax = ProfitCalculator.getPostTaxPrice(transaction.getItemId(), sellPrice);
         long gpIn = amountToClose * sellPricePostTax;
         return gpIn - gpOut;
     }
