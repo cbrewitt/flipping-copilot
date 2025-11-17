@@ -53,7 +53,7 @@ public class MenuHandler {
     }
 
     public void injectConfirmMenuEntry(MenuEntryAdded event) {
-        if(!config.disableLeftClickConfirm()) {
+        if(!config.disableLeftClickConfirm() || client.isKeyPressed(KeyCode.KC_SHIFT)) {
             return;
         }
 
