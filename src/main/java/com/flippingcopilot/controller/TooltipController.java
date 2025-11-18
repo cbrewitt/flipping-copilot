@@ -112,7 +112,8 @@ public class TooltipController {
                     }
 
                     if(flip.getCachedItemName().equals(itemName)) {
-                        return ((long) getPostTaxPrice(offer.getItemId(), offer.getPrice()) * offer.getTotalQuantity()) - (flip.getAvgBuyPrice() * offer.getTotalQuantity());
+                        int remainingQuantity = offer.getTotalQuantity() - offer.getQuantitySold();
+                        return ((long) getPostTaxPrice(offer.getItemId(), offer.getPrice()) * remainingQuantity) - (flip.getAvgBuyPrice() * remainingQuantity);
                     }
                 }
             }
