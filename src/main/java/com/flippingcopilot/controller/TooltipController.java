@@ -64,15 +64,13 @@ public class TooltipController {
 
             if(name != null) {
                 long profit = getProfitFromItemName(name);
-                text.setText(text.getText()  + "<br>Profit: " + UIUtilities.quantityToRSDecimalStack(profit, false) + " gp");
-                tooltip.setOriginalHeight(45);
 
-                int width = calculateTooltipWidth(text.getFont(), text.getText());
-                tooltip.setOriginalWidth(width);
+                text.setText(text.getText() + "<br>Profit: " + UIUtilities.quantityToRSDecimalStack(profit, false) + " gp");
+                recomputeTooltipSize(tooltip, text);
 
                 tooltip.revalidate();
-                border.revalidate();
                 background.revalidate();
+                border.revalidate();
                 text.revalidate();
             }
         }
@@ -129,19 +127,25 @@ public class TooltipController {
         }
     }
 
-    private int calculateTooltipWidth(FontTypeFace f, String text)
-    {
-        final String[] lines = text.split("<br>");
-        int maxWidth = 0;
-        for (String line : lines) {
-            String left = "";
-            left = line;
+    private void recomputeTooltipSize(Widget tooltip, Widget textWidget) {
+        final String[] lines = textWidget.getText().split("<br>");
 
-            int width = f.getTextWidth(left);
-            if (width > maxWidth) {
-                maxWidth = width;
-            }
+        tooltip.setOriginalWidth(calculateTooltipWidth(textWidget.getFont(), lines));
+        tooltip.setOriginalHeight(calculateTooltipHeight(lines));
+    }
+
+    private int calculateTooltipWidth(FontTypeFace fontTypeFace, String[] lines) {
+        double maxWidth = 0;
+        for (String line : lines) {
+            maxWidth = Math.max(maxWidth, fontTypeFace.getTextWidth(line));
         }
-        return maxWidth + WIDTH_PADDING;
+
+        return (int) Math.ceil(maxWidth) + WIDTH_PADDING;
+    }
+
+    private int calculateTooltipHeight(String[] lines) {
+        // 12 = FontID.PLAIN_12 = FontID 495 = what's used by the tooltip text
+        // 6 = 30 (default tooltip height consisting of 2 lines) - 24 (FontID.PLAIN_12 * 2 lines)
+        return (12 * lines.length) + 6;
     }
 }
