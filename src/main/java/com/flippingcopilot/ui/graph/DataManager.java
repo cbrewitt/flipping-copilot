@@ -2,7 +2,7 @@ package com.flippingcopilot.ui.graph;
 
 import com.flippingcopilot.model.VisualizeFlipResponse;
 import com.flippingcopilot.ui.graph.model.*;
-import com.flippingcopilot.util.GeTax;
+import com.flippingcopilot.util.ProfitCalculator;
 import lombok.Getter;
 
 import java.awt.*;
@@ -344,7 +344,7 @@ public class DataManager {
         }
 
         margin = data.sellPrice - data.buyPrice;
-        tax = data.sellPrice - GeTax.getPostTaxPrice(data.itemId, (int) data.sellPrice);
+        tax = data.sellPrice - ProfitCalculator.getPostTaxPrice(data.itemId, (int) data.sellPrice);
         profit = margin - tax;
     }
 
