@@ -60,7 +60,7 @@ public class FlipsDialogController {
         this.osrsLoginManager = osrsLoginManager;
     }
 
-    public void initDialog() {
+    public void initDialog(Window windowAncestor) {
         SwingUtilities.invokeLater(() -> {
             tabbedPane = new JTabbedPane();
             tabbedPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -101,7 +101,7 @@ public class FlipsDialogController {
             tabbedPane.addTab("Visualize flip", visualizeFlipPanel);
 
 
-            JDialog dialog = new JDialog();
+            JDialog dialog = new JDialog(windowAncestor);
             dialog.setTitle("Flipping Copilot");
             dialog.setResizable(true);
             dialog.setMinimumSize(new Dimension(800, 600));
