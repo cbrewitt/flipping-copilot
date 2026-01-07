@@ -384,7 +384,6 @@ public class RenderV2 {
                     y + textHeight / 3); // Adjust vertical centering
         }
 
-        // Restore original clip
         g2d.setClip(originalClip);
     }
 }
