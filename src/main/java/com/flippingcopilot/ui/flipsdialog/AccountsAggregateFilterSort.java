@@ -22,7 +22,7 @@ public class AccountsAggregateFilterSort {
     private final ExecutorService executorService;
 
     // state
-    private int intervalStartTime = -1;
+    private int intervalStartTime = 1;
     private int cachedIntervalStartTime = Integer.MIN_VALUE;
     private final List<AccountAggregate> cachedAggregates =  new ArrayList<>();
 

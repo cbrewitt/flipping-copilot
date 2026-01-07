@@ -159,6 +159,10 @@ public class FlipManager {
         if (Objects.equals(accountId,-1)) {
             return;
         }
+
+        // todo: buying flips also exist in the special Week with closed_time = 0, if arg intervalStartTime <= 0 then we
+        //  can end up with duplicates pushed to the consumer because the BUYING flips gets added here and in the later section
+        //  this is confusing and can lead to bugs - need to clean this up
         if(includeBuyingFlips) {
             WeekAggregate w = getOrInitWeek(0);
             List<FlipV2> f = accountId == null ? w.flipsAfter(-1, false) : w.flipsAfterForAccount(-1, accountId);
@@ -174,7 +178,8 @@ public class FlipManager {
             int n = weekFlips.size();
             // note: weekFlips are ascending order but we consume in descending order
             for(int ii=n-1; ii >= 0; ii--) {
-                c.accept(weekFlips.get(ii));
+                FlipV2 f = weekFlips.get(ii);
+                c.accept(f);
             }
         }
     }
