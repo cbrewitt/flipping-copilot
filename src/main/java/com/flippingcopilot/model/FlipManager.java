@@ -230,7 +230,7 @@ public class FlipManager {
 
         if(existingCloseTime != null) {
             WeekAggregate wa = getOrInitWeek(existingCloseTime);
-            FlipV2 removed = wa.removeFlipIfUpdatedBefore(flip.getId(), existingCloseTime, flip.getAccountId(), flip.getUpdatedTime());
+            FlipV2 removed = wa.removeFlipIfUpdatedBefore(existingCloseTime, flip);
             if (removed == null) {
                 // the flip we are merging is an out of date instance of the same flip
                 return;
@@ -312,17 +312,17 @@ public class FlipManager {
             flips.add(-i -1, flip);
         }
 
-        FlipV2 removeFlipIfUpdatedBefore(UUID id, int closeTime, int accountId, int newUpdatedTime) {
-            List<FlipV2> flips = accountIdToFlips.computeIfAbsent(accountId, (k) -> new ArrayList<>());
-            int i = bisect(flips.size(), closedTimeCmp(flips, id, closeTime));
+        FlipV2 removeFlipIfUpdatedBefore(int existingCloseTime, FlipV2 updatedFlip) {
+            List<FlipV2> flips = accountIdToFlips.computeIfAbsent(updatedFlip.getAccountId(), (k) -> new ArrayList<>());
+            int i = bisect(flips.size(), closedTimeCmp(flips, updatedFlip.getId(), existingCloseTime));
             FlipV2 flip = flips.get(i);
             // if the existing instance of the flip is updated more recently return null
-            if (flip.getUpdatedTime() > newUpdatedTime) {
+            if (flip.isNewer(updatedFlip)) {
                 return null;
             }
             allStats.subtractFlip(flip);
             flips.remove(i);
-            accountIdToStats.get(accountId).subtractFlip(flip);
+            accountIdToStats.get(updatedFlip.getAccountId()).subtractFlip(flip);
             return flip;
         }
 
