@@ -32,7 +32,7 @@ public class ProfitPanel extends JPanel {
     private final IntervalDropdown intervalDropdown;
 
     // State
-    private int cachedIntervalStartTime = -1; // Default to ALL
+    private int cachedIntervalStartTime = 1; // Default to ALL
     private Integer cachedAccountId = null;
     private List<Datapoint> cachedDatapoints = new ArrayList<>();
 

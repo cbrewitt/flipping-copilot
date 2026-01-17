@@ -130,4 +130,11 @@ public class FlipV2 {
     public int lastTransactionTime() {
         return closedTime == 0 ? openedTime : closedTime;
     }
+
+    public boolean isNewer(FlipV2 o) {
+        if (updatedTime == o.updatedTime) {
+            return closedQuantity > o.closedQuantity || (closedQuantity == o.closedQuantity && openedQuantity > o.openedQuantity);
+        }
+        return updatedTime > o.updatedTime;
+    }
 }

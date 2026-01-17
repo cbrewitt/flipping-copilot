@@ -668,6 +668,45 @@ public class ApiRequestHandler {
         });
     }
 
+    public void asyncDeleteTransaction(AckedTransaction transaction, BiConsumer<Integer, List<FlipV2>> onSuccess, Runnable onFailure) {
+        JsonObject body = new JsonObject();
+        body.addProperty("transaction_id", transaction.getId().toString());
+        body.addProperty("account_id", transaction.getAccountId());
+        Integer userId = copilotLoginManager.getCopilotUserId();
+        Request request = new Request.Builder()
+                .url(serverUrl + "/profit-tracking/delete-transaction")
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
+                .header("Accept", "application/x-bytes")
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.error("delete transaction {}", transaction.getId(), e);
+                onFailure.run();
+            }
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
+                        }
+                        log.error("delete transaction {}, bad response code {}", transaction.getId(), response.code());
+                        onFailure.run();
+                    } else {
+                        List<FlipV2> flips = FlipV2.listFromRaw(response.body().bytes());
+                        onSuccess.accept(userId, flips);
+                    }
+                } catch (Exception e) {
+                    log.error("delete transaction {}", transaction.getId(), e);
+                    onFailure.run();
+                }
+            }
+        });
+    }
+
     public void asyncLoadRecentAccountTransactions(String displayName, int endTime, Consumer<List<AckedTransaction>> onSuccess, Consumer<String> onFailure) {
         JsonObject body = new JsonObject();
         body.addProperty("limit", 30);
