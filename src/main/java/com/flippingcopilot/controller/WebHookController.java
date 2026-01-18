@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.DiscordWebhookBody;
 import com.flippingcopilot.model.SessionData;
 import com.flippingcopilot.model.Stats;

@@ -48,6 +48,7 @@ public class ConfigPanel extends JPanel {
 
         // boolean
         addBooleanSetting(settingsPanel, c, "connectPoints", configInstance.isConnectPoints());
+        addBooleanSetting(settingsPanel, c, "showSuggestedPriceLines", configInstance.isShowSuggestedPriceLines());
 
         // colours
         addColorSetting(settingsPanel, c, "lowColor", configInstance.getLowColor());
@@ -147,6 +148,9 @@ public class ConfigPanel extends JPanel {
     }
 
     private String formatFieldName(String name) {
+        if ("showSuggestedPriceLines".equals(name)) {
+            return "show suggested/offer price lines";
+        }
         StringBuilder result = new StringBuilder();
         for (char ch : name.toCharArray()) {
             if (Character.isUpperCase(ch)) {
@@ -169,6 +173,8 @@ public class ConfigPanel extends JPanel {
             // boolean
             JCheckBox connectPointsBox = (JCheckBox) configComponents.get("connectPoints");
             configInstance.setConnectPoints(connectPointsBox.isSelected());
+            JCheckBox showSuggestedPriceLinesBox = (JCheckBox) configComponents.get("showSuggestedPriceLines");
+            configInstance.setShowSuggestedPriceLines(showSuggestedPriceLinesBox.isSelected());
 
             // colours
             configInstance.setLowColor(extractColor("lowColor"));
@@ -187,20 +193,5 @@ public class ConfigPanel extends JPanel {
             log.error("Error applying settings", e);
             JOptionPane.showMessageDialog(this, "Error applying settings: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-    }
-
-    public static JLabel buildButton(Image icon, String tooltip, Runnable onClick) {
-        JLabel button = new JLabel(new ImageIcon(icon));
-        button.setToolTipText(tooltip);
-        button.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                onClick.run();
-            }
-
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            }
-        });
-        return button;
     }
 }

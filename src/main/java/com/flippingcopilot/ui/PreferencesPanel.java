@@ -1,7 +1,9 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.controller.DumpsStreamController;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.controller.PremiumInstanceController;
+import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.model.SuggestionPreferencesManager;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
@@ -11,11 +13,7 @@ import net.runelite.client.ui.ColorScheme;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.*;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.Font;
+import java.awt.*;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
@@ -25,6 +23,7 @@ import java.util.List;
 public class PreferencesPanel extends JPanel {
 
     private final SuggestionPreferencesManager preferencesManager;
+    private final OsrsLoginManager osrsLoginManager;
     private final JPanel sellOnlyButton;
     private final PreferencesToggleButton sellOnlyModeToggleButton;
     private final JPanel f2pOnlyButton;
@@ -33,15 +32,23 @@ public class PreferencesPanel extends JPanel {
     private final JComboBox<String> profileSelector;
     private final JButton addProfileButton;
     private final JButton deleteProfileButton;
+    private final JSpinner reservedSlotsSpinner;
+    private final JPanel dumpSuggestionsPanel;
+    private final PreferencesToggleButton dumpSuggestionsToggleButton;
+    private final JPanel preferencesContent;
+    private final JPanel loginPromptPanel;
 
     @Inject
     public PreferencesPanel(
             SuggestionManager suggestionManager,
             SuggestionPreferencesManager preferencesManager,
             PremiumInstanceController premiumInstanceController,
-            ItemController itemController) {
+            ItemController itemController,
+            OsrsLoginManager osrsLoginManager,
+            DumpsStreamController dumpsStreamController) {
         super();
         this.preferencesManager = preferencesManager;
+        this.osrsLoginManager = osrsLoginManager;
 
         blocklistDropdownPanel = new ItemSearchMultiSelect(
                 () -> new HashSet<>(preferencesManager.blockedItems()),
@@ -54,9 +61,13 @@ public class PreferencesPanel extends JPanel {
                 "Item blocklist...",
                 SwingUtilities.getWindowAncestor(this));
 
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setLayout(new CardLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
         setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+
+        preferencesContent = new JPanel();
+        preferencesContent.setLayout(new BoxLayout(preferencesContent, BoxLayout.Y_AXIS));
+        preferencesContent.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         JLabel preferencesTitle = new JLabel("Suggestion Settings");
         preferencesTitle.setForeground(Color.WHITE);
@@ -65,8 +76,17 @@ public class PreferencesPanel extends JPanel {
         preferencesTitle.setMinimumSize(new Dimension(MainPanel.CONTENT_WIDTH - 30, preferencesTitle.getPreferredSize().height));
         preferencesTitle.setMaximumSize(new Dimension(MainPanel.CONTENT_WIDTH - 30, preferencesTitle.getPreferredSize().height));
         preferencesTitle.setHorizontalAlignment(SwingConstants.CENTER);
-        add(preferencesTitle);
-        add(Box.createRigidArea(new Dimension(0, 8)));
+        preferencesContent.add(preferencesTitle);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 8)));
+
+        loginPromptPanel = new JPanel(new GridBagLayout());
+        loginPromptPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JLabel loginPrompt = new JLabel("<html><center>Log in to the game<br>to get a flip suggestion</center></html>");
+        loginPrompt.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        loginPromptPanel.add(loginPrompt);
+
+        add(preferencesContent, "preferences");
+        add(loginPromptPanel, "login");
 
         // Profile selector panel
         JPanel profilePanel = new JPanel();
@@ -157,20 +177,20 @@ public class PreferencesPanel extends JPanel {
         profileControlPanel.add(deleteProfileButton);
 
         profilePanel.add(profileControlPanel, BorderLayout.LINE_START);
-        add(profilePanel);
+        preferencesContent.add(profilePanel);
 
         // Blocklist dropdown panel
         blocklistDropdownPanel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createEmptyBorder(5, 0, 5, 0),
                 blocklistDropdownPanel.getBorder()));
-        add(blocklistDropdownPanel);
+        preferencesContent.add(blocklistDropdownPanel);
 
         // Sell-only mode toggle
         sellOnlyModeToggleButton = new PreferencesToggleButton("Disable sell-only mode", "Enable sell-only mode");
         sellOnlyButton = new JPanel();
         sellOnlyButton.setLayout(new BorderLayout());
         sellOnlyButton.setOpaque(false);
-        add(sellOnlyButton);
+        preferencesContent.add(sellOnlyButton);
         JLabel buttonText = new JLabel("Sell-only mode");
         sellOnlyButton.add(buttonText, BorderLayout.LINE_START);
         sellOnlyButton.add(sellOnlyModeToggleButton, BorderLayout.LINE_END);
@@ -178,14 +198,14 @@ public class PreferencesPanel extends JPanel {
             preferencesManager.setSellOnlyMode(sellOnlyModeToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
         });
-        add(Box.createRigidArea(new Dimension(0, 3)));
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
 
         // F2P-only mode toggle
         f2pOnlyModeToggleButton = new PreferencesToggleButton("Disable F2P-only mode",  "Enable F2P-only mode");
         f2pOnlyButton = new JPanel();
         f2pOnlyButton.setLayout(new BorderLayout());
         f2pOnlyButton.setOpaque(false);
-        add(f2pOnlyButton);
+        preferencesContent.add(f2pOnlyButton);
         JLabel f2pOnlyButtonText = new JLabel("F2P-only mode");
         f2pOnlyButton.add(f2pOnlyButtonText, BorderLayout.LINE_START);
         f2pOnlyButton.add(f2pOnlyModeToggleButton, BorderLayout.LINE_END);
@@ -194,8 +214,39 @@ public class PreferencesPanel extends JPanel {
             suggestionManager.setSuggestionNeeded(true);
         });
 
+        // Dump suggestions toggle
+        dumpSuggestionsToggleButton = new PreferencesToggleButton("Disable dump suggestions", "Receive dump suggestions");
+        dumpSuggestionsPanel = new JPanel(new BorderLayout());
+        dumpSuggestionsPanel.setOpaque(false);
+        JLabel dumpSuggestionsLabel = new JLabel("Receive dump suggestions");
+        dumpSuggestionsPanel.add(dumpSuggestionsLabel, BorderLayout.LINE_START);
+        dumpSuggestionsPanel.add(dumpSuggestionsToggleButton, BorderLayout.LINE_END);
+        dumpSuggestionsToggleButton.addItemListener(e -> {
+            boolean enabled = dumpSuggestionsToggleButton.isSelected();
+            preferencesManager.setReceiveDumpSuggestions(enabled);
+        });
+
+        // Reserved slots
+        JPanel reservedSlotsPanel = new JPanel(new BorderLayout());
+        reservedSlotsPanel.setOpaque(false);
+        JLabel reservedSlotsLabel = new JLabel("Reserved slots");
+        reservedSlotsSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 8, 1));
+        reservedSlotsSpinner.setPreferredSize(new Dimension(60, 25));
+        reservedSlotsSpinner.setMaximumSize(new Dimension(60, 25));
+        reservedSlotsSpinner.addChangeListener(e -> {
+            int value = (int) reservedSlotsSpinner.getValue();
+            preferencesManager.setReservedSlots(value);
+            suggestionManager.setSuggestionNeeded(true);
+        });
+        reservedSlotsPanel.add(reservedSlotsLabel, BorderLayout.LINE_START);
+        reservedSlotsPanel.add(reservedSlotsSpinner, BorderLayout.LINE_END);
+        preferencesContent.add(reservedSlotsPanel);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
+        preferencesContent.add(dumpSuggestionsPanel);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
+
         // Premium instances panel - moved to the bottom
-        add(Box.createRigidArea(new Dimension(0, 3)));
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
         JPanel premiumInstancesPanel = new JPanel();
         premiumInstancesPanel.setLayout(new BorderLayout());
         premiumInstancesPanel.setOpaque(false);
@@ -206,7 +257,8 @@ public class PreferencesPanel extends JPanel {
         });
         premiumInstancesPanel.add(premiumInstancesLabel, BorderLayout.LINE_START);
         premiumInstancesPanel.add(manageButton, BorderLayout.LINE_END);
-        add(premiumInstancesPanel);
+        preferencesContent.add(premiumInstancesPanel);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
     }
 
 
@@ -216,8 +268,17 @@ public class PreferencesPanel extends JPanel {
             SwingUtilities.invokeLater(this::refresh);
             return;
         }
+        CardLayout layout = (CardLayout) getLayout();
+        if (osrsLoginManager.getPlayerDisplayName() == null) {
+            layout.show(this, "login");
+            return;
+        }
+        layout.show(this, "preferences");
         sellOnlyModeToggleButton.setSelected(preferencesManager.isSellOnlyMode());
         f2pOnlyModeToggleButton.setSelected(preferencesManager.isF2pOnlyMode());
+        int reservedSlots = preferencesManager.getReservedSlots();
+        reservedSlotsSpinner.setValue(reservedSlots);
+        dumpSuggestionsToggleButton.setSelected(preferencesManager.isReceiveDumpSuggestions());
         deleteProfileButton.setVisible(!preferencesManager.isDefaultProfileSelected());
         List<String> correctOptions = preferencesManager.getAvailableProfiles();
         DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) profileSelector.getModel();

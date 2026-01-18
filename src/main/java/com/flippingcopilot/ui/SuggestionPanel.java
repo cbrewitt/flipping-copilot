@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.GrandExchange;
 import com.flippingcopilot.controller.HighlightController;
 import com.flippingcopilot.controller.PremiumInstanceController;
@@ -192,17 +192,18 @@ public class SuggestionPanel extends JPanel {
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        preferencesPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, 180);
+        setPanelHeight(150);
 
         add(layeredPane);
     }
 
     private void handleGearClick() {
         isPreferencesPanelVisible = !isPreferencesPanelVisible;
-        int newHeight = isPreferencesPanelVisible ? 180 : 150;
-        layeredPane.setSize(MainPanel.CONTENT_WIDTH, newHeight);
-        layeredPane.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, newHeight));
-        setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, newHeight));
+        if (isPreferencesPanelVisible) {
+            setPanelHeight(245);
+        } else {
+            setPanelHeight(150);
+        }
 
         preferencesPanel.setVisible(isPreferencesPanelVisible);
         suggestedActionPanel.setVisible(!isPreferencesPanelVisible);
@@ -210,6 +211,14 @@ public class SuggestionPanel extends JPanel {
         refresh();
         layeredPane.revalidate();
         layeredPane.repaint();
+    }
+
+    private void setPanelHeight(int height) {
+        layeredPane.setSize(MainPanel.CONTENT_WIDTH, height);
+        layeredPane.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, height));
+        setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, height));
+        preferencesPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, height);
+        suggestedActionPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, height);
     }
 
     private void setupButtonContainer() {
@@ -224,9 +233,9 @@ public class SuggestionPanel extends JPanel {
             if(config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT)) {
                 Suggestion suggestion = suggestionManager.getSuggestion();
                 if(suggestion != null && !suggestion.getType().equals("wait")) {
-                    flipsDialogController.showPriceGraphTab(null, true);
+                    flipsDialogController.showPriceGraphTab(null, true, null);
                 } else {
-                    flipsDialogController.showPriceGraphTab(null, false);
+                    flipsDialogController.showPriceGraphTab(null, false, null);
                 }
             } else {
                 Suggestion suggestion = suggestionManager.getSuggestion();
@@ -246,6 +255,9 @@ public class SuggestionPanel extends JPanel {
         skipButton = buildButton(skipIcon, "Skip suggestion", () -> {
             showLoading();
             Suggestion s = suggestionManager.getSuggestion();
+            if(s != null) {
+                s.actioned = true;
+            }
             accountStatusManager.setSkipSuggestion(s != null ? s.getId() : -1);
             suggestionManager.setSuggestionNeeded(true);
         });
@@ -427,6 +439,7 @@ public class SuggestionPanel extends JPanel {
 
     public void displaySuggestion() {
         Suggestion suggestion = suggestionManager.getSuggestion();
+        setServerMessage("");
         if (suggestion == null) {
             return;
         }
@@ -471,6 +484,7 @@ public class SuggestionPanel extends JPanel {
         String errorMessage = osrsLoginManager.getInvalidStateDisplayMessage();
         if (errorMessage != null) {
             hideLoading();
+            setServerMessage("");
             setMessage(errorMessage);
             return;
         }

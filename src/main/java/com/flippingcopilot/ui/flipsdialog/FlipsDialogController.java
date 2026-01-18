@@ -1,7 +1,7 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
-import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
@@ -9,6 +9,7 @@ import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.ItemIdName;
 import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.model.SessionManager;
+import com.flippingcopilot.ui.graph.model.PriceLine;
 import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
@@ -143,11 +144,12 @@ public class FlipsDialogController {
         });
     }
 
-    public void showPriceGraphTab(Integer openOnPriceGraphItemId, boolean suggestionPriceGraph) {
+    public void showPriceGraphTab(Integer openOnPriceGraphItemId, boolean suggestionPriceGraph, PriceLine priceLine) {
         tabbedPane.setSelectedIndex(5);
         if(openOnPriceGraphItemId != null) {
             priceGraphPanel.isShowingSuggestionPriceData = false;
             priceGraphPanel.searchBox.setItem(new ItemIdName(openOnPriceGraphItemId, itemController.getItemName(openOnPriceGraphItemId)));
+            priceGraphPanel.offerPriceLine = priceLine;
         } else if (suggestionPriceGraph)  {
             priceGraphPanel.showSuggestionPriceGraph();
         } else {

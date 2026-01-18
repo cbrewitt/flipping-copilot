@@ -1,9 +1,11 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
+import com.flippingcopilot.ui.graph.model.PriceLine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
@@ -44,12 +46,33 @@ public class MenuHandler {
                             Widget slotWidget = client.getWidget(465, 7 + i);
                             if (slotWidget != null && slotWidget.getId() == slotWidgetId) {
                                 int itemId = offers[i].getItemId();
-                                flipsDialogController.showPriceGraphTab(itemId, false);
+                                PriceLine priceLine = buildPriceLine(offers[i]);
+                                flipsDialogController.showPriceGraphTab(itemId, false, priceLine);
                                 log.debug("matched widget to slot {}, item {}", i, offers[i].getItemId());
                             }
                         }
                     });
         }
+    }
+
+    private PriceLine buildPriceLine(GrandExchangeOffer offer) {
+        switch (offer.getState()) {
+            case BOUGHT:
+            case BUYING:
+                return new PriceLine(
+                        offer.getPrice(),
+                        "offer buy price",
+                        false
+                );
+            case SOLD :
+            case SELLING:
+                return new PriceLine(
+                        offer.getPrice(),
+                        "offer sell price",
+                        true
+                );
+        }
+        return null;
     }
 
     public void injectConfirmMenuEntry(MenuEntryAdded event) {

@@ -38,6 +38,21 @@ public class StatusOfferList extends ArrayList<Offer> {
         return findEmptySlot(isMember) != -1;
     }
 
+    boolean reservedSlotNeeded(boolean isMember, int reservedSlots) {
+        int numUsableSlots = isMember ? NUM_SLOTS : NUM_F2P_SLOTS;
+        int numEmptySlots = 0;
+        for (int i = 0; i < numUsableSlots; i++) {
+            if (get(i).getStatus() == OfferStatus.EMPTY)    {
+                numEmptySlots++;
+            }
+        }
+        return reservedSlots > numEmptySlots && completeOfferExists();
+    }
+
+    boolean completeOfferExists() {
+        return stream().anyMatch(offer -> offer.getStatus() != OfferStatus.EMPTY && !offer.isActive());
+    }
+
     public long getGpOnMarket() {
         return stream().mapToLong(Offer::cashStackGpValue).sum();
     }

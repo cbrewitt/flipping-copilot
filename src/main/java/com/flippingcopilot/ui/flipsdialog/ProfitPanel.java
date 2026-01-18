@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.FlipV2;
