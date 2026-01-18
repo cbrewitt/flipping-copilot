@@ -171,10 +171,11 @@ public class AccountsAggregatePanel extends JPanel {
             }
 
             private void showPopup(MouseEvent e) {
-                int row = table.rowAtPoint(e.getPoint());
-                if (row >= 0 && row < table.getRowCount()) {
-                    table.setRowSelectionInterval(row, row);
-                    showAccountMenu(e, row);
+                int viewRow = table.rowAtPoint(e.getPoint());
+                if (viewRow >= 0 && viewRow < table.getRowCount()) {
+                    table.setRowSelectionInterval(viewRow, viewRow);
+                    int modelRow = table.convertRowIndexToModel(viewRow);
+                    showAccountMenu(e, modelRow);
                 }
             }
         });
