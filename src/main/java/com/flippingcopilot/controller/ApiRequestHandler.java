@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.graph.model.Data;
@@ -39,6 +40,8 @@ public class ApiRequestHandler {
     private final OkHttpClient client;
     private final Gson gson;
     private final CopilotLoginManager copilotLoginManager;
+    private final FlippingCopilotConfig config;
+
     @Setter
     private CopilotLoginController copilotLoginController;
     private final SuggestionPreferencesManager preferencesManager;
@@ -85,13 +88,18 @@ public class ApiRequestHandler {
                                    Consumer<Data> graphDataConsumer,
                                    Consumer<HttpResponseException>  onFailure) {
         log.debug("sending status {}", status.toString());
-        Request request = new Request.Builder()
+        Request.Builder rb = new Request.Builder()
                 .url(serverUrl + "/suggestion")
                 .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .addHeader("Accept", "application/x-msgpack")
                 .addHeader("X-VERSION", "1")
-                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), status.toString()))
-                .build();
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), status.toString()));
+
+        if(config.lowDataMode()){
+            rb.addHeader("X-SKIP-GD", "true");
+        }
+
+        Request request = rb.build();
 
         client.newCall(request).enqueue(new Callback() {
             @Override
@@ -626,6 +634,50 @@ public class ApiRequestHandler {
                 }
             }
         });
+    }
+
+    public Call asyncConsumeDumpAlerts(String displayName, Consumer<Response> onSuccess, Consumer<HttpResponseException> onFailure) {
+        String encodedDisplayName = URLEncoder.encode(displayName, StandardCharsets.UTF_8);
+        Request request = new Request.Builder()
+                .url(serverUrl + "/dump-alerts?display_name=" + encodedDisplayName)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), ""))
+                .build();
+
+        Call call = client.newBuilder()
+                .readTimeout(10, TimeUnit.SECONDS)
+                .callTimeout(0, TimeUnit.MILLISECONDS)
+                .build()
+                .newCall(request);
+
+        call.enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.warn("error consuming dump alerts", e);
+                onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                if (!response.isSuccessful()) {
+                    if(response.code() == UNAUTHORIZED_CODE) {
+                        copilotLoginController.onLogout();
+                    }
+                    String errorMessage = extractErrorMessage(response);
+                    response.close();
+                    onFailure.accept(new HttpResponseException(response.code(), errorMessage));
+                    return;
+                }
+                if (response.body() == null) {
+                    response.close();
+                    onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
+                    return;
+                }
+                onSuccess.accept(response);
+            }
+        });
+
+        return call;
     }
 
 

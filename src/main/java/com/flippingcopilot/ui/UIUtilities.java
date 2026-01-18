@@ -1,8 +1,6 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.FlippingCopilotConfig;
-import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.util.ColorUtil;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.QuantityFormatter;
 
