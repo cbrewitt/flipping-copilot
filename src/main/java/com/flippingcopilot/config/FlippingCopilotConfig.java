@@ -1,4 +1,4 @@
-package com.flippingcopilot.controller;
+package com.flippingcopilot.config;
 
 import com.flippingcopilot.ui.UIUtilities;
 import net.runelite.client.config.Config;
@@ -140,6 +140,15 @@ public interface FlippingCopilotConfig extends Config
     default boolean suggestionHighlights()
     {
         return true;
+    }
+    @ConfigItem(
+            keyName = "lowDataMode",
+            name = "Low data mode",
+            description = "When enabled, price graph data is only sent when opening the graph."
+    )
+    default boolean lowDataMode()
+    {
+        return false;
     }
     @ConfigItem(
             keyName = "misClickProtection",
