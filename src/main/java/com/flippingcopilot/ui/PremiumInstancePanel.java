@@ -1,7 +1,7 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
-import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.PremiumInstanceStatus;
 import com.flippingcopilot.model.SuggestionManager;
 import lombok.extern.slf4j.Slf4j;
@@ -9,8 +9,6 @@ import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;

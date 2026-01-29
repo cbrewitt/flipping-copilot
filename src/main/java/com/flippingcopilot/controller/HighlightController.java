@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.WidgetHighlightOverlay;
 import lombok.RequiredArgsConstructor;

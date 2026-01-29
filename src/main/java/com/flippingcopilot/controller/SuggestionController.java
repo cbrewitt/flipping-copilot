@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.*;
@@ -12,6 +13,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.VarClientInt;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageBuilder;
@@ -21,6 +23,7 @@ import javax.inject.Singleton;
 import javax.swing.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
+
 
 @Slf4j
 @Getter
@@ -47,6 +50,7 @@ public class SuggestionController {
     private final AccountStatusManager accountStatusManager;
     private final GrandExchangeUncollectedManager uncollectedManager;
     private final FlipsDialogController flipDialogController;
+    private final GePreviousSearch gePreviousSearch;
 
     private MainPanel mainPanel;
     private LoginPanel loginPanel;
@@ -114,22 +118,13 @@ public class SuggestionController {
         if (accountStatus == null) {
             return;
         }
+        Suggestion oldSuggestion = suggestionManager.getSuggestion();
+        if (oldSuggestion != null && oldSuggestion.isRecentUnsanctionedDumpAlert()) {
+            return;
+        }
         suggestionManager.setSuggestionRequestInProgress(true);
         suggestionManager.setGraphDataReadingInProgress(true);
-        Suggestion oldSuggestion = suggestionManager.getSuggestion();
-        Consumer<Suggestion> suggestionConsumer = (newSuggestion) -> {
-            suggestionManager.setSuggestion(newSuggestion);
-            suggestionManager.setSuggestionError(null);
-            suggestionManager.setSuggestionRequestInProgress(false);
-            log.debug("Received suggestion: {}", newSuggestion.toString());
-            accountStatusManager.resetSkipSuggestion();
-            offerManager.setOfferJustPlaced(false);
-            suggestionPanel.refresh();
-            showNotifications(oldSuggestion, newSuggestion, accountStatus);
-            if(!newSuggestion.getType().equals("wait")) {
-                SwingUtilities.invokeLater(() ->flipDialogController.priceGraphPanel.newSuggestedItemId(newSuggestion.getItemId()));
-            }
-        };
+        Consumer<Suggestion> suggestionConsumer = (newSuggestion) -> handleSuggestionReceived(oldSuggestion, newSuggestion, accountStatus);
         Consumer<Data> graphDataConsumer = (d) -> {
             SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.setSuggestionPriceData(d));
             suggestionManager.setGraphDataReadingInProgress(false);
@@ -150,6 +145,36 @@ public class SuggestionController {
         suggestionPanel.refresh();
         log.debug("tick {} getting suggestion", client.getTickCount());
         apiRequestHandler.getSuggestionAsync(accountStatus.toJson(gson, grandExchange.isOpen(), config.priceGraphWebsite() == FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT), suggestionConsumer, graphDataConsumer, onFailure);
+    }
+
+    void handleDumpSuggestion(Suggestion suggestion) {
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
+        if (accountStatus == null) {
+            return;
+        }
+        handleSuggestionReceived(suggestionManager.getSuggestion(), suggestion, accountStatus);
+    }
+
+    private synchronized void handleSuggestionReceived(Suggestion oldSuggestion, Suggestion newSuggestion, AccountStatus accountStatus) {
+        if (oldSuggestion != null && !newSuggestion.isDumpAlert && oldSuggestion.isRecentUnsanctionedDumpAlert()) {
+            suggestionManager.setSuggestionError(null);
+            suggestionManager.setSuggestionRequestInProgress(false);
+            return;
+        }
+        suggestionManager.setSuggestion(newSuggestion);
+        suggestionManager.setSuggestionError(null);
+        suggestionManager.setSuggestionRequestInProgress(false);
+        log.debug("Received suggestion: {}", newSuggestion.toString());
+        accountStatusManager.resetSkipSuggestion();
+        offerManager.setOfferJustPlaced(false);
+        suggestionPanel.refresh();
+        showNotifications(oldSuggestion, newSuggestion, accountStatus);
+        if(!newSuggestion.getType().equals("wait")) {
+            SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.newSuggestedItemId(newSuggestion.getItemId()));
+        }
+        if (client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 14) {
+            clientThread.invokeLater(gePreviousSearch::showSuggestedItemInSearch);
+        }
     }
 
     void showNotifications(Suggestion oldSuggestion, Suggestion newSuggestion, AccountStatus accountStatus) {
