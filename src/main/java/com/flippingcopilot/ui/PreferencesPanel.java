@@ -214,17 +214,20 @@ public class PreferencesPanel extends JPanel {
             suggestionManager.setSuggestionNeeded(true);
         });
 
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
         // Dump suggestions toggle
         dumpSuggestionsToggleButton = new PreferencesToggleButton("Disable dump suggestions", "Receive dump suggestions");
         dumpSuggestionsPanel = new JPanel(new BorderLayout());
         dumpSuggestionsPanel.setOpaque(false);
-        JLabel dumpSuggestionsLabel = new JLabel("Receive dump suggestions");
+        JLabel dumpSuggestionsLabel = new JLabel("Dump alerts");
         dumpSuggestionsPanel.add(dumpSuggestionsLabel, BorderLayout.LINE_START);
         dumpSuggestionsPanel.add(dumpSuggestionsToggleButton, BorderLayout.LINE_END);
         dumpSuggestionsToggleButton.addItemListener(e -> {
             boolean enabled = dumpSuggestionsToggleButton.isSelected();
             preferencesManager.setReceiveDumpSuggestions(enabled);
         });
+        preferencesContent.add(dumpSuggestionsPanel);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
 
         // Reserved slots
         JPanel reservedSlotsPanel = new JPanel(new BorderLayout());
@@ -242,11 +245,8 @@ public class PreferencesPanel extends JPanel {
         reservedSlotsPanel.add(reservedSlotsSpinner, BorderLayout.LINE_END);
         preferencesContent.add(reservedSlotsPanel);
         preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
-        preferencesContent.add(dumpSuggestionsPanel);
-        preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
 
         // Premium instances panel - moved to the bottom
-        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
         JPanel premiumInstancesPanel = new JPanel();
         premiumInstancesPanel.setLayout(new BorderLayout());
         premiumInstancesPanel.setOpaque(false);
@@ -258,7 +258,7 @@ public class PreferencesPanel extends JPanel {
         premiumInstancesPanel.add(premiumInstancesLabel, BorderLayout.LINE_START);
         premiumInstancesPanel.add(manageButton, BorderLayout.LINE_END);
         preferencesContent.add(premiumInstancesPanel);
-        preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
     }
 
 

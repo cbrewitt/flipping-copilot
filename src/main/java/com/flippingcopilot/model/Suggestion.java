@@ -39,7 +39,6 @@ public class Suggestion {
 
     public boolean equals(Suggestion other) {
         return this.type.equals(other.type)
-                && this.boxId == other.boxId
                 && this.itemId == other.itemId
                 && this.name.equals(other.name);
     }
@@ -48,9 +47,13 @@ public class Suggestion {
         return isDumpAlert && !actioned && dumpAlertReceived.isAfter(Instant.now().minusSeconds(10));
     }
 
+    public boolean isDumpSuggestion() {
+        return isDumpAlert;
+    }
+
     public String toMessage() {
         NumberFormat formatter = NumberFormat.getNumberInstance();
-        String string = "Flipping Copilot: ";
+        String string = isDumpAlert ? "DUMP ALERT!! " : "Flipping Copilot: ";
         switch (type) {
             case "buy":
                 string += String.format("Buy %s %s for %s gp",
@@ -125,5 +128,3 @@ public class Suggestion {
         return s;
     }
 }
-
-

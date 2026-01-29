@@ -130,7 +130,7 @@ public class DumpsStreamController {
             log.warn("dump suggestion decode failed");
             return;
         }
-        suggestion.setMessage("<html><b><font color='red'>Dump alert!!</font></b></html>");
+        suggestion.setMessage("<html><b><font color=#FA4A4B>Dump alert!!</font></b></html>");
         suggestion.setDumpAlert(true);
         suggestion.setDumpAlertReceived(Instant.now());
         clientThread.invoke(() -> suggestionController.handleDumpSuggestion(suggestion));

@@ -14,6 +14,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.SoundEffectID;
 import net.runelite.api.VarClientInt;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
@@ -149,6 +150,9 @@ public class SuggestionController {
     }
 
     void handleDumpSuggestion(Suggestion suggestion) {
+        if (config.dumpAlertSound()) {
+            client.playSoundEffect(SoundEffectID.GE_ADD_OFFER_DINGALING);
+        }
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (accountStatus == null) {
             return;
@@ -208,7 +212,7 @@ public class SuggestionController {
 
     void showNotifications(Suggestion oldSuggestion, Suggestion newSuggestion, AccountStatus accountStatus) {
         if (shouldNotify(newSuggestion, oldSuggestion)) {
-            String msg = newSuggestion.toMessage() + (newSuggestion.isDumpAlert ? " (Dump alert)" : "");
+            String msg = newSuggestion.toMessage();
             if (config.enableTrayNotifications()) {
                 notifier.notify(msg);
             }

@@ -94,6 +94,15 @@ public interface FlippingCopilotConfig extends Config
         return true;
     }
     @ConfigItem(
+            keyName = "dumpAlertSound",
+            name = "Dump alert sound",
+            description = "Play the GE offer completed sound when a dump alert arrives."
+    )
+    default boolean dumpAlertSound()
+    {
+        return true;
+    }
+    @ConfigItem(
             keyName = "profitAmountColor",
             name = "Flip tracker profit color",
             description = "The color of the profit amount text in the flip tracker"
