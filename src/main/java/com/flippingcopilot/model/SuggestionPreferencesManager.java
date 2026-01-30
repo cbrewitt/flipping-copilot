@@ -1,6 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.Persistance;
+import com.flippingcopilot.rs.AccountSuggestionPreferencesRS;
 import com.google.gson.Gson;
 import com.google.inject.name.Named;
 import lombok.Getter;
@@ -9,11 +10,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.io.*;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -32,10 +35,9 @@ public class SuggestionPreferencesManager {
     // dependencies
     private final Gson gson;
     private final ScheduledExecutorService executorService;
-    private final OsrsLoginManager osrsLoginManager;
+    private final AccountSuggestionPreferencesRS osrsAccountPreferences;
 
     // state
-    private AccountSuggestionPreferences accountSuggestionPreferences = new AccountSuggestionPreferences();
     private ProfileSuggestionPreferences cachedPreferences;
     private Path selectedProfile;
     private List<Path> availableProfiles;
@@ -45,10 +47,12 @@ public class SuggestionPreferencesManager {
     private volatile boolean sellOnlyMode = false;
 
     @Inject
-    public SuggestionPreferencesManager(Gson gson, @Named("copilotExecutor") ScheduledExecutorService executorService, OsrsLoginManager osrsLoginManager) {
+    public SuggestionPreferencesManager(Gson gson,
+                                        @Named("copilotExecutor") ScheduledExecutorService executorService,
+                                        AccountSuggestionPreferencesRS osrsAccountPreferences) {
         this.gson = gson;
         this.executorService = executorService;
-        this.osrsLoginManager = osrsLoginManager;
+        this.osrsAccountPreferences = osrsAccountPreferences;
         loadAvailableProfiles();
         selectedProfile = DEFAULT_PROFILE_PATH;
         loadCurrentProfile();
@@ -63,30 +67,54 @@ public class SuggestionPreferencesManager {
     }
 
     public synchronized boolean isF2pOnlyMode() {
-        return accountSuggestionPreferences.isF2pOnlyMode();
+        return osrsAccountPreferences.get().isF2pOnlyMode();
     }
 
     public synchronized void setF2pOnlyMode(boolean f2pOnlyMode) {
-        accountSuggestionPreferences.setF2pOnlyMode(f2pOnlyMode);
-        executorService.submit(() -> updateAccountPreferences(accountSuggestionPreferences));
+        AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
+        preferences.setF2pOnlyMode(f2pOnlyMode);
+        osrsAccountPreferences.updateAndPersist(preferences);
     }
 
     public synchronized void setTimeframe(int minutes) {
-        accountSuggestionPreferences.setTimeframe(minutes > 0 ? minutes : DEFAULT_TIMEFRAME);
-        executorService.submit(() -> updateAccountPreferences(accountSuggestionPreferences));
+        AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
+        preferences.setTimeframe(minutes > 0 ? minutes : DEFAULT_TIMEFRAME);
+        osrsAccountPreferences.updateAndPersist(preferences);
     }
 
     public synchronized int getTimeframe() {
-        return accountSuggestionPreferences.getTimeframe();
+        return osrsAccountPreferences.get().getTimeframe();
     }
 
     public synchronized void setRiskLevel(RiskLevel riskLevel) {
-        accountSuggestionPreferences.setRiskLevel(riskLevel == null ? RiskLevel.MEDIUM : riskLevel);
-        executorService.submit(() -> updateAccountPreferences(accountSuggestionPreferences));
+        AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
+        preferences.setRiskLevel(riskLevel == null ? RiskLevel.MEDIUM : riskLevel);
+        osrsAccountPreferences.updateAndPersist(preferences);
     }
 
     public synchronized RiskLevel getRiskLevel() {
-        return accountSuggestionPreferences.getRiskLevel();
+        return osrsAccountPreferences.get().getRiskLevel();
+    }
+
+    public synchronized void setReservedSlots(int reservedSlots) {
+        int clamped = Math.max(0, Math.min(8, reservedSlots));
+        AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
+        preferences.setReservedSlots(clamped);
+        osrsAccountPreferences.updateAndPersist(preferences);
+    }
+
+    public synchronized int getReservedSlots() {
+        return osrsAccountPreferences.get().getReservedSlots();
+    }
+
+    public synchronized void setReceiveDumpSuggestions(boolean receiveDumpSuggestions) {
+        AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
+        preferences.setReceiveDumpSuggestions(receiveDumpSuggestions);
+        osrsAccountPreferences.updateAndPersist(preferences);
+    }
+
+    public synchronized boolean isReceiveDumpSuggestions() {
+        return osrsAccountPreferences.get().isReceiveDumpSuggestions();
     }
 
     public synchronized void setBlockedItems(Set<Integer> blockedItems) {
@@ -225,44 +253,4 @@ public class SuggestionPreferencesManager {
         }
     }
 
-    public synchronized void loadAccountPreferences() {
-        if(osrsLoginManager.getAccountHash() == null){
-            return;
-        }
-        Path f = accountPreferencesPath();
-        try {
-            if(Files.exists(f)) {
-                accountSuggestionPreferences = gson.fromJson(Files.readString(f), AccountSuggestionPreferences.class);
-            } else {
-                accountSuggestionPreferences = new AccountSuggestionPreferences();
-            }
-        } catch (IOException e) {
-            log.warn("error loading account preferences json file {}", f, e);
-        }
-    }
-
-    private synchronized void updateAccountPreferences(AccountSuggestionPreferences ap) {
-        Long osrsAccountHash = osrsLoginManager.getAccountHash();
-        if (osrsAccountHash == null) {
-            return;
-        }
-        Path f = accountPreferencesPath();
-        Path tmpFile = Paths.get(f + ".tmp");
-        try {
-            String toWrite = gson.toJson(ap);
-            // acquire <file>.lock
-            try {
-                Files.writeString(tmpFile,toWrite );
-                Files.move(tmpFile, f, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } finally {
-                Files.deleteIfExists(tmpFile);
-            }
-        } catch (IOException e) {
-            log.warn("error saving preferences json file {}", f, e);
-        }
-    }
-
-    private Path accountPreferencesPath() {
-        return Paths.get(Persistance.COPILOT_DIR.getPath(), "acc_" + osrsLoginManager.getAccountHash() + "_prefs.json");
-    }
 }

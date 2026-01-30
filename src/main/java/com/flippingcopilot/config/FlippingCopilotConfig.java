@@ -1,4 +1,4 @@
-package com.flippingcopilot.controller;
+package com.flippingcopilot.config;
 
 import com.flippingcopilot.ui.UIUtilities;
 import net.runelite.client.config.Config;
@@ -94,6 +94,15 @@ public interface FlippingCopilotConfig extends Config
         return true;
     }
     @ConfigItem(
+            keyName = "dumpAlertSound",
+            name = "Dump alert sound",
+            description = "Play the GE offer completed sound when a dump alert arrives."
+    )
+    default boolean dumpAlertSound()
+    {
+        return true;
+    }
+    @ConfigItem(
             keyName = "profitAmountColor",
             name = "Flip tracker profit color",
             description = "The color of the profit amount text in the flip tracker"
@@ -140,6 +149,15 @@ public interface FlippingCopilotConfig extends Config
     default boolean suggestionHighlights()
     {
         return true;
+    }
+    @ConfigItem(
+            keyName = "lowDataMode",
+            name = "Low data mode",
+            description = "When enabled, price graph data is only sent when opening the graph."
+    )
+    default boolean lowDataMode()
+    {
+        return false;
     }
     @ConfigItem(
             keyName = "misClickProtection",

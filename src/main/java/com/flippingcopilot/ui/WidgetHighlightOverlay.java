@@ -30,6 +30,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.util.function.Supplier;
 
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.ui.overlay.Overlay;
@@ -39,13 +40,13 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 public class WidgetHighlightOverlay extends Overlay
 {
     private final Widget widget;
-    private final Color color;
+    private final Supplier<Color> colorSupplier;
     private final Rectangle relativeBounds;
 
-    public WidgetHighlightOverlay(final Widget widget, Color color, Rectangle relativeBounds)
+    public WidgetHighlightOverlay(final Widget widget, Supplier<Color> colorSupplier, Rectangle relativeBounds)
     {
         this.widget = widget;
-        this.color = color;
+        this.colorSupplier = colorSupplier;
         this.relativeBounds = relativeBounds;
 
         setPosition(OverlayPosition.DYNAMIC);
@@ -74,11 +75,17 @@ public class WidgetHighlightOverlay extends Overlay
         highlightBounds.width = relativeBounds.width;
         highlightBounds.height = relativeBounds.height;
 
-        drawHighlight(graphics, highlightBounds);
+        Color color = colorSupplier.get();
+        if (color == null)
+        {
+            return null;
+        }
+
+        drawHighlight(graphics, highlightBounds, color);
         return null;
     }
 
-    private void drawHighlight(Graphics2D graphics, Rectangle bounds)
+    private void drawHighlight(Graphics2D graphics, Rectangle bounds, Color color)
     {
         graphics.setColor(color);
         graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);

@@ -1,10 +1,12 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.ui.graph.model.Data;
+import com.flippingcopilot.ui.graph.model.PriceLine;
 import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,8 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.SoundEffectID;
+import net.runelite.api.VarClientInt;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageBuilder;
@@ -21,6 +25,7 @@ import javax.inject.Singleton;
 import javax.swing.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
+
 
 @Slf4j
 @Getter
@@ -47,6 +52,7 @@ public class SuggestionController {
     private final AccountStatusManager accountStatusManager;
     private final GrandExchangeUncollectedManager uncollectedManager;
     private final FlipsDialogController flipDialogController;
+    private final GePreviousSearch gePreviousSearch;
 
     private MainPanel mainPanel;
     private LoginPanel loginPanel;
@@ -81,9 +87,21 @@ public class SuggestionController {
         if (osrsLoginManager.hasJustLoggedIn()) {
             return;
         }
-        if (suggestionManager.suggestionsDelayedUntil < client.getTickCount() && (suggestionManager.isSuggestionNeeded() || suggestionManager.suggestionOutOfDate()) && !(grandExchange.isSlotOpen() && !accountStatusManager.isSuggestionSkipped())) {
+        if (shouldFetchNewSuggestion()) {
             getSuggestionAsync();
         }
+    }
+
+    private boolean shouldFetchNewSuggestion() {
+        if (client.getTickCount() < suggestionManager.suggestionsDelayedUntil) {
+            return false;
+        }
+        Suggestion previousSuggestion = suggestionManager.getSuggestion();
+        if(grandExchange.isSlotOpen() && !(previousSuggestion == null || accountStatusManager.isSuggestionSkipped() || previousSuggestion.actioned || suggestionManager.suggestionOutOfDate())) {
+            return false;
+        }
+
+        return suggestionManager.isSuggestionNeeded() || suggestionManager.suggestionOutOfDate();
     }
 
     private boolean isUncollectedOutOfSync() {
@@ -114,22 +132,13 @@ public class SuggestionController {
         if (accountStatus == null) {
             return;
         }
+        Suggestion oldSuggestion = suggestionManager.getSuggestion();
+        if (oldSuggestion != null && oldSuggestion.isRecentUnsanctionedDumpAlert()) {
+            return;
+        }
         suggestionManager.setSuggestionRequestInProgress(true);
         suggestionManager.setGraphDataReadingInProgress(true);
-        Suggestion oldSuggestion = suggestionManager.getSuggestion();
-        Consumer<Suggestion> suggestionConsumer = (newSuggestion) -> {
-            suggestionManager.setSuggestion(newSuggestion);
-            suggestionManager.setSuggestionError(null);
-            suggestionManager.setSuggestionRequestInProgress(false);
-            log.debug("Received suggestion: {}", newSuggestion.toString());
-            accountStatusManager.resetSkipSuggestion();
-            offerManager.setOfferJustPlaced(false);
-            suggestionPanel.refresh();
-            showNotifications(oldSuggestion, newSuggestion, accountStatus);
-            if(!newSuggestion.getType().equals("wait")) {
-                SwingUtilities.invokeLater(() ->flipDialogController.priceGraphPanel.newSuggestedItemId(newSuggestion.getItemId()));
-            }
-        };
+        Consumer<Suggestion> suggestionConsumer = (newSuggestion) -> handleSuggestionReceived(oldSuggestion, newSuggestion, accountStatus);
         Consumer<Data> graphDataConsumer = (d) -> {
             SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.setSuggestionPriceData(d));
             suggestionManager.setGraphDataReadingInProgress(false);
@@ -152,10 +161,72 @@ public class SuggestionController {
         apiRequestHandler.getSuggestionAsync(accountStatus.toJson(gson, grandExchange.isOpen(), config.priceGraphWebsite() == FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT), suggestionConsumer, graphDataConsumer, onFailure);
     }
 
+    void handleDumpSuggestion(Suggestion suggestion) {
+        if (config.dumpAlertSound()) {
+            client.playSoundEffect(SoundEffectID.GE_ADD_OFFER_DINGALING);
+        }
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
+        if (accountStatus == null) {
+            return;
+        }
+        if (accountStatus.emptySlotExists()) {
+            handleSuggestionReceived(suggestionManager.getSuggestion(), suggestion, accountStatus);
+        } else {
+            log.info("discarding dump suggestion as no free slot");
+        }
+    }
+
+    private synchronized void handleSuggestionReceived(Suggestion oldSuggestion, Suggestion newSuggestion, AccountStatus accountStatus) {
+        if (oldSuggestion != null && !newSuggestion.isDumpAlert && oldSuggestion.isRecentUnsanctionedDumpAlert()) {
+            suggestionManager.setSuggestionError(null);
+            suggestionManager.setSuggestionRequestInProgress(false);
+            return;
+        }
+        suggestionManager.setSuggestion(newSuggestion);
+        suggestionManager.setSuggestionError(null);
+        suggestionManager.setSuggestionRequestInProgress(false);
+        log.debug("Received suggestion: {}", newSuggestion.toString());
+        accountStatusManager.resetSkipSuggestion();
+        offerManager.setOfferJustPlaced(false);
+        suggestionPanel.refresh();
+        showNotifications(oldSuggestion, newSuggestion, accountStatus);
+        if (!newSuggestion.getType().equals("wait")) {
+            SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.newSuggestedItemId(
+                    newSuggestion.getItemId(),
+                    buildPriceLine(newSuggestion)
+            ));
+        } else {
+            SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.suggestedPriceLine = null);
+        }
+        if (client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 14) {
+            clientThread.invokeLater(gePreviousSearch::showSuggestedItemInSearch);
+        }
+    }
+
+    private PriceLine buildPriceLine(Suggestion suggestion) {
+        String type = suggestion.getType();
+        if ("buy".equals(type)) {
+            return new PriceLine(
+                    suggestion.getPrice(),
+                    "Suggested buy price",
+                    false
+            );
+        }
+        if ("sell".equals(type)) {
+            return new PriceLine(
+                    suggestion.getPrice(),
+                    "Suggested sell price",
+                    true
+            );
+        }
+        return null;
+    }
+
     void showNotifications(Suggestion oldSuggestion, Suggestion newSuggestion, AccountStatus accountStatus) {
         if (shouldNotify(newSuggestion, oldSuggestion)) {
+            String msg = newSuggestion.toMessage();
             if (config.enableTrayNotifications()) {
-                notifier.notify(newSuggestion.toMessage());
+                notifier.notify(msg);
             }
             if (!copilotPanel.isShowing() && config.enableChatNotifications()) {
                 showChatNotifications(newSuggestion, accountStatus);

@@ -33,6 +33,7 @@ public class AccountStatus {
     private List<Integer> blockedItems;
     private int timeframe = 5; // Default to 5 minutes
     private RiskLevel riskLevel = RiskLevel.MEDIUM;
+    private int ReservedSlots = 0;
 
     public AccountStatus() {
         offers = new StatusOfferList();
@@ -40,6 +41,10 @@ public class AccountStatus {
     }
 
     public synchronized boolean isCollectNeeded(Suggestion suggestion) {
+        if (offers.reservedSlotNeeded(isWorldMember || isAccountMember, getReservedSlots()))  {
+            log.debug("collected needed reservedSlotNeeded");
+            return true;
+        }
         if (offers.isEmptySlotNeeded(suggestion, isWorldMember || isAccountMember)) {
             log.debug("collected needed isEmptySlotNeeded");
             return true;
@@ -95,6 +100,9 @@ public class AccountStatus {
            JsonArray rstArray = new JsonArray();
            requestedSuggestionTypes.forEach(rstArray::add);
            statusJson.add("requested_suggestion_types", rstArray);
+        }
+        if(getReservedSlots() > 0) {
+            statusJson.addProperty("reserved_slots", getReservedSlots());
         }
         return statusJson;
     }
