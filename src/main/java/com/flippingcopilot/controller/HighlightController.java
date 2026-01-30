@@ -9,6 +9,7 @@ import net.runelite.api.ItemComposition;
 import net.runelite.api.VarClientStr;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
@@ -35,6 +36,7 @@ public class HighlightController {
     private final OfferManager offerManager;
     private final OverlayManager overlayManager;
     private final HighlightColorController highlightColorController;
+    private final ClientThread clientThread;
 
     // state
     private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
@@ -102,8 +104,12 @@ public class HighlightController {
         Widget offerTypeWidget = grandExchange.getOfferTypeWidget();
         String offerType = client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
         if (offerTypeWidget != null) {
-            if (offerType.equals(suggestion.getType())) {
-                if (client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
+            boolean offerTypeMatches = offerType.equals(suggestion.getType());
+            int currentItemId = client.getVarpValue(CURRENT_GE_ITEM);
+            boolean itemMatches = currentItemId == suggestion.getItemId();
+            boolean searchOpen = isSearchOpen();
+            if (offerTypeMatches) {
+                if (itemMatches) {
                     if (offerDetailsCorrect(suggestion)) {
                         highlightConfirm(blueHighlight);
                     } else {
@@ -112,15 +118,15 @@ public class HighlightController {
                         }
                         highlightQuantity(suggestion, blueHighlight);
                     }
-                } else if (client.getVarpValue(CURRENT_GE_ITEM ) == -1){
+                } else if (currentItemId == -1 && searchOpen) {
                     highlightItemInSearch(suggestion, blueHighlight);
+
                 }
             }
             // Check if unsuggested item/offer type is selected
-            if (client.getVarpValue(CURRENT_GE_ITEM) != -1
-                    && (client.getVarpValue(CURRENT_GE_ITEM) != suggestion.getItemId()
-                        || !offerType.equals(suggestion.getType()))
-                    && client.getVarpValue(CURRENT_GE_ITEM) == offerManager.getViewedSlotItemId()
+            if (currentItemId != -1
+                    && (!offerTypeMatches || (!searchOpen && !itemMatches))
+                    && currentItemId == offerManager.getViewedSlotItemId()
                     && offerManager.getViewedSlotItemPrice() > 0) {
                 if (grandExchange.getOfferPrice() == offerManager.getViewedSlotItemPrice()) {
                     highlightConfirm(blueHighlight);
@@ -128,7 +134,33 @@ public class HighlightController {
                     highlightPrice(blueHighlight);
                 }
             }
+
+            if (shouldHighlightBack(suggestion, offerTypeMatches, itemMatches, currentItemId, searchOpen)) {
+                highlightBackButton(blueHighlight);
+            }
         }
+    }
+
+    private boolean shouldHighlightBack(Suggestion suggestion, boolean offerTypeMatches, boolean itemMatches, int currentItemId, boolean searchOpen) {
+         if (suggestion.getType().equals("wait")) {
+             return false;
+         }
+         if (!offerTypeMatches) {
+             return true;
+         }
+         if (!itemMatches && currentItemId != -1 && !searchOpen) {
+             return true;
+         }
+         if (suggestion.getType().equals("sell") && currentItemId == -1) {
+             return true;
+         }
+         if (suggestion.getType().equals("buy")) {
+             AccountStatus accountStatus = accountStatusManager.getAccountStatus();
+             if (accountStatus.isCollectNeeded(suggestion)) {
+                 return true;
+             }
+         }
+         return false;
     }
 
     private void highlightItemInSearch(Suggestion suggestion, Supplier<Color> colorSupplier) {
@@ -149,6 +181,11 @@ public class HighlightController {
         if (itemWidget != null && itemWidget.getItemId() == suggestion.getItemId()) {
             add(itemWidget, colorSupplier);
         }
+    }
+
+    private boolean isSearchOpen() {
+        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        return searchResults != null && !searchResults.isHidden();
     }
 
     private boolean offerDetailsCorrect(Suggestion suggestion) {
@@ -182,6 +219,13 @@ public class HighlightController {
         Widget confirmButton = grandExchange.getConfirmButton();
         if (confirmButton != null) {
             add(confirmButton, colorSupplier, new Rectangle(1, 1, 150, 38));
+        }
+    }
+
+    private void highlightBackButton(Supplier<Color> colorSupplier) {
+        Widget backButton = grandExchange.getBackButton();
+        if (backButton != null) {
+            add(backButton, colorSupplier);
         }
     }
 

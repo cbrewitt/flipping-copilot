@@ -87,9 +87,21 @@ public class SuggestionController {
         if (osrsLoginManager.hasJustLoggedIn()) {
             return;
         }
-        if (suggestionManager.suggestionsDelayedUntil < client.getTickCount() && (suggestionManager.isSuggestionNeeded() || suggestionManager.suggestionOutOfDate()) && !(grandExchange.isSlotOpen() && !accountStatusManager.isSuggestionSkipped())) {
+        if (shouldFetchNewSuggestion()) {
             getSuggestionAsync();
         }
+    }
+
+    private boolean shouldFetchNewSuggestion() {
+        if (client.getTickCount() < suggestionManager.suggestionsDelayedUntil) {
+            return false;
+        }
+        Suggestion previousSuggestion = suggestionManager.getSuggestion();
+        if(grandExchange.isSlotOpen() && !(previousSuggestion == null || accountStatusManager.isSuggestionSkipped() || previousSuggestion.actioned || suggestionManager.suggestionOutOfDate())) {
+            return false;
+        }
+
+        return suggestionManager.isSuggestionNeeded() || suggestionManager.suggestionOutOfDate();
     }
 
     private boolean isUncollectedOutOfSync() {

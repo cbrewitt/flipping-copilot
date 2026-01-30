@@ -3,6 +3,7 @@ package com.flippingcopilot.ui;
 import com.flippingcopilot.model.RiskLevel;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.model.SuggestionPreferencesManager;
+import com.flippingcopilot.rs.AccountSuggestionPreferencesRS;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.inject.Inject;
@@ -67,7 +68,8 @@ public class ControlPanel extends JPanel
     @Inject
     public ControlPanel(
             SuggestionManager suggestionManager,
-            SuggestionPreferencesManager preferencesManager)
+            SuggestionPreferencesManager preferencesManager,
+            AccountSuggestionPreferencesRS accountSuggestionPreferencesRS)
     {
         this.suggestionManager = suggestionManager;
         this.preferencesManager = preferencesManager;
@@ -280,6 +282,8 @@ public class ControlPanel extends JPanel
         // Initial sync & visibility
         refresh();
         updateCustomVisibility();
+
+        accountSuggestionPreferencesRS.registerListener(ignored -> refresh());
     }
 
     // ---------- Mapping between slider position (0..STEPS) and minutes (1..1440) using √t ----------

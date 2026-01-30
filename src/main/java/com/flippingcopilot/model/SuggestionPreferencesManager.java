@@ -97,7 +97,7 @@ public class SuggestionPreferencesManager {
     }
 
     public synchronized void setReservedSlots(int reservedSlots) {
-        int clamped = Math.max(0, Math.min(7, reservedSlots));
+        int clamped = Math.max(0, Math.min(8, reservedSlots));
         AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
         preferences.setReservedSlots(clamped);
         osrsAccountPreferences.updateAndPersist(preferences);

@@ -127,4 +127,8 @@ public class GrandExchange {
         }
         return offerContainer.getChild(50);
     }
+
+    Widget getBackButton() {
+        return client.getWidget(InterfaceID.GRAND_EXCHANGE, 4);
+    }
 }
