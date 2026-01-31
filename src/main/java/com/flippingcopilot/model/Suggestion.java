@@ -34,7 +34,7 @@ public class Suggestion {
 
     public volatile Instant dumpAlertReceived = Instant.now();
     public volatile boolean isDumpAlert;
-    public volatile boolean actioned;
+    public volatile int actionedTick = -1;
 
 
     public boolean equals(Suggestion other) {
@@ -43,8 +43,8 @@ public class Suggestion {
                 && this.name.equals(other.name);
     }
 
-    public boolean isRecentUnsanctionedDumpAlert() {
-        return isDumpAlert && !actioned && dumpAlertReceived.isAfter(Instant.now().minusSeconds(10));
+    public boolean isRecentUnActionedDumpAlert() {
+        return isDumpAlert && actionedTick == -1 && dumpAlertReceived.isAfter(Instant.now().minusSeconds(10));
     }
 
     public boolean isDumpSuggestion() {
@@ -123,6 +123,9 @@ public class Suggestion {
                     // discard value for unrecognised key
                     MsgPackUtil.decodePrimitive(b);
             }
+        }
+        if(s.message != null && s.message.contains("Dump alert")) {
+            s.isDumpAlert = true;
         }
 
         return s;

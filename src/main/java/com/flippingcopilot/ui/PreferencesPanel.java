@@ -81,7 +81,7 @@ public class PreferencesPanel extends JPanel {
 
         loginPromptPanel = new JPanel(new GridBagLayout());
         loginPromptPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        JLabel loginPrompt = new JLabel("<html><center>Log in to the game<br>to get a flip suggestion</center></html>");
+        JLabel loginPrompt = new JLabel("<html><center>Log in to the game<br>to alter suggestion settings.</center></html>");
         loginPrompt.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
         loginPromptPanel.add(loginPrompt);
 
