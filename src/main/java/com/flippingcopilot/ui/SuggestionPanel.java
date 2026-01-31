@@ -256,7 +256,7 @@ public class SuggestionPanel extends JPanel {
             showLoading();
             Suggestion s = suggestionManager.getSuggestion();
             if(s != null) {
-                s.actioned = true;
+                s.actionedTick = client.getTickCount();
             }
             accountStatusManager.setSkipSuggestion(s != null ? s.getId() : -1);
             suggestionManager.setSuggestionNeeded(true);

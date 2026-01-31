@@ -96,8 +96,8 @@ public class SuggestionController {
         if (client.getTickCount() < suggestionManager.suggestionsDelayedUntil) {
             return false;
         }
-        Suggestion previousSuggestion = suggestionManager.getSuggestion();
-        if(grandExchange.isSlotOpen() && !(previousSuggestion == null || accountStatusManager.isSuggestionSkipped() || previousSuggestion.actioned || suggestionManager.suggestionOutOfDate())) {
+        Suggestion p = suggestionManager.getSuggestion();
+        if(grandExchange.isSlotOpen() && !(p == null || (p.actionedTick != -1 && p.actionedTick < client.getTickCount())) || suggestionManager.suggestionVeryOutOfDate()) {
             return false;
         }
 
@@ -133,7 +133,7 @@ public class SuggestionController {
             return;
         }
         Suggestion oldSuggestion = suggestionManager.getSuggestion();
-        if (oldSuggestion != null && oldSuggestion.isRecentUnsanctionedDumpAlert()) {
+        if (oldSuggestion != null && oldSuggestion.isRecentUnActionedDumpAlert()) {
             return;
         }
         suggestionManager.setSuggestionRequestInProgress(true);
@@ -177,9 +177,8 @@ public class SuggestionController {
     }
 
     private synchronized void handleSuggestionReceived(Suggestion oldSuggestion, Suggestion newSuggestion, AccountStatus accountStatus) {
-        if (oldSuggestion != null && !newSuggestion.isDumpAlert && oldSuggestion.isRecentUnsanctionedDumpAlert()) {
-            suggestionManager.setSuggestionError(null);
-            suggestionManager.setSuggestionRequestInProgress(false);
+        if (!suggestionManager.isSuggestionRequestInProgress()) {
+            // this is the edge case when a dump suggestion is received whilst a standard request is in progress
             return;
         }
         suggestionManager.setSuggestion(newSuggestion);
