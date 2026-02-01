@@ -97,11 +97,21 @@ public class SuggestionController {
             return false;
         }
         Suggestion p = suggestionManager.getSuggestion();
-        if(grandExchange.isSlotOpen() && !(p == null || (p.actionedTick != -1 && p.actionedTick < client.getTickCount())) || suggestionManager.suggestionVeryOutOfDate()) {
+        if(grandExchange.isSlotOpen() && !suggestionActionedOrVeryOutOfDate(p)) {
             return false;
         }
 
         return suggestionManager.isSuggestionNeeded() || suggestionManager.suggestionOutOfDate();
+    }
+
+    private boolean suggestionActionedOrVeryOutOfDate(Suggestion p) {
+        if (p == null || p.getType().equals("wait")) {
+            return true;
+        }
+        if (p.actionedTick != -1 && p.actionedTick < client.getTickCount()) {
+            return true;
+        }
+        return suggestionManager.suggestionVeryOutOfDate();
     }
 
     private boolean isUncollectedOutOfSync() {
