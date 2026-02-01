@@ -172,11 +172,9 @@ public class SuggestionController {
     }
 
     void handleDumpSuggestion(Suggestion suggestion) {
-        if (config.dumpAlertSound()) {
-            client.playSoundEffect(SoundEffectID.GE_ADD_OFFER_DINGALING);
-        }
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (accountStatus == null) {
+            log.info("discarding dump suggestion as account status null");
             return;
         }
         if (accountStatus.emptySlotExists()) {
@@ -187,9 +185,13 @@ public class SuggestionController {
     }
 
     private synchronized void handleSuggestionReceived(Suggestion oldSuggestion, Suggestion newSuggestion, AccountStatus accountStatus) {
-        if (!suggestionManager.isSuggestionRequestInProgress()) {
+        if (!newSuggestion.isDumpAlert && !suggestionManager.isSuggestionRequestInProgress()) {
             // this is the edge case when a dump suggestion is received whilst a standard request is in progress
+            log.info("discarding suggestion as not dump alert and no request in progress {}", newSuggestion);
             return;
+        }
+        if (newSuggestion.isDumpAlert && config.dumpAlertSound()) {
+            client.playSoundEffect(SoundEffectID.GE_ADD_OFFER_DINGALING);
         }
         suggestionManager.setSuggestion(newSuggestion);
         suggestionManager.setSuggestionError(null);
