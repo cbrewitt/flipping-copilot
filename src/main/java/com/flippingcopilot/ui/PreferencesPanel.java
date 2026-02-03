@@ -252,6 +252,7 @@ public class PreferencesPanel extends JPanel {
         dumpSuggestionsToggleButton.addItemListener(e -> {
             boolean enabled = dumpSuggestionsToggleButton.isSelected();
             preferencesManager.setReceiveDumpSuggestions(enabled);
+            suggestionManager.setSuggestionNeeded(true);
         });
         preferencesContent.add(dumpSuggestionsPanel);
         preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
