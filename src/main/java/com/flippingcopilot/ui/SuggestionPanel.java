@@ -200,7 +200,7 @@ public class SuggestionPanel extends JPanel {
     private void handleGearClick() {
         isPreferencesPanelVisible = !isPreferencesPanelVisible;
         if (isPreferencesPanelVisible) {
-            setPanelHeight(300);
+            setPanelHeight(260);
         } else {
             setPanelHeight(150);
         }
