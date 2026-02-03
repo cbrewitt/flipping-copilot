@@ -43,7 +43,7 @@ public class AccountStatus {
 
     public synchronized boolean isCollectNeeded(Suggestion suggestion) {
         if (!suggestion.isDumpAlert()
-                && offers.reservedSlotNeeded(isWorldMember || isAccountMember, resolveReservedSlots()))  {
+                && offers.reservedSlotNeeded(isWorldMember || isAccountMember, resolveReservedSlots(), suggestion))  {
             log.debug("collected needed reservedSlotNeeded");
             return true;
         }

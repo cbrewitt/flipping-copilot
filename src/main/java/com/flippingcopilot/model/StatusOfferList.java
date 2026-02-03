@@ -38,7 +38,7 @@ public class StatusOfferList extends ArrayList<Offer> {
         return findEmptySlot(isMember) != -1;
     }
 
-    boolean reservedSlotNeeded(boolean isMember, int reservedSlots) {
+    boolean reservedSlotNeeded(boolean isMember, int reservedSlots, Suggestion suggestion) {
         int numUsableSlots = isMember ? NUM_SLOTS : NUM_F2P_SLOTS;
         int numEmptySlots = 0;
         for (int i = 0; i < numUsableSlots; i++) {
@@ -46,7 +46,14 @@ public class StatusOfferList extends ArrayList<Offer> {
                 numEmptySlots++;
             }
         }
-        return reservedSlots > numEmptySlots && completeOfferExists();
+        int requiredSlots = reservedSlots;
+        if (suggestion != null) {
+            String type = suggestion.getType();
+            if ("buy".equals(type) || "sell".equals(type)) {
+                requiredSlots += 1;
+            }
+        }
+        return requiredSlots > numEmptySlots && completeOfferExists();
     }
 
     boolean completeOfferExists() {
