@@ -33,7 +33,8 @@ public class AccountStatus {
     private List<Integer> blockedItems;
     private int timeframe = 5; // Default to 5 minutes
     private RiskLevel riskLevel = RiskLevel.MEDIUM;
-    private int ReservedSlots = 0;
+    private Integer reservedSlots;
+    private Integer minPredictedProfit;
 
     public AccountStatus() {
         offers = new StatusOfferList();
@@ -41,7 +42,8 @@ public class AccountStatus {
     }
 
     public synchronized boolean isCollectNeeded(Suggestion suggestion) {
-        if (offers.reservedSlotNeeded(isWorldMember || isAccountMember, getReservedSlots()))  {
+        if (!suggestion.isDumpAlert()
+                && offers.reservedSlotNeeded(isWorldMember || isAccountMember, resolveReservedSlots(), suggestion))  {
             log.debug("collected needed reservedSlotNeeded");
             return true;
         }
@@ -76,6 +78,9 @@ public class AccountStatus {
         statusJson.addProperty("timeframe", timeframe);
         RiskLevel effectiveRiskLevel = riskLevel != null ? riskLevel : RiskLevel.MEDIUM;
         statusJson.addProperty("risk_level", effectiveRiskLevel.toApiValue());
+        if (minPredictedProfit != null) {
+            statusJson.addProperty("min_predicted_profit", minPredictedProfit);
+        }
         if (suggestionsPaused != null) {
             statusJson.addProperty("suggestions_paused", suggestionsPaused);
         }
@@ -101,8 +106,8 @@ public class AccountStatus {
            requestedSuggestionTypes.forEach(rstArray::add);
            statusJson.add("requested_suggestion_types", rstArray);
         }
-        if(getReservedSlots() > 0) {
-            statusJson.addProperty("reserved_slots", getReservedSlots());
+        if (reservedSlots != null && reservedSlots > 0) {
+            statusJson.addProperty("reserved_slots", reservedSlots);
         }
         return statusJson;
     }
@@ -148,5 +153,9 @@ public class AccountStatus {
         //  size until they start selling it. We should probably track items that where recently bought
         //  and they should still count towards the cash stack size for some period of time
         return offers.getGpOnMarket() + inventory.getTotalGp();
+    }
+
+    private int resolveReservedSlots() {
+        return reservedSlots == null ? 0 : reservedSlots;
     }
 }

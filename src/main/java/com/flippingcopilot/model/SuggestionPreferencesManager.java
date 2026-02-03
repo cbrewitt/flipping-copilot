@@ -96,15 +96,35 @@ public class SuggestionPreferencesManager {
         return osrsAccountPreferences.get().getRiskLevel();
     }
 
-    public synchronized void setReservedSlots(int reservedSlots) {
-        int clamped = Math.max(0, Math.min(8, reservedSlots));
+    public synchronized void setReservedSlots(Integer reservedSlots) {
+        Integer clamped = reservedSlots == null ? null : Math.max(0, Math.min(8, reservedSlots));
         AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
         preferences.setReservedSlots(clamped);
         osrsAccountPreferences.updateAndPersist(preferences);
     }
 
-    public synchronized int getReservedSlots() {
+    public synchronized Integer getReservedSlots() {
         return osrsAccountPreferences.get().getReservedSlots();
+    }
+
+    public synchronized int getEffectiveReservedSlots() {
+        Integer reservedSlots = getReservedSlots();
+        if (reservedSlots != null) {
+            return reservedSlots;
+        }
+        boolean dumpAlertsEnabled = isReceiveDumpSuggestions();
+        int timeframeMinutes = getTimeframe();
+        return (dumpAlertsEnabled && timeframeMinutes <= 30) ? 1 : 0;
+    }
+
+    public synchronized void setMinPredictedProfit(Integer minPredictedProfit) {
+        AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
+        preferences.setMinPredictedProfit(minPredictedProfit);
+        osrsAccountPreferences.updateAndPersist(preferences);
+    }
+
+    public synchronized Integer getMinPredictedProfit() {
+        return osrsAccountPreferences.get().getMinPredictedProfit();
     }
 
     public synchronized void setReceiveDumpSuggestions(boolean receiveDumpSuggestions) {
