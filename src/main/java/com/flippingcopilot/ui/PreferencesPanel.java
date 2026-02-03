@@ -25,11 +25,25 @@ public class PreferencesPanel extends JPanel {
 
     private static final MinProfitOption[] MIN_PREDICTED_PROFIT_OPTIONS = new MinProfitOption[]{
             new MinProfitOption("Auto", null),
+            new MinProfitOption("20K", 20_000),
             new MinProfitOption("50K", 50_000),
             new MinProfitOption("100K", 100_000),
             new MinProfitOption("200K", 200_000),
             new MinProfitOption("500K", 500_000),
             new MinProfitOption("1M", 1_000_000)
+    };
+
+    private static final ReservedSlotsOption[] RESERVED_SLOTS_OPTIONS = new ReservedSlotsOption[]{
+            new ReservedSlotsOption("Auto", null),
+            new ReservedSlotsOption("0", 0),
+            new ReservedSlotsOption("1", 1),
+            new ReservedSlotsOption("2", 2),
+            new ReservedSlotsOption("3", 3),
+            new ReservedSlotsOption("4", 4),
+            new ReservedSlotsOption("5", 5),
+            new ReservedSlotsOption("6", 6),
+            new ReservedSlotsOption("7", 7),
+            new ReservedSlotsOption("8", 8)
     };
 
     private final SuggestionPreferencesManager preferencesManager;
@@ -42,13 +56,14 @@ public class PreferencesPanel extends JPanel {
     private final JComboBox<String> profileSelector;
     private final JButton addProfileButton;
     private final JButton deleteProfileButton;
-    private final JSpinner reservedSlotsSpinner;
+    private final JComboBox<ReservedSlotsOption> reservedSlotsDropdown;
     private final JPanel dumpSuggestionsPanel;
     private final PreferencesToggleButton dumpSuggestionsToggleButton;
     private final JPanel preferencesContent;
     private final JPanel loginPromptPanel;
     private final JComboBox<MinProfitOption> minPredictedProfitDropdown;
     private boolean suppressMinProfitEvents;
+    private boolean suppressReservedSlotsEvents;
 
     @Inject
     public PreferencesPanel(
@@ -245,26 +260,29 @@ public class PreferencesPanel extends JPanel {
         JPanel reservedSlotsPanel = new JPanel(new BorderLayout());
         reservedSlotsPanel.setOpaque(false);
         JLabel reservedSlotsLabel = new JLabel("Reserved slots");
-        reservedSlotsSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 8, 1));
-        reservedSlotsSpinner.setPreferredSize(new Dimension(60, 25));
-        reservedSlotsSpinner.setMaximumSize(new Dimension(60, 25));
-        reservedSlotsSpinner.addChangeListener(e -> {
-            int value = (int) reservedSlotsSpinner.getValue();
-            preferencesManager.setReservedSlots(value);
+        reservedSlotsDropdown = new JComboBox<>(new DefaultComboBoxModel<>(RESERVED_SLOTS_OPTIONS));
+        reservedSlotsDropdown.setPreferredSize(new Dimension(75, 25));
+        reservedSlotsDropdown.setMaximumSize(new Dimension(75, 25));
+        reservedSlotsDropdown.addActionListener(e -> {
+            if (suppressReservedSlotsEvents) {
+                return;
+            }
+            ReservedSlotsOption option = (ReservedSlotsOption) reservedSlotsDropdown.getSelectedItem();
+            preferencesManager.setReservedSlots(option == null ? null : option.value);
             suggestionManager.setSuggestionNeeded(true);
         });
         reservedSlotsPanel.add(reservedSlotsLabel, BorderLayout.LINE_START);
-        reservedSlotsPanel.add(reservedSlotsSpinner, BorderLayout.LINE_END);
+        reservedSlotsPanel.add(reservedSlotsDropdown, BorderLayout.LINE_END);
         preferencesContent.add(reservedSlotsPanel);
         preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
 
         // Min predicted profit
         JPanel minPredictedProfitPanel = new JPanel(new BorderLayout());
         minPredictedProfitPanel.setOpaque(false);
-        JLabel minPredictedProfitLabel = new JLabel("Min predicted profit");
+        JLabel minPredictedProfitLabel = new JLabel("Min. predicted profit");
         minPredictedProfitDropdown = new JComboBox<>(new DefaultComboBoxModel<>(MIN_PREDICTED_PROFIT_OPTIONS));
-        minPredictedProfitDropdown.setPreferredSize(new Dimension(63, 25));
-        minPredictedProfitDropdown.setMaximumSize(new Dimension(63, 25));
+        minPredictedProfitDropdown.setPreferredSize(new Dimension(75, 25));
+        minPredictedProfitDropdown.setMaximumSize(new Dimension(75, 25));
         minPredictedProfitDropdown.addActionListener(e -> {
             if (suppressMinProfitEvents) {
                 return;
@@ -308,8 +326,7 @@ public class PreferencesPanel extends JPanel {
         layout.show(this, "preferences");
         sellOnlyModeToggleButton.setSelected(preferencesManager.isSellOnlyMode());
         f2pOnlyModeToggleButton.setSelected(preferencesManager.isF2pOnlyMode());
-        int reservedSlots = preferencesManager.getReservedSlots();
-        reservedSlotsSpinner.setValue(reservedSlots);
+        syncReservedSlots(preferencesManager.getReservedSlots());
         dumpSuggestionsToggleButton.setSelected(preferencesManager.isReceiveDumpSuggestions());
         syncMinPredictedProfit(preferencesManager.getMinPredictedProfit());
         deleteProfileButton.setVisible(!preferencesManager.isDefaultProfileSelected());
@@ -329,6 +346,15 @@ public class PreferencesPanel extends JPanel {
         }
     }
 
+    private void syncReservedSlots(Integer value) {
+        try {
+            suppressReservedSlotsEvents = true;
+            reservedSlotsDropdown.setSelectedItem(findReservedSlotsOption(value));
+        } finally {
+            suppressReservedSlotsEvents = false;
+        }
+    }
+
     private MinProfitOption findMinProfitOption(Integer value) {
         for (int i = 0; i < minPredictedProfitDropdown.getItemCount(); i++) {
             MinProfitOption option = minPredictedProfitDropdown.getItemAt(i);
@@ -339,11 +365,36 @@ public class PreferencesPanel extends JPanel {
         return minPredictedProfitDropdown.getItemAt(0);
     }
 
+    private ReservedSlotsOption findReservedSlotsOption(Integer value) {
+        for (int i = 0; i < reservedSlotsDropdown.getItemCount(); i++) {
+            ReservedSlotsOption option = reservedSlotsDropdown.getItemAt(i);
+            if (Objects.equals(option.value, value)) {
+                return option;
+            }
+        }
+        return reservedSlotsDropdown.getItemAt(0);
+    }
+
     private static final class MinProfitOption {
         private final String label;
         private final Integer value;
 
         private MinProfitOption(String label, Integer value) {
+            this.label = label;
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    private static final class ReservedSlotsOption {
+        private final String label;
+        private final Integer value;
+
+        private ReservedSlotsOption(String label, Integer value) {
             this.label = label;
             this.value = value;
         }
