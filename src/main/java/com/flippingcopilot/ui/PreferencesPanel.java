@@ -17,10 +17,20 @@ import java.awt.*;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Singleton
 public class PreferencesPanel extends JPanel {
+
+    private static final MinProfitOption[] MIN_PREDICTED_PROFIT_OPTIONS = new MinProfitOption[]{
+            new MinProfitOption("Auto", null),
+            new MinProfitOption("50K", 50_000),
+            new MinProfitOption("100K", 100_000),
+            new MinProfitOption("200K", 200_000),
+            new MinProfitOption("500K", 500_000),
+            new MinProfitOption("1M", 1_000_000)
+    };
 
     private final SuggestionPreferencesManager preferencesManager;
     private final OsrsLoginManager osrsLoginManager;
@@ -37,6 +47,8 @@ public class PreferencesPanel extends JPanel {
     private final PreferencesToggleButton dumpSuggestionsToggleButton;
     private final JPanel preferencesContent;
     private final JPanel loginPromptPanel;
+    private final JComboBox<MinProfitOption> minPredictedProfitDropdown;
+    private boolean suppressMinProfitEvents;
 
     @Inject
     public PreferencesPanel(
@@ -246,6 +258,26 @@ public class PreferencesPanel extends JPanel {
         preferencesContent.add(reservedSlotsPanel);
         preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
 
+        // Min predicted profit
+        JPanel minPredictedProfitPanel = new JPanel(new BorderLayout());
+        minPredictedProfitPanel.setOpaque(false);
+        JLabel minPredictedProfitLabel = new JLabel("Min predicted profit");
+        minPredictedProfitDropdown = new JComboBox<>(new DefaultComboBoxModel<>(MIN_PREDICTED_PROFIT_OPTIONS));
+        minPredictedProfitDropdown.setPreferredSize(new Dimension(63, 25));
+        minPredictedProfitDropdown.setMaximumSize(new Dimension(63, 25));
+        minPredictedProfitDropdown.addActionListener(e -> {
+            if (suppressMinProfitEvents) {
+                return;
+            }
+            MinProfitOption option = (MinProfitOption) minPredictedProfitDropdown.getSelectedItem();
+            preferencesManager.setMinPredictedProfit(option == null ? null : option.value);
+            suggestionManager.setSuggestionNeeded(true);
+        });
+        minPredictedProfitPanel.add(minPredictedProfitLabel, BorderLayout.LINE_START);
+        minPredictedProfitPanel.add(minPredictedProfitDropdown, BorderLayout.LINE_END);
+        preferencesContent.add(minPredictedProfitPanel);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
+
         // Premium instances panel - moved to the bottom
         JPanel premiumInstancesPanel = new JPanel();
         premiumInstancesPanel.setLayout(new BorderLayout());
@@ -279,11 +311,46 @@ public class PreferencesPanel extends JPanel {
         int reservedSlots = preferencesManager.getReservedSlots();
         reservedSlotsSpinner.setValue(reservedSlots);
         dumpSuggestionsToggleButton.setSelected(preferencesManager.isReceiveDumpSuggestions());
+        syncMinPredictedProfit(preferencesManager.getMinPredictedProfit());
         deleteProfileButton.setVisible(!preferencesManager.isDefaultProfileSelected());
         List<String> correctOptions = preferencesManager.getAvailableProfiles();
         DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) profileSelector.getModel();
         model.removeAllElements();
         model.addAll(correctOptions);
         model.setSelectedItem(preferencesManager.getCurrentProfile());
+    }
+
+    private void syncMinPredictedProfit(Integer value) {
+        try {
+            suppressMinProfitEvents = true;
+            minPredictedProfitDropdown.setSelectedItem(findMinProfitOption(value));
+        } finally {
+            suppressMinProfitEvents = false;
+        }
+    }
+
+    private MinProfitOption findMinProfitOption(Integer value) {
+        for (int i = 0; i < minPredictedProfitDropdown.getItemCount(); i++) {
+            MinProfitOption option = minPredictedProfitDropdown.getItemAt(i);
+            if (Objects.equals(option.value, value)) {
+                return option;
+            }
+        }
+        return minPredictedProfitDropdown.getItemAt(0);
+    }
+
+    private static final class MinProfitOption {
+        private final String label;
+        private final Integer value;
+
+        private MinProfitOption(String label, Integer value) {
+            this.label = label;
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 }

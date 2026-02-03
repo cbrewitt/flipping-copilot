@@ -107,6 +107,16 @@ public class SuggestionPreferencesManager {
         return osrsAccountPreferences.get().getReservedSlots();
     }
 
+    public synchronized void setMinPredictedProfit(Integer minPredictedProfit) {
+        AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
+        preferences.setMinPredictedProfit(minPredictedProfit);
+        osrsAccountPreferences.updateAndPersist(preferences);
+    }
+
+    public synchronized Integer getMinPredictedProfit() {
+        return osrsAccountPreferences.get().getMinPredictedProfit();
+    }
+
     public synchronized void setReceiveDumpSuggestions(boolean receiveDumpSuggestions) {
         AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
         preferences.setReceiveDumpSuggestions(receiveDumpSuggestions);

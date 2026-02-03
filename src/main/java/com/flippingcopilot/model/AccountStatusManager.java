@@ -58,6 +58,7 @@ public class AccountStatusManager {
         status.setTimeframe(suggestionPreferencesManager.getTimeframe());
         status.setRiskLevel(suggestionPreferencesManager.getRiskLevel());
         status.setReservedSlots(suggestionPreferencesManager.getReservedSlots());
+        status.setMinPredictedProfit(suggestionPreferencesManager.getMinPredictedProfit());
 
         Map<Integer, Long> inLimboItems = geUncollected.getLastClearedUncollected();
         List<Integer> clearedSlots = geUncollected.getLastClearedSlots();

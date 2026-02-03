@@ -34,6 +34,7 @@ public class AccountStatus {
     private int timeframe = 5; // Default to 5 minutes
     private RiskLevel riskLevel = RiskLevel.MEDIUM;
     private int ReservedSlots = 0;
+    private Integer minPredictedProfit;
 
     public AccountStatus() {
         offers = new StatusOfferList();
@@ -41,7 +42,8 @@ public class AccountStatus {
     }
 
     public synchronized boolean isCollectNeeded(Suggestion suggestion) {
-        if (offers.reservedSlotNeeded(isWorldMember || isAccountMember, getReservedSlots()))  {
+        if (!suggestion.isDumpAlert()
+                && offers.reservedSlotNeeded(isWorldMember || isAccountMember, getReservedSlots()))  {
             log.debug("collected needed reservedSlotNeeded");
             return true;
         }
@@ -76,6 +78,9 @@ public class AccountStatus {
         statusJson.addProperty("timeframe", timeframe);
         RiskLevel effectiveRiskLevel = riskLevel != null ? riskLevel : RiskLevel.MEDIUM;
         statusJson.addProperty("risk_level", effectiveRiskLevel.toApiValue());
+        if (minPredictedProfit != null) {
+            statusJson.addProperty("min_predicted_profit", minPredictedProfit);
+        }
         if (suggestionsPaused != null) {
             statusJson.addProperty("suggestions_paused", suggestionsPaused);
         }
