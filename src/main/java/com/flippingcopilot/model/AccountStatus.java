@@ -35,6 +35,7 @@ public class AccountStatus {
     private RiskLevel riskLevel = RiskLevel.MEDIUM;
     private Integer reservedSlots;
     private Integer minPredictedProfit;
+    private Integer dumpMinPredictedProfit;
 
     public AccountStatus() {
         offers = new StatusOfferList();
@@ -80,6 +81,9 @@ public class AccountStatus {
         statusJson.addProperty("risk_level", effectiveRiskLevel.toApiValue());
         if (minPredictedProfit != null) {
             statusJson.addProperty("min_predicted_profit", minPredictedProfit);
+        }
+        if (dumpMinPredictedProfit != null) {
+            statusJson.addProperty("min_dump_profit", dumpMinPredictedProfit);
         }
         if (suggestionsPaused != null) {
             statusJson.addProperty("suggestions_paused", suggestionsPaused);
