@@ -263,7 +263,7 @@ public class GraphPanel extends JPanel {
         int y = bounds.toY(pricePa, priceLine.getPrice());
         g2d.setColor(Color.WHITE);
         Stroke previousStroke = g2d.getStroke();
-        g2d.setStroke(Config.NORMAL_STROKE);
+        g2d.setStroke(Config.DOTTED_STROKE);
         g2d.drawLine(pricePa.x, y, pricePa.x + pricePa.width, y);
         g2d.setStroke(previousStroke);
 
