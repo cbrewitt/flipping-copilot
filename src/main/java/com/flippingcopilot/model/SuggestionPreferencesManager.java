@@ -28,6 +28,7 @@ import java.util.stream.Stream;
 public class SuggestionPreferencesManager {
 
     private static final int DEFAULT_TIMEFRAME = 5;
+    private static final int DEFAULT_DUMP_MIN_PROFIT = 100_000;
 
     public static final Path DEFAULT_PROFILE_PATH = Paths.get(Persistance.COPILOT_DIR.getPath(), "Default profile.profile.json");
     public static final String PROFILE_SUFFIX = ".profile.json";
@@ -125,6 +126,24 @@ public class SuggestionPreferencesManager {
 
     public synchronized Integer getMinPredictedProfit() {
         return osrsAccountPreferences.get().getMinPredictedProfit();
+    }
+
+    public synchronized void setDumpMinPredictedProfit(Integer dumpMinPredictedProfit) {
+        AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
+        preferences.setDumpMinPredictedProfit(dumpMinPredictedProfit);
+        osrsAccountPreferences.updateAndPersist(preferences);
+    }
+
+    public synchronized Integer getDumpMinPredictedProfit() {
+        return osrsAccountPreferences.get().getDumpMinPredictedProfit();
+    }
+
+    public synchronized Integer getEffectiveDumpMinPredictedProfit() {
+        if (!isReceiveDumpSuggestions()) {
+            return null;
+        }
+        Integer dumpMinPredictedProfit = getDumpMinPredictedProfit();
+        return dumpMinPredictedProfit != null ? dumpMinPredictedProfit : DEFAULT_DUMP_MIN_PROFIT;
     }
 
     public synchronized void setReceiveDumpSuggestions(boolean receiveDumpSuggestions) {
