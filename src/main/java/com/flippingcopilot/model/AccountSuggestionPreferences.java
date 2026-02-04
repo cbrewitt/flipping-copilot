@@ -10,4 +10,5 @@ public class AccountSuggestionPreferences {
     public Integer reservedSlots = null;
     public boolean receiveDumpSuggestions = false;
     public Integer minPredictedProfit = null;
+    public String selectedProfile = null;
 }

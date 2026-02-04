@@ -232,7 +232,9 @@ public class SuggestionPanel extends JPanel {
         graphButton = buildButton(graphIcon, "Price graph", () -> {
             if(config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT)) {
                 Suggestion suggestion = suggestionManager.getSuggestion();
-                if(suggestion != null && !suggestion.getType().equals("wait")) {
+                if(isSuggestionWithoutGraphData(suggestion)) {
+                    flipsDialogController.showPriceGraphTab(suggestion.getItemId(), false, null);
+                } else if(suggestion != null && !suggestion.getType().equals("wait")) {
                     flipsDialogController.showPriceGraphTab(null, true, null);
                 } else {
                     flipsDialogController.showPriceGraphTab(null, false, null);
@@ -279,6 +281,10 @@ public class SuggestionPanel extends JPanel {
         additionalInfoText.setText("<html><center>" + text + "</center></html>");
     }
 
+    private boolean isSuggestionWithoutGraphData(Suggestion suggestion) {
+        return suggestion != null && !suggestion.getType().equals("wait") && suggestion.isDumpAlert;
+    }
+
     public void updateSuggestion(Suggestion suggestion) {
         NumberFormat formatter = NumberFormat.getNumberInstance();
         String suggestionString = "<html><center>";
@@ -287,6 +293,7 @@ public class SuggestionPanel extends JPanel {
         switch (suggestion.getType()) {
             case "wait":
                 suggestionString += "Wait <br>";
+                suggestionIcon.setVisible(false);
                 break;
             case "abort":
                 suggestionString += "Abort offer for<br><FONT COLOR=white>" + suggestion.getName() + "<br></FONT>";

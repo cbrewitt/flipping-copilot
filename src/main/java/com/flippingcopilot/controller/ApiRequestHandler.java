@@ -1,6 +1,5 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.graph.model.Data;
@@ -40,7 +39,6 @@ public class ApiRequestHandler {
     private final OkHttpClient client;
     private final Gson gson;
     private final CopilotLoginManager copilotLoginManager;
-    private final FlippingCopilotConfig config;
 
     @Setter
     private CopilotLoginController copilotLoginController;
@@ -86,7 +84,8 @@ public class ApiRequestHandler {
     public void getSuggestionAsync(JsonObject status,
                                    Consumer<Suggestion> suggestionConsumer,
                                    Consumer<Data> graphDataConsumer,
-                                   Consumer<HttpResponseException>  onFailure) {
+                                   Consumer<HttpResponseException>  onFailure,
+                                   boolean skipGraphData) {
         log.debug("sending status {}", status.toString());
         Request.Builder rb = new Request.Builder()
                 .url(serverUrl + "/suggestion")
@@ -95,7 +94,7 @@ public class ApiRequestHandler {
                 .addHeader("X-VERSION", "1")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), status.toString()));
 
-        if(config.lowDataMode()){
+        if(skipGraphData){
             rb.addHeader("X-SKIP-GD", "true");
         }
 

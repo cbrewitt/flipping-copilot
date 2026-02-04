@@ -6,6 +6,7 @@ import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.ItemPrice;
 import com.flippingcopilot.model.OsrsLoginManager;
+import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.UIUtilities;
 import com.flippingcopilot.ui.components.ItemSearchBox;
@@ -35,6 +36,7 @@ public class PriceGraphPanel extends JPanel {
     private final ApiRequestHandler apiRequestHandler;
     private final OsrsLoginManager osrsLoginManager;
     private final PriceGraphConfigManager priceGraphConfigManager;
+    private final SuggestionManager suggestionManager;
 
     // UI Components
     public final ItemSearchBox searchBox;
@@ -47,7 +49,6 @@ public class PriceGraphPanel extends JPanel {
 
     // State
     private volatile int currentItemId;
-
     public volatile PriceLine offerPriceLine;
 
 
@@ -61,11 +62,12 @@ public class PriceGraphPanel extends JPanel {
                            PriceGraphConfigManager configManager,
                            FlippingCopilotConfig copilotConfig,
                            ApiRequestHandler apiRequestHandler,
-                           OsrsLoginManager osrsLoginManager, PriceGraphConfigManager priceGraphConfigManager) {
+                           OsrsLoginManager osrsLoginManager, PriceGraphConfigManager priceGraphConfigManager, SuggestionManager suggestionManager) {
         this.itemController = itemController;
         this.apiRequestHandler = apiRequestHandler;
         this.osrsLoginManager = osrsLoginManager;
         this.priceGraphConfigManager = priceGraphConfigManager;
+        this.suggestionManager = suggestionManager;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -167,7 +169,7 @@ public class PriceGraphPanel extends JPanel {
         }
         offerPriceLine = null;
         isShowingSuggestionPriceData = false;
-        showSuggestionButton.setVisible(true);
+        showSuggestionButton.setVisible(suggestionPriceData != null || suggestionManager.isGraphDataReadingInProgress());
         currentItemId = itemId;
         log.debug("Loading price graph for item: {}", itemId);
         contentCardLayout.show(contentPanel, Cards.LOADING_CARD.name());
@@ -298,8 +300,8 @@ public class PriceGraphPanel extends JPanel {
     public void showSuggestionPriceGraph() {
         isShowingSuggestionPriceData = true;
         showSuggestionButton.setVisible(false);
-        setLoadingCard();
         if (suggestionPriceData != null) {
+            setLoadingCard();
             setSuggestionPriceData(suggestionPriceData);
         }
     }
