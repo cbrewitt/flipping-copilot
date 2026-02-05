@@ -1,9 +1,9 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.OfferStatus;
 import com.flippingcopilot.model.SavedOffer;
-import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.util.ProfitCalculator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +11,7 @@ import net.runelite.api.Client;
 import net.runelite.api.GrandExchangeOffer;
 import net.runelite.api.GrandExchangeOfferState;
 import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.widgets.Widget;
 
 import javax.inject.Inject;
@@ -70,7 +71,11 @@ public class SlotProfitColorizer {
 
         int openSlot = grandExchange.getOpenSlot();
         if (openSlot > -1) {
-            updateDetailView(openSlot);
+            if (grandExchange.isSetupOfferOpen()) {
+                updateOfferSetup();
+            } else {
+                updateDetailView(openSlot);
+            }
             return;
         }
 
@@ -118,8 +123,8 @@ public class SlotProfitColorizer {
      * Updates the price text color for a given widget based on slot profitability.
      *
      * @param priceTextWidget The widget containing the price text
-     * @param slotIndex The slot index (0-7)
-     * @param defaultColor The default color to use if not profitable/unprofitable
+     * @param slotIndex       The slot index (0-7)
+     * @param defaultColor    The default color to use if not profitable/unprofitable
      */
     private void updatePriceTextColor(Widget priceTextWidget, int slotIndex, Color defaultColor) {
         if (!hasValidText(priceTextWidget)) {
@@ -128,7 +133,7 @@ public class SlotProfitColorizer {
 
         Color targetColor = defaultColor;
 
-        if (! isBuyOffer(slotIndex)) {
+        if (!isBuyOffer(slotIndex)) {
             targetColor = determineProfitColor(calculateSlotProfit(slotIndex), defaultColor);
         } else if (isOfferTracked(slotIndex)) {
             targetColor = config.slotPriceProfitableColor();
@@ -139,12 +144,9 @@ public class SlotProfitColorizer {
 
     /**
      * Updates the offer setup screen price text color.
-     * Widget path: 465.26[41]
-     *
-     * @param itemId The item ID
-     * @param targetPrice The target/suggested price to compare against
+     * This handles both new offers and existing offer modifications.
      */
-    public void colorOfferSetupPrice(int itemId, int targetPrice) {
+    private void updateOfferSetup() {
         try {
             Widget offerSetupWidget = client.getWidget(InterfaceID.GE_OFFERS, OFFER_SETUP_CHILD_ID);
             if (offerSetupWidget == null || offerSetupWidget.isHidden()) {
@@ -157,34 +159,34 @@ public class SlotProfitColorizer {
             }
 
             Color defaultColor = Color.decode("#" + DETAIL_AND_SETUP_DEFAULT_COLOR);
-            Color color = determineOfferSetupColor(itemId, targetPrice, defaultColor);
+            Color color = determineOfferSetupColor(defaultColor);
 
             priceTextWidget.setTextColor(color.getRGB() & 0xFFFFFF);
         } catch (Exception e) {
-            log.debug("Error coloring offer setup price", e);
+            log.debug("Error updating offer setup price color", e);
         }
     }
 
     /**
-     * Determine the Offer Setup screen price text color.
-     *
-     * When buying, the price will be highlighted if it matches the target price.
-     * When selling, any item that will result in a profit will be shown as profitable.
-     * When selling, any item that will result in a loss will be shown as unprofitable.
-     * In all other cases, the default color is used.
-     *
-     * @param itemId The item ID
-     * @param targetPrice The target/suggested price to compare against
-     * @param defaultColor The default color to use
+     * Determines the offer setup screen price color.
+     * <p>
+     * For buy offers: shows profitable color if it's a tracked item being bought.
+     * For sell offers: shows profit/loss color based on buy price vs current sell price.
      */
-    private Color determineOfferSetupColor(int itemId, int targetPrice, Color defaultColor) {
-        if (! grandExchange.isOfferTypeSell()) {
-            // For buy offers, highlight if the current price matches the target price
-            int offerPrice = grandExchange.getOfferPrice();
-            if (offerPrice > 0 && targetPrice == offerPrice) {
+    private Color determineOfferSetupColor(Color defaultColor) {
+        if (!grandExchange.isOfferTypeSell()) {
+            // For buy offers, show profitable if we have a tracked price and the price matches it.
+            int viewedItemId = offerManager.getViewedSlotItemId();
+            int viewedItemPrice = offerManager.getViewedSlotItemPrice();
+            if (viewedItemId > 0 && viewedItemPrice > 0 && grandExchange.getOfferPrice() == viewedItemPrice) {
                 return config.slotPriceProfitableColor();
             }
 
+            return defaultColor;
+        }
+
+        int itemId = client.getVarpValue(VarPlayerID.TRADINGPOST_SEARCH);
+        if (itemId <= 0) {
             return defaultColor;
         }
 
@@ -224,14 +226,14 @@ public class SlotProfitColorizer {
 
     /**
      * Resets a single slot to default color.
-     * 
+     *
      * @param slotIndex The slot index (0-7)
      */
     private void resetSlot(int slotIndex) {
         try {
             Widget slotWidget = getSlotWidget(slotIndex);
             Widget priceTextWidget = getPriceTextWidget(slotWidget);
-            
+
             if (!hasValidText(priceTextWidget)) {
                 return;
             }
@@ -249,7 +251,7 @@ public class SlotProfitColorizer {
         try {
             Widget detailViewWidget = client.getWidget(InterfaceID.GE_OFFERS, DETAIL_VIEW_CHILD_ID);
             Widget priceTextWidget = detailViewWidget != null ? detailViewWidget.getChild(DETAIL_PRICE_TEXT_CHILD_INDEX) : null;
-            
+
             if (!hasValidText(priceTextWidget)) {
                 return;
             }
@@ -285,7 +287,7 @@ public class SlotProfitColorizer {
      * Calculates the profit for a given slot.
      * Returns null if profit cannot be determined.
      * Only calculates profit for SELL offers.
-     * 
+     *
      * @param slotIndex The slot index (0-7)
      * @return Profit in GP, or null if unknown
      */
@@ -300,7 +302,7 @@ public class SlotProfitColorizer {
 
     /**
      * Determines if the offer in a slot is a buy offer.
-     * 
+     *
      * @param slotIndex The slot index (0-7)
      * @return true if buy offer, false if sell offer or unknown
      */
@@ -318,21 +320,21 @@ public class SlotProfitColorizer {
                 GrandExchangeOffer currentOffer = offers[slotIndex];
                 if (currentOffer != null) {
                     GrandExchangeOfferState state = currentOffer.getState();
-                    return state == GrandExchangeOfferState.BUYING 
-                        || state == GrandExchangeOfferState.BOUGHT 
-                        || state == GrandExchangeOfferState.CANCELLED_BUY;
+                    return state == GrandExchangeOfferState.BUYING
+                            || state == GrandExchangeOfferState.BOUGHT
+                            || state == GrandExchangeOfferState.CANCELLED_BUY;
                 }
             }
         } catch (Exception e) {
             log.debug("Error determining offer type for slot {}", slotIndex, e);
         }
-        
+
         return false; // Default to sell if unknown
     }
 
     /**
      * Checks if an offer is being tracked (has a SavedOffer).
-     * 
+     *
      * @param slotIndex The slot index (0-7)
      * @return true if offer is tracked, false otherwise
      */
@@ -342,8 +344,8 @@ public class SlotProfitColorizer {
 
     /**
      * Applies the appropriate color to text based on profit and offer type.
-     * 
-     * @param text The original text
+     *
+     * @param text            The original text
      * @param determinedColor The color to apply (without <col=>)
      * @return Text with color tags applied
      */
@@ -353,7 +355,7 @@ public class SlotProfitColorizer {
 
     /**
      * Strips existing color tags from text.
-     * 
+     *
      * @param text Text potentially containing color tags
      * @return Plain text without color tags
      */
@@ -368,7 +370,7 @@ public class SlotProfitColorizer {
 
     /**
      * Converts a Color object to hex string (without # prefix).
-     * 
+     *
      * @param color The color to convert
      * @return Hex string (e.g., "32a0fa")
      */
@@ -378,7 +380,7 @@ public class SlotProfitColorizer {
 
     /**
      * Gets the slot widget for a given slot index.
-     * 
+     *
      * @param slotIndex The slot index (0-7)
      * @return The slot widget, or null if not found
      */
@@ -389,7 +391,7 @@ public class SlotProfitColorizer {
     /**
      * Gets the price text widget from a slot widget.
      * This is the widget at child index 25 within the slot.
-     * 
+     *
      * @param slotWidget The slot widget
      * @return The price text widget, or null if not found
      */
@@ -403,7 +405,7 @@ public class SlotProfitColorizer {
 
     /**
      * Checks if a widget and its text are valid for modification.
-     * 
+     *
      * @param widget The widget to check
      * @return true if the widget has valid text, false otherwise
      */
@@ -418,8 +420,8 @@ public class SlotProfitColorizer {
 
     /**
      * Resets a widget's text color to the specified default.
-     * 
-     * @param widget The widget to reset
+     *
+     * @param widget       The widget to reset
      * @param defaultColor The default color hex string (without # prefix)
      */
     private void resetWidgetTextColor(Widget widget, String defaultColor) {

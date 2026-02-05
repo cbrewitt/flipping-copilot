@@ -167,11 +167,11 @@ public class GrandExchange {
     }
 
     Widget getBackButton() {
-        return client.getWidget(InterfaceID.GRAND_EXCHANGE, 4);
+        return client.getWidget(InterfaceID.GE_OFFERS, 4);
     }
 
     String getOfferScreenTitle() {
-        Widget frame = client.getWidget(InterfaceID.GRAND_EXCHANGE, 2);
+        Widget frame = client.getWidget(InterfaceID.GE_OFFERS, 2);
         if (frame == null) {
             return null;
         }

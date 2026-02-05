@@ -53,9 +53,10 @@ public class OfferHandler {
             if (suggestion != null && suggestion.getItemId() == currentItemId &&
                     ((Objects.equals(suggestion.getType(), "sell") && isSelling()) ||
                             Objects.equals(suggestion.getType(), "buy") && isBuying())) {
+                offerManager.setViewedSlotItemPrice(suggestion.getPrice());
                 offerManager.setLastViewedSlotItemId(suggestion.getItemId());
                 offerManager.setLastViewedSlotItemPrice(suggestion.getPrice());
-                offerManager.setLastViewedSlotItemPrice((int) Instant.now().getEpochSecond());
+                offerManager.setLastViewedSlotPriceTime((int) Instant.now().getEpochSecond());
                 return;
             }
 

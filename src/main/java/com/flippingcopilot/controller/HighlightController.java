@@ -163,18 +163,6 @@ public class HighlightController {
                 && offerManager.getViewedSlotItemPrice() > -1;
     }
 
-    private int getOfferItemId() {
-        Widget detailsContainer = client.getWidget(465, 15);
-        if (detailsContainer == null) {
-            return -1;
-        }
-        Widget itemWidget = detailsContainer.getChild(7);
-        if (itemWidget == null) {
-            return -1;
-        }
-        return itemWidget.getItemId();
-    }
-
     private void highlightItemInSearch(Suggestion suggestion, Supplier<Color> colorSupplier) {
         if (!client.getVarcStrValue(VarClientStr.INPUT_TEXT).isEmpty()) {
             return;
