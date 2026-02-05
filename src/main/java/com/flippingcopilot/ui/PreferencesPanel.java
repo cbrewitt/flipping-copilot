@@ -1,7 +1,9 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.controller.DumpsStreamController;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.controller.PremiumInstanceController;
+import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.model.SuggestionPreferencesManager;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
@@ -11,20 +13,51 @@ import net.runelite.client.ui.ColorScheme;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.*;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.Font;
+import java.awt.*;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Singleton
 public class PreferencesPanel extends JPanel {
 
+    private static final MinProfitOption[] MIN_PREDICTED_PROFIT_OPTIONS = new MinProfitOption[]{
+            new MinProfitOption("Auto", null),
+            new MinProfitOption("20K", 20_000),
+            new MinProfitOption("50K", 50_000),
+            new MinProfitOption("100K", 100_000),
+            new MinProfitOption("200K", 200_000),
+            new MinProfitOption("500K", 500_000),
+            new MinProfitOption("1M", 1_000_000)
+    };
+
+    private static final ReservedSlotsOption[] RESERVED_SLOTS_OPTIONS = new ReservedSlotsOption[]{
+            new ReservedSlotsOption("Auto", null),
+            new ReservedSlotsOption("0", 0),
+            new ReservedSlotsOption("1", 1),
+            new ReservedSlotsOption("2", 2),
+            new ReservedSlotsOption("3", 3),
+            new ReservedSlotsOption("4", 4),
+            new ReservedSlotsOption("5", 5),
+            new ReservedSlotsOption("6", 6),
+            new ReservedSlotsOption("7", 7),
+            new ReservedSlotsOption("8", 8)
+    };
+
+    private static final DumpAlertMinProfitOption[] DUMP_ALERT_MIN_PROFIT_OPTIONS = new DumpAlertMinProfitOption[]{
+            new DumpAlertMinProfitOption("Off", null),
+            new DumpAlertMinProfitOption("100K+", 100_000),
+            new DumpAlertMinProfitOption("200K+", 200_000),
+            new DumpAlertMinProfitOption("500K+", 500_000),
+            new DumpAlertMinProfitOption("1M+", 1_000_000),
+            new DumpAlertMinProfitOption("2M+", 2_000_000),
+            new DumpAlertMinProfitOption("5M+", 5_000_000)
+    };
+
     private final SuggestionPreferencesManager preferencesManager;
+    private final OsrsLoginManager osrsLoginManager;
     private final JPanel sellOnlyButton;
     private final PreferencesToggleButton sellOnlyModeToggleButton;
     private final JPanel f2pOnlyButton;
@@ -33,15 +66,26 @@ public class PreferencesPanel extends JPanel {
     private final JComboBox<String> profileSelector;
     private final JButton addProfileButton;
     private final JButton deleteProfileButton;
+    private final JComboBox<ReservedSlotsOption> reservedSlotsDropdown;
+    private final JComboBox<DumpAlertMinProfitOption> dumpAlertsDropdown;
+    private final JPanel preferencesContent;
+    private final JPanel loginPromptPanel;
+    private final JComboBox<MinProfitOption> minPredictedProfitDropdown;
+    private boolean suppressMinProfitEvents;
+    private boolean suppressReservedSlotsEvents;
+    private boolean suppressDumpAlertsEvents;
 
     @Inject
     public PreferencesPanel(
             SuggestionManager suggestionManager,
             SuggestionPreferencesManager preferencesManager,
             PremiumInstanceController premiumInstanceController,
-            ItemController itemController) {
+            ItemController itemController,
+            OsrsLoginManager osrsLoginManager,
+            DumpsStreamController dumpsStreamController) {
         super();
         this.preferencesManager = preferencesManager;
+        this.osrsLoginManager = osrsLoginManager;
 
         blocklistDropdownPanel = new ItemSearchMultiSelect(
                 () -> new HashSet<>(preferencesManager.blockedItems()),
@@ -54,9 +98,13 @@ public class PreferencesPanel extends JPanel {
                 "Item blocklist...",
                 SwingUtilities.getWindowAncestor(this));
 
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setLayout(new CardLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
         setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+
+        preferencesContent = new JPanel();
+        preferencesContent.setLayout(new BoxLayout(preferencesContent, BoxLayout.Y_AXIS));
+        preferencesContent.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         JLabel preferencesTitle = new JLabel("Suggestion Settings");
         preferencesTitle.setForeground(Color.WHITE);
@@ -65,8 +113,17 @@ public class PreferencesPanel extends JPanel {
         preferencesTitle.setMinimumSize(new Dimension(MainPanel.CONTENT_WIDTH - 30, preferencesTitle.getPreferredSize().height));
         preferencesTitle.setMaximumSize(new Dimension(MainPanel.CONTENT_WIDTH - 30, preferencesTitle.getPreferredSize().height));
         preferencesTitle.setHorizontalAlignment(SwingConstants.CENTER);
-        add(preferencesTitle);
-        add(Box.createRigidArea(new Dimension(0, 8)));
+        preferencesContent.add(preferencesTitle);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 8)));
+
+        loginPromptPanel = new JPanel(new GridBagLayout());
+        loginPromptPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JLabel loginPrompt = new JLabel("<html><center>Log in to the game<br>to alter suggestion settings.</center></html>");
+        loginPrompt.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        loginPromptPanel.add(loginPrompt);
+
+        add(preferencesContent, "preferences");
+        add(loginPromptPanel, "login");
 
         // Profile selector panel
         JPanel profilePanel = new JPanel();
@@ -157,20 +214,20 @@ public class PreferencesPanel extends JPanel {
         profileControlPanel.add(deleteProfileButton);
 
         profilePanel.add(profileControlPanel, BorderLayout.LINE_START);
-        add(profilePanel);
+        preferencesContent.add(profilePanel);
 
         // Blocklist dropdown panel
         blocklistDropdownPanel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createEmptyBorder(5, 0, 5, 0),
                 blocklistDropdownPanel.getBorder()));
-        add(blocklistDropdownPanel);
+        preferencesContent.add(blocklistDropdownPanel);
 
         // Sell-only mode toggle
         sellOnlyModeToggleButton = new PreferencesToggleButton("Disable sell-only mode", "Enable sell-only mode");
         sellOnlyButton = new JPanel();
         sellOnlyButton.setLayout(new BorderLayout());
         sellOnlyButton.setOpaque(false);
-        add(sellOnlyButton);
+        preferencesContent.add(sellOnlyButton);
         JLabel buttonText = new JLabel("Sell-only mode");
         sellOnlyButton.add(buttonText, BorderLayout.LINE_START);
         sellOnlyButton.add(sellOnlyModeToggleButton, BorderLayout.LINE_END);
@@ -178,14 +235,14 @@ public class PreferencesPanel extends JPanel {
             preferencesManager.setSellOnlyMode(sellOnlyModeToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
         });
-        add(Box.createRigidArea(new Dimension(0, 3)));
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
 
         // F2P-only mode toggle
         f2pOnlyModeToggleButton = new PreferencesToggleButton("Disable F2P-only mode",  "Enable F2P-only mode");
         f2pOnlyButton = new JPanel();
         f2pOnlyButton.setLayout(new BorderLayout());
         f2pOnlyButton.setOpaque(false);
-        add(f2pOnlyButton);
+        preferencesContent.add(f2pOnlyButton);
         JLabel f2pOnlyButtonText = new JLabel("F2P-only mode");
         f2pOnlyButton.add(f2pOnlyButtonText, BorderLayout.LINE_START);
         f2pOnlyButton.add(f2pOnlyModeToggleButton, BorderLayout.LINE_END);
@@ -194,8 +251,73 @@ public class PreferencesPanel extends JPanel {
             suggestionManager.setSuggestionNeeded(true);
         });
 
+        // Min predicted profit
+        JPanel minPredictedProfitPanel = new JPanel(new BorderLayout());
+        minPredictedProfitPanel.setOpaque(false);
+        JLabel minPredictedProfitLabel = new JLabel("Min. predicted profit");
+        minPredictedProfitDropdown = new JComboBox<>(new DefaultComboBoxModel<>(MIN_PREDICTED_PROFIT_OPTIONS));
+        minPredictedProfitDropdown.setPreferredSize(new Dimension(75, 25));
+        minPredictedProfitDropdown.setMaximumSize(new Dimension(75, 25));
+        minPredictedProfitDropdown.addActionListener(e -> {
+            if (suppressMinProfitEvents) {
+                return;
+            }
+            MinProfitOption option = (MinProfitOption) minPredictedProfitDropdown.getSelectedItem();
+            preferencesManager.setMinPredictedProfit(option == null ? null : option.value);
+            suggestionManager.setSuggestionNeeded(true);
+        });
+        minPredictedProfitPanel.add(minPredictedProfitLabel, BorderLayout.LINE_START);
+        minPredictedProfitPanel.add(minPredictedProfitDropdown, BorderLayout.LINE_END);
+        preferencesContent.add(minPredictedProfitPanel);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
+
+        // Dump alerts dropdown
+        JPanel dumpAlertsPanel = new JPanel(new BorderLayout());
+        dumpAlertsPanel.setOpaque(false);
+        JLabel dumpAlertsLabel = new JLabel("Dump alerts");
+        dumpAlertsDropdown = new JComboBox<>(new DefaultComboBoxModel<>(DUMP_ALERT_MIN_PROFIT_OPTIONS));
+        dumpAlertsDropdown.setPreferredSize(new Dimension(75, 25));
+        dumpAlertsDropdown.setMaximumSize(new Dimension(75, 25));
+        dumpAlertsDropdown.addActionListener(e -> {
+            if (suppressDumpAlertsEvents) {
+                return;
+            }
+            DumpAlertMinProfitOption option = (DumpAlertMinProfitOption) dumpAlertsDropdown.getSelectedItem();
+            if (option == null || option.value == null) {
+                preferencesManager.setReceiveDumpSuggestions(false);
+                preferencesManager.setDumpMinPredictedProfit(null);
+            } else {
+                preferencesManager.setReceiveDumpSuggestions(true);
+                preferencesManager.setDumpMinPredictedProfit(option.value);
+            }
+            suggestionManager.setSuggestionNeeded(true);
+        });
+        dumpAlertsPanel.add(dumpAlertsLabel, BorderLayout.LINE_START);
+        dumpAlertsPanel.add(dumpAlertsDropdown, BorderLayout.LINE_END);
+        preferencesContent.add(dumpAlertsPanel);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
+
+        // Reserved slots
+        JPanel reservedSlotsPanel = new JPanel(new BorderLayout());
+        reservedSlotsPanel.setOpaque(false);
+        JLabel reservedSlotsLabel = new JLabel("Reserved slots");
+        reservedSlotsDropdown = new JComboBox<>(new DefaultComboBoxModel<>(RESERVED_SLOTS_OPTIONS));
+        reservedSlotsDropdown.setPreferredSize(new Dimension(75, 25));
+        reservedSlotsDropdown.setMaximumSize(new Dimension(75, 25));
+        reservedSlotsDropdown.addActionListener(e -> {
+            if (suppressReservedSlotsEvents) {
+                return;
+            }
+            ReservedSlotsOption option = (ReservedSlotsOption) reservedSlotsDropdown.getSelectedItem();
+            preferencesManager.setReservedSlots(option == null ? null : option.value);
+            suggestionManager.setSuggestionNeeded(true);
+        });
+        reservedSlotsPanel.add(reservedSlotsLabel, BorderLayout.LINE_START);
+        reservedSlotsPanel.add(reservedSlotsDropdown, BorderLayout.LINE_END);
+        preferencesContent.add(reservedSlotsPanel);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
+
         // Premium instances panel - moved to the bottom
-        add(Box.createRigidArea(new Dimension(0, 3)));
         JPanel premiumInstancesPanel = new JPanel();
         premiumInstancesPanel.setLayout(new BorderLayout());
         premiumInstancesPanel.setOpaque(false);
@@ -206,7 +328,8 @@ public class PreferencesPanel extends JPanel {
         });
         premiumInstancesPanel.add(premiumInstancesLabel, BorderLayout.LINE_START);
         premiumInstancesPanel.add(manageButton, BorderLayout.LINE_END);
-        add(premiumInstancesPanel);
+        preferencesContent.add(premiumInstancesPanel);
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
     }
 
 
@@ -216,13 +339,128 @@ public class PreferencesPanel extends JPanel {
             SwingUtilities.invokeLater(this::refresh);
             return;
         }
+        CardLayout layout = (CardLayout) getLayout();
+        if (osrsLoginManager.getPlayerDisplayName() == null) {
+            layout.show(this, "login");
+            return;
+        }
+        layout.show(this, "preferences");
         sellOnlyModeToggleButton.setSelected(preferencesManager.isSellOnlyMode());
         f2pOnlyModeToggleButton.setSelected(preferencesManager.isF2pOnlyMode());
+        syncReservedSlots(preferencesManager.getReservedSlots());
+        syncDumpAlerts(preferencesManager.isReceiveDumpSuggestions(), preferencesManager.getDumpMinPredictedProfit());
+        syncMinPredictedProfit(preferencesManager.getMinPredictedProfit());
         deleteProfileButton.setVisible(!preferencesManager.isDefaultProfileSelected());
         List<String> correctOptions = preferencesManager.getAvailableProfiles();
         DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) profileSelector.getModel();
         model.removeAllElements();
         model.addAll(correctOptions);
         model.setSelectedItem(preferencesManager.getCurrentProfile());
+    }
+
+    private void syncMinPredictedProfit(Integer value) {
+        try {
+            suppressMinProfitEvents = true;
+            minPredictedProfitDropdown.setSelectedItem(findMinProfitOption(value));
+        } finally {
+            suppressMinProfitEvents = false;
+        }
+    }
+
+    private void syncDumpAlerts(boolean enabled, Integer minProfit) {
+        try {
+            suppressDumpAlertsEvents = true;
+            dumpAlertsDropdown.setSelectedItem(findDumpAlertOption(enabled, minProfit));
+        } finally {
+            suppressDumpAlertsEvents = false;
+        }
+    }
+
+    private void syncReservedSlots(Integer value) {
+        try {
+            suppressReservedSlotsEvents = true;
+            reservedSlotsDropdown.setSelectedItem(findReservedSlotsOption(value));
+        } finally {
+            suppressReservedSlotsEvents = false;
+        }
+    }
+
+    private MinProfitOption findMinProfitOption(Integer value) {
+        for (int i = 0; i < minPredictedProfitDropdown.getItemCount(); i++) {
+            MinProfitOption option = minPredictedProfitDropdown.getItemAt(i);
+            if (Objects.equals(option.value, value)) {
+                return option;
+            }
+        }
+        return minPredictedProfitDropdown.getItemAt(0);
+    }
+
+    private DumpAlertMinProfitOption findDumpAlertOption(boolean enabled, Integer minProfit) {
+        if (!enabled) {
+            return dumpAlertsDropdown.getItemAt(0);
+        }
+        Integer effective = minProfit != null ? minProfit : 100_000;
+        for (int i = 0; i < dumpAlertsDropdown.getItemCount(); i++) {
+            DumpAlertMinProfitOption option = dumpAlertsDropdown.getItemAt(i);
+            if (Objects.equals(option.value, effective)) {
+                return option;
+            }
+        }
+        return dumpAlertsDropdown.getItemAt(1);
+    }
+
+    private ReservedSlotsOption findReservedSlotsOption(Integer value) {
+        for (int i = 0; i < reservedSlotsDropdown.getItemCount(); i++) {
+            ReservedSlotsOption option = reservedSlotsDropdown.getItemAt(i);
+            if (Objects.equals(option.value, value)) {
+                return option;
+            }
+        }
+        return reservedSlotsDropdown.getItemAt(0);
+    }
+
+    private static final class MinProfitOption {
+        private final String label;
+        private final Integer value;
+
+        private MinProfitOption(String label, Integer value) {
+            this.label = label;
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    private static final class DumpAlertMinProfitOption {
+        private final String label;
+        private final Integer value;
+
+        private DumpAlertMinProfitOption(String label, Integer value) {
+            this.label = label;
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    private static final class ReservedSlotsOption {
+        private final String label;
+        private final Integer value;
+
+        private ReservedSlotsOption(String label, Integer value) {
+            this.label = label;
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 }

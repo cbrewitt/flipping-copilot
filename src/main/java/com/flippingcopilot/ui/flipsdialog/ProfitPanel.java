@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.FlipV2;
@@ -32,7 +32,7 @@ public class ProfitPanel extends JPanel {
     private final IntervalDropdown intervalDropdown;
 
     // State
-    private int cachedIntervalStartTime = -1; // Default to ALL
+    private int cachedIntervalStartTime = 1; // Default to ALL
     private Integer cachedAccountId = null;
     private List<Datapoint> cachedDatapoints = new ArrayList<>();
 

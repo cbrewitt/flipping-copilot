@@ -1,11 +1,12 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
-import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.ItemPrice;
 import com.flippingcopilot.model.OsrsLoginManager;
+import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.UIUtilities;
 import com.flippingcopilot.ui.components.ItemSearchBox;
@@ -15,19 +16,16 @@ import com.flippingcopilot.ui.graph.DataManager;
 import com.flippingcopilot.ui.graph.GraphPanel;
 import com.flippingcopilot.ui.graph.StatsPanel;
 import com.flippingcopilot.ui.graph.model.Data;
+import com.flippingcopilot.ui.graph.model.PriceLine;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.ImageUtil;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.function.Consumer;
 
-import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
-import static com.flippingcopilot.ui.UIUtilities.buildButton;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 @Slf4j
@@ -38,6 +36,7 @@ public class PriceGraphPanel extends JPanel {
     private final ApiRequestHandler apiRequestHandler;
     private final OsrsLoginManager osrsLoginManager;
     private final PriceGraphConfigManager priceGraphConfigManager;
+    private final SuggestionManager suggestionManager;
 
     // UI Components
     public final ItemSearchBox searchBox;
@@ -50,21 +49,25 @@ public class PriceGraphPanel extends JPanel {
 
     // State
     private volatile int currentItemId;
+    public volatile PriceLine offerPriceLine;
+
 
     // when isShowingSuggestionPriceData, the graph will auto update with the latest suggestion
     public volatile boolean isShowingSuggestionPriceData;
     public volatile Data suggestionPriceData;
+    public volatile PriceLine suggestedPriceLine;
 
 
     public PriceGraphPanel(ItemController itemController,
                            PriceGraphConfigManager configManager,
                            FlippingCopilotConfig copilotConfig,
                            ApiRequestHandler apiRequestHandler,
-                           OsrsLoginManager osrsLoginManager, PriceGraphConfigManager priceGraphConfigManager) {
+                           OsrsLoginManager osrsLoginManager, PriceGraphConfigManager priceGraphConfigManager, SuggestionManager suggestionManager) {
         this.itemController = itemController;
         this.apiRequestHandler = apiRequestHandler;
         this.osrsLoginManager = osrsLoginManager;
         this.priceGraphConfigManager = priceGraphConfigManager;
+        this.suggestionManager = suggestionManager;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -151,8 +154,9 @@ public class PriceGraphPanel extends JPanel {
     }
 
     private JPanel buildSettingsCard() {
-        JPanel settingsPanel = new ConfigPanel(priceGraphConfigManager, () -> {});
-        return settingsPanel;
+        return new ConfigPanel(priceGraphConfigManager, () -> {
+            contentCardLayout.showPrevious(contentPanel);
+        });
     }
 
     private void onItemSelected(Integer itemId) {
@@ -163,8 +167,9 @@ public class PriceGraphPanel extends JPanel {
             contentCardLayout.show(contentPanel, Cards.LOGIN_PROMPT.name());
             return;
         }
+        offerPriceLine = null;
         isShowingSuggestionPriceData = false;
-        showSuggestionButton.setVisible(true);
+        showSuggestionButton.setVisible(suggestionPriceData != null || suggestionManager.isGraphDataReadingInProgress());
         currentItemId = itemId;
         log.debug("Loading price graph for item: {}", itemId);
         contentCardLayout.show(contentPanel, Cards.LOADING_CARD.name());
@@ -174,7 +179,7 @@ public class PriceGraphPanel extends JPanel {
                 if (!errorMessage.isEmpty()) {
                     showErrorCard(errorMessage);
                 } else {
-                    showGraphCard(new DataManager(itemPrice.getGraphData(), null));
+                    showGraphCard(new DataManager(itemPrice.getGraphData(), null), offerPriceLine);
                 }
             });
         };
@@ -189,9 +194,7 @@ public class PriceGraphPanel extends JPanel {
         suggestionPriceData = d;
         if (isShowingSuggestionPriceData) {
             DataManager dm = new DataManager(d, null);
-            graphPanel.setData(dm);
-            contentCardLayout.show(contentPanel, Cards.GRAPH_CARD.name());
-            statsPanel.populate(dm, itemController);
+            showGraphCard(dm, suggestedPriceLine);
         }
     }
 
@@ -261,9 +264,9 @@ public class PriceGraphPanel extends JPanel {
         contentCardLayout.show(contentPanel, Cards.ERROR_CARD.name());
     }
 
-    private void showGraphCard(DataManager dm) {
+    private void showGraphCard(DataManager dm, PriceLine suggestedPriceLine) {
         showSuggestionButton.setVisible(true);
-        graphPanel.setData(dm);
+        graphPanel.setData(dm, suggestedPriceLine);
         contentCardLayout.show(contentPanel, Cards.GRAPH_CARD.name());
         statsPanel.populate(dm, itemController);
     }
@@ -297,16 +300,17 @@ public class PriceGraphPanel extends JPanel {
     public void showSuggestionPriceGraph() {
         isShowingSuggestionPriceData = true;
         showSuggestionButton.setVisible(false);
-        setLoadingCard();
         if (suggestionPriceData != null) {
+            setLoadingCard();
             setSuggestionPriceData(suggestionPriceData);
         }
     }
 
-    public void newSuggestedItemId(int itemId) {
-        if(suggestionPriceData != null && suggestionPriceData.itemId != itemId) {
+    public void newSuggestedItemId(int itemId, PriceLine suggestedPriceLine) {
+        this.suggestedPriceLine = suggestedPriceLine;
+        if (suggestionPriceData != null && suggestionPriceData.itemId != itemId) {
             suggestionPriceData = null;
-            if(isShowingSuggestionPriceData) {
+            if (isShowingSuggestionPriceData) {
                 showSuggestionPriceGraph();
             }
         }

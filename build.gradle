@@ -3,11 +3,11 @@ plugins {
 }
 
 repositories {
-	mavenLocal()
 	maven {
 		url = 'https://repo.runelite.net'
 	}
 	mavenCentral()
+	mavenLocal()
 }
 
 def runeLiteVersion = 'latest.release'
@@ -23,7 +23,7 @@ dependencies {
 
 
 group = 'com.flippingcopilot'
-version = '1.7.11'
+version = '1.7.19'
 
 tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'

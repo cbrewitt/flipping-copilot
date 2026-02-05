@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.DiscordWebhookBody;
 import com.flippingcopilot.model.SessionData;
 import com.flippingcopilot.model.Stats;
@@ -30,6 +31,10 @@ public class WebHookController {
         if (Strings.isNullOrEmpty(configURL)) {return; }
 
         HttpUrl url = HttpUrl.parse(configURL);
+        if (url == null) {
+            log.warn("bad discord webhook url {}", configURL);
+            return;
+        }
         MultipartBody.Builder requestBodyBuilder = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("payload_json", GSON.toJson(discordWebhookBody));

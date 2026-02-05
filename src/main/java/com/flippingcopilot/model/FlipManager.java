@@ -159,6 +159,10 @@ public class FlipManager {
         if (Objects.equals(accountId,-1)) {
             return;
         }
+
+        // todo: buying flips also exist in the special Week with closed_time = 0, if arg intervalStartTime <= 0 then we
+        //  can end up with duplicates pushed to the consumer because the BUYING flips gets added here and in the later section
+        //  this is confusing and can lead to bugs - need to clean this up
         if(includeBuyingFlips) {
             WeekAggregate w = getOrInitWeek(0);
             List<FlipV2> f = accountId == null ? w.flipsAfter(-1, false) : w.flipsAfterForAccount(-1, accountId);
@@ -174,7 +178,8 @@ public class FlipManager {
             int n = weekFlips.size();
             // note: weekFlips are ascending order but we consume in descending order
             for(int ii=n-1; ii >= 0; ii--) {
-                c.accept(weekFlips.get(ii));
+                FlipV2 f = weekFlips.get(ii);
+                c.accept(f);
             }
         }
     }
@@ -225,7 +230,7 @@ public class FlipManager {
 
         if(existingCloseTime != null) {
             WeekAggregate wa = getOrInitWeek(existingCloseTime);
-            FlipV2 removed = wa.removeFlipIfUpdatedBefore(flip.getId(), existingCloseTime, flip.getAccountId(), flip.getUpdatedTime());
+            FlipV2 removed = wa.removeFlipIfUpdatedBefore(existingCloseTime, flip);
             if (removed == null) {
                 // the flip we are merging is an out of date instance of the same flip
                 return;
@@ -307,17 +312,17 @@ public class FlipManager {
             flips.add(-i -1, flip);
         }
 
-        FlipV2 removeFlipIfUpdatedBefore(UUID id, int closeTime, int accountId, int newUpdatedTime) {
-            List<FlipV2> flips = accountIdToFlips.computeIfAbsent(accountId, (k) -> new ArrayList<>());
-            int i = bisect(flips.size(), closedTimeCmp(flips, id, closeTime));
+        FlipV2 removeFlipIfUpdatedBefore(int existingCloseTime, FlipV2 updatedFlip) {
+            List<FlipV2> flips = accountIdToFlips.computeIfAbsent(updatedFlip.getAccountId(), (k) -> new ArrayList<>());
+            int i = bisect(flips.size(), closedTimeCmp(flips, updatedFlip.getId(), existingCloseTime));
             FlipV2 flip = flips.get(i);
             // if the existing instance of the flip is updated more recently return null
-            if (flip.getUpdatedTime() > newUpdatedTime) {
+            if (flip.isNewer(updatedFlip)) {
                 return null;
             }
             allStats.subtractFlip(flip);
             flips.remove(i);
-            accountIdToStats.get(accountId).subtractFlip(flip);
+            accountIdToStats.get(updatedFlip.getAccountId()).subtractFlip(flip);
             return flip;
         }
 

@@ -1,14 +1,12 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
-import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
-import com.flippingcopilot.model.FlipManager;
-import com.flippingcopilot.model.ItemIdName;
-import com.flippingcopilot.model.OsrsLoginManager;
-import com.flippingcopilot.model.SessionManager;
+import com.flippingcopilot.model.*;
+import com.flippingcopilot.ui.graph.model.PriceLine;
 import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
@@ -33,6 +31,7 @@ public class FlipsDialogController {
     private final ApiRequestHandler apiRequestHandler;
     private final PriceGraphConfigManager priceGraphConfigManager;
     private final OsrsLoginManager osrsLoginManager;
+    private final SuggestionManager suggestionManager;
 
     public PriceGraphPanel priceGraphPanel;
     private JTabbedPane tabbedPane;
@@ -48,7 +47,7 @@ public class FlipsDialogController {
             CopilotLoginManager copilotLoginManager,
             FlippingCopilotConfig config,
             ApiRequestHandler apiRequestHandler,
-            PriceGraphConfigManager priceGraphConfigManager, OsrsLoginManager osrsLoginManager) {
+            PriceGraphConfigManager priceGraphConfigManager, OsrsLoginManager osrsLoginManager, SuggestionManager suggestionManager) {
         this.itemController = itemController;
         this.flipsManager = flipsManager;
         this.executorService = executorService;
@@ -58,9 +57,10 @@ public class FlipsDialogController {
         this.apiRequestHandler = apiRequestHandler;
         this.priceGraphConfigManager = priceGraphConfigManager;
         this.osrsLoginManager = osrsLoginManager;
+        this.suggestionManager = suggestionManager;
     }
 
-    public void initDialog() {
+    public void initDialog(Window windowAncestor) {
         SwingUtilities.invokeLater(() -> {
             tabbedPane = new JTabbedPane();
             tabbedPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -90,7 +90,8 @@ public class FlipsDialogController {
                     config,
                     apiRequestHandler,
                     osrsLoginManager,
-                    priceGraphConfigManager
+                    priceGraphConfigManager,
+                    suggestionManager
             );
             tabbedPane.addTab("Flips", flipsPanel);
             tabbedPane.addTab("Items", itemsPanel);
@@ -101,7 +102,7 @@ public class FlipsDialogController {
             tabbedPane.addTab("Visualize flip", visualizeFlipPanel);
 
 
-            JDialog dialog = new JDialog();
+            JDialog dialog = new JDialog(windowAncestor);
             dialog.setTitle("Flipping Copilot");
             dialog.setResizable(true);
             dialog.setMinimumSize(new Dimension(800, 600));
@@ -143,11 +144,12 @@ public class FlipsDialogController {
         });
     }
 
-    public void showPriceGraphTab(Integer openOnPriceGraphItemId, boolean suggestionPriceGraph) {
+    public void showPriceGraphTab(Integer openOnPriceGraphItemId, boolean suggestionPriceGraph, PriceLine priceLine) {
         tabbedPane.setSelectedIndex(5);
         if(openOnPriceGraphItemId != null) {
             priceGraphPanel.isShowingSuggestionPriceData = false;
             priceGraphPanel.searchBox.setItem(new ItemIdName(openOnPriceGraphItemId, itemController.getItemName(openOnPriceGraphItemId)));
+            priceGraphPanel.offerPriceLine = priceLine;
         } else if (suggestionPriceGraph)  {
             priceGraphPanel.showSuggestionPriceGraph();
         } else {

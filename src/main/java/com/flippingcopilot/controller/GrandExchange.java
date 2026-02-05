@@ -1,14 +1,21 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.model.GEOfferScreenExistingOfferState;
+import com.flippingcopilot.model.GEOfferScreenSetupOfferState;
+import com.flippingcopilot.model.OfferManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.InterfaceID;
 import net.runelite.api.widgets.Widget;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Arrays;
+
+import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
+import static net.runelite.api.Varbits.GE_OFFER_CREATION_TYPE;
 
 @Slf4j
 @Singleton
@@ -26,6 +33,10 @@ public class GrandExchange {
 
     boolean isSlotOpen() {
         return getOpenSlot() != -1;
+    }
+
+    String getOfferType() {
+        return client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
     }
 
     boolean isCollectButtonVisible() {
@@ -126,5 +137,56 @@ public class GrandExchange {
             return null;
         }
         return offerContainer.getChild(50);
+    }
+
+    public GEOfferScreenSetupOfferState getOfferScreenSetupOfferState() {
+        if (!isSlotOpen() || !isSetupOfferOpen()) {
+            return null;
+        }
+        return new GEOfferScreenSetupOfferState(
+                getOfferType(),
+                client.getVarpValue(CURRENT_GE_ITEM),
+                getOfferPrice(),
+                getOfferQuantity(),
+                isSearchOpen());
+    }
+
+    public GEOfferScreenExistingOfferState getOfferScreenExistingOfferState(OfferManager offerManager) {
+        if (!isSlotOpen() || offerManager == null) {
+            return null;
+        }
+        return new GEOfferScreenExistingOfferState(
+                getOfferType(),
+                client.getVarpValue(CURRENT_GE_ITEM),
+                getOfferPrice(),
+                isSearchOpen(),
+                offerManager.getViewedSlotItemId(),
+                offerManager.getViewedSlotItemPrice());
+    }
+
+    Widget getBackButton() {
+        return client.getWidget(InterfaceID.GRAND_EXCHANGE, 4);
+    }
+
+    String getOfferScreenTitle() {
+        Widget frame = client.getWidget(InterfaceID.GRAND_EXCHANGE, 2);
+        if (frame == null) {
+            return null;
+        }
+        Widget titleWidget = frame.getChild(1);
+        if (titleWidget == null) {
+            return null;
+        }
+        return titleWidget.getText();
+    }
+
+    boolean isSetupOfferOpen() {
+        Widget confirmButton = getConfirmButton();
+        return confirmButton != null && !confirmButton.isHidden();
+    }
+
+    private boolean isSearchOpen() {
+        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        return searchResults != null && !searchResults.isHidden();
     }
 }

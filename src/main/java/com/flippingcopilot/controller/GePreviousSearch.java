@@ -3,6 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.JavaScriptCallback;
@@ -14,6 +15,7 @@ import javax.inject.Singleton;
 
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
+@Slf4j
 public class GePreviousSearch {
 
     private final SuggestionManager suggestionManager;
@@ -25,7 +27,7 @@ public class GePreviousSearch {
     public void showSuggestedItemInSearch() {
         Suggestion suggestion = suggestionManager.getSuggestion();
         if (suggestion != null && suggestion.getType().equals("buy")) {
-            if (grandExchange.isPreviousSearchSet() && grandExchange.showLastSearchEnabled()) {
+            if ((grandExchange.isPreviousSearchSet() || copilotPreviousSearchItemExists()) && grandExchange.showLastSearchEnabled()) {
                 setPreviousSearch(suggestion.getItemId(), suggestion.getName());
             } else {
                 createPreviousSearchWidget(suggestion.getItemId(), suggestion.getName());
@@ -35,6 +37,19 @@ public class GePreviousSearch {
             }
             highlightController.redraw();
         }
+    }
+
+    private boolean copilotPreviousSearchItemExists() {
+        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        if(searchResults == null || searchResults.getChildren() == null || searchResults.getChildren().length < 2) {
+            return false;
+        }
+        for (int i = 0; i < searchResults.getChildren().length; i++) {
+            if(searchResults.getChild(i).getText().startsWith("Copilot item:")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void setPreviousSearch(int itemId, String itemName) {
@@ -53,7 +68,7 @@ public class GePreviousSearch {
 
     private void createPreviousSearchWidget(int itemId, String itemName) {
         Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
-        Widget widget = parentWidget.createChild(WidgetType.RECTANGLE);
+        Widget widget = parentWidget.createChild(0, WidgetType.RECTANGLE);
         widget.setTextColor(0xFFFFFF);
         widget.setOpacity(255);
         widget.setName("<col=ff9040>" + itemName + "</col>");
@@ -79,9 +94,22 @@ public class GePreviousSearch {
         widget.revalidate();
     }
 
+    private void createPreviousSearchTextWidget() {
+        Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget widget = parentWidget.createChild(1, WidgetType.TEXT);
+        widget.setText("Copilot item:");
+        widget.setFontId(495);
+        widget.setOriginalX(114);
+        widget.setOriginalY(0);
+        widget.setOriginalWidth(95);
+        widget.setOriginalHeight(32);
+        widget.setYTextAlignment(1);
+        widget.revalidate();
+    }
+
     private void createPreviousSearchItemNameWidget(String itemName) {
         Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
-        Widget widget = parentWidget.createChild(WidgetType.TEXT);
+        Widget widget = parentWidget.createChild(2, WidgetType.TEXT);
         widget.setText(itemName);
         widget.setFontId(495);
         widget.setOriginalX(254);
@@ -94,7 +122,7 @@ public class GePreviousSearch {
 
     private void createPreviousSearchItemWidget(int itemId) {
         Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
-        Widget widget = parentWidget.createChild(WidgetType.GRAPHIC);
+        Widget widget = parentWidget.createChild(3, WidgetType.GRAPHIC);
         widget.setItemId(itemId);
         widget.setItemQuantity(1);
         widget.setItemQuantityMode(0);
@@ -108,16 +136,5 @@ public class GePreviousSearch {
         widget.revalidate();
     }
 
-    private void createPreviousSearchTextWidget() {
-        Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
-        Widget widget = parentWidget.createChild(WidgetType.TEXT);
-        widget.setText("Copilot item:");
-        widget.setFontId(495);
-        widget.setOriginalX(114);
-        widget.setOriginalY(0);
-        widget.setOriginalWidth(95);
-        widget.setOriginalHeight(32);
-        widget.setYTextAlignment(1);
-        widget.revalidate();
-    }
+
 }

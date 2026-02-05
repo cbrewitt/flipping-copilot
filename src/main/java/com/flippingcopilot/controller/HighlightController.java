@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.WidgetHighlightOverlay;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +9,7 @@ import net.runelite.api.ItemComposition;
 import net.runelite.api.VarClientStr;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
@@ -15,9 +17,9 @@ import javax.inject.Singleton;
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Objects;
+import java.util.function.Supplier;
 
-import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
-import static net.runelite.api.Varbits.GE_OFFER_CREATION_TYPE;
 
 
 @Singleton
@@ -33,6 +35,7 @@ public class HighlightController {
     private final OfferManager offerManager;
     private final OverlayManager overlayManager;
     private final HighlightColorController highlightColorController;
+    private final ClientThread clientThread;
 
     // state
     private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
@@ -63,68 +66,118 @@ public class HighlightController {
     }
 
     private void drawHomeScreenHighLights(Suggestion suggestion) {
+        boolean isDumpSuggestion = suggestion.isDumpSuggestion();
+        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
+        Supplier<Color> redHighlight = () -> highlightColorController.getRedColor(isDumpSuggestion);
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (accountStatus.isCollectNeeded(suggestion)) {
             Widget collectButton = grandExchange.getCollectButton();
             if (collectButton != null) {
-                add(collectButton, highlightColorController.getBlueColor(), new Rectangle(2, 1, 81, 18));
+                add(collectButton, blueHighlight, new Rectangle(2, 1, 81, 18));
             }
         }
         else if (suggestion.getType().equals("abort")) {
             Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
-            add(slotWidget, highlightColorController.getRedColor());
+            add(slotWidget, redHighlight);
         }
         else if (suggestion.getType().equals("buy")) {
             int slotId = accountStatus.findEmptySlot();
             if (slotId != -1) {
                 Widget buyButton = grandExchange.getBuyButton(slotId);
                 if (buyButton != null && !buyButton.isHidden()) {
-                    add(buyButton, highlightColorController.getBlueColor(), new Rectangle(0, 0, 45, 44));
+                    add(buyButton, blueHighlight, new Rectangle(0, 0, 45, 44));
                 }
             }
         }
         else if (suggestion.getType().equals("sell")) {
             Widget itemWidget = getInventoryItemWidget(suggestion.getItemId());
             if (itemWidget != null && !itemWidget.isHidden()) {
-                add(itemWidget, highlightColorController.getBlueColor(), new Rectangle(0, 0, 34, 32));
+                add(itemWidget, blueHighlight, new Rectangle(0, 0, 34, 32));
             }
         }
     }
 
     private void drawOfferScreenHighlights(Suggestion suggestion) {
-        Widget offerTypeWidget = grandExchange.getOfferTypeWidget();
-        String offerType = client.getVarbitValue(GE_OFFER_CREATION_TYPE) == 1 ? "sell" : "buy";
-        if (offerTypeWidget != null) {
-            if (offerType.equals(suggestion.getType())) {
-                if (client.getVarpValue(CURRENT_GE_ITEM) == suggestion.getItemId()) {
-                    if (offerDetailsCorrect(suggestion)) {
-                        highlightConfirm();
-                    } else {
-                        if (grandExchange.getOfferPrice() != suggestion.getPrice()) {
-                            highlightPrice();
-                        }
-                        highlightQuantity(suggestion);
-                    }
-                } else if (client.getVarpValue(CURRENT_GE_ITEM ) == -1){
-                    highlightItemInSearch(suggestion);
-                }
-            }
-            // Check if unsuggested item/offer type is selected
-            if (client.getVarpValue(CURRENT_GE_ITEM) != -1
-                    && (client.getVarpValue(CURRENT_GE_ITEM) != suggestion.getItemId()
-                        || !offerType.equals(suggestion.getType()))
-                    && client.getVarpValue(CURRENT_GE_ITEM) == offerManager.getViewedSlotItemId()
-                    && offerManager.getViewedSlotItemPrice() > 0) {
-                if (grandExchange.getOfferPrice() == offerManager.getViewedSlotItemPrice()) {
-                    highlightConfirm();
-                } else {
-                    highlightPrice();
-                }
-            }
+        boolean isDumpSuggestion = suggestion.isDumpSuggestion();
+        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
+        GEOfferScreenSetupOfferState s = grandExchange.getOfferScreenSetupOfferState();
+        if (s == null) {
+            return;
         }
+
+        if (s.offerDetailsCorrect(suggestion)) {
+            highlightConfirm(blueHighlight);
+            return;
+        }
+
+        boolean offerTypeMatches = Objects.equals(s.offerType, suggestion.getType());
+        boolean itemMatches = s.currentItemId == suggestion.getItemId();
+
+        // Prioritise certain dump alert cases
+        if(suggestion.isDumpAlert) {
+            if (!offerTypeMatches || accountStatusManager.getAccountStatus().isCollectNeeded(suggestion)) {
+                highlightBackButton(blueHighlight);
+            } else if (!s.searchOpen && s.currentItemId != -1 && !itemMatches) {
+                highlightItemSearchButton(blueHighlight);
+            } else if (itemMatches) {
+                if (s.offerPrice != suggestion.getPrice()) {
+                    highlightPrice(blueHighlight);
+                }
+                highlightQuantity(suggestion, s.offerQuantity, blueHighlight);
+            } else if (s.searchOpen) {
+                highlightItemInSearch(suggestion, blueHighlight);
+            }
+            return;
+        }
+
+        // Custom item choice case
+        if (isCustomChoiceItem(s, offerTypeMatches, itemMatches)) {
+            if (s.offerPrice == offerManager.getViewedSlotItemPrice()) {
+                highlightConfirm(blueHighlight);
+            } else {
+                highlightPrice(blueHighlight);
+            }
+            return;
+        }
+
+        // Standard suggestion case
+        if (offerTypeMatches && itemMatches) {
+            if (s.offerPrice != suggestion.getPrice()) {
+                highlightPrice(blueHighlight);
+            }
+            highlightQuantity(suggestion, s.offerQuantity, blueHighlight);
+            return;
+        }
+        if(offerTypeMatches && s.currentItemId == -1 && s.searchOpen) {
+            highlightItemInSearch(suggestion,blueHighlight);
+            return;
+        }
+
+        if(suggestion.getType().equals("abort") || suggestion.getType().equals("sell") && s.isEmptyBuyState()) {
+            highlightBackButton(blueHighlight);
+        }
+
     }
 
-    private void highlightItemInSearch(Suggestion suggestion) {
+    private boolean isCustomChoiceItem(GEOfferScreenSetupOfferState s, boolean offerTypeMatches, boolean itemMatches) {
+        return s.currentItemId != -1 && ((!offerTypeMatches && s.offerType.equals("sell"))|| (!s.searchOpen && !itemMatches))
+                && s.currentItemId == offerManager.getViewedSlotItemId()
+                && offerManager.getViewedSlotItemPrice() > -1;
+    }
+
+    private int getOfferItemId() {
+        Widget detailsContainer = client.getWidget(465, 15);
+        if (detailsContainer == null) {
+            return -1;
+        }
+        Widget itemWidget = detailsContainer.getChild(7);
+        if (itemWidget == null) {
+            return -1;
+        }
+        return itemWidget.getItemId();
+    }
+
+    private void highlightItemInSearch(Suggestion suggestion, Supplier<Color> colorSupplier) {
         if (!client.getVarcStrValue(VarClientStr.INPUT_TEXT).isEmpty()) {
             return;
         }
@@ -134,31 +187,27 @@ public class HighlightController {
         }
         for (Widget widget : searchResults.getDynamicChildren()) {
             if (widget.getName().equals("<col=ff9040>" + suggestion.getName() + "</col>")) {
-                add(widget, highlightColorController.getBlueColor());
+                add(widget, colorSupplier);
                 return;
             }
         }
         Widget itemWidget = searchResults.getChild(3);
         if (itemWidget != null && itemWidget.getItemId() == suggestion.getItemId()) {
-            add(itemWidget, highlightColorController.getBlueColor());
+            add(itemWidget, colorSupplier);
         }
     }
 
-    private boolean offerDetailsCorrect(Suggestion suggestion) {
-        return grandExchange.getOfferPrice() == suggestion.getPrice()
-                && grandExchange.getOfferQuantity() == suggestion.getQuantity();
-    }
 
-    private void highlightPrice() {
+    private void highlightPrice(Supplier<Color> colorSupplier) {
         Widget setPriceButton = grandExchange.getSetPriceButton();
         if (setPriceButton != null) {
-            add(setPriceButton, highlightColorController.getBlueColor(), new Rectangle(1, 6, 33, 23));
+            add(setPriceButton, colorSupplier, new Rectangle(1, 6, 33, 23));
         }
     }
 
-    private void highlightQuantity(Suggestion suggestion) {
+    private void highlightQuantity(Suggestion suggestion, int offerQuantity, Supplier<Color> colorSupplier) {
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
-        if (grandExchange.getOfferQuantity() != suggestion.getQuantity()) {
+        if (offerQuantity != suggestion.getQuantity()) {
             Widget setQuantityButton;
             if (accountStatus.getInventory().getTotalAmount(suggestion.getItemId()) == suggestion.getQuantity()) {
                 setQuantityButton = grandExchange.getSetQuantityAllButton();
@@ -166,28 +215,73 @@ public class HighlightController {
                 setQuantityButton = grandExchange.getSetQuantityButton();
             }
             if (setQuantityButton != null) {
-                add(setQuantityButton, highlightColorController.getBlueColor(), new Rectangle(1, 6, 33, 23));
+                add(setQuantityButton, colorSupplier, new Rectangle(1, 6, 33, 23));
             }
         }
     }
 
-    private void highlightConfirm() {
+    private void highlightConfirm(Supplier<Color> colorSupplier) {
         Widget confirmButton = grandExchange.getConfirmButton();
         if (confirmButton != null) {
-            add(confirmButton, highlightColorController.getBlueColor(), new Rectangle(1, 1, 150, 38));
+            add(confirmButton, colorSupplier, new Rectangle(1, 1, 150, 38));
         }
     }
 
-    private void add(Widget widget, Color color, Rectangle adjustedBounds) {
+    private Widget getItemSearchButtonWidget() {
+        Widget setupContainer = client.getWidget(465, 26);
+        if (setupContainer == null) {
+            return null;
+        }
+        Widget[] children = setupContainer.getChildren();
+        if (children != null && children.length > 0) {
+            return children[0];
+        }
+        return null;
+    }
+
+    private void highlightItemSearchButton(Supplier<Color> colorSupplier) {
+        Widget searchWidget = getItemSearchButtonWidget();
+        if (searchWidget != null) {
+            add(searchWidget, colorSupplier);
+        }
+    }
+
+    private Widget getAbortButtonWidget() {
+        Widget statusContainer = client.getWidget(465, 23);
+        if (statusContainer == null) {
+            return null;
+        }
+        Widget[] children = statusContainer.getChildren();
+        if (children != null && children.length > 0) {
+            return children[0];
+        }
+        return null;
+    }
+
+    private void highlightAbortButton(Supplier<Color> colorSupplier) {
+        Widget abortButton = getAbortButtonWidget();
+        if (abortButton != null) {
+            add(abortButton, colorSupplier);
+        }
+    }
+
+    private void highlightBackButton(Supplier<Color> colorSupplier) {
+        Widget backButton = grandExchange.getBackButton();
+        if (backButton != null) {
+            add(backButton, colorSupplier);
+        }
+    }
+
+    private void add(Widget widget, Supplier<Color> colorSupplier, Rectangle adjustedBounds) {
         SwingUtilities.invokeLater(() -> {
-            WidgetHighlightOverlay overlay = new WidgetHighlightOverlay(widget, color, adjustedBounds);
+            WidgetHighlightOverlay overlay = new WidgetHighlightOverlay(widget, colorSupplier, adjustedBounds);
             highlightOverlays.add(overlay);
             overlayManager.add(overlay);
         });
     }
 
-    private void add(Widget widget, Color color) {
-        add(widget, color, new Rectangle(0, 0, widget.getWidth(), widget.getHeight()));
+    private void add(Widget widget, Supplier<Color> colorSupplier) {
+        add(widget, colorSupplier, new Rectangle(0, 0, widget.getWidth(), widget.getHeight()));
     }
 
     public void removeAll() {

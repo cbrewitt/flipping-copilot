@@ -344,9 +344,11 @@ public class ProfitGraphPanel extends JPanel {
             g2.setColor(new Color(barColor.getRed(), barColor.getGreen(), barColor.getBlue(), 180)); // 70% opacity
             Rectangle bar = profitBarRect(dp, bounds);
             g2.fillRect(bar.x, bar.y, bar.width, bar.height);
+            g2.setColor(new Color(barColor.getRed(), barColor.getGreen(), barColor.getBlue()));
+            g2.drawRect(bar.x, bar.y, bar.width, bar.height);
             if(dp.isDailyProfitHovered) {
                 drawToolTip = () -> {
-                    g2.setColor(new Color(barColor.getRed(), barColor.getGreen(), barColor.getBlue()));
+                    g2.setColor(Color.WHITE);
                     g2.drawRect(bar.x, bar.y, bar.width, bar.height);
                     Point p = new Point(bounds.toX(lowerPa, dp.timestamp()), bounds.toY(lowerPa, dp.dailyProfit));
                     drawToolTip(dp.t, dp.dailyProfit, g2, p);

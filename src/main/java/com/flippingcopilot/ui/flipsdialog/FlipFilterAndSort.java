@@ -56,13 +56,13 @@ public class FlipFilterAndSort {
     // state
     private List<FlipV2> cachedFlips = new ArrayList<>();
     private Integer cachedAccountId = null;
-    private int cachedIntervalStartTime = -10;
+    private int cachedIntervalStartTime = Integer.MIN_VALUE;
     private boolean cachedIncludeBuyingFlips = true;
     private Set<Integer> cachedFilteredItems = new HashSet<>();
     private SortDirection cachedSortDirection = SortDirection.DESC;
     private String cachedSortColumn = "";
 
-    private int intervalStartTime = -1;
+    private int intervalStartTime = 1;
     private Integer accountId = null;
     private boolean includeBuyingFlips = true;
     @Getter

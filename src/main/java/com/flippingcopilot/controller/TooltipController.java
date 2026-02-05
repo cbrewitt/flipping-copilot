@@ -6,12 +6,10 @@ import com.flippingcopilot.ui.UIUtilities;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.FontTypeFace;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
-import net.runelite.client.ui.FontManager;
-
-import java.awt.*;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -28,7 +26,6 @@ import static com.flippingcopilot.util.GeTax.getPostTaxPrice;
 public class TooltipController {
     private static final int SCRIPT_TOOLTIP_GE = 526;
 
-    private static final FontMetrics FONT_METRICS = Toolkit.getDefaultToolkit().getFontMetrics(FontManager.getRunescapeFont());
     private static final int WIDTH_PADDING = 4;
 
     private final Client client;
@@ -53,6 +50,7 @@ public class TooltipController {
         Widget text = tooltip.getChild(2);
 
         if (text != null && background != null && border != null) {
+
             if (text.getText().contains("Profit:")) {
                 // If the tooltip already contains profit information, we don't need to process it again
                 return;
@@ -67,17 +65,15 @@ public class TooltipController {
             if(name != null) {
                 long profit = getProfitFromItemName(name);
                 text.setText(text.getText()  + "<br>Profit: " + UIUtilities.quantityToRSDecimalStack(profit, false) + " gp");
-
                 tooltip.setOriginalHeight(45);
-                text.setOriginalHeight(45);
 
-                int width = calculateTooltipWidth(text.getText());
+                int width = calculateTooltipWidth(text.getFont(), text.getText());
                 tooltip.setOriginalWidth(width);
-                text.setOriginalWidth(width);
 
                 tooltip.revalidate();
                 border.revalidate();
                 background.revalidate();
+                text.revalidate();
             }
         }
     }
@@ -133,7 +129,7 @@ public class TooltipController {
         }
     }
 
-    private int calculateTooltipWidth(String text)
+    private int calculateTooltipWidth(FontTypeFace f, String text)
     {
         final String[] lines = text.split("<br>");
         int maxWidth = 0;
@@ -141,7 +137,7 @@ public class TooltipController {
             String left = "";
             left = line;
 
-            int width = FONT_METRICS.stringWidth(left);
+            int width = f.getTextWidth(left);
             if (width > maxWidth) {
                 maxWidth = width;
             }

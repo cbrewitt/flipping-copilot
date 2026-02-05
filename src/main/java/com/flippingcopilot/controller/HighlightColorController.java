@@ -20,16 +20,29 @@ public class HighlightColorController {
 
     // Constants for controlling the drift
     private static final long CYCLE_DURATION = 600000; // 10 minutes for one complete cycle
-    private static final int ALPHA = 79;
+    private static final int BASE_ALPHA = 79;
+    private static final int MIN_ALPHA = 31;
+    private static final int DUMP_ALPHA_MAX = 127;
+    private static final double DUMP_ALPHA_FREQUENCY_HZ = 2.0;
 
     public Color getRedColor() {
+        return getRedColor(false);
+    }
+
+    public Color getRedColor(boolean isDumpAlert) {
         double phase = calculatePhase();
-        return interpolateColor(RED_START, RED_END, phase, ALPHA);
+        int alpha = calculateAlpha(isDumpAlert);
+        return interpolateColor(RED_START, RED_END, phase, alpha);
     }
 
     public Color getBlueColor() {
+        return getBlueColor(false);
+    }
+
+    public Color getBlueColor(boolean isDumpAlert) {
         double phase = calculatePhase();
-        return interpolateColor(BLUE_START, BLUE_END, phase, ALPHA);
+        int alpha = calculateAlpha(isDumpAlert);
+        return interpolateColor(BLUE_START, BLUE_END, phase, alpha);
     }
 
     private double calculatePhase() {
@@ -51,5 +64,15 @@ public class HighlightColorController {
 
     private int interpolateComponent(int start, int end, double phase) {
         return (int) Math.round(start + (end - start) * phase);
+    }
+
+    private int calculateAlpha(boolean isDumpAlert) {
+        if (!isDumpAlert) {
+            return BASE_ALPHA;
+        }
+        double timeSeconds = System.currentTimeMillis() / 1000.0;
+        double phase = (timeSeconds * DUMP_ALPHA_FREQUENCY_HZ) % 1.0;
+        double oscillation = 1.0 - Math.abs(2.0 * phase - 1.0);
+        return (int) Math.round(MIN_ALPHA + (DUMP_ALPHA_MAX - MIN_ALPHA) * oscillation);
     }
 }

@@ -42,6 +42,7 @@ public class Config {
 
     // configurable properties
     public boolean connectPoints = false;
+    public boolean showSuggestedPriceLines = true;
     public Color lowColor = new Color(0, 153, 255);
     public Color highColor = new Color(255, 102, 0);
     public Color lowShadeColor = new Color(0, 153, 255, 60);

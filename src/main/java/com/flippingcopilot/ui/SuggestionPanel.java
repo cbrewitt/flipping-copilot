@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.GrandExchange;
 import com.flippingcopilot.controller.HighlightController;
 import com.flippingcopilot.controller.PremiumInstanceController;
@@ -192,17 +192,18 @@ public class SuggestionPanel extends JPanel {
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        preferencesPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, 180);
+        setPanelHeight(150);
 
         add(layeredPane);
     }
 
     private void handleGearClick() {
         isPreferencesPanelVisible = !isPreferencesPanelVisible;
-        int newHeight = isPreferencesPanelVisible ? 180 : 150;
-        layeredPane.setSize(MainPanel.CONTENT_WIDTH, newHeight);
-        layeredPane.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, newHeight));
-        setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, newHeight));
+        if (isPreferencesPanelVisible) {
+            setPanelHeight(260);
+        } else {
+            setPanelHeight(150);
+        }
 
         preferencesPanel.setVisible(isPreferencesPanelVisible);
         suggestedActionPanel.setVisible(!isPreferencesPanelVisible);
@@ -210,6 +211,14 @@ public class SuggestionPanel extends JPanel {
         refresh();
         layeredPane.revalidate();
         layeredPane.repaint();
+    }
+
+    private void setPanelHeight(int height) {
+        layeredPane.setSize(MainPanel.CONTENT_WIDTH, height);
+        layeredPane.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, height));
+        setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, height));
+        preferencesPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, height);
+        suggestedActionPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, height);
     }
 
     private void setupButtonContainer() {
@@ -223,10 +232,12 @@ public class SuggestionPanel extends JPanel {
         graphButton = buildButton(graphIcon, "Price graph", () -> {
             if(config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT)) {
                 Suggestion suggestion = suggestionManager.getSuggestion();
-                if(suggestion != null && !suggestion.getType().equals("wait")) {
-                    flipsDialogController.showPriceGraphTab(null, true);
+                if(isSuggestionWithoutGraphData(suggestion)) {
+                    flipsDialogController.showPriceGraphTab(suggestion.getItemId(), false, null);
+                } else if(suggestion != null && !suggestion.getType().equals("wait")) {
+                    flipsDialogController.showPriceGraphTab(null, true, null);
                 } else {
-                    flipsDialogController.showPriceGraphTab(null, false);
+                    flipsDialogController.showPriceGraphTab(null, false, null);
                 }
             } else {
                 Suggestion suggestion = suggestionManager.getSuggestion();
@@ -246,6 +257,9 @@ public class SuggestionPanel extends JPanel {
         skipButton = buildButton(skipIcon, "Skip suggestion", () -> {
             showLoading();
             Suggestion s = suggestionManager.getSuggestion();
+            if(s != null) {
+                s.actionedTick = client.getTickCount();
+            }
             accountStatusManager.setSkipSuggestion(s != null ? s.getId() : -1);
             suggestionManager.setSuggestionNeeded(true);
         });
@@ -267,6 +281,10 @@ public class SuggestionPanel extends JPanel {
         additionalInfoText.setText("<html><center>" + text + "</center></html>");
     }
 
+    private boolean isSuggestionWithoutGraphData(Suggestion suggestion) {
+        return suggestion != null && !suggestion.getType().equals("wait") && suggestion.isDumpAlert;
+    }
+
     public void updateSuggestion(Suggestion suggestion) {
         NumberFormat formatter = NumberFormat.getNumberInstance();
         String suggestionString = "<html><center>";
@@ -275,6 +293,7 @@ public class SuggestionPanel extends JPanel {
         switch (suggestion.getType()) {
             case "wait":
                 suggestionString += "Wait <br>";
+                suggestionIcon.setVisible(false);
                 break;
             case "abort":
                 suggestionString += "Abort offer for<br><FONT COLOR=white>" + suggestion.getName() + "<br></FONT>";
@@ -427,6 +446,7 @@ public class SuggestionPanel extends JPanel {
 
     public void displaySuggestion() {
         Suggestion suggestion = suggestionManager.getSuggestion();
+        setServerMessage("");
         if (suggestion == null) {
             return;
         }
@@ -471,6 +491,7 @@ public class SuggestionPanel extends JPanel {
         String errorMessage = osrsLoginManager.getInvalidStateDisplayMessage();
         if (errorMessage != null) {
             hideLoading();
+            setServerMessage("");
             setMessage(errorMessage);
             return;
         }

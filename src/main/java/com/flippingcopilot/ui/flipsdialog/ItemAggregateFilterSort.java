@@ -41,12 +41,12 @@ public class ItemAggregateFilterSort {
     // state
     private List<ItemAggregate> cachedAggregates = new ArrayList<>();
     private Integer cachedAccountId = null;
-    private int cachedIntervalStartTime = -10;
+    private int cachedIntervalStartTime = Integer.MIN_VALUE;
     private Set<Integer> cachedFilteredItems = new HashSet<>();
     private SortDirection cachedSortDirection = SortDirection.ASC;
     private String cachedSortColumn = "";
 
-    private int intervalStartTime = -1;
+    private int intervalStartTime = 1;
     private Integer accountId = null;
     @Getter
     private String sortColumn = "Total profit";

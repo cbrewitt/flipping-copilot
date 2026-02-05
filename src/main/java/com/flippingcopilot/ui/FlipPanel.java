@@ -1,6 +1,6 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.FlipV2;
 import net.runelite.client.ui.ColorScheme;
 
@@ -22,7 +22,7 @@ public class FlipPanel extends JPanel {
         JLabel itemQuantity = new JLabel(String.format("%d x ", flip.getClosedQuantity()));
         itemQuantity.setForeground(Color.WHITE);
 
-        JLabel itemNameLabel = new JLabel(UIUtilities.truncateString(flip.getCachedItemName(), 20));
+        JLabel itemNameLabel = new JLabel(UIUtilities.truncateString(flip.getCachedItemName(), 19));
 
         // Create a sub-panel for the left side
         JPanel leftPanel = new JPanel();
