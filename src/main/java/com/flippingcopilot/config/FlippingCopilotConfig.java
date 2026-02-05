@@ -1,4 +1,4 @@
-package com.flippingcopilot.controller;
+package com.flippingcopilot.config;
 
 import com.flippingcopilot.ui.UIUtilities;
 import net.runelite.client.config.Config;
@@ -83,6 +83,16 @@ public interface FlippingCopilotConfig extends Config
     String offerSetupSection = "offerSetupSection";
 
     @ConfigItem(
+            keyName = "dumpAlertSound",
+            name = "Dump alert sound",
+            description = "Play the GE offer completed sound when a dump alert arrives."
+    )
+    default boolean dumpAlertSound()
+    {
+        return true;
+    }
+
+    @ConfigItem(
             keyName = "suggestionHighlights",
             name = "Highlight suggested actions",
             description = "Show highlight overlays on the GE interface for suggested actions.",
@@ -94,6 +104,15 @@ public interface FlippingCopilotConfig extends Config
         return true;
     }
 
+    @ConfigItem(
+            keyName = "lowDataMode",
+            name = "Low data mode",
+            description = "When enabled, price graph data is only sent when opening the graph."
+    )
+    default boolean lowDataMode()
+    {
+        return false;
+    }
     @ConfigItem(
             keyName = "misClickProtection",
             name = "Mis-click prevention",

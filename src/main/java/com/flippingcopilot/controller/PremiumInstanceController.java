@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.PremiumInstanceStatus;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.PremiumInstancePanel;

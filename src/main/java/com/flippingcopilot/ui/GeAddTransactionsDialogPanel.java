@@ -16,6 +16,7 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -194,6 +195,7 @@ public class GeAddTransactionsDialogPanel extends JPanel {
                 .map(tc -> tc.transaction)
                 .collect(Collectors.toList());
 
+        Collections.reverse(selectedTransactions); // ensure oldest to newest
         selectedTransactions.forEach(transaction -> {
             transactionManager.addTransaction(transaction, displayName);
             transaction.setGeTransactionAlreadyAdded(true);

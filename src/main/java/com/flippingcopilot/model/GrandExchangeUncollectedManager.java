@@ -73,8 +73,8 @@ public class GrandExchangeUncollectedManager {
     }
 
     public synchronized void ensureSlotClear(Long accountHash, int slot) {
-        Map<Integer, Long> slotUncollected = loadSlotUncollected(accountHash, slot);
-        slotUncollected.remove(slot);
+        Map<Integer, Map<Integer, Long>> slotToUncollected = this.uncollected.computeIfAbsent(accountHash, (k) -> new HashMap<>());
+        slotToUncollected.remove(slot);
     }
 
     public synchronized void clearSlotUncollected(Long accountHash, int slot) {

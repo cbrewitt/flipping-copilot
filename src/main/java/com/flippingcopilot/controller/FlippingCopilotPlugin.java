@@ -1,7 +1,11 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.FlippingCopilotConfigRS;
+import com.flippingcopilot.rs.GrandExchangeOpenRS;
+import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.ui.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.google.gson.Gson;
@@ -20,7 +24,6 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
-import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
@@ -105,6 +108,14 @@ public class FlippingCopilotPlugin extends Plugin {
 	private SuggestionPreferencesManager preferencesManager;
 	@Inject
 	private SlotProfitColorizer slotProfitColorizer;
+	@Inject
+	private DumpsStreamController dumpsStreamController;
+	@Inject
+	private GrandExchangeOpenRS grandExchangeOpenRS;
+	@Inject
+	private OsrsLoginRS osrsLoginRS;
+	@Inject
+	private FlippingCopilotConfigRS configRS;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -210,6 +221,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	public void onGameTick(GameTick event) {
 		suggestionController.onGameTick();
 		offerEventHandler.onGameTick();
+		grandExchangeOpenRS.set(grandExchange.isOpen());
+		osrsLoginRS.set(osrsLoginRS.get().nexState(client));
 	}
 
 	@Subscribe
@@ -276,12 +289,14 @@ public class FlippingCopilotPlugin extends Plugin {
 				accountStatusManager.reset();
 				grandExchangeUncollectedManager.reset();
 				statsPanel.refresh(true, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
+				osrsLoginRS.set(osrsLoginRS.get().nexState(client));
 				mainPanel.refresh();
 				break;
 			case LOGGING_IN:
 			case HOPPING:
 			case CONNECTION_LOST:
 				osrsLoginManager.setLastLoginTick(client.getTickCount());
+				osrsLoginRS.set(osrsLoginRS.get().nexState(client));
 				break;
 			case LOGGED_IN:
 				// we want to update the flips panel on login but unfortunately the display name
@@ -308,8 +323,6 @@ public class FlippingCopilotPlugin extends Plugin {
 					if(copilotLoginManager.isLoggedIn()) {
 						transactionManager.scheduleSyncIn(0, name);
 					}
-					preferencesManager.loadAccountPreferences();
-
 					return true;
 				});
 		}
@@ -337,6 +350,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	public void onConfigChanged(ConfigChanged event) {
 		if (event.getGroup().equals("flippingcopilot")) {
 			log.debug("copilot config changed event received");
+			configRS.forceSet(config);
 			if (event.getKey().equals("profitAmountColor") || event.getKey().equals("lossAmountColor")) {
 				mainPanel.copilotPanel.statsPanel.refresh(true, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
 			}

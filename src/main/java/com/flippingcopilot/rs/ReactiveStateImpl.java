@@ -1,9 +1,10 @@
-package com.flippingcopilot.manager;
+package com.flippingcopilot.rs;
 
 import lombok.AllArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -28,6 +29,12 @@ public class ReactiveStateImpl<T> implements ReactiveState<T> {
 
     @Override
     public void set(T newState) {
+        if (!Objects.equals(newState, state)) {
+            forceSet(newState);
+        }
+    }
+
+    public void forceSet(T newState) {
         state = newState;
         listeners.forEach(i -> i.accept(state));
     }

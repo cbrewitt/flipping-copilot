@@ -137,6 +137,7 @@ public class GameUiChangesHandler {
             suggestionManager.setSuggestionNeeded(true);
             Suggestion suggestion = suggestionManager.getSuggestion();
             if(suggestion != null) {
+                suggestion.actionedTick = client.getTickCount();
                 suggestionManager.setSuggestionItemIdOnOfferSubmitted(suggestion.getItemId());
                 suggestionManager.setSuggestionOfferStatusOnOfferSubmitted(suggestionOfferStatus(suggestion));
             } else {

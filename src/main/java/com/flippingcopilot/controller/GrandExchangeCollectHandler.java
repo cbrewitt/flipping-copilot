@@ -43,7 +43,7 @@ public class GrandExchangeCollectHandler {
     private void handleModifyOffer(String menuOption, Widget widget) {
         if (menuOption.equals("Modify offer")) {
             int slot = widget.getId() - 30474247;
-            log.debug("modify offer clicked on slot {}", slot);
+            log.debug("modify offer clicked (tick {}) on slot {}", client.getTickCount(), slot);
             suggestionManager.suggestionsDelayedUntil = client.getTickCount() + 2;
             geUncollected.clearSlotUncollected(osrsLoginManager.getAccountHash(), slot);
         }

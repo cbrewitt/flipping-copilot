@@ -1,7 +1,7 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
-import com.flippingcopilot.controller.FlippingCopilotConfig;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
@@ -413,6 +413,13 @@ public class FlipsPanel extends JPanel {
                         t.setWasCopilotSuggestion(true);
                         t.setOfferTotalQuantity(qty);
 
+                        long profit = flipsManager.estimateTransactionProfit(flip.getAccountId(), t);
+ 
+                        if (!validateProfit(profit, flip, price)) {
+                            setSpinnerVisible(false);
+                            return;
+                        }
+ 
                         BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
                             flipsManager.mergeFlips(flips, userId);
                             setSpinnerVisible(false);
@@ -438,6 +445,20 @@ public class FlipsPanel extends JPanel {
             menu.add(missedSellTransaction);
         }
         menu.show(e.getComponent(), e.getX(), e.getY());
+    }
+
+    private boolean validateProfit(long profit, FlipV2 flip, int price) {
+        long absProfit = Math.abs(profit);
+        long avgBuyPrice = flip.getAvgBuyPrice();
+        if (absProfit > 10_000_000L || (avgBuyPrice > 0 && price > avgBuyPrice * 5L)) {
+            JOptionPane.showMessageDialog(this,
+                    "The estimated profit/loss (" + GP_FORMAT.format(absProfit) + " gp) is too large. " +
+                            "Please double-check the sell price.",
+                    "Profit Too Large",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        return true;
     }
 
     private void downloadAsCSV() {

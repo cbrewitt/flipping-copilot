@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.SuggestionManager;
 import net.runelite.api.Client;
 import net.runelite.api.VarClientInt;

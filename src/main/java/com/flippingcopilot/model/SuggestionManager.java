@@ -59,4 +59,8 @@ public class SuggestionManager {
         }
         return false;
     }
+
+    public boolean suggestionVeryOutOfDate() {
+        return suggestionReceivedAt != null && Instant.now().minusSeconds(60L).isAfter(suggestionReceivedAt);
+    }
 }

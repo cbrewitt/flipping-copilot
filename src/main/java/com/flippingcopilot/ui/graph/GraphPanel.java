@@ -14,6 +14,7 @@ public class GraphPanel extends JPanel {
     private final RenderV2 renderer;
     public final ZoomHandler zoomHandler;
     private final DatapointTooltip tooltip;
+    private PriceLine priceLine;
 
     public Bounds bounds;
 
@@ -37,13 +38,18 @@ public class GraphPanel extends JPanel {
     }
 
     public void setData(DataManager dm) {
+        setData(dm, null);
+    }
+
+    public void setData(DataManager dm, PriceLine priceLine) {
         int oldItemID = dataManager == null ? -1 : dataManager.data.itemId;
         dataManager = dm;
+        this.priceLine = priceLine;
         zoomHandler.maxViewBounds = dataManager.maxBounds;
         zoomHandler.homeViewBounds = dataManager.calculateHomeBounds();
         zoomHandler.weekViewBounds = dataManager.calculateWeekBounds();
         zoomHandler.monthViewBounds = dataManager.calculateMonthBounds();
-        if(oldItemID != dataManager.data.itemId) {
+        if (oldItemID != dataManager.data.itemId) {
             bounds = zoomHandler.homeViewBounds.copy();
         }
         repaint();
@@ -216,6 +222,9 @@ public class GraphPanel extends JPanel {
         }
         renderer.drawStartPoints(g2d, pricePa, bounds, dataManager.buyPriceDataPoint(), Color.WHITE, pointSize);
         renderer.drawStartPoints(g2d, pricePa, bounds, dataManager.sellPriceDataPoint(), Color.WHITE, pointSize);
+        if (config.showSuggestedPriceLines) {
+            drawSuggestedPriceLine(g2d, config);
+        }
 
         renderer.drawLines(g2d, pricePa, bounds, dataManager.predictionLowDatapoints, config.lowColor, Config.DOTTED_STROKE);
         renderer.drawLines(g2d, pricePa, bounds, dataManager.predictionHighDatapoints, config.highColor, Config.DOTTED_STROKE);
@@ -245,6 +254,30 @@ public class GraphPanel extends JPanel {
                 tooltip.draw(g2d, config, pricePa, bounds, hoveredPoint);
             }
         }
+    }
+
+    private void drawSuggestedPriceLine(Graphics2D g2d, Config config) {
+        if (priceLine == null) {
+            return;
+        }
+        int y = bounds.toY(pricePa, priceLine.getPrice());
+        g2d.setColor(Color.WHITE);
+        Stroke previousStroke = g2d.getStroke();
+        g2d.setStroke(Config.DOTTED_STROKE);
+        g2d.drawLine(pricePa.x, y, pricePa.x + pricePa.width, y);
+        g2d.setStroke(previousStroke);
+
+        String label = priceLine.getMessage();
+        if (label == null || label.isBlank()) {
+            return;
+        }
+        FontMetrics metrics = g2d.getFontMetrics();
+        int labelWidth = metrics.stringWidth(label);
+        int labelX = pricePa.x + pricePa.width - labelWidth - Config.LABEL_PADDING;
+        int labelY = priceLine.isTextAbove()
+                ? Math.max(pricePa.y + metrics.getAscent(), y - (Config.LABEL_PADDING / 2))
+                : Math.min(pricePa.y + pricePa.height - Config.LABEL_PADDING, y + metrics.getAscent() + (Config.LABEL_PADDING / 2));
+        g2d.drawString(label, labelX, labelY);
     }
 
     private int dynamicPointSize(int baseSize, Bounds bounds) {
