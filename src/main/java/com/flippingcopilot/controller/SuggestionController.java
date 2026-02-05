@@ -178,6 +178,11 @@ public class SuggestionController {
             log.info("discarding dump suggestion as account status null");
             return;
         }
+        Suggestion s = suggestionManager.getSuggestion();
+        if(s != null && s.isDumpAlert && s.actionedTick == -1) {
+            log.info("discarding dump suggestion as already processing dump suggestion");
+            return;
+        }
         if (accountStatus.emptySlotExists()) {
             handleSuggestionReceived(suggestionManager.getSuggestion(), suggestion, accountStatus);
         } else {
