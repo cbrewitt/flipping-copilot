@@ -1,13 +1,7 @@
 package com.flippingcopilot.util;
 
 import com.flippingcopilot.manager.CopilotLoginManager;
-import com.flippingcopilot.model.FlipManager;
-import com.flippingcopilot.model.FlipStatus;
-import com.flippingcopilot.model.FlipV2;
-import com.flippingcopilot.model.OfferManager;
-import com.flippingcopilot.model.OfferStatus;
-import com.flippingcopilot.model.OsrsLoginManager;
-import com.flippingcopilot.model.SavedOffer;
+import com.flippingcopilot.model.*;
 import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 
@@ -120,7 +114,7 @@ public class ProfitCalculator {
      * @param suggestion The sell suggestion
      * @return The profit in GP, or null if cannot be calculated
      */
-    public Long calculateSuggestionProfit(com.flippingcopilot.model.Suggestion suggestion) {
+    public Long calculateSuggestionProfit(Suggestion suggestion) {
         if (!"sell".equals(suggestion.getType())) {
             return null;
         }
@@ -136,7 +130,7 @@ public class ProfitCalculator {
         }
 
         // Create a transaction from the suggestion to estimate profit
-        com.flippingcopilot.model.Transaction t = new com.flippingcopilot.model.Transaction();
+        Transaction t = new Transaction();
         t.setItemId(suggestion.getItemId());
         t.setPrice(suggestion.getPrice());
         t.setQuantity(suggestion.getQuantity());

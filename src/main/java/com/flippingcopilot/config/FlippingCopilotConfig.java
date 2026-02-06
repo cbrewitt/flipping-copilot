@@ -206,7 +206,7 @@ public interface FlippingCopilotConfig extends Config
     )
     default boolean slotPriceColorEnabled()
     {
-        return true;
+        return false;
     }
 
     @ConfigItem(
@@ -230,7 +230,7 @@ public interface FlippingCopilotConfig extends Config
     )
     default Color slotPriceUnprofitableColor()
     {
-        return new Color(0xFF3535);
+        return new Color(0xFF5E5E);
     }
 
     @ConfigSection(
