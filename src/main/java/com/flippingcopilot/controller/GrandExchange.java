@@ -6,8 +6,10 @@ import com.flippingcopilot.model.OfferManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.VarPlayerID;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.ComponentID;
-import net.runelite.api.widgets.InterfaceID;
 import net.runelite.api.widgets.Widget;
 
 import javax.inject.Inject;
@@ -21,10 +23,6 @@ import static net.runelite.api.Varbits.GE_OFFER_CREATION_TYPE;
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GrandExchange {
-
-    private final static int CURRENTLY_OPEN_GE_SLOT_VARBIT_ID = 4439;
-    final static int SHOW_LAST_SEARCHED_VARBIT_ID = 10295;
-
     private final Client client;
 
     boolean isHomeScreenOpen() {
@@ -40,7 +38,7 @@ public class GrandExchange {
     }
 
     boolean isCollectButtonVisible() {
-        Widget w = client.getWidget(InterfaceID.GRAND_EXCHANGE, 6);
+        Widget w = client.getWidget(InterfaceID.GE_OFFERS, 6);
         if (w == null) {
             return false;
         }
@@ -52,11 +50,11 @@ public class GrandExchange {
     }
 
     int getOpenSlot() {
-        return client.getVarbitValue(CURRENTLY_OPEN_GE_SLOT_VARBIT_ID) - 1;
+        return client.getVarbitValue(VarbitID.GE_SELECTEDSLOT) - 1;
     }
 
     Widget getSlotWidget(int slot) {
-        return client.getWidget(465, 7 + slot);
+        return client.getWidget(InterfaceID.GE_OFFERS, 7 + slot);
     }
 
     Widget getBuyButton(int slot) {
@@ -68,7 +66,7 @@ public class GrandExchange {
     }
 
     Widget getCollectButton() {
-        Widget topBar = client.getWidget(465, 6);
+        Widget topBar = client.getWidget(InterfaceID.GE_OFFERS, 6);
         if (topBar == null) {
             return null;
         }
@@ -76,7 +74,7 @@ public class GrandExchange {
     }
 
     Widget getOfferContainerWidget() {
-        return client.getWidget(465, 26);
+        return client.getWidget(InterfaceID.GE_OFFERS, 26);
     }
 
     Widget getOfferTypeWidget() {
@@ -96,23 +94,27 @@ public class GrandExchange {
     }
 
     int getOfferQuantity() {
-        return client.getVarbitValue(4396);
+        return client.getVarbitValue(VarbitID.GE_NEWOFFER_QUANTITY);
     }
 
     int getOfferPrice() {
-        return client.getVarbitValue(4398);
+        return client.getVarbitValue(VarbitID.GE_NEWOFFER_PRICE);
+    }
+
+    boolean isOfferTypeSell() {
+        return client.getVarbitValue(VarbitID.GE_NEWOFFER_TYPE) == 1;
     }
 
     public boolean isOpen() {
-        return client.getWidget(InterfaceID.GRAND_EXCHANGE, 7) != null;
+        return client.getWidget(InterfaceID.GE_OFFERS, 7) != null;
     }
 
     public boolean isPreviousSearchSet() {
-        return client.getVarpValue(2674) != -1;
+        return client.getVarpValue(VarPlayerID.GE_LAST_SEARCHED) != -1;
     }
 
     public boolean showLastSearchEnabled() {
-        return client.getVarbitValue(SHOW_LAST_SEARCHED_VARBIT_ID) == 0;
+        return client.getVarbitValue(VarbitID.DISABLE_LAST_SEARCHED) == 0;
     }
 
     public Widget getSetQuantityButton() {
@@ -165,11 +167,11 @@ public class GrandExchange {
     }
 
     Widget getBackButton() {
-        return client.getWidget(InterfaceID.GRAND_EXCHANGE, 4);
+        return client.getWidget(InterfaceID.GE_OFFERS, 4);
     }
 
     String getOfferScreenTitle() {
-        Widget frame = client.getWidget(InterfaceID.GRAND_EXCHANGE, 2);
+        Widget frame = client.getWidget(InterfaceID.GE_OFFERS, 2);
         if (frame == null) {
             return null;
         }

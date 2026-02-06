@@ -4,6 +4,7 @@ import com.flippingcopilot.ui.UIUtilities;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
 import net.runelite.client.config.Keybind;
 import net.runelite.client.ui.ColorScheme;
 
@@ -74,25 +75,13 @@ public interface FlippingCopilotConfig extends Config
         }
     }
 
+    @ConfigSection(
+            name = "Offer Setup Assistance",
+            description = "Configure suggestion highlights and offer setup features",
+            position = 1
+    )
+    String offerSetupSection = "offerSetupSection";
 
-    @ConfigItem(
-            keyName = "enableChatNotifications",
-            name = "Enable chat notifications",
-            description = "Show chat notifications for suggested action when the side panel is closed."
-    )
-    default boolean enableChatNotifications()
-    {
-        return true;
-    }
-    @ConfigItem(
-            keyName = "enableTrayNotifications",
-            name = "Enable tray notifications",
-            description = "Show tray notifications for suggested action when runelite is out of focus."
-    )
-    default boolean enableTrayNotifications()
-    {
-        return true;
-    }
     @ConfigItem(
             keyName = "dumpAlertSound",
             name = "Dump alert sound",
@@ -102,54 +91,19 @@ public interface FlippingCopilotConfig extends Config
     {
         return true;
     }
-    @ConfigItem(
-            keyName = "profitAmountColor",
-            name = "Flip tracker profit color",
-            description = "The color of the profit amount text in the flip tracker"
-    )
-    default Color profitAmountColor() {
-        return ColorScheme.GRAND_EXCHANGE_PRICE;
-    }
-    @ConfigItem(
-            keyName = "lossAmountColor",
-            name = "Flip tracker loss color",
-            description = "The color of the loss amount text in the flip tracker"
-    )
-    default Color lossAmountColor() {
-        return UIUtilities.OUTDATED_COLOR;
-    }
-    @ConfigItem(
-            keyName = "chatTextColor",
-            name = "Chat text color",
-            description = "The color of the text for copilot messages in the chat."
-    )
-    default Color chatTextColor() {
-        return new Color(0x0040FF);
-    }
-    @ConfigItem(
-            keyName = "webhook",
-            name = "Webhook URL",
-            description = "The Discord Webhook URL for sending display name and profit."
-    )
-    String webhook();
-    @ConfigItem(
-            keyName = "priceGraphButton",
-            name = "Graph button",
-            description = "The page to open when the graph button is clicked."
-    )
-    default PriceGraphWebsite priceGraphWebsite()
-    {
-        return PriceGraphWebsite.FLIPPING_COPILOT;
-    }
+
     @ConfigItem(
             keyName = "suggestionHighlights",
             name = "Highlight suggested actions",
-            description = "Show highlight overlays on the GE interface for suggested actions."
+            description = "Show highlight overlays on the GE interface for suggested actions.",
+            section = offerSetupSection,
+            position = 1
     )
     default boolean suggestionHighlights()
     {
         return true;
     }
+
     @ConfigItem(
             keyName = "lowDataMode",
             name = "Low data mode",
@@ -162,29 +116,173 @@ public interface FlippingCopilotConfig extends Config
     @ConfigItem(
             keyName = "misClickProtection",
             name = "Mis-click prevention",
-            description = "Require right click to confirm when price/quantity set incorrectly"
+            description = "Require right click to confirm when price/quantity set incorrectly",
+            section = offerSetupSection,
+            position = 2
     )
     default boolean disableLeftClickConfirm()
     {
         return false;
     }
+
     @ConfigItem(
             keyName = "quickSetKeybind",
             name = "Price/quantity set keybind",
-            description = "Keybind to quickly set the price or quantity of a GE offer to the suggested value"
+            description = "Keybind to quickly set the price or quantity of a GE offer to the suggested value",
+            section = offerSetupSection,
+            position = 3
     )
     default Keybind quickSetKeybind()
     {
         return new Keybind(KeyEvent.VK_E, 0);
     }
 
+    @ConfigSection(
+            name = "Appearance",
+            description = "Configure visual appearance and colors",
+            position = 2
+    )
+    String appearanceSection = "appearanceSection";
+
     @ConfigItem(
-            keyName = "enabledPriceGraphMenuOpton",
+            keyName = "priceGraphMenuOptionEnabled",
             name = "Enable price graph menu option",
-            description = "Adds a menu option to open copilot price graph on applicable right clicks."
+            description = "Adds a menu option to open copilot price graph on applicable right clicks.",
+            section = appearanceSection,
+            position = 1
     )
     default boolean priceGraphMenuOptionEnabled()
     {
         return true;
     }
+
+    @ConfigItem(
+            keyName = "priceGraphButton",
+            name = "Graph button",
+            description = "The page to open when the graph button is clicked.",
+            section = appearanceSection,
+            position = 2
+    )
+    default PriceGraphWebsite priceGraphWebsite()
+    {
+        return PriceGraphWebsite.FLIPPING_COPILOT;
+    }
+
+    @ConfigItem(
+            keyName = "profitAmountColor",
+            name = "Flip tracker profit color",
+            description = "The color of the profit amount text in the flip tracker",
+            section = appearanceSection,
+            position = 3
+    )
+    default Color profitAmountColor() {
+        return ColorScheme.GRAND_EXCHANGE_PRICE;
+    }
+
+    @ConfigItem(
+            keyName = "lossAmountColor",
+            name = "Flip tracker loss color",
+            description = "The color of the loss amount text in the flip tracker",
+            section = appearanceSection,
+            position = 4
+    )
+    default Color lossAmountColor() {
+        return UIUtilities.OUTDATED_COLOR;
+    }
+
+    @ConfigSection(
+            name = "Slot Price Coloring",
+            description = "Configure GE slot price colors based on profitability",
+            position = 3
+    )
+    String slotPriceColorSection = "slotPriceColorSection";
+
+    @ConfigItem(
+            keyName = "slotPriceColorEnabled",
+            name = "Enable slot price coloring",
+            description = "Color GE slot prices based on profitability",
+            section = slotPriceColorSection,
+            position = 1
+    )
+    default boolean slotPriceColorEnabled()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+            keyName = "slotPriceProfitableColor",
+            name = "Buy/Profitable color",
+            description = "The color for buy offers at the suggested price, and profitable sell offers (flips)",
+            section = slotPriceColorSection,
+            position = 2
+    )
+    default Color slotPriceProfitableColor()
+    {
+        return new Color(0xAFDCFF);
+    }
+
+    @ConfigItem(
+            keyName = "slotPriceUnprofitableColor",
+            name = "Unprofitable color",
+            description = "The color for sell offers (flips) that will result in a loss",
+            section = slotPriceColorSection,
+            position = 3
+    )
+    default Color slotPriceUnprofitableColor()
+    {
+        return new Color(0xFF3535);
+    }
+
+    @ConfigSection(
+            name = "Notifications",
+            description = "Configure notification settings for flipping actions",
+            position = 4
+    )
+    String notificationsSection = "notificationsSection";
+
+    @ConfigItem(
+            keyName = "enableChatNotifications",
+            name = "Enable chat notifications",
+            description = "Show chat notifications for suggested action when the side panel is closed.",
+            section = notificationsSection,
+            position = 1
+    )
+    default boolean enableChatNotifications()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+            keyName = "enableTrayNotifications",
+            name = "Enable tray notifications",
+            description = "Show tray notifications for suggested action when runelite is out of focus.",
+            section = notificationsSection,
+            position = 2
+    )
+    default boolean enableTrayNotifications()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+            keyName = "chatTextColor",
+            name = "Chat text color",
+            description = "The color of the text for copilot messages in the chat.",
+            section = notificationsSection,
+            position = 3
+    )
+    default Color chatTextColor() {
+        return new Color(0x0040FF);
+    }
+
+    @ConfigItem(
+            keyName = "webhook",
+            name = "Webhook URL",
+            description = "The Discord Webhook URL for sending display name and profit.",
+            section = notificationsSection,
+            position = 4
+    )
+    String webhook();
+
+
 }

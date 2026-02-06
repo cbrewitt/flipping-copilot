@@ -70,7 +70,9 @@ public class FlipManager {
             Map<Integer, FlipV2> flips = lastOpenFlipByItemId.get(accountId);
             FlipV2 flip = flips.get(itemId);
             if (flip != null) {
-                flip.setCachedItemName(itemController.getItemName(flip.getItemId()));
+                if (itemController != null) {
+                    flip.setCachedItemName(itemController.getItemName(flip.getItemId()));
+                }
                 return flip;
             }
         }
@@ -211,7 +213,9 @@ public class FlipManager {
                 toSkip -= n;
             }
         }
-        pageFlips.forEach(flip -> flip.setCachedItemName(itemController.getItemName(flip.getItemId())));
+        if (itemController != null) {
+            pageFlips.forEach(flip -> flip.setCachedItemName(itemController.getItemName(flip.getItemId())));
+        }
         return pageFlips;
     }
 

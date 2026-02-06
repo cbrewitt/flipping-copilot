@@ -9,7 +9,6 @@ import net.runelite.api.ItemComposition;
 import net.runelite.api.VarClientStr;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
-import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
@@ -35,7 +34,6 @@ public class HighlightController {
     private final OfferManager offerManager;
     private final OverlayManager overlayManager;
     private final HighlightColorController highlightColorController;
-    private final ClientThread clientThread;
 
     // state
     private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
@@ -163,18 +161,6 @@ public class HighlightController {
         return s.currentItemId != -1 && ((!offerTypeMatches && s.offerType.equals("sell"))|| (!s.searchOpen && !itemMatches))
                 && s.currentItemId == offerManager.getViewedSlotItemId()
                 && offerManager.getViewedSlotItemPrice() > -1;
-    }
-
-    private int getOfferItemId() {
-        Widget detailsContainer = client.getWidget(465, 15);
-        if (detailsContainer == null) {
-            return -1;
-        }
-        Widget itemWidget = detailsContainer.getChild(7);
-        if (itemWidget == null) {
-            return -1;
-        }
-        return itemWidget.getItemId();
     }
 
     private void highlightItemInSearch(Suggestion suggestion, Supplier<Color> colorSupplier) {
