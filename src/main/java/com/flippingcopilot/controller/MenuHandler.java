@@ -36,9 +36,11 @@ public class MenuHandler {
         }
         if (event.getOption().equals("View offer")) {
             long slotWidgetId = event.getActionParam1();
+            String menuTarget = event.getTarget();
             client.getMenu()
                     .createMenuEntry(-1)
-                    .setOption("Copilot price graph")
+                    .setOption("Copilot graph")
+                    .setTarget(menuTarget)
                     .onClick((MenuEntry e) -> {
                         GrandExchangeOffer[] offers = client.getGrandExchangeOffers();
                         for (int i = 0; i < offers.length; i++) {
@@ -51,7 +53,77 @@ public class MenuHandler {
                             }
                         }
                     });
+        } else if (shouldAddInventoryPriceGraphEntry(event)) {
+            int inventorySlot = event.getActionParam0();
+            int inventoryWidgetId = event.getActionParam1();
+            Widget inventoryWidget = client.getWidget(inventoryWidgetId);
+            if (inventoryWidget == null || inventorySlot < 0) {
+                return;
+            }
+            Widget[] items = inventoryWidget.getDynamicChildren();
+            if (items == null || inventorySlot >= items.length) {
+                return;
+            }
+            Widget itemWidget = items[inventorySlot];
+            if (itemWidget == null || itemWidget.getItemId() <= 0) {
+                return;
+            }
+            int itemId = itemWidget.getItemId();
+            if (!isGeTradableItem(itemId)) {
+                return;
+            }
+            String menuTarget = resolveMenuTarget(event.getTarget(), itemId);
+            int graphItemId = toUnnotedItemId(itemId);
+            client.getMenu()
+                    .createMenuEntry(-1)
+                    .setOption("Copilot graph")
+                    .setTarget(menuTarget)
+                    .onClick((MenuEntry e) -> flipsDialogController.showPriceGraphTab(graphItemId, false, null));
         }
+    }
+
+    private boolean shouldAddInventoryPriceGraphEntry(MenuEntryAdded event) {
+        if (!grandExchange.isOpen() || !event.getOption().equals("Examine")) {
+            return false;
+        }
+        int widgetId = event.getActionParam1();
+        Widget geInventoryWidget = client.getWidget(467, 0);
+        if (geInventoryWidget != null && geInventoryWidget.getId() == widgetId) {
+            return true;
+        }
+        Widget inventoryWidget = client.getWidget(149, 0);
+        return inventoryWidget != null && inventoryWidget.getId() == widgetId;
+    }
+
+    private boolean isGeTradableItem(int itemId) {
+        ItemComposition item = client.getItemDefinition(itemId);
+        if (item.isTradeable()) {
+            return true;
+        }
+        if (item.getNote() != -1) {
+            int unnotedItemId = item.getLinkedNoteId();
+            if (unnotedItemId > 0) {
+                ItemComposition unnoted = client.getItemDefinition(unnotedItemId);
+                return unnoted.isTradeable();
+            }
+        }
+        return false;
+    }
+
+    private String resolveMenuTarget(String eventTarget, int itemId) {
+        if (eventTarget != null && !eventTarget.isBlank()) {
+            return eventTarget;
+        }
+        ItemComposition item = client.getItemDefinition(itemId);
+        return "<col=ff9040>" + item.getName() + "</col>";
+    }
+
+    private int toUnnotedItemId(int itemId) {
+        ItemComposition item = client.getItemDefinition(itemId);
+        if (item.getNote() != -1 && item.getLinkedNoteId() > 0) {
+            return item.getLinkedNoteId();
+        }
+        return itemId;
     }
 
     private PriceLine buildPriceLine(GrandExchangeOffer offer) {

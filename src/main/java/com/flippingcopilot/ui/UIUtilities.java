@@ -41,7 +41,7 @@ public class UIUtilities {
 
     public static synchronized String quantityToRSDecimalStack(long quantity, boolean precise)
     {
-        String sign = quantity > 0 ? "" : "-";
+        String sign = quantity >= 0 ? "" : "-";
         quantity = Math.abs(quantity);
         if (Long.toString(quantity).length() <= 4)
         {

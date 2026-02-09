@@ -28,6 +28,7 @@ public class HighlightController {
     // dependencies
     private final FlippingCopilotConfig config;
     private final SuggestionManager suggestionManager;
+    private final SuggestionPreferencesManager suggestionPreferencesManager;
     private final GrandExchange grandExchange;
     private final AccountStatusManager accountStatusManager;
     private final Client client;
@@ -78,20 +79,35 @@ public class HighlightController {
             Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
             add(slotWidget, redHighlight);
         }
+        else if (isScanningForDumpsSuggested(suggestion, accountStatus)) {
+            highlightCreateBuyOfferButton(accountStatus, blueHighlight);
+        }
         else if (suggestion.getType().equals("buy")) {
-            int slotId = accountStatus.findEmptySlot();
-            if (slotId != -1) {
-                Widget buyButton = grandExchange.getBuyButton(slotId);
-                if (buyButton != null && !buyButton.isHidden()) {
-                    add(buyButton, blueHighlight, new Rectangle(0, 0, 45, 44));
-                }
-            }
+            highlightCreateBuyOfferButton(accountStatus, blueHighlight);
         }
         else if (suggestion.getType().equals("sell")) {
             Widget itemWidget = getInventoryItemWidget(suggestion.getItemId());
             if (itemWidget != null && !itemWidget.isHidden()) {
                 add(itemWidget, blueHighlight, new Rectangle(0, 0, 34, 32));
             }
+        }
+    }
+
+    private boolean isScanningForDumpsSuggested(Suggestion suggestion, AccountStatus accountStatus) {
+        return "wait".equals(suggestion.getType())
+                && accountStatus.emptySlotExists()
+                && !accountStatus.moreGpNeeded()
+                && suggestionPreferencesManager.isReceiveDumpSuggestions();
+    }
+
+    private void highlightCreateBuyOfferButton(AccountStatus accountStatus, Supplier<Color> colorSupplier) {
+        int slotId = accountStatus.findEmptySlot();
+        if (slotId == -1) {
+            return;
+        }
+        Widget buyButton = grandExchange.getBuyButton(slotId);
+        if (buyButton != null && !buyButton.isHidden()) {
+            add(buyButton, colorSupplier, new Rectangle(0, 0, 45, 44));
         }
     }
 
