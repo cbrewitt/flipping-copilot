@@ -6,6 +6,7 @@ import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.ui.graph.model.PriceLine;
 import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class FlipsDialogController {
     private final PriceGraphConfigManager priceGraphConfigManager;
     private final OsrsLoginManager osrsLoginManager;
     private final SuggestionManager suggestionManager;
+    private final OsrsLoginRS osrsLoginRS;
 
     public PriceGraphPanel priceGraphPanel;
     private JTabbedPane tabbedPane;
@@ -47,7 +49,7 @@ public class FlipsDialogController {
             CopilotLoginManager copilotLoginManager,
             FlippingCopilotConfig config,
             ApiRequestHandler apiRequestHandler,
-            PriceGraphConfigManager priceGraphConfigManager, OsrsLoginManager osrsLoginManager, SuggestionManager suggestionManager) {
+            PriceGraphConfigManager priceGraphConfigManager, OsrsLoginManager osrsLoginManager, SuggestionManager suggestionManager, OsrsLoginRS osrsLoginRS) {
         this.itemController = itemController;
         this.flipsManager = flipsManager;
         this.executorService = executorService;
@@ -58,6 +60,7 @@ public class FlipsDialogController {
         this.priceGraphConfigManager = priceGraphConfigManager;
         this.osrsLoginManager = osrsLoginManager;
         this.suggestionManager = suggestionManager;
+        this.osrsLoginRS = osrsLoginRS;
     }
 
     public void initDialog(Window windowAncestor) {
@@ -71,7 +74,7 @@ public class FlipsDialogController {
                     config,
                     apiRequestHandler
             );
-            flipsPanel = new FlipsPanel(flipsManager, itemController, copilotLoginManager,
+            flipsPanel = new FlipsPanel(osrsLoginRS, flipsManager, itemController, copilotLoginManager,
                     executorService, config, apiRequestHandler, (f) -> {
                 visualizeFlipPanel.showFlipVisualization(f);
                 tabbedPane.setSelectedIndex(6);
