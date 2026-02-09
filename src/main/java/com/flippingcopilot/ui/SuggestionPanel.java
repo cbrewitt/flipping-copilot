@@ -469,6 +469,7 @@ public class SuggestionPanel extends JPanel {
             suggestAddGp();
         } else if (suggestion.getType().equals("wait")
                 && grandExchange.isOpen()
+                && accountStatus.emptySlotExists()
                 && suggestionPreferencesManager.isReceiveDumpSuggestions()) {
             suggestScanningForDumps();
         }  else {
