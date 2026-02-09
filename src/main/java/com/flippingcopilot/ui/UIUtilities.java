@@ -45,7 +45,7 @@ public class UIUtilities {
         quantity = Math.abs(quantity);
         if (Long.toString(quantity).length() <= 4)
         {
-            return QuantityFormatter.formatNumber(quantity);
+            return sign + QuantityFormatter.formatNumber(quantity);
         }
 
         long power = (long) Math.log10(quantity);

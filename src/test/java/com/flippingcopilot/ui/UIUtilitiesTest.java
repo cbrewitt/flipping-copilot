@@ -34,4 +34,16 @@ public class UIUtilitiesTest {
         String result = UIUtilities.truncateString("Hello, World!", 0);
         assertEquals("...", result);
     }
+
+    @Test
+    public void quantityToRSDecimalStack_largeNegativeValue_includesMinusSign() {
+        String result = UIUtilities.quantityToRSDecimalStack(-15000, false);
+        assertEquals("-15K", result);
+    }
+
+    @Test
+    public void quantityToRSDecimalStack_smallNegativeValue_includesMinusSign() {
+        String result = UIUtilities.quantityToRSDecimalStack(-406, false);
+        assertEquals("-406", result);
+    }
 }
