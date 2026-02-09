@@ -97,9 +97,6 @@ public class MenuHandler {
 
     private boolean isGeTradableItem(int itemId) {
         ItemComposition item = client.getItemDefinition(itemId);
-        if (item == null) {
-            return false;
-        }
         if (item.isTradeable()) {
             return true;
         }
@@ -107,7 +104,7 @@ public class MenuHandler {
             int unnotedItemId = item.getLinkedNoteId();
             if (unnotedItemId > 0) {
                 ItemComposition unnoted = client.getItemDefinition(unnotedItemId);
-                return unnoted != null && unnoted.isTradeable();
+                return unnoted.isTradeable();
             }
         }
         return false;
@@ -118,17 +115,11 @@ public class MenuHandler {
             return eventTarget;
         }
         ItemComposition item = client.getItemDefinition(itemId);
-        if (item == null || item.getName() == null) {
-            return "";
-        }
         return "<col=ff9040>" + item.getName() + "</col>";
     }
 
     private int toUnnotedItemId(int itemId) {
         ItemComposition item = client.getItemDefinition(itemId);
-        if (item == null) {
-            return itemId;
-        }
         if (item.getNote() != -1 && item.getLinkedNoteId() > 0) {
             return item.getLinkedNoteId();
         }
