@@ -38,6 +38,7 @@ public class SuggestionPanel extends JPanel {
     // dependencies
     private final FlippingCopilotConfig config;
     private final SuggestionManager suggestionManager;
+    private final SuggestionPreferencesManager suggestionPreferencesManager;
     private final AccountStatusManager accountStatusManager;
     public final PauseButton pauseButton;
     private final BlockButton blockButton;
@@ -79,6 +80,7 @@ public class SuggestionPanel extends JPanel {
     @Inject
     public SuggestionPanel(FlippingCopilotConfig config,
                            SuggestionManager suggestionManager,
+                           SuggestionPreferencesManager suggestionPreferencesManager,
                            AccountStatusManager accountStatusManager,
                            PauseButton pauseButton,
                            BlockButton blockButton,
@@ -93,6 +95,7 @@ public class SuggestionPanel extends JPanel {
         this.preferencesPanel = preferencesPanel;
         this.config = config;
         this.suggestionManager = suggestionManager;
+        this.suggestionPreferencesManager = suggestionPreferencesManager;
         this.accountStatusManager = accountStatusManager;
         this.pauseButton = pauseButton;
         this.blockButton = blockButton;
@@ -355,6 +358,11 @@ public class SuggestionPanel extends JPanel {
         setButtonsVisible(false);
     }
 
+    public void suggestScanningForDumps() {
+        setMessage("Scanning for dumps...");
+        setButtonsVisible(false);
+    }
+
     public void suggestOpenGe() {
         setMessage("Open the Grand Exchange<br>"
                 + "to get a flip suggestion");
@@ -457,6 +465,10 @@ public class SuggestionPanel extends JPanel {
             suggestCollect();
         } else if(suggestion.getType().equals("wait") && !grandExchange.isOpen() && accountStatus.emptySlotExists()) {
             suggestOpenGe();
+        } else if (suggestion.getType().equals("wait")
+                && grandExchange.isOpen()
+                && suggestionPreferencesManager.isReceiveDumpSuggestions()) {
+            suggestScanningForDumps();
         } else if (suggestion.getType().equals("wait") && accountStatus.moreGpNeeded()) {
             suggestAddGp();
         }  else {
