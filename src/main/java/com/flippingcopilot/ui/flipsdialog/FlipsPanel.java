@@ -5,6 +5,7 @@ import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.ui.Paginator;
 import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.components.AccountDropdown;
@@ -49,6 +50,7 @@ public class FlipsPanel extends JPanel {
     private final FlipManager flipsManager;
     private final CopilotLoginManager copilotLoginManager;
     private final ApiRequestHandler apiRequestHandler;
+    private final OsrsLoginRS osrsLoginRS;
 
     // ui components
     private final DefaultTableModel tableModel;
@@ -69,13 +71,14 @@ public class FlipsPanel extends JPanel {
     public FlipFilterAndSort sortAndFilter;
 
 
-    public FlipsPanel(FlipManager flipsManager,
+    public FlipsPanel(OsrsLoginRS osrsLoginRS, FlipManager flipsManager,
                       ItemController itemController,
                       CopilotLoginManager copilotLoginManager,
                       @Named("copilotExecutor") ExecutorService executorService,
                       FlippingCopilotConfig config,
                       ApiRequestHandler apiRequestHandler,
                       Consumer<FlipV2> onVisualizeFlip) {
+        this.osrsLoginRS = osrsLoginRS;
         this.onVisualizeFlip = onVisualizeFlip;
         this.copilotLoginManager = copilotLoginManager;
         this.apiRequestHandler = apiRequestHandler;
@@ -355,8 +358,8 @@ public class FlipsPanel extends JPanel {
         });
         menu.add(deleteItem);
 
-        String displayName = copilotLoginManager.getDisplayName(flip.getAccountId());
-        if (displayName != null && !FlipStatus.FINISHED.equals(flip.getStatus())) {
+        String flipOsrsDisplayName = copilotLoginManager.getDisplayName(flip.getAccountId());
+        if (shouldShowAddMissedSellOption(flipOsrsDisplayName, flip)) {
             JMenuItem missedSellTransaction = new JMenuItem("Add missed sell transaction");
             missedSellTransaction.addActionListener(evt -> {
                 int qty = flip.getOpenedQuantity() - flip.getClosedQuantity();
@@ -413,9 +416,9 @@ public class FlipsPanel extends JPanel {
                         t.setWasCopilotSuggestion(true);
                         t.setOfferTotalQuantity(qty);
 
-                        long profit = flipsManager.estimateTransactionProfit(flip.getAccountId(), t);
+                        Long profit = flipsManager.estimateTransactionProfit(flip.getAccountId(), t);
  
-                        if (!validateProfit(profit, flip, price)) {
+                        if (profit == null || !validateProfit(profit, flip, price)) {
                             setSpinnerVisible(false);
                             return;
                         }
@@ -432,7 +435,7 @@ public class FlipsPanel extends JPanel {
                                     "Transaction Error",
                                     JOptionPane.ERROR_MESSAGE);
                         };
-                        apiRequestHandler.sendTransactionsAsync(List.of(t), displayName, onSuccess, onFailure);
+                        apiRequestHandler.sendTransactionsAsync(List.of(t), flipOsrsDisplayName, onSuccess, onFailure);
 
                     } catch (NumberFormatException ex) {
                         JOptionPane.showMessageDialog(this,
@@ -445,6 +448,16 @@ public class FlipsPanel extends JPanel {
             menu.add(missedSellTransaction);
         }
         menu.show(e.getComponent(), e.getX(), e.getY());
+    }
+
+    private boolean shouldShowAddMissedSellOption(String flipOsrsDisplayName, FlipV2 flip) {
+        if (flipOsrsDisplayName == null) {
+            return false;
+        }
+        if (FlipStatus.FINISHED.equals(flip.getStatus())) {
+            return false;
+        }
+        return osrsLoginRS.get().loggedIn && Objects.equals(flipOsrsDisplayName, osrsLoginRS.get().displayName);
     }
 
     private boolean validateProfit(long profit, FlipV2 flip, int price) {
