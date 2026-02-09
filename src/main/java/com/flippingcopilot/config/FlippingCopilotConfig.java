@@ -83,16 +83,6 @@ public interface FlippingCopilotConfig extends Config
     String offerSetupSection = "offerSetupSection";
 
     @ConfigItem(
-            keyName = "dumpAlertSound",
-            name = "Dump alert sound",
-            description = "Play the GE offer completed sound when a dump alert arrives."
-    )
-    default boolean dumpAlertSound()
-    {
-        return true;
-    }
-
-    @ConfigItem(
             keyName = "suggestionHighlights",
             name = "Highlight suggested actions",
             description = "Show highlight overlays on the GE interface for suggested actions.",
@@ -241,11 +231,23 @@ public interface FlippingCopilotConfig extends Config
     String notificationsSection = "notificationsSection";
 
     @ConfigItem(
+            keyName = "dumpAlertSound",
+            name = "Dump alert sound",
+            description = "Play the GE offer completed sound when a dump alert arrives.",
+            section = notificationsSection,
+            position = 1
+    )
+    default boolean dumpAlertSound()
+    {
+        return true;
+    }
+
+    @ConfigItem(
             keyName = "enableChatNotifications",
             name = "Enable chat notifications",
             description = "Show chat notifications for suggested action when the side panel is closed.",
             section = notificationsSection,
-            position = 1
+            position = 2
     )
     default boolean enableChatNotifications()
     {
@@ -257,7 +259,7 @@ public interface FlippingCopilotConfig extends Config
             name = "Enable tray notifications",
             description = "Show tray notifications for suggested action when runelite is out of focus.",
             section = notificationsSection,
-            position = 2
+            position = 3
     )
     default boolean enableTrayNotifications()
     {
@@ -269,7 +271,7 @@ public interface FlippingCopilotConfig extends Config
             name = "Chat text color",
             description = "The color of the text for copilot messages in the chat.",
             section = notificationsSection,
-            position = 3
+            position = 4
     )
     default Color chatTextColor() {
         return new Color(0x0040FF);
@@ -280,7 +282,7 @@ public interface FlippingCopilotConfig extends Config
             name = "Webhook URL",
             description = "The Discord Webhook URL for sending display name and profit.",
             section = notificationsSection,
-            position = 4
+            position = 5
     )
     String webhook();
 
