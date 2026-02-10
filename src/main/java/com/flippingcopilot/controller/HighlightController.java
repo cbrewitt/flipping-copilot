@@ -69,7 +69,7 @@ public class HighlightController {
         Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
         Supplier<Color> redHighlight = () -> highlightColorController.getRedColor(isDumpSuggestion);
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
-        if (accountStatus.isCollectNeeded(suggestion)) {
+        if (accountStatus.isCollectNeeded(suggestion, grandExchange.isSetupOfferOpen())) {
             Widget collectButton = grandExchange.getCollectButton();
             if (collectButton != null) {
                 add(collectButton, blueHighlight, new Rectangle(2, 1, 81, 18));
@@ -129,7 +129,7 @@ public class HighlightController {
 
         // Prioritise certain dump alert cases
         if(suggestion.isDumpAlert) {
-            if (!offerTypeMatches || accountStatusManager.getAccountStatus().isCollectNeeded(suggestion)) {
+            if (!offerTypeMatches || accountStatusManager.getAccountStatus().isCollectNeeded(suggestion, grandExchange.isSetupOfferOpen())) {
                 highlightBackButton(blueHighlight);
             } else if (!s.searchOpen && s.currentItemId != -1 && !itemMatches) {
                 highlightItemSearchButton(blueHighlight);

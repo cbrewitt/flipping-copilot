@@ -262,7 +262,7 @@ public class SuggestionController {
     }
 
     private void showChatNotifications(Suggestion newSuggestion, AccountStatus accountStatus) {
-        if (accountStatus.isCollectNeeded(newSuggestion)) {
+        if (accountStatus.isCollectNeeded(newSuggestion, grandExchange.isSetupOfferOpen())) {
             clientThread.invokeLater(() -> showChatNotification("Flipping Copilot: Collect items"));
         }
         clientThread.invokeLater(() -> showChatNotification(newSuggestion.toMessage()));

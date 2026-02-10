@@ -182,7 +182,7 @@ public class GrandExchange {
         return titleWidget.getText();
     }
 
-    boolean isSetupOfferOpen() {
+    public boolean isSetupOfferOpen() {
         Widget confirmButton = getConfirmButton();
         return confirmButton != null && !confirmButton.isHidden();
     }

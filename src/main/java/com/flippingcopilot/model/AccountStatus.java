@@ -42,8 +42,8 @@ public class AccountStatus {
         inventory = new Inventory();
     }
 
-    public synchronized boolean isCollectNeeded(Suggestion suggestion) {
-        if (!suggestion.isDumpAlert()
+    public synchronized boolean isCollectNeeded(Suggestion suggestion, boolean setUpOfferOpen) {
+        if (!suggestion.isDumpAlert() && !setUpOfferOpen
                 && offers.reservedSlotNeeded(isWorldMember || isAccountMember, resolveReservedSlots(), suggestion))  {
             log.debug("collected needed reservedSlotNeeded");
             return true;

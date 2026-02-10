@@ -457,7 +457,7 @@ public class SuggestionPanel extends JPanel {
             return;
         }
         setServerMessage(suggestion.getMessage());
-        boolean collectNeeded = accountStatus.isCollectNeeded(suggestion);
+        boolean collectNeeded = accountStatus.isCollectNeeded(suggestion, grandExchange.isSetupOfferOpen());
         if(collectNeeded && !uncollectedManager.HasUncollected(osrsLoginManager.getAccountHash())) {
             log.warn("tick {} collect is suggested but there is nothing to collect! suggestion: {} {} {}", client.getTickCount(), suggestion.getType(), suggestion.getQuantity(), suggestion.getItemId());
         }
