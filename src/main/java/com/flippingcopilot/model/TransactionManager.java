@@ -76,6 +76,10 @@ public class TransactionManager {
     }
 
     public long addTransaction(Transaction transaction, String displayName) {
+        if (osrsLoginManager.isUnsupportedWorldType()) {
+            log.debug("ignoring transaction for {} on unsupported world type(s)", displayName);
+            return 0;
+        }
         synchronized (this) {
             List<Transaction> unAckedTransactions = getUnAckedTransactions(displayName);
             unAckedTransactions.add(transaction);

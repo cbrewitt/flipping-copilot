@@ -53,6 +53,10 @@ public class GrandExchangeOfferEventHandler {
             // Trades are cleared by the client during LOGIN_SCREEN/HOPPING/LOGGING_IN, ignore those
             return;
         }
+        if (osrsLoginManager.isUnsupportedWorldType()) {
+            log.debug("ignoring GE offer update on unsupported world type(s): {}", client.getWorldType());
+            return;
+        }
 
         log.debug("tick {} GE offer updated: state: {}, slot: {}, item: {}, qty: {}, lastLoginTick: {}", client.getTickCount(), offer.getState(), slot, offer.getItemId(), offer.getQuantitySold(), osrsLoginManager.getLastLoginTick());
 
@@ -135,6 +139,9 @@ public class GrandExchangeOfferEventHandler {
     }
 
     private void processTransactions() {
+        if (osrsLoginManager.isUnsupportedWorldType()) {
+            return;
+        }
         String displayName = osrsLoginManager.getPlayerDisplayName();
         if(displayName != null) {
             Transaction transaction;

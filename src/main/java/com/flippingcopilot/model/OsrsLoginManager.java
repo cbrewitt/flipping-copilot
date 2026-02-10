@@ -57,12 +57,9 @@ public class OsrsLoginManager {
             return LOGIN_TO_GET_SUGGESTION_MESSAGE;
         }
 
-        EnumSet<WorldType> worldTypes  =  client.getWorldType();
-
-        for (WorldType worldType : COPILOT_UNSUPPORTED_WORLDS) {
-            if (worldTypes.contains(worldType)) {
-                return worldType + " worlds<br>are not supported";
-            }
+        WorldType unsupportedWorldType = getUnsupportedWorldType();
+        if (unsupportedWorldType != null) {
+            return unsupportedWorldType + " worlds<br>are not supported";
         }
         if(client.isClientThread()) {
             lastIsIronman = client.getVarbitValue(Varbits.ACCOUNT_TYPE) != 0;
@@ -97,6 +94,20 @@ public class OsrsLoginManager {
 
     public String getLastDisplayName() {
         return cachedDisplayName != null ? cachedDisplayName : getPlayerDisplayName();
+    }
+
+    public boolean isUnsupportedWorldType() {
+        return getUnsupportedWorldType() != null;
+    }
+
+    public WorldType getUnsupportedWorldType() {
+        EnumSet<WorldType> worldTypes = client.getWorldType();
+        for (WorldType worldType : COPILOT_UNSUPPORTED_WORLDS) {
+            if (worldTypes.contains(worldType)) {
+                return worldType;
+            }
+        }
+        return null;
     }
 
     public void reset() {
