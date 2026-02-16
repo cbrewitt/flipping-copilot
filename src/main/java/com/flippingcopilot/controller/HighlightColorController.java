@@ -19,8 +19,8 @@ public class HighlightColorController {
     private static final int[] BLUE_END = {55, 205, 205};
 
     // Color ranges for amber highlight (R,G,B values)
-    private static final int[] AMBER_START = {192, 118, 0};
-    private static final int[] AMBER_END = {220, 150, 18};
+    private static final int[] AMBER_START = {210, 108, 0};
+    private static final int[] AMBER_END = {236, 134, 10};
 
     // Constants for controlling the drift
     private static final long CYCLE_DURATION = 600000; // 10 minutes for one complete cycle
