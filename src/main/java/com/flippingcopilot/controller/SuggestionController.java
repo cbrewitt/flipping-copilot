@@ -105,7 +105,7 @@ public class SuggestionController {
     }
 
     private boolean suggestionActionedOrVeryOutOfDate(Suggestion p) {
-        if (p == null || p.getType().equals("wait")) {
+        if (p == null || p.isWaitSuggestion()) {
             return true;
         }
         if (p.actionedTick != -1 && p.actionedTick < client.getTickCount()) {
@@ -207,7 +207,7 @@ public class SuggestionController {
         offerManager.setOfferJustPlaced(false);
         suggestionPanel.refresh();
         showNotifications(oldSuggestion, newSuggestion, accountStatus);
-        if (!newSuggestion.getType().equals("wait")) {
+        if (!newSuggestion.isWaitSuggestion()) {
             SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.newSuggestedItemId(
                     newSuggestion.getItemId(),
                     buildPriceLine(newSuggestion)
@@ -221,15 +221,14 @@ public class SuggestionController {
     }
 
     private PriceLine buildPriceLine(Suggestion suggestion) {
-        String type = suggestion.getType();
-        if ("buy".equals(type)) {
+        if (suggestion.isBuySuggestion()) {
             return new PriceLine(
                     suggestion.getPrice(),
                     "Suggested buy price",
                     false
             );
         }
-        if ("sell".equals(type)) {
+        if (suggestion.isSellSuggestion()) {
             return new PriceLine(
                     suggestion.getPrice(),
                     "Suggested sell price",
@@ -252,7 +251,7 @@ public class SuggestionController {
     }
 
     static boolean shouldNotify(Suggestion newSuggestion, Suggestion oldSuggestion) {
-        if (newSuggestion.getType().equals("wait")) {
+        if (newSuggestion.isWaitSuggestion()) {
             return false;
         }
         if (oldSuggestion != null && newSuggestion.equals(oldSuggestion)) {

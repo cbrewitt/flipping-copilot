@@ -68,6 +68,7 @@ public class HighlightController {
         boolean isDumpSuggestion = suggestion.isDumpSuggestion();
         Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
         Supplier<Color> redHighlight = () -> highlightColorController.getRedColor(isDumpSuggestion);
+        Supplier<Color> amberHighlight = () -> highlightColorController.getAmberColor(isDumpSuggestion);
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (accountStatus.isCollectNeeded(suggestion, grandExchange.isSetupOfferOpen())) {
             Widget collectButton = grandExchange.getCollectButton();
@@ -75,17 +76,23 @@ public class HighlightController {
                 add(collectButton, blueHighlight, new Rectangle(2, 1, 81, 18));
             }
         }
-        else if (suggestion.getType().equals("abort")) {
+        else if (suggestion.isAbortSuggestion()) {
             Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
             add(slotWidget, redHighlight);
+        }
+        else if (suggestion.isModifySuggestion()) {
+            Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
+            if (slotWidget != null && !slotWidget.isHidden()) {
+                add(slotWidget, amberHighlight);
+            }
         }
         else if (isScanningForDumpsSuggested(suggestion, accountStatus)) {
             highlightCreateBuyOfferButton(accountStatus, blueHighlight);
         }
-        else if (suggestion.getType().equals("buy")) {
+        else if (suggestion.isBuySuggestion()) {
             highlightCreateBuyOfferButton(accountStatus, blueHighlight);
         }
-        else if (suggestion.getType().equals("sell")) {
+        else if (suggestion.isSellSuggestion()) {
             Widget itemWidget = getInventoryItemWidget(suggestion.getItemId());
             if (itemWidget != null && !itemWidget.isHidden()) {
                 add(itemWidget, blueHighlight, new Rectangle(0, 0, 34, 32));
@@ -94,7 +101,7 @@ public class HighlightController {
     }
 
     private boolean isScanningForDumpsSuggested(Suggestion suggestion, AccountStatus accountStatus) {
-        return "wait".equals(suggestion.getType())
+        return suggestion.isWaitSuggestion()
                 && accountStatus.emptySlotExists()
                 && !accountStatus.moreGpNeeded()
                 && suggestionPreferencesManager.isReceiveDumpSuggestions();
@@ -124,7 +131,7 @@ public class HighlightController {
             return;
         }
 
-        boolean offerTypeMatches = Objects.equals(s.offerType, suggestion.getType());
+        boolean offerTypeMatches = Objects.equals(s.offerType, suggestion.offerType());
         boolean itemMatches = s.currentItemId == suggestion.getItemId();
 
         // Prioritise certain dump alert cases
@@ -167,7 +174,7 @@ public class HighlightController {
             return;
         }
 
-        if(suggestion.getType().equals("abort") || suggestion.getType().equals("sell") && s.isEmptyBuyState()) {
+        if (suggestion.isAbortSuggestion() || (suggestion.isSellSuggestion() && s.isEmptyBuyState())) {
             highlightBackButton(blueHighlight);
         }
 

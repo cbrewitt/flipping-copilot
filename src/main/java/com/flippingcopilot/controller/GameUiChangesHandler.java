@@ -148,9 +148,9 @@ public class GameUiChangesHandler {
     }
 
     private OfferStatus suggestionOfferStatus(Suggestion suggestion) {
-        if ("sell".equals(suggestion.getType())) {
+        if (suggestion.isSellSuggestion()) {
             return OfferStatus.SELL;
-        } else if ("buy".equals(suggestion.getType())) {
+        } else if (suggestion.isBuySuggestion()) {
             return OfferStatus.BUY;
         } else {
             return null;

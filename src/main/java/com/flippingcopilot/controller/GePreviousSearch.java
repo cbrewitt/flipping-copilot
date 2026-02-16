@@ -50,7 +50,7 @@ public class GePreviousSearch {
             return;
         }
 
-        if (suggestion.getType().equals("buy")) {
+        if ("buy".equals(suggestion.getType())) {
             if ((grandExchange.isPreviousSearchSet() || copilotPreviousSearchItemExists()) && grandExchange.showLastSearchEnabled()) {
                 setPreviousSearch(suggestion.getItemId(), suggestion.getName());
             } else {
@@ -66,7 +66,7 @@ public class GePreviousSearch {
     private boolean isScanningForDumpsSuggested(Suggestion suggestion) {
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         return accountStatus != null
-                && "wait".equals(suggestion.getType())
+                && suggestion.isWaitSuggestion()
                 && grandExchange.isOpen()
                 && accountStatus.emptySlotExists()
                 && !accountStatus.moreGpNeeded()

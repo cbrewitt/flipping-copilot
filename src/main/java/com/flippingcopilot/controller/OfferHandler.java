@@ -51,8 +51,7 @@ public class OfferHandler {
 
             var suggestion = suggestionManager.getSuggestion();
             if (suggestion != null && suggestion.getItemId() == currentItemId &&
-                    ((Objects.equals(suggestion.getType(), "sell") && isSelling()) ||
-                            Objects.equals(suggestion.getType(), "buy") && isBuying())) {
+                    Objects.equals(suggestion.offerType(), getOfferType())) {
                 offerManager.setViewedSlotItemPrice(suggestion.getPrice());
                 offerManager.setLastViewedSlotItemId(suggestion.getItemId());
                 offerManager.setLastViewedSlotItemPrice(suggestion.getPrice());
@@ -166,7 +165,7 @@ public class OfferHandler {
         } else if (isSettingPrice()) {
             int price = -1;
             if (suggestion == null || currentItemId != suggestion.getItemId()
-                    || !suggestion.getType().equals(getOfferType())) {
+                    || !Objects.equals(suggestion.offerType(), getOfferType())) {
                 if (offerManager.getViewedSlotItemId() != currentItemId) {
                     return;
                 }

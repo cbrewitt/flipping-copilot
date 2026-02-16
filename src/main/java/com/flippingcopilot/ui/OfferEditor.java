@@ -9,6 +9,8 @@ import net.runelite.api.Client;
 import net.runelite.api.FontID;
 import net.runelite.api.widgets.*;
 
+import java.util.Objects;
+
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
 @Slf4j
@@ -52,7 +54,7 @@ public class OfferEditor {
             if (currentItemId != suggestion.getItemId()) {
                 return;
             }
-            if (!suggestion.getType().equals(offerHandler.getOfferType())) {
+            if (!Objects.equals(suggestion.offerType(), offerHandler.getOfferType())) {
                 return;
             }
 
@@ -60,7 +62,7 @@ public class OfferEditor {
             showQuantity(suggestion.getQuantity());
         } else if (offerHandler.isSettingPrice()) {
             if (currentItemId != suggestion.getItemId()
-                    || !suggestion.getType().equals(offerHandler.getOfferType())) {
+                    || !Objects.equals(suggestion.offerType(), offerHandler.getOfferType())) {
                 int price = offerManager.getViewedSlotItemPrice();
                 if (offerHandler.getViewedSlotPriceErrorText() != null && price <= 0) {
                     shiftChatboxWidgetsDown();

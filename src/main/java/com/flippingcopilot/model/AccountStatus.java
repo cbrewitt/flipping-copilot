@@ -98,18 +98,12 @@ public class AccountStatus {
         }
         statusJson.add("blocked_items", blockItemsArray);
 
-        Set<String> requestedSuggestionTypes = new HashSet<>();
-        if (!geOpen) {
-            requestedSuggestionTypes.add("abort");
-        } else if(sellOnlyMode) {
-            requestedSuggestionTypes.add("abort");
-            requestedSuggestionTypes.add("sell");
-        }
-        if(!requestedSuggestionTypes.isEmpty()) {
-           JsonArray rstArray = new JsonArray();
-           requestedSuggestionTypes.forEach(rstArray::add);
-           statusJson.add("requested_suggestion_types", rstArray);
-        }
+        Set<String> requestedSuggestionTypes = resolveRequestedSuggestionTypes(geOpen);
+        JsonArray rstArray = new JsonArray();
+        requestedSuggestionTypes.forEach(rstArray::add);
+        statusJson.add("requested_suggestion_types", rstArray);
+        log.debug("requested suggestion types for {} (geOpen={}, sellOnly={}): {}",
+                displayName, geOpen, sellOnlyMode, requestedSuggestionTypes);
         if (reservedSlots != null && reservedSlots > 0) {
             statusJson.addProperty("reserved_slots", reservedSlots);
         }
@@ -157,6 +151,26 @@ public class AccountStatus {
         //  size until they start selling it. We should probably track items that where recently bought
         //  and they should still count towards the cash stack size for some period of time
         return offers.getGpOnMarket() + inventory.getTotalGp();
+    }
+
+    private void addAbortAndModifySuggestionTypes(Set<String> requestedSuggestionTypes) {
+        requestedSuggestionTypes.add("abort");
+        requestedSuggestionTypes.add("modify_buy");
+        requestedSuggestionTypes.add("modify_sell");
+    }
+
+    private Set<String> resolveRequestedSuggestionTypes(boolean geOpen) {
+        Set<String> requestedSuggestionTypes = new HashSet<>();
+        addAbortAndModifySuggestionTypes(requestedSuggestionTypes);
+        if (geOpen) {
+            if (sellOnlyMode) {
+                requestedSuggestionTypes.add("sell");
+            } else {
+                requestedSuggestionTypes.add("buy");
+                requestedSuggestionTypes.add("sell");
+            }
+        }
+        return requestedSuggestionTypes;
     }
 
     private int resolveReservedSlots() {
