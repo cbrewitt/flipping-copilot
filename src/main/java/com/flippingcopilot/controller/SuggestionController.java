@@ -43,6 +43,8 @@ public class SuggestionController {
     private final GrandExchange grandExchange;
     private final ScheduledExecutorService executorService;
     private final ApiRequestHandler apiRequestHandler;
+    private final WebHookController webHookController;
+
     private final Notifier notifier;
     private final OfferManager offerManager;
     private final CopilotLoginManager copilotLoginManager;
@@ -199,6 +201,15 @@ public class SuggestionController {
         if (newSuggestion.isDumpAlert && config.dumpAlertSound()) {
             client.playSoundEffect(SoundEffectID.GE_ADD_OFFER_DINGALING);
         }
+        if (newSuggestion.isDumpAlert) {
+            // Send short-format webhook for dump alert: Item, Price
+            try {
+                webHookController.sendDumpAlert(newSuggestion);
+            } catch (Exception e) {
+                log.debug("Error sending dump webhook", e);
+            }
+        }
+
         suggestionManager.setSuggestion(newSuggestion);
         suggestionManager.setSuggestionError(null);
         suggestionManager.setSuggestionRequestInProgress(false);
@@ -206,7 +217,33 @@ public class SuggestionController {
         accountStatusManager.resetSkipSuggestion();
         offerManager.setOfferJustPlaced(false);
         suggestionPanel.refresh();
+
+        // Abort/Collect webhook alerts
+        try {
+            if (accountStatus.isCollectNeeded(newSuggestion, grandExchange.isSetupOfferOpen())) {
+                webHookController.sendCollectAlert();
+            }
+        } catch (Exception e) {
+            log.debug("Error sending collect webhook", e);
+        }
+
         showNotifications(oldSuggestion, newSuggestion, accountStatus);
+        // Send webhook alerts for buy/sell suggestions in short format
+        String type = newSuggestion.getType();
+        if ("buy".equals(type)) {
+            try {
+                webHookController.sendBuyAlert(newSuggestion);
+            } catch (Exception e) { log.debug("Error sending buy webhook", e); }
+        } else if ("sell".equals(type)) {
+            try {
+                webHookController.sendSellAlert(newSuggestion);
+            } catch (Exception e) { log.debug("Error sending sell webhook", e); }
+        } else if ("abort".equals(type)) {
+            try {
+                webHookController.sendAbortAlert(newSuggestion);
+            } catch (Exception e) { log.debug("Error sending abort webhook", e); }
+        }
+
         if (!newSuggestion.getType().equals("wait")) {
             SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.newSuggestedItemId(
                     newSuggestion.getItemId(),

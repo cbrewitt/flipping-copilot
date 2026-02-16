@@ -277,14 +277,76 @@ public interface FlippingCopilotConfig extends Config
         return new Color(0x0040FF);
     }
 
+    @ConfigSection(
+            name = "Webhook",
+            description = "Configure webhook notifications",
+            position = 5
+    )
+    String webhookSection = "webhookSection";
+
     @ConfigItem(
             keyName = "webhook",
             name = "Webhook URL",
-            description = "The Discord Webhook URL for sending display name and profit.",
-            section = notificationsSection,
-            position = 5
+            description = "The Discord Webhook URL.",
+            section = webhookSection,
+            position = 1
     )
     String webhook();
+
+    @ConfigItem(
+            keyName = "webhookMentionText",
+            name = "Mention text",
+            description = "Text to prepend to alerts, e.g. @YourName or <@1234567890>.",
+            section = webhookSection,
+            position = 2
+    )
+    default String webhookMentionText() { return ""; }
+
+    @ConfigItem(
+            keyName = "enableWebhookBuyAlerts",
+            name = "Buy alerts",
+            description = "Notify on buy alerts.",
+            section = webhookSection,
+            position = 3
+    )
+    default boolean enableWebhookBuyAlerts() { return false; }
+
+    @ConfigItem(
+            keyName = "enableWebhookSellAlerts",
+            name = "Sell alerts",
+            description = "Notify on sell alerts.",
+            section = webhookSection,
+            position = 4
+    )
+    default boolean enableWebhookSellAlerts() { return false; }
+
+    @ConfigItem(
+            keyName = "enableWebhookDumpAlerts",
+            name = "Dump alerts",
+            description = "Notify on dump alerts.",
+            section = webhookSection,
+            position = 5
+    )
+    default boolean enableWebhookDumpAlerts() { return true; }
+
+    @ConfigItem(
+            keyName = "enableWebhookAbortCollectAlerts",
+            name = "Abort/Collect alerts",
+            description = "Notify when you should abort an offer or collect items.",
+            section = webhookSection,
+            position = 6
+    )
+    default boolean enableWebhookAbortCollectAlerts() { return false; }
+
+    @ConfigItem(
+            keyName = "webhookAlertsOnlyWhenOutOfFocus",
+            name = "Only alert when unfocused",
+            description = "Only send Buy/Sell/Dump webhooks when RuneLite is out of focus. Session stats always send.",
+            section = webhookSection,
+            position = 7
+    )
+    default boolean webhookAlertsOnlyWhenOutOfFocus() { return false; }
+
 
 
 }

@@ -221,8 +221,25 @@ public class FlippingCopilotPlugin extends Plugin {
 	public void onGameTick(GameTick event) {
 		suggestionController.onGameTick();
 		offerEventHandler.onGameTick();
+		webHookController.setClientHasFocus(isClientFocused());
 		grandExchangeOpenRS.set(grandExchange.isOpen());
 		osrsLoginRS.set(osrsLoginRS.get().nexState(client));
+	}
+
+	private boolean isClientFocused() {
+		try {
+			java.awt.Canvas canvas = client.getCanvas();
+			if (canvas == null) {
+				return true;
+			}
+			java.awt.Window window = SwingUtilities.getWindowAncestor(canvas);
+			if (window != null) {
+				return window.isActive();
+			}
+			return canvas.isFocusOwner();
+		} catch (Exception e) {
+			return true;
+		}
 	}
 
 	@Subscribe

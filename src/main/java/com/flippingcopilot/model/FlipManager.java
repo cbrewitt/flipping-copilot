@@ -373,7 +373,7 @@ public class FlipManager {
         return (a) -> {
             // sorts time ascending with id as tie-breaker
             int c = Integer.compare(flips.get(a).getClosedTime(), time);
-            return c != 0 ? c : id.compareTo(flips.get(a).getId());
+            return c != 0 ? c : flips.get(a).getId().compareTo(id);
         };
     }
 
