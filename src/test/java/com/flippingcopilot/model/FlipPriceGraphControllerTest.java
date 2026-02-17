@@ -34,7 +34,7 @@ public class FlipPriceGraphControllerTest {
 
         verifyflipManagerStoredOrder(flipManager);
 
-        flips.sort(Comparator.comparing(FlipV2::getClosedTime).reversed().thenComparing(FlipV2::getId));
+        flips.sort(Comparator.comparing(FlipV2::getClosedTime).reversed().thenComparing(FlipV2::getId, Comparator.reverseOrder()));
 
         // create list of test interval start times
         List<Integer> testTimes = Stream.generate(()-> randomIntBetween(sixMonthsAgo, now)).limit(100).collect(Collectors.toList());
@@ -80,7 +80,7 @@ public class FlipPriceGraphControllerTest {
         verifyflipManagerStoredOrder(flipManager);
 
 
-        flips.sort(Comparator.comparing(FlipV2::getClosedTime).reversed().thenComparing(Comparator.comparing(FlipV2::getId).reversed()));
+        flips.sort(Comparator.comparing(FlipV2::getClosedTime).reversed().thenComparing(FlipV2::getId, Comparator.reverseOrder()));
 
         // create list of test interval start times
         List<Integer> testTimes = Stream.generate(()-> randomIntBetween(sixMonthsAgo, now)).limit(100).collect(Collectors.toList());

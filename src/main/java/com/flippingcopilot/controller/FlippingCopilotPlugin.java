@@ -30,10 +30,15 @@ import net.runelite.client.util.ImageUtil;
 
 import javax.inject.Inject;
 import javax.swing.*;
+import java.awt.Canvas;
+import java.awt.Window;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -134,6 +139,10 @@ public class FlippingCopilotPlugin extends Plugin {
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
 	private NavigationButton navButton;
+	private volatile boolean focusListenerInstalled = false;
+	private ScheduledFuture<?> focusListenerInstallTask;
+	private Window focusWindow;
+	private WindowAdapter focusListener;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -178,10 +187,76 @@ public class FlippingCopilotPlugin extends Plugin {
 				}
 			})
 		, 2000, 1000, TimeUnit.MILLISECONDS);
+
+		installFocusListenerEventually();
+	}
+
+	private void installFocusListenerEventually() {
+		// Window can be null early in startup, so retry a few times.
+		if (focusListenerInstallTask != null) {
+			focusListenerInstallTask.cancel(false);
+		}
+		focusListenerInstallTask = executorService.scheduleAtFixedRate(
+				() -> SwingUtilities.invokeLater(this::installFocusListenerIfPossible),
+				0,
+				1,
+				TimeUnit.SECONDS
+		);
+	}
+
+	private void installFocusListenerIfPossible() {
+		if (focusListenerInstalled) {
+			return;
+		}
+		try {
+			Canvas canvas = client.getCanvas();
+			if (canvas == null) {
+				return;
+			}
+			Window window = SwingUtilities.getWindowAncestor(canvas);
+			if (window == null) {
+				return;
+			}
+
+			focusWindow = window;
+			webHookController.setFocusWindow(window);
+			focusListener = new WindowAdapter() {
+				@Override
+				public void windowGainedFocus(WindowEvent e) {
+					webHookController.setClientHasFocus(true);
+				}
+
+				@Override
+				public void windowLostFocus(WindowEvent e) {
+					webHookController.setClientHasFocus(false);
+				}
+			};
+			window.addWindowFocusListener(focusListener);
+			webHookController.setClientHasFocus(window.isActive());
+			focusListenerInstalled = true;
+
+			if (focusListenerInstallTask != null) {
+				focusListenerInstallTask.cancel(false);
+				focusListenerInstallTask = null;
+			}
+			log.debug("installed window focus listener for webhook gating");
+		} catch (Exception e) {
+			log.debug("failed to install window focus listener", e);
+		}
 	}
 
 	@Override
 	protected void shutDown() throws Exception {
+		if (focusListenerInstallTask != null) {
+			focusListenerInstallTask.cancel(false);
+			focusListenerInstallTask = null;
+		}
+		if (focusWindow != null && focusListener != null) {
+			try {
+				focusWindow.removeWindowFocusListener(focusListener);
+			} catch (Exception ignored) {
+			}
+		}
 		offerManager.saveAll();
 		highlightController.removeAll();
 		clientThread.invokeLater(() -> slotProfitColorizer.resetAllSlots());

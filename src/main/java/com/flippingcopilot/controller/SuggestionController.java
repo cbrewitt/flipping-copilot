@@ -43,6 +43,8 @@ public class SuggestionController {
     private final GrandExchange grandExchange;
     private final ScheduledExecutorService executorService;
     private final ApiRequestHandler apiRequestHandler;
+    private final WebHookController webHookController;
+
     private final Notifier notifier;
     private final OfferManager offerManager;
     private final CopilotLoginManager copilotLoginManager;
@@ -56,8 +58,9 @@ public class SuggestionController {
 
     private MainPanel mainPanel;
     private LoginPanel loginPanel;
-    private CopilotPanel copilotPanel;
-    private SuggestionPanel suggestionPanel;
+	private CopilotPanel copilotPanel;
+	private SuggestionPanel suggestionPanel;
+	private boolean lastCollectNeeded = false;
 
     public void togglePause() {
         if (pausedManager.isPaused()) {
@@ -199,6 +202,17 @@ public class SuggestionController {
         if (newSuggestion.isDumpAlert && config.dumpAlertSound()) {
             client.playSoundEffect(SoundEffectID.GE_ADD_OFFER_DINGALING);
         }
+        boolean shouldNotify = shouldNotify(newSuggestion, oldSuggestion);
+
+        if (newSuggestion.isDumpAlert && shouldNotify) {
+            // Send short-format webhook for dump alert: Item, Price
+            try {
+                webHookController.sendDumpAlert(newSuggestion);
+            } catch (Exception e) {
+                log.debug("Error sending dump webhook", e);
+            }
+        }
+
         suggestionManager.setSuggestion(newSuggestion);
         suggestionManager.setSuggestionError(null);
         suggestionManager.setSuggestionRequestInProgress(false);
@@ -206,7 +220,35 @@ public class SuggestionController {
         accountStatusManager.resetSkipSuggestion();
         offerManager.setOfferJustPlaced(false);
         suggestionPanel.refresh();
+
+        // Collect webhook alert (edge-triggered to avoid spam)
+        try {
+            boolean collectNeeded = accountStatus.isCollectNeeded(newSuggestion, grandExchange.isSetupOfferOpen());
+            if (collectNeeded && !lastCollectNeeded) {
+                webHookController.sendCollectAlert();
+            }
+            lastCollectNeeded = collectNeeded;
+        } catch (Exception e) {
+            log.debug("Error sending collect webhook", e);
+        }
+
         showNotifications(oldSuggestion, newSuggestion, accountStatus);
+        // Send webhook alerts for buy/sell suggestions in short format
+        String type = newSuggestion.getType();
+        if (shouldNotify && "buy".equals(type)) {
+            try {
+                webHookController.sendBuyAlert(newSuggestion);
+            } catch (Exception e) { log.debug("Error sending buy webhook", e); }
+        } else if (shouldNotify && "sell".equals(type)) {
+            try {
+                webHookController.sendSellAlert(newSuggestion);
+            } catch (Exception e) { log.debug("Error sending sell webhook", e); }
+        } else if (shouldNotify && "abort".equals(type)) {
+            try {
+                webHookController.sendAbortAlert(newSuggestion);
+            } catch (Exception e) { log.debug("Error sending abort webhook", e); }
+        }
+
         if (!newSuggestion.getType().equals("wait")) {
             SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.newSuggestedItemId(
                     newSuggestion.getItemId(),
@@ -239,17 +281,17 @@ public class SuggestionController {
         return null;
     }
 
-    void showNotifications(Suggestion oldSuggestion, Suggestion newSuggestion, AccountStatus accountStatus) {
-        if (shouldNotify(newSuggestion, oldSuggestion)) {
-            String msg = newSuggestion.toMessage();
-            if (config.enableTrayNotifications()) {
-                notifier.notify(msg);
-            }
-            if (!copilotPanel.isShowing() && config.enableChatNotifications()) {
-                showChatNotifications(newSuggestion, accountStatus);
-            }
-        }
-    }
+	void showNotifications(Suggestion oldSuggestion, Suggestion newSuggestion, AccountStatus accountStatus) {
+		if (shouldNotify(newSuggestion, oldSuggestion)) {
+			String msg = newSuggestion.toMessage();
+			if (config.enableTrayNotifications()) {
+				notifier.notify(msg);
+			}
+			if (!copilotPanel.isShowing() && config.enableChatNotifications()) {
+				showChatNotifications(newSuggestion, accountStatus);
+			}
+		}
+	}
 
     static boolean shouldNotify(Suggestion newSuggestion, Suggestion oldSuggestion) {
         if (newSuggestion.getType().equals("wait")) {
