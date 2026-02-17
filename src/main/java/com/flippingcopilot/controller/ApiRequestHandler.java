@@ -13,6 +13,8 @@ import net.runelite.client.callback.ClientThread;
 import okhttp3.*;
 
 import javax.inject.Inject;
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
@@ -31,6 +33,7 @@ import java.util.function.Consumer;
 public class ApiRequestHandler {
 
     private static final String serverUrl = System.getenv("FLIPPING_COPILOT_HOST") != null ? System.getenv("FLIPPING_COPILOT_HOST")  : "https://api.flippingcopilot.com";
+    private static final String serverFeUrl = serverUrl.replace("api.", "");
     public static final String DEFAULT_COPILOT_PRICE_ERROR_MESSAGE = "Unable to fetch price copilot price (possible server update)";
     public static final String DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE = "Error loading premium instance data (possible server update)";
     public static final String UNKNOWN_ERROR = "Unknown error";
@@ -79,6 +82,60 @@ public class ApiRequestHandler {
                 }
             }
         });
+    }
+
+    public Call discordLoginAsync(Consumer<String> oathUrlConsumer,
+                                  Consumer<LoginResponse> loginResponseConsumer,
+                                  Consumer<HttpResponseException>  onFailure) {
+        log.debug("sending request to login via discord");
+        Request r = new Request.Builder()
+                .url(serverFeUrl + "/v1/plugin-discord-login")
+                .get().build();
+
+        Call call = client.newBuilder()
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .callTimeout(0, TimeUnit.MILLISECONDS)
+                .build()
+                .newCall(r);
+
+        call.enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.warn("login via discord call failed", e);
+                clientThread.invoke(() -> onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR)));
+            }
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
+                        }
+                        log.warn("login via discord call failed with http status code {}", response.code());
+                        clientThread.invoke(() -> onFailure.accept(new HttpResponseException(response.code(), extractErrorMessage(response))));
+                        return;
+                    }
+                    if (response.body() == null) {
+                        throw new IOException("empty discord login response");
+                    }
+                    try(DataInputStream is = new DataInputStream(new BufferedInputStream(response.body().byteStream()))) {
+                        PluginDiscordLoginInitResponse initResponse = PluginDiscordLoginInitResponse.fromRaw(is);
+                        clientThread.invoke(() -> oathUrlConsumer.accept(initResponse.getUrl()));
+                        LoginResponse loginResponse = LoginResponse.fromRaw(is);
+                        if (loginResponse.getError() != null && !loginResponse.getError().isEmpty()) {
+                            clientThread.invoke(() -> onFailure.accept(new HttpResponseException(-1, loginResponse.getError())));
+                        } else {
+                            clientThread.invoke(() -> loginResponseConsumer.accept(loginResponse));
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("error reading/parsing discord login response body", e);
+                    clientThread.invoke(() -> onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR)));
+                }
+            }
+        });
+
+        return call;
     }
 
     public void getSuggestionAsync(JsonObject status,
