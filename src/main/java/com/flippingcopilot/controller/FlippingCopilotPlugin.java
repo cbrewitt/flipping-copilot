@@ -219,6 +219,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			}
 
 			focusWindow = window;
+			webHookController.setFocusWindow(window);
 			focusListener = new WindowAdapter() {
 				@Override
 				public void windowGainedFocus(WindowEvent e) {

@@ -14,6 +14,8 @@ import okhttp3.*;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.awt.KeyboardFocusManager;
+import java.awt.Window;
 import java.io.IOException;
 import java.text.NumberFormat;
 import java.time.Instant;
@@ -44,12 +46,38 @@ public class WebHookController {
     private final ProfitCalculator profitCalculator;
 
     private volatile boolean clientHasFocus = true;
+    private volatile Window focusWindow;
 
     private final Object alertCacheLock = new Object();
     private final Deque<String> lastAlertKeys = new ArrayDeque<>(4);
 
     public void setClientHasFocus(boolean focused) {
         this.clientHasFocus = focused;
+    }
+
+    public void setFocusWindow(Window window) {
+        this.focusWindow = window;
+    }
+
+    private boolean isClientFocusedForGating() {
+        // Primary signal is the focus listener updating clientHasFocus.
+        boolean focused = clientHasFocus;
+
+        // Fallback: re-check actual AWT focus state if we have the window.
+        // This helps when focus events are missed or the window changes.
+        Window w = focusWindow;
+        if (w != null) {
+            try {
+                focused = w.isActive() || w.isFocused();
+                if (!focused) {
+                    Window active = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+                    focused = (active == w);
+                }
+            } catch (Exception ignored) {
+                // keep resilient; use last known value
+            }
+        }
+        return focused;
     }
 
     private void sendWebHook(DiscordWebhookBody discordWebhookBody) {
@@ -123,7 +151,7 @@ public class WebHookController {
 
     public void sendDumpAlert(String itemName, int price) {
         if (!config.enableWebhookDumpAlerts()) { return; }
-        if (config.webhookAlertsOnlyWhenOutOfFocus() && clientHasFocus) { return; }
+        if (config.webhookAlertsOnlyWhenOutOfFocus() && isClientFocusedForGating()) { return; }
         if (itemName == null || itemName.isBlank() || price <= 0) { return; }
         sendItemPriceEmbed("Dump", itemName, price, COLOR_DUMP);
     }
@@ -131,7 +159,7 @@ public class WebHookController {
     public void sendDumpAlert(Suggestion suggestion) {
         if (suggestion == null) { return; }
         if (!config.enableWebhookDumpAlerts()) { return; }
-        if (config.webhookAlertsOnlyWhenOutOfFocus() && clientHasFocus) { return; }
+        if (config.webhookAlertsOnlyWhenOutOfFocus() && isClientFocusedForGating()) { return; }
         if (suggestion.getName() == null || suggestion.getName().isBlank() || suggestion.getPrice() <= 0) { return; }
         if (isDuplicateAlertKey(buildAlertKey("dump", suggestion))) { return; }
         sendSuggestionEmbed("Dump", suggestion, COLOR_DUMP);
@@ -139,7 +167,7 @@ public class WebHookController {
 
     public void sendBuyAlert(String itemName, int price) {
         if (!config.enableWebhookBuyAlerts()) { return; }
-        if (config.webhookAlertsOnlyWhenOutOfFocus() && clientHasFocus) { return; }
+        if (config.webhookAlertsOnlyWhenOutOfFocus() && isClientFocusedForGating()) { return; }
         if (itemName == null || itemName.isBlank() || price <= 0) { return; }
         sendItemPriceEmbed("Buy", itemName, price, COLOR_BUY);
     }
@@ -147,7 +175,7 @@ public class WebHookController {
     public void sendBuyAlert(Suggestion suggestion) {
         if (suggestion == null) { return; }
         if (!config.enableWebhookBuyAlerts()) { return; }
-        if (config.webhookAlertsOnlyWhenOutOfFocus() && clientHasFocus) { return; }
+        if (config.webhookAlertsOnlyWhenOutOfFocus() && isClientFocusedForGating()) { return; }
         if (suggestion.getName() == null || suggestion.getName().isBlank() || suggestion.getPrice() <= 0) { return; }
         if (isDuplicateAlertKey(buildAlertKey("buy", suggestion))) { return; }
         sendSuggestionEmbed("Buy", suggestion, COLOR_BUY);
@@ -155,7 +183,7 @@ public class WebHookController {
 
     public void sendSellAlert(String itemName, int price) {
         if (!config.enableWebhookSellAlerts()) { return; }
-        if (config.webhookAlertsOnlyWhenOutOfFocus() && clientHasFocus) { return; }
+        if (config.webhookAlertsOnlyWhenOutOfFocus() && isClientFocusedForGating()) { return; }
         if (itemName == null || itemName.isBlank() || price <= 0) { return; }
         sendItemPriceEmbed("Sell", itemName, price, COLOR_SELL);
     }
@@ -163,7 +191,7 @@ public class WebHookController {
     public void sendSellAlert(Suggestion suggestion) {
         if (suggestion == null) { return; }
         if (!config.enableWebhookSellAlerts()) { return; }
-        if (config.webhookAlertsOnlyWhenOutOfFocus() && clientHasFocus) { return; }
+        if (config.webhookAlertsOnlyWhenOutOfFocus() && isClientFocusedForGating()) { return; }
         if (suggestion.getName() == null || suggestion.getName().isBlank() || suggestion.getPrice() <= 0) { return; }
         if (isDuplicateAlertKey(buildAlertKey("sell", suggestion))) { return; }
         sendSuggestionEmbed("Sell", suggestion, COLOR_SELL);
@@ -172,7 +200,7 @@ public class WebHookController {
     public void sendAbortAlert(Suggestion suggestion) {
         if (suggestion == null) { return; }
         if (!config.enableWebhookAbortCollectAlerts()) { return; }
-        if (config.webhookAlertsOnlyWhenOutOfFocus() && clientHasFocus) { return; }
+        if (config.webhookAlertsOnlyWhenOutOfFocus() && isClientFocusedForGating()) { return; }
         if (suggestion.getName() == null || suggestion.getName().isBlank()) { return; }
         if (isDuplicateAlertKey(buildAlertKey("abort", suggestion))) { return; }
 
@@ -182,7 +210,7 @@ public class WebHookController {
 
     public void sendCollectAlert() {
         if (!config.enableWebhookAbortCollectAlerts()) { return; }
-        if (config.webhookAlertsOnlyWhenOutOfFocus() && clientHasFocus) { return; }
+        if (config.webhookAlertsOnlyWhenOutOfFocus() && isClientFocusedForGating()) { return; }
         if (isDuplicateAlertKey("collect")) { return; }
 
         String desc = "Collect items\n\n```\n\uD83D\uDCE5 Collect items from the Grand Exchange\n```";
