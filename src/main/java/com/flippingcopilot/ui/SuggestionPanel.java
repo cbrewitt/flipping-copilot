@@ -312,7 +312,7 @@ public class SuggestionPanel extends JPanel {
                 String action = suggestion.isBuySuggestion() ? "Buy" : "Sell";
                 if (suggestion.isModifySuggestion()) {
                     suggestionString += "Modify " + action.toLowerCase() +
-                            " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
+                            "<br>" +
                             "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
                             "to <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
                 } else {
