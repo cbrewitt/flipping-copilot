@@ -18,6 +18,10 @@ public class HighlightColorController {
     private static final int[] BLUE_START = {5, 153, 255};
     private static final int[] BLUE_END = {55, 205, 205};
 
+    // Color ranges for amber highlight (R,G,B values)
+    private static final int[] AMBER_START = {210, 108, 0};
+    private static final int[] AMBER_END = {236, 134, 10};
+
     // Constants for controlling the drift
     private static final long CYCLE_DURATION = 600000; // 10 minutes for one complete cycle
     private static final int BASE_ALPHA = 79;
@@ -43,6 +47,16 @@ public class HighlightColorController {
         double phase = calculatePhase();
         int alpha = calculateAlpha(isDumpAlert);
         return interpolateColor(BLUE_START, BLUE_END, phase, alpha);
+    }
+
+    public Color getAmberColor() {
+        return getAmberColor(false);
+    }
+
+    public Color getAmberColor(boolean isDumpAlert) {
+        double phase = calculatePhase();
+        int alpha = calculateAlpha(isDumpAlert);
+        return interpolateColor(AMBER_START, AMBER_END, phase, alpha);
     }
 
     private double calculatePhase() {

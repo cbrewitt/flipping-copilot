@@ -115,7 +115,7 @@ public class ProfitCalculator {
      * @return The profit in GP, or null if cannot be calculated
      */
     public Long calculateSuggestionProfit(Suggestion suggestion) {
-        if (!"sell".equals(suggestion.getType())) {
+        if (!suggestion.isSellSuggestion()) {
             return null;
         }
 

@@ -17,6 +17,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 
@@ -38,9 +39,37 @@ public class HighlightController {
 
     // state
     private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
+    private volatile boolean active = true;
+    private final AtomicInteger generation = new AtomicInteger(0);
+
+    public void activate() {
+        active = true;
+        generation.incrementAndGet();
+    }
+
+    public void deactivateAndRemoveAll() {
+        active = false;
+        final int clearGeneration = generation.incrementAndGet();
+        Runnable clearTask = () -> clearOverlaysIfCurrentGeneration(clearGeneration);
+        if (SwingUtilities.isEventDispatchThread()) {
+            clearTask.run();
+            return;
+        }
+        try {
+            SwingUtilities.invokeAndWait(clearTask);
+        } catch (Exception e) {
+            SwingUtilities.invokeLater(clearTask);
+        }
+    }
 
     public void redraw() {
+        if (!active) {
+            return;
+        }
         removeAll();
+        if (!active) {
+            return;
+        }
         if(!config.suggestionHighlights()) {
             return;
         }
@@ -68,6 +97,7 @@ public class HighlightController {
         boolean isDumpSuggestion = suggestion.isDumpSuggestion();
         Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
         Supplier<Color> redHighlight = () -> highlightColorController.getRedColor(isDumpSuggestion);
+        Supplier<Color> amberHighlight = () -> highlightColorController.getAmberColor(isDumpSuggestion);
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (accountStatus.isCollectNeeded(suggestion, grandExchange.isSetupOfferOpen())) {
             Widget collectButton = grandExchange.getCollectButton();
@@ -75,17 +105,23 @@ public class HighlightController {
                 add(collectButton, blueHighlight, new Rectangle(2, 1, 81, 18));
             }
         }
-        else if (suggestion.getType().equals("abort")) {
+        else if (suggestion.isAbortSuggestion()) {
             Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
             add(slotWidget, redHighlight);
+        }
+        else if (suggestion.isModifySuggestion()) {
+            Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
+            if (slotWidget != null && !slotWidget.isHidden()) {
+                add(slotWidget, amberHighlight);
+            }
         }
         else if (isScanningForDumpsSuggested(suggestion, accountStatus)) {
             highlightCreateBuyOfferButton(accountStatus, blueHighlight);
         }
-        else if (suggestion.getType().equals("buy")) {
+        else if (suggestion.isBuySuggestion()) {
             highlightCreateBuyOfferButton(accountStatus, blueHighlight);
         }
-        else if (suggestion.getType().equals("sell")) {
+        else if (suggestion.isSellSuggestion()) {
             Widget itemWidget = getInventoryItemWidget(suggestion.getItemId());
             if (itemWidget != null && !itemWidget.isHidden()) {
                 add(itemWidget, blueHighlight, new Rectangle(0, 0, 34, 32));
@@ -94,7 +130,7 @@ public class HighlightController {
     }
 
     private boolean isScanningForDumpsSuggested(Suggestion suggestion, AccountStatus accountStatus) {
-        return "wait".equals(suggestion.getType())
+        return suggestion.isWaitSuggestion()
                 && accountStatus.emptySlotExists()
                 && !accountStatus.moreGpNeeded()
                 && suggestionPreferencesManager.isReceiveDumpSuggestions();
@@ -124,7 +160,7 @@ public class HighlightController {
             return;
         }
 
-        boolean offerTypeMatches = Objects.equals(s.offerType, suggestion.getType());
+        boolean offerTypeMatches = Objects.equals(s.offerType, suggestion.offerType());
         boolean itemMatches = s.currentItemId == suggestion.getItemId();
 
         // Prioritise certain dump alert cases
@@ -167,7 +203,7 @@ public class HighlightController {
             return;
         }
 
-        if(suggestion.getType().equals("abort") || suggestion.getType().equals("sell") && s.isEmptyBuyState()) {
+        if (suggestion.isAbortSuggestion() || (suggestion.isSellSuggestion() && s.isEmptyBuyState())) {
             highlightBackButton(blueHighlight);
         }
 
@@ -275,7 +311,14 @@ public class HighlightController {
     }
 
     private void add(Widget widget, Supplier<Color> colorSupplier, Rectangle adjustedBounds) {
+        if (!active || widget == null) {
+            return;
+        }
+        final int addGeneration = generation.get();
         SwingUtilities.invokeLater(() -> {
+            if (!active || generation.get() != addGeneration) {
+                return;
+            }
             WidgetHighlightOverlay overlay = new WidgetHighlightOverlay(widget, colorSupplier, adjustedBounds);
             highlightOverlays.add(overlay);
             overlayManager.add(overlay);
@@ -287,10 +330,18 @@ public class HighlightController {
     }
 
     public void removeAll() {
+        final int clearGeneration = generation.incrementAndGet();
         SwingUtilities.invokeLater(() -> {
-            highlightOverlays.forEach(overlayManager::remove);
-            highlightOverlays.clear();
+            clearOverlaysIfCurrentGeneration(clearGeneration);
         });
+    }
+
+    private void clearOverlaysIfCurrentGeneration(int expectedGeneration) {
+        if (generation.get() != expectedGeneration) {
+            return;
+        }
+        highlightOverlays.forEach(overlayManager::remove);
+        highlightOverlays.clear();
     }
 
     private Widget getInventoryItemWidget(int unnotedItemId) {

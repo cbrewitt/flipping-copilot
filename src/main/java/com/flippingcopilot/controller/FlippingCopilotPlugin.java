@@ -137,6 +137,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void startUp() throws Exception {
+		highlightController.activate();
 		Persistance.setUp(gson);
 		// seems we need to delay instantiating the UI till here as otherwise the panels look different
 		mainPanel = injector.getInstance(MainPanel.class);
@@ -183,7 +184,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Override
 	protected void shutDown() throws Exception {
 		offerManager.saveAll();
-		highlightController.removeAll();
+		highlightController.deactivateAndRemoveAll();
 		clientThread.invokeLater(() -> slotProfitColorizer.resetAllSlots());
 		clientToolbar.removeNavigation(navButton);
 		if(copilotLoginManager.isLoggedIn()) {

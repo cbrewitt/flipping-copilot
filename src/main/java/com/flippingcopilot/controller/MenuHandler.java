@@ -175,7 +175,7 @@ public class MenuHandler {
             return false;
         }
         String offerType = grandExchange.isOfferTypeSell() ? "sell" : "buy";
-        if (client.getVarpValue(VarPlayerID.TRADINGPOST_SEARCH) == suggestion.getItemId() && offerType.equals(suggestion.getType())) {
+        if (client.getVarpValue(VarPlayerID.TRADINGPOST_SEARCH) == suggestion.getItemId() && offerType.equals(suggestion.offerType())) {
             return grandExchange.getOfferPrice() == suggestion.getPrice()
                     && grandExchange.getOfferQuantity() == suggestion.getQuantity();
         } else if (client.getVarpValue(VarPlayerID.TRADINGPOST_SEARCH) == offerManager.getViewedSlotItemId()

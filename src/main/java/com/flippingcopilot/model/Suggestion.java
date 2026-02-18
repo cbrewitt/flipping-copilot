@@ -43,6 +43,36 @@ public class Suggestion {
                 && this.name.equals(other.name);
     }
 
+    public boolean isWaitSuggestion() {
+        return "wait".equals(type);
+    }
+
+    public boolean isAbortSuggestion() {
+        return "abort".equals(type);
+    }
+
+    public boolean isBuySuggestion() {
+        return "buy".equals(type) || "modify_buy".equals(type);
+    }
+
+    public boolean isSellSuggestion() {
+        return "sell".equals(type) || "modify_sell".equals(type);
+    }
+
+    public boolean isModifySuggestion() {
+        return "modify_buy".equals(type) || "modify_sell".equals(type);
+    }
+
+    public String offerType() {
+        if (isBuySuggestion()) {
+            return "buy";
+        }
+        if (isSellSuggestion()) {
+            return "sell";
+        }
+        return null;
+    }
+
     public boolean isRecentUnActionedDumpAlert() {
         return isDumpAlert && actionedTick == -1 && dumpAlertReceived.isAfter(Instant.now().minusSeconds(10));
     }
@@ -59,8 +89,16 @@ public class Suggestion {
                 string += String.format("Buy %s %s for %s gp",
                         formatter.format(quantity), name, formatter.format(price));
                 break;
+            case "modify_buy":
+                string += String.format("Modify buy offer for %s %s to %s gp",
+                        formatter.format(quantity), name, formatter.format(price));
+                break;
             case "sell":
                 string += String.format("Sell %s %s for %s gp",
+                        formatter.format(quantity), name, formatter.format(price));
+                break;
+            case "modify_sell":
+                string += String.format("Modify sell offer for %s %s to %s gp",
                         formatter.format(quantity), name, formatter.format(price));
                 break;
             case "abort":

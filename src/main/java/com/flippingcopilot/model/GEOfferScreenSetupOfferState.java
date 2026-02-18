@@ -12,7 +12,7 @@ public class GEOfferScreenSetupOfferState {
     public final boolean searchOpen;
 
     public boolean offerDetailsCorrect(Suggestion suggestion) {
-        return offerType.equals(suggestion.getType())
+        return offerType.equals(suggestion.offerType())
                 && currentItemId == suggestion.getItemId()
                 && offerPrice == suggestion.getPrice()
                 && offerQuantity == suggestion.getQuantity();

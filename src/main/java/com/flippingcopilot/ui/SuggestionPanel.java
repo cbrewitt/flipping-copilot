@@ -240,7 +240,7 @@ public class SuggestionPanel extends JPanel {
                 Suggestion suggestion = suggestionManager.getSuggestion();
                 if(isSuggestionWithoutGraphData(suggestion)) {
                     flipsDialogController.showPriceGraphTab(suggestion.getItemId(), false, null);
-                } else if(suggestion != null && !suggestion.getType().equals("wait")) {
+                } else if(suggestion != null && !suggestion.isWaitSuggestion()) {
                     flipsDialogController.showPriceGraphTab(null, true, null);
                 } else {
                     flipsDialogController.showPriceGraphTab(null, false, null);
@@ -288,7 +288,7 @@ public class SuggestionPanel extends JPanel {
     }
 
     private boolean isSuggestionWithoutGraphData(Suggestion suggestion) {
-        return suggestion != null && !suggestion.getType().equals("wait") && suggestion.isDumpAlert;
+        return suggestion != null && !suggestion.isWaitSuggestion() && suggestion.isDumpAlert;
     }
 
     public void updateSuggestion(Suggestion suggestion) {
@@ -307,11 +307,20 @@ public class SuggestionPanel extends JPanel {
                 break;
             case "buy":
             case "sell":
-                String capitalisedAction = suggestion.getType().equals("buy") ? "Buy" : "Sell";
-                suggestionString += capitalisedAction +
-                        " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
-                        "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
-                        "for <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
+            case "modify_buy":
+            case "modify_sell":
+                String action = suggestion.isBuySuggestion() ? "Buy" : "Sell";
+                if (suggestion.isModifySuggestion()) {
+                    suggestionString += "Modify " + action.toLowerCase() +
+                            "<br>" +
+                            "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
+                            "to <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
+                } else {
+                    suggestionString += action +
+                            " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
+                            "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
+                            "for <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
+                }
                 setItemIcon(suggestion.getItemId());
                 break;
             default:
@@ -321,14 +330,14 @@ public class SuggestionPanel extends JPanel {
 
         suggestionString += "</center><html>";
         innerSuggestionMessage = "";
-        if(!suggestion.getType().equals("wait")) {
+        if (!suggestion.isWaitSuggestion()) {
             setButtonsVisible(true);
         }
         suggestionText.setText(suggestionString);
         suggestionText.setMaximumSize(new Dimension(suggestionText.getPreferredSize().width, Integer.MAX_VALUE));
-        if (suggestion.getType().equals("buy")) {
+        if (suggestion.isBuySuggestion()) {
             setAdditionalInfoText(formatExpectedProfitAndDuration(suggestion.getExpectedProfit(), suggestion.getExpectedDuration()) + additionalInfoMessage);
-        } else if (suggestion.getType().equals("sell")) {
+        } else if (suggestion.isSellSuggestion()) {
             String text = "";
             Long profit = profitCalculator.calculateSuggestionProfit(suggestion);
             if (profit != null) {
@@ -463,11 +472,11 @@ public class SuggestionPanel extends JPanel {
         }
         if (collectNeeded) {
             suggestCollect();
-        } else if(suggestion.getType().equals("wait") && !grandExchange.isOpen() && accountStatus.emptySlotExists()) {
+        } else if (suggestion.isWaitSuggestion() && !grandExchange.isOpen() && accountStatus.emptySlotExists()) {
             suggestOpenGe();
-        } else if (suggestion.getType().equals("wait") && accountStatus.moreGpNeeded()) {
+        } else if (suggestion.isWaitSuggestion() && accountStatus.moreGpNeeded()) {
             suggestAddGp();
-        } else if (suggestion.getType().equals("wait")
+        } else if (suggestion.isWaitSuggestion()
                 && grandExchange.isOpen()
                 && accountStatus.emptySlotExists()
                 && suggestionPreferencesManager.isReceiveDumpSuggestions()) {
