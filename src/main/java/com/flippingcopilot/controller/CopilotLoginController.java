@@ -118,21 +118,11 @@ public class CopilotLoginController {
 
     public void onLoginPressed(String email, String password) {
         Consumer<LoginResponse> onSuccess = (LoginResponse loginResponse) -> {
-            copilotLoginManager.setLoginResponse(loginResponse);
-            mainPanel.refresh();
-            String displayName = osrsLoginManager.getPlayerDisplayName();
-            if(displayName != null) {
-                flipManager.setIntervalAccount(null);
-                flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
-                transactionManager.scheduleSyncIn(0, displayName);
-            }
-            flipManager.setCopilotUserId(loginResponse.getUserId());
-            loadCopilotAccounts(0);
+            onLoginResponse(loginResponse);
             loginPanel.endLoading();
         };
         Consumer<String> onFailure = (String errorMessage) -> {
-            copilotLoginManager.reset();
-            loginPanel.showLoginErrorMessage(errorMessage);
+            onLoginFailure(errorMessage);
             loginPanel.endLoading();
         };
         if (email == null || password == null) {
@@ -140,6 +130,24 @@ public class CopilotLoginController {
         }
         loginPanel.startLoading();
         apiRequestHandler.authenticate(email, password, onSuccess, onFailure);
+    }
+
+    public void onLoginResponse(LoginResponse loginResponse) {
+        copilotLoginManager.setLoginResponse(loginResponse);
+        mainPanel.refresh();
+        String displayName = osrsLoginManager.getPlayerDisplayName();
+        if(displayName != null) {
+            flipManager.setIntervalAccount(null);
+            flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+            transactionManager.scheduleSyncIn(0, displayName);
+        }
+        flipManager.setCopilotUserId(loginResponse.getUserId());
+        loadCopilotAccounts(0);
+    }
+
+    public void onLoginFailure(String errorMessage) {
+        copilotLoginManager.reset();
+        loginPanel.showLoginErrorMessage(errorMessage);
     }
 
     public void onLogout() {
