@@ -1,7 +1,7 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.OfferEditor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +38,7 @@ public class OfferHandler {
     private final OsrsLoginManager osrsLoginManager;
     private final OfferManager offerManager;
     private final HighlightController highlightController;
-    private final CopilotLoginRS copilotLoginRS;
+    private final CopilotLoginManager copilotLoginManager;
 
     // state
     private String viewedSlotPriceErrorText = null;
@@ -59,7 +59,7 @@ public class OfferHandler {
                 return;
             }
 
-            if (!copilotLoginRS.get().isLoggedIn()) {
+            if (!copilotLoginManager.isLoggedIn()) {
                 viewedSlotPriceErrorText = "Login to copilot to see item price.";
                 return;
             }

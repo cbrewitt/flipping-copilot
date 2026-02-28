@@ -1,7 +1,7 @@
 package com.flippingcopilot.util;
 
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.CopilotLoginRS;
 import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 
@@ -26,7 +26,7 @@ public class ProfitCalculator {
     private final OfferManager offerManager;
     private final FlipManager flipManager;
     private final OsrsLoginManager osrsLoginManager;
-    private final CopilotLoginRS copilotLoginRS;
+    private final CopilotLoginManager copilotLoginManager;
 
     /**
      * Calculates the post-tax price for an item.
@@ -94,7 +94,7 @@ public class ProfitCalculator {
             return null;
         }
 
-        Integer accountId = copilotLoginRS.get().getAccountId(displayName);
+        Integer accountId = copilotLoginManager.getAccountId(displayName);
         if (accountId == null || accountId == -1) {
             return null;
         }
@@ -124,7 +124,7 @@ public class ProfitCalculator {
             return null;
         }
 
-        Integer accountId = copilotLoginRS.get().getAccountId(displayName);
+        Integer accountId = copilotLoginManager.getAccountId(displayName);
         if (accountId == null || accountId == -1) {
             return null;
         }
@@ -159,7 +159,7 @@ public class ProfitCalculator {
             return null;
         }
 
-        Integer accountId = copilotLoginRS.get().getAccountId(displayName);
+        Integer accountId = copilotLoginManager.getAccountId(displayName);
         if (accountId == null || accountId == -1) {
             return null;
         }
@@ -190,7 +190,7 @@ public class ProfitCalculator {
             return 0;
         }
 
-        Integer accountId = copilotLoginRS.get().getAccountId(displayName);
+        Integer accountId = copilotLoginManager.getAccountId(displayName);
         if (accountId == null || accountId == -1) {
             return 0;
         }

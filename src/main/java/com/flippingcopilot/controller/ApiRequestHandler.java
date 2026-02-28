@@ -1,7 +1,7 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
@@ -41,7 +41,10 @@ public class ApiRequestHandler {
     // dependencies
     private final OkHttpClient client;
     private final Gson gson;
-    private final CopilotLoginRS copilotLoginRS;
+    private final CopilotLoginManager copilotLoginManager;
+
+    @Setter
+    private CopilotLoginController copilotLoginController;
     private final SuggestionPreferencesManager preferencesManager;
     private final ClientThread clientThread;
 
@@ -63,7 +66,7 @@ public class ApiRequestHandler {
                 try {
                     if (!response.isSuccessful()) {
                         if(response.code() == UNAUTHORIZED_CODE) {
-                            copilotLoginRS.clear();
+                            copilotLoginController.onLogout();
                         }
                         log.warn("login failed with http status code {}", response.code());
                         String errorMessage = extractErrorMessage(response);
@@ -106,7 +109,7 @@ public class ApiRequestHandler {
                 try {
                     if (!response.isSuccessful()) {
                         if(response.code() == UNAUTHORIZED_CODE) {
-                            copilotLoginRS.clear();
+                            copilotLoginController.onLogout();
                         }
                         log.warn("login via discord call failed with http status code {}", response.code());
                         clientThread.invoke(() -> onFailure.accept(new HttpResponseException(response.code(), extractErrorMessage(response))));
@@ -141,10 +144,9 @@ public class ApiRequestHandler {
                                    Consumer<HttpResponseException>  onFailure,
                                    boolean skipGraphData) {
         log.debug("sending status {}", status.toString());
-        String jwtToken = copilotLoginRS.get().getJwtToken();
         Request.Builder rb = new Request.Builder()
                 .url(serverUrl + "/suggestion")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .addHeader("Accept", "application/x-msgpack")
                 .addHeader("X-VERSION", "1")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), status.toString()));
@@ -165,8 +167,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         log.warn("get suggestion failed with http status code {}", response.code());
                         clientThread.invoke(() -> onFailure.accept(new HttpResponseException(response.code(), extractErrorMessage(response))));
@@ -272,12 +274,11 @@ public class ApiRequestHandler {
         for (Transaction transaction : transactions) {
             body.add(transaction.toJsonObject());
         }
-        Integer userId = copilotLoginRS.get().getUserId();
-        String jwtToken = copilotLoginRS.get().getJwtToken();
+        Integer userId = copilotLoginManager.getCopilotUserId();
         String encodedDisplayName = URLEncoder.encode(displayName, StandardCharsets.UTF_8);
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/client-transactions?display_name=" + encodedDisplayName)
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .header("Accept", "application/x-bytes")
                 .build();
@@ -292,8 +293,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         String errorMessage = extractErrorMessage(response);
                         log.warn("call to sync transactions failed status code {}, error message {}", response.code(), errorMessage);
@@ -331,10 +332,9 @@ public class ApiRequestHandler {
         body.add("flip_id", new JsonPrimitive(flipID.toString()));
         body.add("display_name", new JsonPrimitive(displayName));
         log.debug("requesting visualize data for flip {}", flipID);
-        String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = new Request.Builder()
                 .url(serverUrl +"/profit-tracking/visualize-flip")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .addHeader("Accept", "application/x-msgpack")
                 .addHeader("X-VERSION", "1")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
@@ -353,8 +353,8 @@ public class ApiRequestHandler {
                     public void onResponse(Call call, Response response) {
                         try {
                             if (!response.isSuccessful()) {
-                                if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                                    copilotLoginRS.clear();
+                                if(response.code() == UNAUTHORIZED_CODE) {
+                                    copilotLoginController.onLogout();
                                 }
                                 log.error("get visualize data for flip {} failed with http status code {}", flipID, response.code());
                                 onFailure.accept(UNKNOWN_ERROR);
@@ -381,10 +381,9 @@ public class ApiRequestHandler {
         body.addProperty("risk_level", preferencesManager.getRiskLevel().toApiValue());
         body.addProperty("include_graph_data", includeGraphData);
         log.debug("requesting price graph data for item {}", itemId);
-        String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = new Request.Builder()
                 .url(serverUrl +"/prices")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .addHeader("Accept", "application/x-msgpack")
                 .addHeader("X-VERSION", "1")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
@@ -405,8 +404,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         log.error("get copilot price for item {} failed with http status code {}", itemId, response.code());
                         ItemPrice ip = new ItemPrice(0, 0, DEFAULT_COPILOT_PRICE_ERROR_MESSAGE, null);
@@ -432,11 +431,10 @@ public class ApiRequestHandler {
         JsonArray arr = new JsonArray();
         displayNames.forEach(arr::add);
         payload.add("premium_display_names", arr);
-        String jwtToken = copilotLoginRS.get().getJwtToken();
 
         Request request = new Request.Builder()
                 .url(serverUrl +"/premium-instances/update-assignments")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), payload.toString()))
                 .build();
 
@@ -450,8 +448,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         log.error("update premium instances failed with http status code {}", response.code());
                         clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
@@ -468,10 +466,9 @@ public class ApiRequestHandler {
     }
 
     public void asyncGetPremiumInstanceStatus(Consumer<PremiumInstanceStatus> consumer) {
-        String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = new Request.Builder()
                 .url(serverUrl +"/premium-instances/status")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .get()
                 .build();
 
@@ -485,8 +482,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         log.error("get premium instance status failed with http status code {}", response.code());
                         clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
@@ -506,11 +503,10 @@ public class ApiRequestHandler {
     public void asyncDeleteFlip(FlipV2 flip, Consumer<FlipV2> onSuccess, Runnable onFailure) {
         JsonObject body = new JsonObject();
         body.addProperty("flip_id", flip.getId().toString());
-        String jwtToken = copilotLoginRS.get().getJwtToken();
 
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/delete-flip")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .header("Accept", "application/x-bytes")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .build();
@@ -525,8 +521,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         log.error("deleting flip {}, bad response code {}", flip.getId(), response.code());
                         onFailure.run();
@@ -545,11 +541,10 @@ public class ApiRequestHandler {
     public void asyncDeleteAccount(int accountId, Runnable onSuccess, Runnable onFailure) {
         JsonObject body = new JsonObject();
         body.addProperty("account_id", accountId);
-        String jwtToken = copilotLoginRS.get().getJwtToken();
 
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/delete-account")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .header("Accept", "application/x-bytes")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .build();
@@ -564,8 +559,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         log.error("deleting account {}, bad response code {}", accountId, response.code());
                         onFailure.run();
@@ -580,10 +575,9 @@ public class ApiRequestHandler {
     }
 
     public void asyncLoadAccounts(Consumer<Map<String, Integer>> onSuccess, Consumer<String> onFailure) {
-        String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/rs-account-names")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .method("GET", null)
                 .build();
 
@@ -598,8 +592,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         String errorMessage = extractErrorMessage(response);
                         log.error("load user display names failed with http status code {}, error message {}", response.code(), errorMessage);
@@ -620,14 +614,13 @@ public class ApiRequestHandler {
     }
 
     public void asyncLoadFlips(Map<Integer, Integer> accountIdTime, BiConsumer<Integer, FlipsDeltaResult> onSuccess, Consumer<String> onFailure) {
-        Integer userId = copilotLoginRS.get().getUserId();
-        String jwtToken = copilotLoginRS.get().getJwtToken();
+        Integer userId = copilotLoginManager.getCopilotUserId();
         DataDeltaRequest body = new DataDeltaRequest(accountIdTime);
         String bodyStr = gson.toJson(body);
 
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/client-flips-delta")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .header("Accept", "application/x-bytes")
                 .method("POST", RequestBody.create(MediaType.get("application/json; charset=utf-8"), bodyStr))
                 .build();
@@ -643,8 +636,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         String errorMessage = extractErrorMessage(response);
                         log.error("load flips failed with http status code {}, error message {}", response.code(), errorMessage);
@@ -662,11 +655,10 @@ public class ApiRequestHandler {
     }
 
     public void asyncLoadTransactionsData(Consumer<byte[]> onSuccess, Consumer<String> onFailure) {
-        String jwtToken = copilotLoginRS.get().getJwtToken();
 
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/client-transactions")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .header("Accept", "application/x-bytes")
                 .get()
                 .build();
@@ -682,8 +674,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         String errorMessage = extractErrorMessage(response);
                         log.error("load transactions failed with http status code {}, error message {}", response.code(), errorMessage);
@@ -702,10 +694,9 @@ public class ApiRequestHandler {
 
     public Call asyncConsumeDumpAlerts(String displayName, Consumer<Response> onSuccess, Consumer<HttpResponseException> onFailure) {
         String encodedDisplayName = URLEncoder.encode(displayName, StandardCharsets.UTF_8);
-        String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = new Request.Builder()
                 .url(serverUrl + "/dump-alerts?display_name=" + encodedDisplayName)
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), ""))
                 .build();
 
@@ -725,8 +716,8 @@ public class ApiRequestHandler {
             @Override
             public void onResponse(Call call, Response response) {
                 if (!response.isSuccessful()) {
-                    if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                        copilotLoginRS.clear();
+                    if(response.code() == UNAUTHORIZED_CODE) {
+                        copilotLoginController.onLogout();
                     }
                     String errorMessage = extractErrorMessage(response);
                     response.close();
@@ -750,11 +741,10 @@ public class ApiRequestHandler {
         JsonObject body = new JsonObject();
         body.addProperty("transaction_id", transaction.getId().toString());
         body.addProperty("account_id", transaction.getAccountId());
-        Integer userId = copilotLoginRS.get().getUserId();
-        String jwtToken = copilotLoginRS.get().getJwtToken();
+        Integer userId = copilotLoginManager.getCopilotUserId();
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/orphan-transaction")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .header("Accept", "application/x-bytes")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .build();
@@ -769,8 +759,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         log.error("orphaning transaction {}, bad response code {}", transaction.getId(), response.code());
                         onFailure.run();
@@ -790,11 +780,10 @@ public class ApiRequestHandler {
         JsonObject body = new JsonObject();
         body.addProperty("transaction_id", transaction.getId().toString());
         body.addProperty("account_id", transaction.getAccountId());
-        Integer userId = copilotLoginRS.get().getUserId();
-        String jwtToken = copilotLoginRS.get().getJwtToken();
+        Integer userId = copilotLoginManager.getCopilotUserId();
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/delete-transaction")
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .header("Accept", "application/x-bytes")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .build();
@@ -809,8 +798,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         log.error("delete transaction {}, bad response code {}", transaction.getId(), response.code());
                         onFailure.run();
@@ -830,10 +819,9 @@ public class ApiRequestHandler {
         JsonObject body = new JsonObject();
         body.addProperty("limit", 30);
         body.addProperty("end", endTime);
-        String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/account-client-transactions?display_name=" + displayName)
-                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Authorization", "Bearer " + copilotLoginManager.getJwtToken())
                 .header("Accept", "application/x-bytes")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .build();
@@ -849,8 +837,8 @@ public class ApiRequestHandler {
             public void onResponse(Call call, Response response) {
                 try {
                     if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
+                        if(response.code() == UNAUTHORIZED_CODE) {
+                            copilotLoginController.onLogout();
                         }
                         String errorMessage = extractErrorMessage(response);
                         log.error("load transactions failed with http status code {}, error message {}", response.code(), errorMessage);

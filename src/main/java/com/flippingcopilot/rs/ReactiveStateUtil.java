@@ -33,18 +33,6 @@ public final class ReactiveStateUtil {
         return derived;
     }
 
-    public static <A, B, C, D, E> ReactiveState<E> derive(
-            ReactiveState<A> first,
-            ReactiveState<B> second,
-            ReactiveState<C> third,
-            ReactiveState<D> fourth,
-            QuadFunction<A, B, C, D, E> transform) {
-        ReactiveStateImpl<E> derived = new ReactiveStateImpl<>(transform.apply(first.get(), second.get(), third.get(), fourth.get()));
-        registerJointListener(first, second, third, fourth, (value1, value2, value3, value4) ->
-                derived.set(transform.apply(value1, value2, value3, value4)));
-        return derived;
-    }
-
     public static <A, B, C> void registerJointListener(
             ReactiveState<A> first,
             ReactiveState<B> second,
@@ -80,10 +68,5 @@ public final class ReactiveStateUtil {
     @FunctionalInterface
     public interface TriFunction<A, B, C, D> {
         D apply(A first, B second, C third);
-    }
-
-    @FunctionalInterface
-    public interface QuadFunction<A, B, C, D, E> {
-        E apply(A first, B second, C third, D fourth);
     }
 }

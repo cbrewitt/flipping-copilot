@@ -4,8 +4,8 @@ import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.GrandExchange;
 import com.flippingcopilot.controller.HighlightController;
 import com.flippingcopilot.controller.PremiumInstanceController;
+import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.util.ProfitCalculator;
 import joptsimple.internal.Strings;
@@ -51,6 +51,8 @@ public class SuggestionPanel extends JPanel {
     private final ItemManager itemManager;
     private final GrandExchange grandExchange;
     private final PremiumInstanceController premiumInstanceController;
+    private final FlipManager flipManager;
+    private final CopilotLoginManager copilotLoginManager;
     private final FlipsDialogController flipsDialogController;
     private final ProfitCalculator profitCalculator;
 
@@ -89,7 +91,7 @@ public class SuggestionPanel extends JPanel {
                            ClientThread clientThread,
                            HighlightController highlightController,
                            ItemManager itemManager,
-                           GrandExchange grandExchange,  PremiumInstanceController premiumInstanceController, FlipsDialogController flipsDialogController, ProfitCalculator profitCalculator) {
+                           GrandExchange grandExchange,  PremiumInstanceController premiumInstanceController, FlipManager flipManager, CopilotLoginManager copilotLoginManager, FlipsDialogController flipsDialogController, ProfitCalculator profitCalculator) {
         this.preferencesPanel = preferencesPanel;
         this.config = config;
         this.suggestionManager = suggestionManager;
@@ -106,6 +108,8 @@ public class SuggestionPanel extends JPanel {
         this.itemManager = itemManager;
         this.grandExchange = grandExchange;
         this.premiumInstanceController = premiumInstanceController;
+        this.flipManager = flipManager;
+        this.copilotLoginManager = copilotLoginManager;
         this.flipsDialogController = flipsDialogController;
         this.profitCalculator = profitCalculator;
 
