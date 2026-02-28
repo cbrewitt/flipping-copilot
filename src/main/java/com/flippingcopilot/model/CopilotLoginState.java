@@ -10,7 +10,6 @@ import java.util.Set;
 
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder(toBuilder = true)
 @EqualsAndHashCode
 @ToString
 public class CopilotLoginState {
