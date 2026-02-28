@@ -2,45 +2,56 @@ package com.flippingcopilot.rs;
 
 import lombok.AllArgsConstructor;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+/**
+ * Note on synchronization:
+ *
+ */
 @AllArgsConstructor
 public class ReactiveStateImpl<T> implements ReactiveState<T> {
 
-    private final List<Consumer<T>> listeners =  new ArrayList<>();
+    private final CopyOnWriteArrayList<Consumer<T>> listeners = new CopyOnWriteArrayList<>();
     private T state;
 
     @Override
     public Runnable registerListener(Consumer<T> onUpdate) {
         listeners.add(onUpdate);
-        return () -> listeners.removeIf(i -> i.equals(onUpdate));
+        return () -> listeners.remove(onUpdate);
     }
 
     @Override
-    public void applyUpdate(Function<T, Boolean> update) {
-        if(update.apply(state)) {
-            listeners.forEach(i -> i.accept(state));
+    public void update(Function<T, T> updateFunc) {
+        final T updated;
+        synchronized (this) {
+            updated = updateFunc.apply(get());
         }
+        setAndPublish(updated);
     }
 
     @Override
     public void set(T newState) {
-        if (!Objects.equals(newState, state)) {
-            forceSet(newState);
+        if (!Objects.equals(newState, get())) {
+            setAndPublish(newState);
         }
     }
 
     public void forceSet(T newState) {
-        state = newState;
-        listeners.forEach(i -> i.accept(state));
+        setAndPublish(newState);
     }
 
     @Override
-    public T get() {
+    public synchronized T get() {
         return state;
+    }
+
+    private void setAndPublish(T value) {
+        synchronized (this) {
+            state = value;
+        }
+        listeners.forEach(i -> i.accept(value));
     }
 }

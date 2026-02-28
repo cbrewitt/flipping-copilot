@@ -1,6 +1,5 @@
 package com.flippingcopilot.controller;
 
-import java.awt.event.ActionEvent;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -9,8 +8,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.LoginPanel;
 import com.flippingcopilot.ui.MainPanel;
 import lombok.Setter;
@@ -31,51 +30,58 @@ public class CopilotLoginController {
     private final ApiRequestHandler apiRequestHandler;
     private final FlipManager flipManager;
     private final HighlightController highlightController;
-    private final CopilotLoginManager copilotLoginManager;
     private final SuggestionManager suggestionManager;
     private final OsrsLoginManager osrsLoginManager;
     private final SessionManager sessionManager;
     private final TransactionManager transactionManager;
     private final ScheduledExecutorService executorService;
+    private final CopilotLoginRS copilotLoginRS;
 
 
     @Inject
     public CopilotLoginController(ApiRequestHandler apiRequestHandler,
                                   FlipManager flipManager,
                                   HighlightController highlightController,
-                                  CopilotLoginManager copilotLoginManager,
                                   SuggestionManager suggestionManager,
                                   OsrsLoginManager osrsLoginManager,
                                   SessionManager sessionManager,
                                   TransactionManager transactionManager,
-                                  ScheduledExecutorService executorService) {
+                                  ScheduledExecutorService executorService,
+                                  CopilotLoginRS copilotLoginRS) {
         this.apiRequestHandler = apiRequestHandler;
         this.flipManager = flipManager;
         this.highlightController = highlightController;
-        this.copilotLoginManager = copilotLoginManager;
         this.suggestionManager = suggestionManager;
         this.osrsLoginManager = osrsLoginManager;
         this.sessionManager = sessionManager;
         this.transactionManager = transactionManager;
         this.executorService = executorService;
-        flipManager.setCopilotUserId(copilotLoginManager.getCopilotUserId());
+        this.copilotLoginRS = copilotLoginRS;
+        flipManager.setCopilotUserId(copilotLoginRS.get().getUserId());
         loadCopilotAccounts(0);
+        copilotLoginRS.registerListener((s) -> {
+            if(s.loginResponse == null) {
+                flipManager.reset();
+                suggestionManager.reset();
+                highlightController.removeAll();
+                mainPanel.refresh();
+            }
+        });
     }
 
     private void loadCopilotAccounts(int previousFailures) {
-        int userId = copilotLoginManager.getCopilotUserId();
+        int userId = copilotLoginRS.get().getUserId();
         if(userId == -1) {
             return;
         }
         long s = System.nanoTime();
         Consumer<Map<String, Integer>> onSuccess = (displayNameToAccountId) -> {
-            displayNameToAccountId.forEach((key, value) ->
-                    copilotLoginManager.addAccountIfMissing(value, key, userId));
+            displayNameToAccountId.forEach((key, value) -> copilotLoginRS.addAccountIfMissing(value, key, userId));
             log.info("loading {} copilot accounts succeeded - took {}ms", displayNameToAccountId.size(), (System.nanoTime() - s) / 1000_000);
-            syncFlips(copilotLoginManager.getCopilotUserId(), new HashMap<>(), 0);
+            syncFlips(copilotLoginRS.get().getUserId(), new HashMap<>(), 0);
         };
         Consumer<String> onFailure = (errorMessage) -> {
-            if (copilotLoginManager.isLoggedIn()) {
+            if (copilotLoginRS.get().isLoggedIn()) {
                 long backOffSeconds = Math.min(15, (long) Math.exp(previousFailures));
                 log.info("failed to load copilot accounts ({}) retrying in {}s", errorMessage, backOffSeconds);
                 executorService.schedule(() -> loadCopilotAccounts(previousFailures + 1), backOffSeconds, TimeUnit.SECONDS);
@@ -86,11 +92,11 @@ public class CopilotLoginController {
 
     private void syncFlips(int userId, Map<Integer, Integer> accountIdTime, int previousFailures) {
         // Continuously sync's the delta of new or updated flips from the server with back off on failure
-        if(copilotLoginManager.getCopilotUserId() != userId) {
+        if(copilotLoginRS.get().getUserId() != userId) {
             log.info("user={}, no longer logged in, stopping syncFlips.", userId);
             return;
         }
-        Set<Integer> accountIds = copilotLoginManager.accountIds();
+        Set<Integer> accountIds = copilotLoginRS.get().accountIds();
         if(accountIds.isEmpty()) {
             long backOffSeconds = Math.min(45, (long) 1+previousFailures);
             log.info("user={}, no accounts loaded - re-scheduling runSyncFlips in {}s", userId, backOffSeconds);
@@ -133,7 +139,10 @@ public class CopilotLoginController {
     }
 
     public void onLoginResponse(LoginResponse loginResponse) {
-        copilotLoginManager.setLoginResponse(loginResponse);
+        copilotLoginRS.update((s) -> {
+            s.loginResponse = loginResponse;
+            return s;
+        });
         mainPanel.refresh();
         String displayName = osrsLoginManager.getPlayerDisplayName();
         if(displayName != null) {
@@ -146,15 +155,7 @@ public class CopilotLoginController {
     }
 
     public void onLoginFailure(String errorMessage) {
-        copilotLoginManager.reset();
+        copilotLoginRS.set(new CopilotLoginState());
         loginPanel.showLoginErrorMessage(errorMessage);
-    }
-
-    public void onLogout() {
-        flipManager.reset();
-        copilotLoginManager.reset();
-        suggestionManager.reset();
-        highlightController.removeAll();
-        mainPanel.refresh();
     }
 }

@@ -25,7 +25,7 @@ public class OsrsLoginState {
     public String displayName;
     public Long accountHash;
 
-    public OsrsLoginState nexState(Client client) {
+    public OsrsLoginState nextState(Client client) {
         if(client.getGameState() == GameState.LOGGED_IN) {
             Player p = client.getLocalPlayer();
             return OsrsLoginState.builder()

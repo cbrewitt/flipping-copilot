@@ -5,7 +5,7 @@ import java.util.function.Function;
 
 public interface ReactiveState<T> {
     Runnable registerListener(Consumer<T> onUpdate);
-    void applyUpdate(Function<T, Boolean> update);
+    void update(Function<T, T> update);
     T get();
     void set(T newValue);
 }
