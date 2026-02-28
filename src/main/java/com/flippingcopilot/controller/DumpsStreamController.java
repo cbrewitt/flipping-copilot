@@ -2,11 +2,7 @@ package com.flippingcopilot.controller;
 
 
 import com.flippingcopilot.model.Suggestion;
-import com.flippingcopilot.rs.AccountSuggestionPreferencesRS;
-import com.flippingcopilot.rs.GrandExchangeOpenRS;
-import com.flippingcopilot.rs.OsrsLoginRS;
-import com.flippingcopilot.rs.ReactiveState;
-import com.flippingcopilot.rs.ReactiveStateUtil;
+import com.flippingcopilot.rs.*;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
@@ -39,18 +35,21 @@ public class DumpsStreamController {
                                  SuggestionController suggestionController,
                                  AccountSuggestionPreferencesRS accountSuggestionPreferencesRS,
                                  OsrsLoginRS osrsLoginRS,
+                                 CopilotLoginRS copilotLoginRS,
                                  GrandExchangeOpenRS grandExchangeOpenRS) {
         this.clientThread = clientThread;
         this.apiRequestHandler = apiRequestHandler;
         this.suggestionController = suggestionController;
         this.subscribedDisplayName = ReactiveStateUtil.derive(
+                copilotLoginRS,
                 osrsLoginRS,
                 accountSuggestionPreferencesRS,
                 grandExchangeOpenRS,
-                (loginState, preferences, isGrandExchangeOpen) -> {
+                (copilotLoginState, loginState, preferences, isGrandExchangeOpen) -> {
                     if (!loginState.loggedIn
                             || loginState.displayName == null
                             || loginState.displayName.isBlank()
+                            || !copilotLoginState.isLoggedIn()
                             || !preferences.isReceiveDumpSuggestions()
                             || !Boolean.TRUE.equals(isGrandExchangeOpen)) {
                         return null;

@@ -1,8 +1,8 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.ui.graph.model.Data;
@@ -45,7 +45,7 @@ public class SuggestionController {
     private final ApiRequestHandler apiRequestHandler;
     private final Notifier notifier;
     private final OfferManager offerManager;
-    private final CopilotLoginManager copilotLoginManager;
+    private final CopilotLoginRS copilotLoginRS;
     private final ClientThread clientThread;
     private final FlippingCopilotConfig config;
     private final SuggestionManager suggestionManager;
@@ -132,7 +132,7 @@ public class SuggestionController {
 
     public void getSuggestionAsync() {
         suggestionManager.setSuggestionNeeded(false);
-        if (!copilotLoginManager.isLoggedIn() || !osrsLoginManager.isValidLoginState()) {
+        if (!copilotLoginRS.get().isLoggedIn() || !osrsLoginManager.isValidLoginState()) {
             return;
         }
         if (suggestionManager.isSuggestionRequestInProgress()) {
@@ -160,7 +160,7 @@ public class SuggestionController {
             suggestionManager.setSuggestionRequestInProgress(false);
             suggestionManager.setGraphDataReadingInProgress(false);
             if (e.getResponseCode() == 401) {
-                copilotLoginManager.reset();
+                copilotLoginRS.clear();
                 mainPanel.refresh();
                 loginPanel.showLoginErrorMessage("Login timed out. Please log in again");
             } else {

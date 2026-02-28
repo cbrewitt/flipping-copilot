@@ -2,8 +2,8 @@ package com.flippingcopilot.ui;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.*;
-import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.components.AccountDropdown;
 import com.flippingcopilot.ui.components.IntervalDropdown;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
@@ -43,7 +43,7 @@ public class StatsPanelV2 extends JPanel {
     private static final java.util.List<Integer> SESSION_STATS_INDS = Arrays.asList(3,4,5);
 
     // dependencies
-    private final CopilotLoginManager copilotLoginManager;
+    private final CopilotLoginRS copilotLoginRS;
     private final OsrsLoginManager osrsLoginManager;
     private final FlippingCopilotConfig config;
     private final FlipManager flipManager;
@@ -73,7 +73,7 @@ public class StatsPanelV2 extends JPanel {
 
     // Modified constructor
     @Inject
-    public StatsPanelV2(CopilotLoginManager copilotLoginManager,
+    public StatsPanelV2(CopilotLoginRS copilotLoginRS,
                         OsrsLoginManager osrsLoginManager,
                         FlippingCopilotConfig config,
                         FlipManager FlipManager,
@@ -82,7 +82,7 @@ public class StatsPanelV2 extends JPanel {
                         ClientThread clientThread,
                         FlipsDialogController flipsDialogController,
                         GeHistoryTransactionButton geHistoryTransactionButton) { // Added parameter
-        this.copilotLoginManager = copilotLoginManager;
+        this.copilotLoginRS = copilotLoginRS;
         this.osrsLoginManager = osrsLoginManager;
         this.sessionManager = sessionManager;
         this.webHookController = webHookController;
@@ -118,7 +118,7 @@ public class StatsPanelV2 extends JPanel {
 
         JPanel intervalRsAccountDropdownWrapper = new JPanel(new BorderLayout(0, 0));
         accountDropdown = new AccountDropdown(
-                copilotLoginManager::displayNameToAccountIdMap,
+                () -> copilotLoginRS.get().displayNameToAccountId,
                 flipManager::setIntervalAccount,
                 AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
         );
@@ -148,7 +148,7 @@ public class StatsPanelV2 extends JPanel {
 
         add(bottomPanel, BorderLayout.SOUTH);
 
-        flipManager.setFlipsChangedCallback(() -> refresh(true, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState()));
+        flipManager.setFlipsChangedCallback(() -> refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState()));
     }
 
     private void setupFlipsDialogButton() {
@@ -188,7 +188,7 @@ public class StatsPanelV2 extends JPanel {
                 clientThread.invoke(() -> {
                     if (osrsLoginManager.isValidLoginState()) {
                         String displayName = osrsLoginManager.getPlayerDisplayName();
-                        Integer accountId = copilotLoginManager.getAccountId(displayName);
+                        Integer accountId = copilotLoginRS.get().getAccountId(displayName);
                         if(accountId != null && accountId != -1) {
                             webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, true);
                             sessionManager.resetSession();
@@ -196,7 +196,7 @@ public class StatsPanelV2 extends JPanel {
                                 flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
                             }
                         }
-                        refresh(true, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
+                        refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
                     }
                 });
             }

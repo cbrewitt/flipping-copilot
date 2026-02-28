@@ -1,8 +1,8 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.rs.FlippingCopilotConfigRS;
 import com.flippingcopilot.rs.GrandExchangeOpenRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
@@ -79,7 +79,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private OverlayManager overlayManager;
 	@Inject
-	private CopilotLoginManager copilotLoginManager;
+	private CopilotLoginRS copilotLoginRS;
 	@Inject
 	private HighlightController highlightController;
 	@Inject
@@ -149,7 +149,6 @@ public class FlippingCopilotPlugin extends Plugin {
 				.panel(mainPanel)
 				.build();
 		clientToolbar.addNavigation(navButton);
-		apiRequestHandler.setCopilotLoginController(copilotLoginController);
 		copilotLoginController.setLoginPanel(mainPanel.loginPanel);
 		copilotLoginController.setMainPanel(mainPanel);
 		suggestionController.setCopilotPanel(mainPanel.copilotPanel);
@@ -174,7 +173,7 @@ public class FlippingCopilotPlugin extends Plugin {
 					boolean isFlipping = accStatus != null && accStatus.currentlyFlipping();
 					long cashStack = accStatus == null ? 0 : accStatus.currentCashStack();
 					if(sessionManager.updateSessionStats(isFlipping, cashStack)) {
-						mainPanel.copilotPanel.statsPanel.refresh(false, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
+						mainPanel.copilotPanel.statsPanel.refresh(false, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
 					}
 				}
 			})
@@ -187,9 +186,9 @@ public class FlippingCopilotPlugin extends Plugin {
 		highlightController.deactivateAndRemoveAll();
 		clientThread.invokeLater(() -> slotProfitColorizer.resetAllSlots());
 		clientToolbar.removeNavigation(navButton);
-		if(copilotLoginManager.isLoggedIn()) {
+		if(copilotLoginRS.get().isLoggedIn()) {
 			String displayName = osrsLoginManager.getLastDisplayName();
-			Integer accountId = copilotLoginManager.getAccountId(displayName);
+			Integer accountId = copilotLoginRS.get().getAccountId(displayName);
 			if (accountId != null && accountId != -1) {
 				webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
 			}
@@ -223,7 +222,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		suggestionController.onGameTick();
 		offerEventHandler.onGameTick();
 		grandExchangeOpenRS.set(grandExchange.isOpen());
-		osrsLoginRS.set(osrsLoginRS.get().nexState(client));
+		osrsLoginRS.set(osrsLoginRS.get().nextState(client));
 	}
 
 	@Subscribe
@@ -289,15 +288,15 @@ public class FlippingCopilotPlugin extends Plugin {
 				geHistoryTabController.onGeHistoryTabClosed();
 				accountStatusManager.reset();
 				grandExchangeUncollectedManager.reset();
-				statsPanel.refresh(true, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
-				osrsLoginRS.set(osrsLoginRS.get().nexState(client));
+				statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
+				osrsLoginRS.set(osrsLoginRS.get().nextState(client));
 				mainPanel.refresh();
 				break;
 			case LOGGING_IN:
 			case HOPPING:
 			case CONNECTION_LOST:
 				osrsLoginManager.setLastLoginTick(client.getTickCount());
-				osrsLoginRS.set(osrsLoginRS.get().nexState(client));
+				osrsLoginRS.set(osrsLoginRS.get().nextState(client));
 				break;
 			case LOGGED_IN:
 				// we want to update the flips panel on login but unfortunately the display name
@@ -312,16 +311,16 @@ public class FlippingCopilotPlugin extends Plugin {
 						return false;
 					}
 					statsPanel.resetIntervalDropdownToSession();
-					Integer accountId = copilotLoginManager.getAccountId(name);
+					Integer accountId = copilotLoginRS.get().getAccountId(name);
 					if (accountId != null && accountId != -1) {
 						flipManager.setIntervalAccount(accountId);
 					} else {
 						flipManager.setIntervalAccount(null);
 					}
 					flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
-					statsPanel.refresh(true, copilotLoginManager.isLoggedIn()  && osrsLoginManager.isValidLoginState());
+					statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn()  && osrsLoginManager.isValidLoginState());
 					mainPanel.refresh();
-					if(copilotLoginManager.isLoggedIn()) {
+					if(copilotLoginRS.get().isLoggedIn()) {
 						transactionManager.scheduleSyncIn(0, name);
 					}
 					return true;
@@ -338,9 +337,9 @@ public class FlippingCopilotPlugin extends Plugin {
 	public void onClientShutdown(ClientShutdown clientShutdownEvent) {
 		log.debug("client shutdown event received");
 		offerManager.saveAll();
-		if(copilotLoginManager.isLoggedIn()) {
+		if(copilotLoginRS.get().isLoggedIn()) {
 			String displayName = osrsLoginManager.getLastDisplayName();
-			Integer accountId = copilotLoginManager.getAccountId(displayName);
+			Integer accountId = copilotLoginRS.get().getAccountId(displayName);
 			if (accountId != null && accountId != -1) {
 				webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
 			}
@@ -353,7 +352,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			log.debug("copilot config changed event received");
 			configRS.forceSet(config);
 			if (event.getKey().equals("profitAmountColor") || event.getKey().equals("lossAmountColor")) {
-				mainPanel.copilotPanel.statsPanel.refresh(true, copilotLoginManager.isLoggedIn() && osrsLoginManager.isValidLoginState());
+				mainPanel.copilotPanel.statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
 			}
 			if (event.getKey().equals("suggestionHighlights")) {
 				clientThread.invokeLater(() -> highlightController.redraw());

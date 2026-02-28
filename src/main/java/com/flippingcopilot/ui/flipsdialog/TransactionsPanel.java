@@ -3,8 +3,8 @@ package com.flippingcopilot.ui.flipsdialog;
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.Paginator;
 import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.components.AccountDropdown;
@@ -46,7 +46,7 @@ public class TransactionsPanel extends JPanel {
     };
 
     // dependencies
-    private final CopilotLoginManager copilotLoginManager;
+    private final CopilotLoginRS copilotLoginRS;
     private final ItemController itemController;
     private final ExecutorService executorService;
     private final ApiRequestHandler apiRequestHandler;
@@ -76,13 +76,13 @@ public class TransactionsPanel extends JPanel {
     private volatile Integer selectedAccountId;
     private volatile List<AckedTransaction> currentTransactions = new ArrayList<>();
 
-    public TransactionsPanel(CopilotLoginManager copilotLoginManager,
+    public TransactionsPanel(CopilotLoginRS copilotLoginRS,
                              ItemController itemController,
                              @Named("copilotExecutor") ExecutorService executorService,
                              ApiRequestHandler apiRequestHandler,
                              FlippingCopilotConfig config,
                              FlipManager flipManager) {
-        this.copilotLoginManager = copilotLoginManager;
+        this.copilotLoginRS = copilotLoginRS;
         this.itemController = itemController;
         this.executorService = executorService;
         this.apiRequestHandler = apiRequestHandler;
@@ -124,7 +124,7 @@ public class TransactionsPanel extends JPanel {
 
         // Account dropdown
         accountDropdown = new AccountDropdown(
-                this.copilotLoginManager::displayNameToAccountIdMap,
+                () -> copilotLoginRS.get().displayNameToAccountId,
                 accountId -> {
                     if (!Objects.equals(accountId, this.selectedAccountId)) {
                         currentPage = 1;
@@ -408,7 +408,7 @@ public class TransactionsPanel extends JPanel {
     private void updateTable(List<AckedTransaction> txs) {
         currentTransactions = txs;
         tableModel.setRowCount(0);
-        Map<Integer, String> accountIdToDisplayName = copilotLoginManager.accountIDToDisplayNameMap();
+        Map<Integer, String> accountIdToDisplayName = copilotLoginRS.get().accountIdToDisplayName;
 
         for (AckedTransaction tx : txs) {
             int absQuantity = Math.abs(tx.getQuantity());
@@ -531,7 +531,7 @@ public class TransactionsPanel extends JPanel {
                 try (FileWriter writer = new FileWriter(file)) {
                     writer.write(Strings.join(columnNames, ","));
 
-                    Map<Integer, String> accountIdToDisplayName = copilotLoginManager.accountIDToDisplayNameMap();
+                    Map<Integer, String> accountIdToDisplayName = copilotLoginRS.get().accountIdToDisplayName;
 
                     // Use the stream method to write all matching transactions
                     transactionDataWrapper.stream(filteredItems, selectedAccountId)

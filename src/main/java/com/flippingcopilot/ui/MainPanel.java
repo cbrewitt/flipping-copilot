@@ -1,7 +1,7 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.CopilotLoginController;
-import com.flippingcopilot.manager.CopilotLoginManager;
+import com.flippingcopilot.rs.CopilotLoginRS;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
@@ -26,8 +26,7 @@ public class MainPanel extends PluginPanel {
     // dependencies
     public final LoginPanel loginPanel;
     public final CopilotPanel copilotPanel;
-    private final CopilotLoginManager copilotLoginManager;
-    private final CopilotLoginController copilotLoginController;
+    private final CopilotLoginRS copilotLoginRS;
 
     // UI components
     private final CardLayout cardLayout = new CardLayout();
@@ -35,19 +34,17 @@ public class MainPanel extends PluginPanel {
     @Inject
     public MainPanel(CopilotPanel copilotPanel,
                      LoginPanel loginPanel,
-                     CopilotLoginManager copilotLoginManager,
-                     CopilotLoginController copilotLoginController) {
+                     CopilotLoginRS copilotLoginRS) {
         super(false);
-        this.copilotLoginManager = copilotLoginManager;
+        this.copilotLoginRS = copilotLoginRS;
         this.copilotPanel = copilotPanel;
         this.loginPanel = loginPanel;
-        this.copilotLoginController = copilotLoginController;
 
         setLayout(cardLayout);
         setBorder(BorderFactory.createEmptyBorder(5, 6, 5, 6));
         add(buildLoggedInView(), "logged-in");
         add(buildLoggedOutView(), "logged-out");
-        cardLayout.show(this, copilotLoginManager.isLoggedIn() ? "logged-in" : "logged-out");
+        cardLayout.show(this, copilotLoginRS.get().isLoggedIn() ? "logged-in" : "logged-out");
 
     }
 
@@ -77,7 +74,7 @@ public class MainPanel extends PluginPanel {
             SwingUtilities.invokeLater(this::refresh);
             return;
         }
-        if (copilotLoginManager.isLoggedIn()) {
+        if (copilotLoginRS.get().isLoggedIn()) {
             showLoggedInView();
             copilotPanel.refresh();
         } else {
@@ -129,7 +126,7 @@ public class MainPanel extends PluginPanel {
         if (isLoggedIn) {
             BufferedImage icon = ImageUtil.loadImageResource(getClass(), UIUtilities.logoutIcon);
             JLabel logout = buildButton(icon, "Log out", () -> {
-                copilotLoginController.onLogout();
+                copilotLoginRS.clear();
                 showLoggedOutView();
             });
             topBar.add(logout);

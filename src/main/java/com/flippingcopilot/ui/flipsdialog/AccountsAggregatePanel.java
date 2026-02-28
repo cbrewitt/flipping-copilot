@@ -2,8 +2,8 @@ package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.components.IntervalDropdown;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +28,7 @@ public class AccountsAggregatePanel extends JPanel {
 
     private static final NumberFormat GP_FORMAT = NumberFormat.getNumberInstance(Locale.US);
     // dependencies
-    private final CopilotLoginManager copilotLoginManager;
+    private final CopilotLoginRS copilotLoginRS;
     private final ApiRequestHandler apiRequestHandler;
     private final FlipManager flipManager;
     private final ExecutorService executorService;
@@ -50,16 +50,16 @@ public class AccountsAggregatePanel extends JPanel {
     private JPanel spinnerOverlay;
 
     public AccountsAggregatePanel(FlipManager flipsManager,
-                                  CopilotLoginManager copilotLoginManager,
+                                  CopilotLoginRS copilotLoginRS,
                                   @Named("copilotExecutor") ExecutorService executorService,
                                   FlippingCopilotConfig config, ApiRequestHandler apiRequestHandler, FlipManager flipManager) {
-        this.copilotLoginManager = copilotLoginManager;
+        this.copilotLoginRS = copilotLoginRS;
         this.apiRequestHandler = apiRequestHandler;
         this.flipManager = flipManager;
         this.executorService = executorService;
 
         // Initialize sort and filter
-        sortAndFilter = new AccountsAggregateFilterSort(flipsManager, copilotLoginManager,
+        sortAndFilter = new AccountsAggregateFilterSort(flipsManager, copilotLoginRS,
                 this::showAggregates, this::setSpinnerVisible, executorService);
 
         setLayout(new BorderLayout());
@@ -265,7 +265,7 @@ public class AccountsAggregatePanel extends JPanel {
                 setSpinnerVisible(true);
                 log.info("Deleting account: {}", a.getAccountId());
                 Runnable onSuccess = () -> {
-                    copilotLoginManager.removeAccount(a.getAccountId());
+                    copilotLoginRS.removeAccount(a.getAccountId());
                     executorService.submit(() -> flipManager.deleteAccount(a.getAccountId()));
                     setSpinnerVisible(false);
                     sortAndFilter.reloadAggregates(true);

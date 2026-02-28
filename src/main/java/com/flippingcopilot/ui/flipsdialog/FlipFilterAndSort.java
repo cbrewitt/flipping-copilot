@@ -1,11 +1,11 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.manager.CopilotLoginManager;
 import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.FlipV2;
 import com.flippingcopilot.model.IntervalTimeUnit;
 import com.flippingcopilot.model.SortDirection;
+import com.flippingcopilot.rs.CopilotLoginRS;
 import joptsimple.internal.Strings;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +50,7 @@ public class FlipFilterAndSort {
     private final Consumer<Integer> totalPagesChangedCallback;
     private final Consumer<Boolean> slowLoadingCallback;
     private final ExecutorService executorService;
-    private final CopilotLoginManager copilotLoginManager;
+    private final CopilotLoginRS copilotLoginRS;
     private final ItemController itemController;
 
     // state
@@ -80,14 +80,14 @@ public class FlipFilterAndSort {
                              Consumer<Integer> totalPagesChangedCallback,
                              Consumer<Boolean> slowLoadingCallback,
                              @Named("copilotExecutor") ExecutorService executorService,
-                             CopilotLoginManager copilotLoginManager, ItemController itemController) {
+                             CopilotLoginRS copilotLoginRS, ItemController itemController) {
         this.flipManager = flipManager;
 
         this.flipsCallback = flipsCallback;
         this.totalPagesChangedCallback = totalPagesChangedCallback;
         this.slowLoadingCallback = slowLoadingCallback;
         this.executorService = executorService;
-        this.copilotLoginManager = copilotLoginManager;
+        this.copilotLoginRS = copilotLoginRS;
         this.itemController = itemController;
     }
 
@@ -250,7 +250,7 @@ public class FlipFilterAndSort {
     }
 
     private String toCSVRow(FlipV2 f) {
-        Map<Integer, String> accountIdToDisplayName = copilotLoginManager.accountIDToDisplayNameMap();
+        Map<Integer, String> accountIdToDisplayName = copilotLoginRS.get().accountIdToDisplayName;
         long profitPerItem = f.getClosedQuantity() > 0 ? f.getProfit() / f.getClosedQuantity() : 0L;
 
         return String.join(",",
