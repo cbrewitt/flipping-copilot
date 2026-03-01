@@ -366,6 +366,9 @@ public class FlippingCopilotPlugin extends Plugin {
 					highlightController.redraw();
 				});
 			}
+			if (event.getKey().equals("sidebarGraphEnabled") || event.getKey().equals("sidebarGraphMinutesBefore") || event.getKey().equals("sidebarGraphMinutesAfter")) {
+				clientThread.invokeLater(() -> mainPanel.copilotPanel.refresh());
+			}
 		}
 	}
 

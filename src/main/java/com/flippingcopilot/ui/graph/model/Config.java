@@ -26,6 +26,12 @@ public class Config {
     public static final Stroke DOTTED_STROKE = new BasicStroke(
             1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{5}, 0
     );
+    /** Thicker stroke for sidebar graph lines (better visibility when small). */
+    public static final Stroke SIDEBAR_LINE_STROKE = new BasicStroke(2f);
+    /** Thicker dashed stroke for sidebar suggested price line. */
+    public static final Stroke SIDEBAR_DOTTED_STROKE = new BasicStroke(
+            2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{6}, 0
+    );
     public static final Stroke GRID_STROKE = new BasicStroke(
             0.8f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{3}, 0
     );
@@ -53,4 +59,20 @@ public class Config {
     public Color textColor = new Color(225, 225, 225);
     public Color axisColor = new Color(150, 150, 150);
     public Color gridColor = new Color(85, 85, 85, 90);
+
+    /** Brighter grid/axis for small sidebar graph (easier to read). */
+    public static final Color SIDEBAR_GRID_COLOR = new Color(120, 120, 120);
+    public static final Color SIDEBAR_AXIS_COLOR = new Color(200, 200, 200);
+    /** Slightly lighter plot area for sidebar so grid lines stand out. */
+    public static final Color SIDEBAR_PLOT_AREA_COLOR = new Color(55, 55, 55);
+    /** High-contrast orange for sidebar high/sell series (easier to see when small). */
+    public static final Color SIDEBAR_HIGH_COLOR = new Color(255, 140, 0);
+    /** High-contrast blue for sidebar low/buy series. */
+    public static final Color SIDEBAR_LOW_COLOR = new Color(70, 180, 255);
+    /** Bright suggested price line in sidebar (stands out from grid). */
+    public static final Color SIDEBAR_SUGGESTED_PRICE_LINE_COLOR = new Color(180, 255, 100);
+    /** Brighter axis label text in sidebar. */
+    public static final Color SIDEBAR_TEXT_COLOR = new Color(240, 240, 240);
+    /** Thicker grid stroke for sidebar (solid, more visible). */
+    public static final Stroke SIDEBAR_GRID_STROKE = new BasicStroke(1f);
 }

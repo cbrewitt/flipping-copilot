@@ -63,11 +63,11 @@ public class SuggestionController {
         if (pausedManager.isPaused()) {
             pausedManager.setPaused(false);
             suggestionManager.setSuggestionNeeded(true);
-            suggestionPanel.refresh();
+            copilotPanel.refresh();
         } else {
             pausedManager.setPaused(true);
             highlightController.removeAll();
-            suggestionPanel.refresh();
+            copilotPanel.refresh();
         }
     }
 
@@ -151,7 +151,11 @@ public class SuggestionController {
         suggestionManager.setGraphDataReadingInProgress(!skipGraphData);
         Consumer<Suggestion> suggestionConsumer = (newSuggestion) -> handleSuggestionReceived(oldSuggestion, newSuggestion, accountStatus);
         Consumer<Data> graphDataConsumer = (d) -> {
-            SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.setSuggestionPriceData(d));
+            SwingUtilities.invokeLater(() -> {
+                suggestionManager.setSuggestionGraphData(d);
+                flipDialogController.priceGraphPanel.setSuggestionPriceData(d);
+                copilotPanel.refresh();
+            });
             suggestionManager.setGraphDataReadingInProgress(false);
         };
         Consumer<HttpResponseException> onFailure = (e) -> {
@@ -164,10 +168,10 @@ public class SuggestionController {
                 mainPanel.refresh();
                 loginPanel.showLoginErrorMessage("Login timed out. Please log in again");
             } else {
-                suggestionPanel.refresh();
+                copilotPanel.refresh();
             }
         };
-        suggestionPanel.refresh();
+        copilotPanel.refresh();
         log.debug("tick {} getting suggestion", client.getTickCount());
         apiRequestHandler.getSuggestionAsync(accountStatus.toJson(gson, grandExchange.isOpen(), config.priceGraphWebsite() == FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT), suggestionConsumer, graphDataConsumer, onFailure, skipGraphData);
     }
@@ -205,7 +209,7 @@ public class SuggestionController {
         log.debug("Received suggestion: {}", newSuggestion.toString());
         accountStatusManager.resetSkipSuggestion();
         offerManager.setOfferJustPlaced(false);
-        suggestionPanel.refresh();
+        copilotPanel.refresh();
         showNotifications(oldSuggestion, newSuggestion, accountStatus);
         if (!newSuggestion.isWaitSuggestion()) {
             SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.newSuggestedItemId(
