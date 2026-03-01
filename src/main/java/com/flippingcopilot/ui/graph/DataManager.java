@@ -111,6 +111,35 @@ public class DataManager {
         return b;
     }
 
+    /**
+     * Bounds for the sidebar graph: from (now - minutesBefore) to (now + minutesAfter).
+     * Minutes are clamped to 1–180.
+     */
+    public Bounds calculateSidebarBounds(int minutesBefore, int minutesAfter) {
+        int before = Math.max(1, Math.min(180, minutesBefore));
+        int after = Math.max(1, Math.min(180, minutesAfter));
+        int now = (int) Instant.now().getEpochSecond();
+        int xMin = now - before * 60;
+        int xMax = now + after * 60;
+        Bounds b = calculateBounds((p) -> p.time >= xMin && p.time <= xMax);
+        b.xMin = xMin;
+        b.xMax = xMax;
+        if (b.yMin > b.yMax) {
+            b.yMin = maxBounds.yMin;
+            b.yMax = maxBounds.yMax;
+        }
+        return b;
+    }
+
+    /**
+     * Bounds for a compact "last hour + 1 hour ahead" view (e.g. sidebar).
+     * @deprecated Use {@link #calculateSidebarBounds(int, int)} with config values.
+     */
+    @Deprecated
+    public Bounds calculateLastHourBounds() {
+        return calculateSidebarBounds(60, 60);
+    }
+
     public Bounds calculateMonthBounds() {
         Bounds b = calculateBounds((p) -> p.time > maxBounds.xMax - 30 * Constants.DAY_SECONDS);
         b.xMin= ((b.xMin) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS;

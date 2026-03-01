@@ -10,11 +10,22 @@ import java.awt.event.*;
 public class GraphPanel extends JPanel {
 
     private final PriceGraphConfigManager configManager;
+    private final boolean sidebarMode;
     public DataManager dataManager;
     private final RenderV2 renderer;
     public final ZoomHandler zoomHandler;
     private final DatapointTooltip tooltip;
     private PriceLine priceLine;
+
+    /** Used in sidebar mode for time range (minutes before/after now). */
+    private int sidebarMinutesBefore = 60;
+    private int sidebarMinutesAfter = 60;
+
+    /** Cached sidebar bounds to avoid recalculating every paint; invalidated when data or time range changes. */
+    private Bounds cachedSidebarBounds;
+    private long cachedSidebarBoundsMinute = -1;
+    private int cachedSidebarMinutesBefore = -1;
+    private int cachedSidebarMinutesAfter = -1;
 
     public Bounds bounds;
 
@@ -25,7 +36,11 @@ public class GraphPanel extends JPanel {
     private Datapoint hoveredPoint = null;
 
     public GraphPanel(PriceGraphConfigManager configManager) {
+        this(configManager, false);
+    }
 
+    public GraphPanel(PriceGraphConfigManager configManager, boolean sidebarMode) {
+        this.sidebarMode = sidebarMode;
         this.configManager = configManager;
         this.renderer = new RenderV2();
         this.zoomHandler = new ZoomHandler();
@@ -33,7 +48,7 @@ public class GraphPanel extends JPanel {
 
         setBackground(configManager.getConfig().backgroundColor);
         setPreferredSize(new Dimension(500, 300));
-        setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
+        setBorder(BorderFactory.createEmptyBorder(0, sidebarMode ? 4 : 10, sidebarMode ? 4 : 10, sidebarMode ? 4 : 10));
         setupMouseListeners();
     }
 
@@ -45,14 +60,28 @@ public class GraphPanel extends JPanel {
         int oldItemID = dataManager == null ? -1 : dataManager.data.itemId;
         dataManager = dm;
         this.priceLine = priceLine;
+        cachedSidebarBounds = null;
         zoomHandler.maxViewBounds = dataManager.maxBounds;
-        zoomHandler.homeViewBounds = dataManager.calculateHomeBounds();
+        if (sidebarMode) {
+            zoomHandler.homeViewBounds = dataManager.calculateSidebarBounds(sidebarMinutesBefore, sidebarMinutesAfter);
+        } else {
+            zoomHandler.homeViewBounds = dataManager.calculateHomeBounds();
+        }
         zoomHandler.weekViewBounds = dataManager.calculateWeekBounds();
         zoomHandler.monthViewBounds = dataManager.calculateMonthBounds();
-        if (oldItemID != dataManager.data.itemId) {
+        if (sidebarMode || oldItemID != dataManager.data.itemId) {
             bounds = zoomHandler.homeViewBounds.copy();
         }
         repaint();
+    }
+
+    /**
+     * Sets the sidebar graph time range (minutes before and after now). Only used when in sidebar mode.
+     */
+    public void setSidebarTimeRange(int minutesBefore, int minutesAfter) {
+        this.sidebarMinutesBefore = minutesBefore;
+        this.sidebarMinutesAfter = minutesAfter;
+        cachedSidebarBounds = null;
     }
 
 
@@ -76,7 +105,7 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mousePressed(MouseEvent e) {
-                if(dataManager == null){
+                if (dataManager == null) {
                     return;
                 }
                 mousePosition = e.getPoint();
@@ -84,50 +113,51 @@ public class GraphPanel extends JPanel {
                     return;
                 }
 
-                if (zoomHandler.isOverHomeButton(mousePosition)) {
-                    zoomHandler.applyHomeView(bounds);
-                    repaint();
-                    return;
+                if (!sidebarMode) {
+                    if (zoomHandler.isOverHomeButton(mousePosition)) {
+                        zoomHandler.applyHomeView(bounds);
+                        repaint();
+                        return;
+                    }
+                    if (zoomHandler.isOverMaxButton(mousePosition)) {
+                        zoomHandler.applyMaxView(bounds);
+                        repaint();
+                        return;
+                    }
+                    if (zoomHandler.isOverZoomInButton(mousePosition)) {
+                        zoomHandler.applyZoomIn(bounds);
+                        repaint();
+                        return;
+                    }
+                    if (zoomHandler.isOverZoomOutButton(mousePosition)) {
+                        zoomHandler.applyZoomOut(bounds);
+                        repaint();
+                        return;
+                    }
+                    if (zoomHandler.isOverWeekButton(mousePosition)) {
+                        zoomHandler.applyWeekView(bounds);
+                        repaint();
+                        return;
+                    }
+                    if (zoomHandler.isOverMonthButton(mousePosition)) {
+                        zoomHandler.applyMonthView(bounds);
+                        repaint();
+                        return;
+                    }
+                    zoomHandler.startSelection(mousePosition);
+                    setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
                 }
-                if (zoomHandler.isOverMaxButton(mousePosition)) {
-                    zoomHandler.applyMaxView(bounds);
-                    repaint();
-                    return;
-                }
-                if (zoomHandler.isOverZoomInButton(mousePosition)) {
-                    zoomHandler.applyZoomIn(bounds);
-                    repaint();
-                    return;
-                }
-                if (zoomHandler.isOverZoomOutButton(mousePosition)) {
-                    zoomHandler.applyZoomOut(bounds);
-                    repaint();
-                    return;
-                }
-                if (zoomHandler.isOverWeekButton(mousePosition)) {
-                    zoomHandler.applyWeekView(bounds);
-                    repaint();
-                    return;
-                }
-                if (zoomHandler.isOverMonthButton(mousePosition)) {
-                    zoomHandler.applyMonthView(bounds);
-                    repaint();
-                    return;
-                }
-
-                zoomHandler.startSelection(mousePosition);
                 hoveredPoint = null;
-                setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
                 repaint();
             }
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                if(dataManager == null){
+                if (dataManager == null) {
                     return;
                 }
                 mousePosition = e.getPoint();
-                if (zoomHandler.isSelecting()) {
+                if (!sidebarMode && zoomHandler.isSelecting()) {
                     zoomHandler.setSelectionEnd(mousePosition);
                     repaint();
                 }
@@ -135,11 +165,11 @@ public class GraphPanel extends JPanel {
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                if(dataManager == null){
+                if (dataManager == null) {
                     return;
                 }
                 mousePosition = e.getPoint();
-                if (zoomHandler.isSelecting()) {
+                if (!sidebarMode && zoomHandler.isSelecting()) {
                     setCursor(Cursor.getDefaultCursor());
                     zoomHandler.setSelectionEnd(mousePosition);
                     zoomHandler.applySelection(pricePa, bounds);
@@ -167,24 +197,38 @@ public class GraphPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
+        final int leftPadding = sidebarMode ? 36 : 80;
+        final int topPadding = sidebarMode ? 8 : 50;
+        final int rightPadding = sidebarMode ? 6 : 20;
+        final int bottomPadding = sidebarMode ? 20 : 50;
 
-        final int leftPadding = 80;
-        final int topPadding = 50;
-        final int rightPadding = 20;
-        final int bottomPadding = 50;
-        
         int w = getWidth() - leftPadding - rightPadding;
         int ah = getHeight() - topPadding - bottomPadding;
-        int h1 = (int) (ah * 0.75);
+        int h1 = sidebarMode ? ah : (int) (ah * 0.75);
         int h2 = ah - h1;
-        
+
         pricePa = new Rectangle(leftPadding, topPadding, w, h1);
-        volumePa = new Rectangle(leftPadding, topPadding+h1, w, h2);
-        if(dataManager == null) {
+        volumePa = new Rectangle(leftPadding, topPadding + h1, w, h2);
+        if (dataManager == null) {
             return;
         }
         Data data = dataManager.getData();
         if (data == null) return;
+
+        if (sidebarMode) {
+            long nowMinute = System.currentTimeMillis() / 60000;
+            if (cachedSidebarBounds == null || cachedSidebarBoundsMinute != nowMinute
+                    || cachedSidebarMinutesBefore != sidebarMinutesBefore || cachedSidebarMinutesAfter != sidebarMinutesAfter) {
+                bounds = dataManager.calculateSidebarBounds(sidebarMinutesBefore, sidebarMinutesAfter).copy();
+                cachedSidebarBounds = bounds.copy();
+                cachedSidebarBoundsMinute = nowMinute;
+                cachedSidebarMinutesBefore = sidebarMinutesBefore;
+                cachedSidebarMinutesAfter = sidebarMinutesAfter;
+            } else {
+                bounds = cachedSidebarBounds.copy();
+            }
+        }
+
         Config config = configManager.getConfig();
         setBackground(config.backgroundColor);
         Graphics2D g2d = (Graphics2D) g;
@@ -192,92 +236,119 @@ public class GraphPanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-        // First draw the legend above the plot area
-        renderer.drawLegend(g2d, config, pricePa, data.predictionTimes != null);
+        if (!sidebarMode) {
+            renderer.drawLegend(g2d, config, pricePa, data.predictionTimes != null);
+        }
 
         // Draw the plot area background with dynamic padding
-        g2d.setColor(config.plotAreaColor);
+        g2d.setColor(sidebarMode ? Config.SIDEBAR_PLOT_AREA_COLOR : config.plotAreaColor);
         g2d.fillRect(pricePa.x, pricePa.y, pricePa.width, pricePa.height);
-        g2d.fillRect(volumePa.x, volumePa.y,  volumePa.width, volumePa.height);
-        
+        if (!sidebarMode) {
+            g2d.fillRect(volumePa.x, volumePa.y, volumePa.width, volumePa.height);
+        }
+
         TimeAxis xAxis = AxisCalculator.calculateTimeAxis(bounds, AxisCalculator.getLocalTimeOffsetSeconds());
-        YAxis yAxis = AxisCalculator.calculatePriceAxis(bounds);
+        YAxis yAxis = AxisCalculator.calculatePriceAxis(bounds, sidebarMode ? 5 : 18);
         YAxis y2Axis = AxisCalculator.calculateVolumeAxis(bounds);
 
-        renderer.drawGrid(g2d, config, pricePa, bounds, bounds::toY, xAxis, yAxis);
-        renderer.drawGrid(g2d, config, volumePa, bounds, bounds:: toY2, xAxis, y2Axis);
-        renderer.drawAxes(g2d, config, pricePa);
-        renderer.drawYAxisLabels(g2d, config, pricePa, bounds::toY, yAxis, false);
-        renderer.drawAxes(g2d, config, volumePa);
-        renderer.drawYAxisLabels(g2d, config, volumePa, bounds::toY2, y2Axis, true);
-        renderer.drawXAxisLabels(g2d, config, volumePa, bounds, xAxis);
-
+        renderer.drawGrid(g2d, config, pricePa, bounds, bounds::toY, xAxis, yAxis,
+                sidebarMode ? Config.SIDEBAR_GRID_COLOR : null,
+                sidebarMode ? Config.SIDEBAR_GRID_STROKE : null);
+        if (!sidebarMode) {
+            renderer.drawGrid(g2d, config, volumePa, bounds, bounds::toY2, xAxis, y2Axis);
+        }
+        renderer.drawAxes(g2d, config, pricePa, sidebarMode ? Config.SIDEBAR_AXIS_COLOR : null);
+        float axisFontSize = sidebarMode ? 12f : Config.FONT_SIZE;
+        Color axisLabelColor = sidebarMode ? Config.SIDEBAR_TEXT_COLOR : null;
+        renderer.drawYAxisLabels(g2d, config, pricePa, bounds::toY, yAxis, false, axisFontSize, axisLabelColor);
+        if (!sidebarMode) {
+            renderer.drawAxes(g2d, config, volumePa);
+            renderer.drawYAxisLabels(g2d, config, volumePa, bounds::toY2, y2Axis, true);
+        }
+        renderer.drawXAxisLabels(g2d, config, sidebarMode ? pricePa : volumePa, bounds, xAxis, axisFontSize, axisLabelColor);
 
         int pointSize = dynamicPointSize(Config.BASE_POINT_SIZE, bounds);
-        renderer.drawPoints(g2d, pricePa, bounds, dataManager.lowDatapoints, config.lowColor, pointSize);
-        renderer.drawPoints(g2d, pricePa, bounds, dataManager.highDatapoints, config.highColor, pointSize);
-        if (config.connectPoints) {
-            renderer.drawLines(g2d, pricePa, bounds, dataManager.lowDatapoints, config.lowColor, Config.NORMAL_STROKE);
-            renderer.drawLines(g2d, pricePa, bounds, dataManager.highDatapoints, config.highColor, Config.NORMAL_STROKE);
+        if (sidebarMode) {
+            pointSize = Math.max(pointSize, 6);
+        }
+        Color highColor = sidebarMode ? Config.SIDEBAR_HIGH_COLOR : config.highColor;
+        Color lowColor = sidebarMode ? Config.SIDEBAR_LOW_COLOR : config.lowColor;
+        renderer.drawPoints(g2d, pricePa, bounds, dataManager.lowDatapoints, lowColor, pointSize);
+        renderer.drawPoints(g2d, pricePa, bounds, dataManager.highDatapoints, highColor, pointSize);
+        Stroke dataLineStroke = sidebarMode ? Config.SIDEBAR_LINE_STROKE : Config.NORMAL_STROKE;
+        if (config.connectPoints || sidebarMode) {
+            renderer.drawLines(g2d, pricePa, bounds, dataManager.lowDatapoints, lowColor, dataLineStroke);
+            renderer.drawLines(g2d, pricePa, bounds, dataManager.highDatapoints, highColor, dataLineStroke);
         }
         renderer.drawStartPoints(g2d, pricePa, bounds, dataManager.buyPriceDataPoint(), Color.WHITE, pointSize);
         renderer.drawStartPoints(g2d, pricePa, bounds, dataManager.sellPriceDataPoint(), Color.WHITE, pointSize);
         if (config.showSuggestedPriceLines) {
-            drawSuggestedPriceLine(g2d, config);
+            drawSuggestedPriceLine(g2d, config, axisFontSize);
         }
 
-        renderer.drawLines(g2d, pricePa, bounds, dataManager.predictionLowDatapoints, config.lowColor, Config.DOTTED_STROKE);
-        renderer.drawLines(g2d, pricePa, bounds, dataManager.predictionHighDatapoints, config.highColor, Config.DOTTED_STROKE);
-        if(data.predictionTimes != null) {
+        renderer.drawLines(g2d, pricePa, bounds, dataManager.predictionLowDatapoints,
+                sidebarMode ? Config.SIDEBAR_LOW_COLOR : config.lowColor,
+                sidebarMode ? Config.SIDEBAR_LINE_STROKE : Config.DOTTED_STROKE);
+        renderer.drawLines(g2d, pricePa, bounds, dataManager.predictionHighDatapoints,
+                sidebarMode ? Config.SIDEBAR_HIGH_COLOR : config.highColor,
+                sidebarMode ? Config.SIDEBAR_LINE_STROKE : Config.DOTTED_STROKE);
+        if (data.predictionTimes != null && !sidebarMode) {
             renderer.drawPredictionIQR(g2d, config, pricePa, bounds, data.predictionTimes, data.predictionLowIQRLower, data.predictionLowIQRUpper, true);
             renderer.drawPredictionIQR(g2d, config, pricePa, bounds, data.predictionTimes, data.predictionHighIQRLower, data.predictionHighIQRUpper, false);
         }
-        zoomHandler.drawButtons(g2d, pricePa, mousePosition);
-        zoomHandler.drawSelectionRectangle(g2d, pricePa);
+        if (!sidebarMode) {
+            zoomHandler.drawButtons(g2d, pricePa, mousePosition);
+            zoomHandler.drawSelectionRectangle(g2d, pricePa);
+            renderer.drawVolumeBars(g2d, config, volumePa, bounds, dataManager.volumes, hoveredPoint);
+        }
 
-        renderer.drawVolumeBars(g2d, config, volumePa, bounds, dataManager.volumes, hoveredPoint);
-
-
-        if(!this.dataManager.flipEntryDatapoints.isEmpty()) {
+        if (!this.dataManager.flipEntryDatapoints.isEmpty()) {
             renderer.drawTxsDatapoints(g2d, pricePa, bounds, this.dataManager.flipEntryDatapoints, hoveredPoint, config);
         }
 
-        if(!this.dataManager.flipCloseDatapoints.isEmpty()) {
+        if (!this.dataManager.flipCloseDatapoints.isEmpty()) {
             renderer.drawTxsDatapoints(g2d, pricePa, bounds, this.dataManager.flipCloseDatapoints, hoveredPoint, config);
         }
 
         // Draw tooltip for hovered point
         if (hoveredPoint != null) {
-            if (hoveredPoint.type == Datapoint.Type.VOLUME_1H) {
+            if (!sidebarMode && hoveredPoint.type == Datapoint.Type.VOLUME_1H) {
                 tooltip.drawVolume(g2d, config, volumePa, bounds, hoveredPoint);
-            } else {
+            } else if (hoveredPoint.type != Datapoint.Type.VOLUME_1H) {
                 tooltip.draw(g2d, config, pricePa, bounds, hoveredPoint);
             }
         }
     }
 
-    private void drawSuggestedPriceLine(Graphics2D g2d, Config config) {
+    private void drawSuggestedPriceLine(Graphics2D g2d, Config config, float labelFontSize) {
         if (priceLine == null) {
             return;
         }
         int y = bounds.toY(pricePa, priceLine.getPrice());
-        g2d.setColor(Color.WHITE);
+        g2d.setColor(sidebarMode ? Config.SIDEBAR_SUGGESTED_PRICE_LINE_COLOR : Color.WHITE);
         Stroke previousStroke = g2d.getStroke();
-        g2d.setStroke(Config.DOTTED_STROKE);
+        g2d.setStroke(sidebarMode ? Config.SIDEBAR_DOTTED_STROKE : Config.DOTTED_STROKE);
         g2d.drawLine(pricePa.x, y, pricePa.x + pricePa.width, y);
         g2d.setStroke(previousStroke);
 
+        if (sidebarMode) {
+            return;
+        }
         String label = priceLine.getMessage();
         if (label == null || label.isBlank()) {
             return;
         }
+        Font prevFont = g2d.getFont();
+        g2d.setFont(prevFont.deriveFont(labelFontSize));
         FontMetrics metrics = g2d.getFontMetrics();
         int labelWidth = metrics.stringWidth(label);
-        int labelX = pricePa.x + pricePa.width - labelWidth - Config.LABEL_PADDING;
+        int padding = Config.LABEL_PADDING;
+        int labelX = pricePa.x + pricePa.width - labelWidth - padding;
         int labelY = priceLine.isTextAbove()
-                ? Math.max(pricePa.y + metrics.getAscent(), y - (Config.LABEL_PADDING / 2))
-                : Math.min(pricePa.y + pricePa.height - Config.LABEL_PADDING, y + metrics.getAscent() + (Config.LABEL_PADDING / 2));
+                ? Math.max(pricePa.y + metrics.getAscent(), y - (padding / 2))
+                : Math.min(pricePa.y + pricePa.height - padding, y + metrics.getAscent() + (padding / 2));
         g2d.drawString(label, labelX, labelY);
+        g2d.setFont(prevFont);
     }
 
     private int dynamicPointSize(int baseSize, Bounds bounds) {

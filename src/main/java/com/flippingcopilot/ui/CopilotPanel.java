@@ -1,5 +1,7 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
+
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.*;
@@ -11,14 +13,20 @@ public class CopilotPanel extends JPanel {
     public final SuggestionPanel suggestionPanel;
     public final StatsPanelV2 statsPanel;
     public final ControlPanel controlPanel;
+    public final SidebarGraphPanel sidebarGraphPanel;
+    private final FlippingCopilotConfig config;
 
     @Inject
     public CopilotPanel(SuggestionPanel suggestionPanel,
                         StatsPanelV2 statsPanel,
-                        ControlPanel controlPanel) {
+                        ControlPanel controlPanel,
+                        SidebarGraphPanel sidebarGraphPanel,
+                        FlippingCopilotConfig config) {
         this.statsPanel = statsPanel;
         this.suggestionPanel = suggestionPanel;
         this.controlPanel = controlPanel;
+        this.sidebarGraphPanel = sidebarGraphPanel;
+        this.config = config;
 
         setLayout(new BorderLayout());
 
@@ -28,7 +36,10 @@ public class CopilotPanel extends JPanel {
         topPanel.add(Box.createRigidArea(new Dimension(MainPanel.CONTENT_WIDTH, 5)));
         topPanel.add(controlPanel);
         topPanel.add(Box.createRigidArea(new Dimension(MainPanel.CONTENT_WIDTH, 5)));
+        topPanel.add(sidebarGraphPanel);
+        topPanel.add(Box.createRigidArea(new Dimension(MainPanel.CONTENT_WIDTH, 5)));
 
+        sidebarGraphPanel.setVisible(config.sidebarGraphEnabled());
         add(topPanel, BorderLayout.NORTH);
         add(statsPanel, BorderLayout.CENTER);
     }
@@ -39,7 +50,9 @@ public class CopilotPanel extends JPanel {
             SwingUtilities.invokeLater(this::refresh);
             return;
         }
+        sidebarGraphPanel.setVisible(config.sidebarGraphEnabled());
         suggestionPanel.refresh();
         controlPanel.refresh();
+        sidebarGraphPanel.refresh();
     }
 }
