@@ -104,11 +104,22 @@ public interface FlippingCopilotConfig extends Config
         return false;
     }
     @ConfigItem(
+            keyName = "slotActionSwap",
+            name = "Swap slot left-click action",
+            description = "Automatically set the left-click option on GE slots to match the suggested action (e.g. Abort offer)",
+            section = offerSetupSection,
+            position = 2
+    )
+    default boolean slotActionSwap() {
+        return false;
+    }
+
+    @ConfigItem(
             keyName = "misClickProtection",
             name = "Mis-click prevention",
             description = "Require right click to confirm when price/quantity set incorrectly",
             section = offerSetupSection,
-            position = 2
+            position = 3
     )
     default boolean disableLeftClickConfirm()
     {
@@ -120,7 +131,7 @@ public interface FlippingCopilotConfig extends Config
             name = "Price/quantity set keybind",
             description = "Keybind to quickly set the price or quantity of a GE offer to the suggested value",
             section = offerSetupSection,
-            position = 3
+            position = 4
     )
     default Keybind quickSetKeybind()
     {
