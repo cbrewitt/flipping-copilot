@@ -71,8 +71,11 @@ public class SuggestionPanel extends JPanel {
     private String innerSuggestionMessage;
     private String highlightedColor = "yellow";
 
-    @Setter
     private String serverMessage = "";
+
+    public void setServerMessage(String serverMessage) {
+        this.serverMessage = serverMessage == null ? "" : serverMessage;
+    }
 
 
     @Inject
@@ -262,7 +265,9 @@ public class SuggestionPanel extends JPanel {
             if(s != null) {
                 s.actionedTick = client.getTickCount();
             }
-            accountStatusManager.setSkipSuggestion(s != null ? s.getId() : -1);
+            int idToSkip = s != null ? s.getId() : -1;
+            log.info("skipping suggestion {}", idToSkip);
+            accountStatusManager.setSkipSuggestion(idToSkip);
             suggestionManager.setSuggestionNeeded(true);
         });
         centerPanel.add(skipButton);
@@ -292,19 +297,23 @@ public class SuggestionPanel extends JPanel {
         String suggestionString = "<html><center>";
         suggestionTextContainer.setVisible(false);
         additionalInfoText.setText("");
-        switch (suggestion.getType()) {
-            case "wait":
+        SuggestionType suggestionType = suggestion.getType();
+        if (suggestionType == null) {
+            suggestionString += "Error processing suggestion<br>";
+        } else {
+        switch (suggestionType) {
+            case WAIT:
                 suggestionString += "Wait <br>";
                 suggestionIcon.setVisible(false);
                 break;
-            case "abort":
+            case ABORT:
                 suggestionString += "Abort offer for<br><FONT COLOR=white>" + suggestion.getName() + "<br></FONT>";
                 setItemIcon(suggestion.getItemId());
                 break;
-            case "buy":
-            case "sell":
-            case "modify_buy":
-            case "modify_sell":
+            case BUY:
+            case SELL:
+            case MODIFY_BUY:
+            case MODIFY_SELL:
                 String action = suggestion.isBuySuggestion() ? "Buy" : "Sell";
                 if (suggestion.isModifySuggestion()) {
                     suggestionString += "Modify " + action.toLowerCase() +
@@ -321,6 +330,7 @@ public class SuggestionPanel extends JPanel {
                 break;
             default:
                 suggestionString += "Error processing suggestion<br>";
+        }
         }
         String additionalInfoMessage = Strings.isNullOrEmpty(suggestion.getMessage()) ? "" : "<br>" + suggestion.getMessage();
 

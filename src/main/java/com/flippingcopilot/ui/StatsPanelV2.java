@@ -163,6 +163,7 @@ public class StatsPanelV2 extends JPanel {
         flipsDialogButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+                log.debug("opening flips dialog");
                 flipsDialogController.showFlipsTab();
             }
             @Override

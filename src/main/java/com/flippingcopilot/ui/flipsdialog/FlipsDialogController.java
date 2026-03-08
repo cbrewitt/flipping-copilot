@@ -3,6 +3,7 @@ package com.flippingcopilot.ui.flipsdialog;
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
+import com.flippingcopilot.controller.PortfolioController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
@@ -10,6 +11,7 @@ import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.ui.graph.model.PriceLine;
 import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.inject.Inject;
@@ -34,6 +36,8 @@ public class FlipsDialogController {
     private final OsrsLoginManager osrsLoginManager;
     private final SuggestionManager suggestionManager;
     private final OsrsLoginRS osrsLoginRS;
+    private final PortfolioController portfolioController;
+    private final ClientThread clientThread;
 
     public PriceGraphPanel priceGraphPanel;
     private JTabbedPane tabbedPane;
@@ -49,7 +53,11 @@ public class FlipsDialogController {
             CopilotLoginRS copilotLoginRS,
             FlippingCopilotConfig config,
             ApiRequestHandler apiRequestHandler,
-            PriceGraphConfigManager priceGraphConfigManager, OsrsLoginManager osrsLoginManager, SuggestionManager suggestionManager, OsrsLoginRS osrsLoginRS) {
+            PriceGraphConfigManager priceGraphConfigManager,
+            OsrsLoginManager osrsLoginManager,
+            SuggestionManager suggestionManager,
+            OsrsLoginRS osrsLoginRS,
+            PortfolioController portfolioController, ClientThread clientThread) {
         this.itemController = itemController;
         this.flipsManager = flipsManager;
         this.executorService = executorService;
@@ -61,6 +69,8 @@ public class FlipsDialogController {
         this.osrsLoginManager = osrsLoginManager;
         this.suggestionManager = suggestionManager;
         this.osrsLoginRS = osrsLoginRS;
+        this.portfolioController = portfolioController;
+        this.clientThread = clientThread;
     }
 
     public void initDialog(Window windowAncestor) {
@@ -77,7 +87,7 @@ public class FlipsDialogController {
             flipsPanel = new FlipsPanel(osrsLoginRS, flipsManager, itemController, copilotLoginRS,
                     executorService, config, apiRequestHandler, (f) -> {
                 visualizeFlipPanel.showFlipVisualization(f);
-                tabbedPane.setSelectedIndex(6);
+                tabbedPane.setSelectedIndex(7);
             });
             ItemAggregatePanel itemsPanel = new ItemAggregatePanel(flipsManager, itemController,
                     copilotLoginRS, executorService, config);
@@ -85,6 +95,7 @@ public class FlipsDialogController {
                     executorService, config, apiRequestHandler, flipsManager);
             ProfitPanel profitPanel = new ProfitPanel(flipsManager, executorService, sessionManager,
                     copilotLoginRS, config);
+            PortfolioPanel portfolioPanel = new PortfolioPanel(portfolioController, itemController, config, osrsLoginRS, clientThread);
             TransactionsPanel transactionsPanel = new TransactionsPanel(copilotLoginRS, itemController,
                     executorService, apiRequestHandler, config, flipsManager);
             priceGraphPanel = new PriceGraphPanel(
@@ -100,6 +111,7 @@ public class FlipsDialogController {
             tabbedPane.addTab("Items", itemsPanel);
             tabbedPane.addTab("Accounts", accountsPanel);
             tabbedPane.addTab("Profit graph", profitPanel);
+            tabbedPane.addTab("Portfolio", portfolioPanel);
             tabbedPane.addTab("Transactions", transactionsPanel);
             tabbedPane.addTab("Price graph", priceGraphPanel);
             tabbedPane.addTab("Visualize flip", visualizeFlipPanel);
@@ -126,9 +138,12 @@ public class FlipsDialogController {
                     case 3:
                         profitPanel.refreshGraph(true);
                     case 4:
-                        transactionsPanel.loadTransactionsIfNeeded();
+                        portfolioPanel.onTabShown();
                         break;
                     case 5:
+                        transactionsPanel.loadTransactionsIfNeeded();
+                        break;
+                    case 6:
                         priceGraphPanel.onTabShown();
                         break;
                 }
@@ -148,7 +163,7 @@ public class FlipsDialogController {
     }
 
     public void showPriceGraphTab(Integer openOnPriceGraphItemId, boolean suggestionPriceGraph, PriceLine priceLine) {
-        tabbedPane.setSelectedIndex(5);
+        tabbedPane.setSelectedIndex(6);
         if(openOnPriceGraphItemId != null) {
             priceGraphPanel.isShowingSuggestionPriceData = false;
             priceGraphPanel.searchBox.setItem(new ItemIdName(openOnPriceGraphItemId, itemController.getItemName(openOnPriceGraphItemId)));

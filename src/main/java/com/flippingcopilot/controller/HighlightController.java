@@ -164,7 +164,7 @@ public class HighlightController {
         boolean itemMatches = s.currentItemId == suggestion.getItemId();
 
         // Prioritise certain dump alert cases
-        if(suggestion.isDumpAlert) {
+        if (suggestion.isDumpSuggestion()) {
             if (!offerTypeMatches || accountStatusManager.getAccountStatus().isCollectNeeded(suggestion, grandExchange.isSetupOfferOpen())) {
                 highlightBackButton(blueHighlight);
             } else if (!s.searchOpen && s.currentItemId != -1 && !itemMatches) {

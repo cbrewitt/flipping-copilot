@@ -31,7 +31,6 @@ public class FlipManager {
 
     public static final Comparator<FlipV2> FLIP_STATUS_TIME_COMPARATOR =
                 Comparator.comparing(FlipV2::isClosed).reversed().thenComparing(f -> f.getClosedTime() > 0 ? f.getClosedTime() : f.getOpenedTime());
-    public static final Comparator<FlipV2> TIME_DESC_COMPARATOR = Comparator.comparing(FlipV2::lastTransactionTime).reversed();
 
     // dependencies
     private final ItemController itemController;
