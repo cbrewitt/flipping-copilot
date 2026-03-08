@@ -12,12 +12,12 @@ import java.util.stream.Collectors;
 public class Inventory extends ArrayList<RSItem> {
 
     boolean hasSufficientGp(Suggestion suggestion) {
-        return !suggestion.getType().equals("buy")
+        return suggestion.getType() != SuggestionType.BUY
                 || getTotalGp() >= (long) suggestion.getPrice() * suggestion.getQuantity();
     }
 
     boolean hasSufficientItems(Suggestion suggestion) {
-        return !suggestion.getType().equals("sell")
+        return suggestion.getType() != SuggestionType.SELL
                 || getTotalAmount(suggestion.getItemId()) >= suggestion.getQuantity();
     }
 
@@ -38,6 +38,9 @@ public class Inventory extends ArrayList<RSItem> {
 
     public static Inventory fromRunelite(ItemContainer inventory, Client client) {
         Inventory unnotedItems = new Inventory();
+        if (inventory == null) {
+            return unnotedItems;
+        }
         Item[] items = inventory.getItems();
         for (Item item : items) {
             if (item.getId() == -1) {
@@ -48,7 +51,7 @@ public class Inventory extends ArrayList<RSItem> {
         return unnotedItems;
     }
 
-    Map<Integer, Long> getItemAmounts() {
+    public Map<Integer, Long> getItemAmounts() {
         return stream().collect(Collectors.groupingBy(RSItem::getId,
                         Collectors.summingLong(RSItem::getAmount)));
     }

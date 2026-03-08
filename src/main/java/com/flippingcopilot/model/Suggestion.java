@@ -2,20 +2,25 @@ package com.flippingcopilot.model;
 
 import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.util.MsgPackUtil;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.ByteBuffer;
 import java.text.NumberFormat;
 import java.time.Instant;
+import java.io.IOException;
 
 @Setter
 @Getter
 @AllArgsConstructor
 @ToString
 @NoArgsConstructor
+@Slf4j
 public class Suggestion {
-    private String type;
+    private SuggestionType type;
     @SerializedName("box_id")
     private int boxId;
     @SerializedName("item_id")
@@ -25,7 +30,7 @@ public class Suggestion {
     private String name;
     @SerializedName("command_id")
     private int id;
-    private String message;
+    private String message = "";
     private Double expectedProfit;
     private Double expectedDuration;
 
@@ -38,29 +43,29 @@ public class Suggestion {
 
 
     public boolean equals(Suggestion other) {
-        return this.type.equals(other.type)
+        return this.type == other.type
                 && this.itemId == other.itemId
                 && this.name.equals(other.name);
     }
 
     public boolean isWaitSuggestion() {
-        return "wait".equals(type);
+        return type == SuggestionType.WAIT;
     }
 
     public boolean isAbortSuggestion() {
-        return "abort".equals(type);
+        return type == SuggestionType.ABORT;
     }
 
     public boolean isBuySuggestion() {
-        return "buy".equals(type) || "modify_buy".equals(type);
+        return type == SuggestionType.BUY || type == SuggestionType.MODIFY_BUY;
     }
 
     public boolean isSellSuggestion() {
-        return "sell".equals(type) || "modify_sell".equals(type);
+        return type == SuggestionType.SELL || type == SuggestionType.MODIFY_SELL;
     }
 
     public boolean isModifySuggestion() {
-        return "modify_buy".equals(type) || "modify_sell".equals(type);
+        return type == SuggestionType.MODIFY_BUY || type == SuggestionType.MODIFY_SELL;
     }
 
     public String offerType() {
@@ -78,33 +83,36 @@ public class Suggestion {
     }
 
     public boolean isDumpSuggestion() {
-        return isDumpAlert;
+        return isDumpAlert && !isAbortSuggestion();
     }
 
     public String toMessage() {
         NumberFormat formatter = NumberFormat.getNumberInstance();
         String string = isDumpAlert ? "DUMP ALERT!! " : "Flipping Copilot: ";
+        if (type == null) {
+            return string + "Unknown suggestion type";
+        }
         switch (type) {
-            case "buy":
+            case BUY:
                 string += String.format("Buy %s %s for %s gp",
                         formatter.format(quantity), name, formatter.format(price));
                 break;
-            case "modify_buy":
+            case MODIFY_BUY:
                 string += String.format("Modify buy offer for %s %s to %s gp",
                         formatter.format(quantity), name, formatter.format(price));
                 break;
-            case "sell":
+            case SELL:
                 string += String.format("Sell %s %s for %s gp",
                         formatter.format(quantity), name, formatter.format(price));
                 break;
-            case "modify_sell":
+            case MODIFY_SELL:
                 string += String.format("Modify sell offer for %s %s to %s gp",
                         formatter.format(quantity), name, formatter.format(price));
                 break;
-            case "abort":
+            case ABORT:
                 string += "Abort " + name;
                 break;
-            case "wait":
+            case WAIT:
                 string += "Wait";
                 break;
             default:
@@ -125,7 +133,7 @@ public class Suggestion {
             String key = (String) MsgPackUtil.decodePrimitive(b);
             switch (key) {
                 case "t":
-                    s.type = (String) MsgPackUtil.decodePrimitive(b);
+                    s.type = SuggestionType.fromApiValue((String) MsgPackUtil.decodePrimitive(b));
                     break;
                 case "b":
                     s.boxId = (int) (long) MsgPackUtil.decodePrimitive(b);
@@ -167,5 +175,82 @@ public class Suggestion {
         }
 
         return s;
+    }
+
+    public static Suggestion decodeProto(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return null;
+        }
+
+        Suggestion suggestion = new Suggestion();
+        try {
+            CodedInputStream input = CodedInputStream.newInstance(bytes);
+            while (!input.isAtEnd()) {
+                int tag = input.readTag();
+                if (tag == 0) {
+                    break;
+                }
+
+                int fieldNumber = WireFormat.getTagFieldNumber(tag);
+                switch (fieldNumber) {
+                    case 2:
+                        suggestion.boxId = input.readInt32();
+                        break;
+                    case 3:
+                        suggestion.type = SuggestionType.fromProtoInt(input.readInt32());
+                        break;
+                    case 4:
+                        suggestion.itemId = input.readInt32();
+                        break;
+                    case 5:
+                        suggestion.quantity = clampToInt(input.readInt64());
+                        break;
+                    case 6:
+                        suggestion.price = clampToInt(input.readInt64());
+                        break;
+                    case 7:
+                        suggestion.id = input.readInt32();
+                        break;
+                    case 11:
+                        suggestion.message = input.readString();
+                        break;
+                    case 12:
+                        suggestion.expectedProfit = input.readDouble();
+                        break;
+                    case 14:
+                        suggestion.isDumpAlert = input.readBool();
+                        break;
+                    case 15:
+                        suggestion.name = input.readString();
+                        break;
+                    case 16:
+                        suggestion.expectedDuration = input.readDouble();
+                        break;
+                    default:
+                        input.skipField(tag);
+                }
+            }
+        } catch (IOException e) {
+            log.warn("failed decoding suggestion proto", e);
+            return null;
+        }
+
+        if (!suggestion.isDumpAlert && suggestion.message != null && suggestion.message.contains("Dump alert")) {
+            suggestion.isDumpAlert = true;
+        }
+        if (suggestion.type == SuggestionType.ABORT) {
+            suggestion.isDumpAlert = false;
+        }
+        return suggestion;
+    }
+
+    private static int clampToInt(long value) {
+        if (value > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        if (value < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
+        }
+        return (int) value;
     }
 }

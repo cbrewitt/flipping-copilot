@@ -1,6 +1,7 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.Suggestion;
+import com.flippingcopilot.model.SuggestionType;
 import com.flippingcopilot.model.SuggestionPreferencesManager;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.model.AccountStatus;
@@ -50,7 +51,7 @@ public class GePreviousSearch {
             return;
         }
 
-        if ("buy".equals(suggestion.getType())) {
+        if (suggestion.getType() == SuggestionType.BUY) {
             if ((grandExchange.isPreviousSearchSet() || copilotPreviousSearchItemExists()) && grandExchange.showLastSearchEnabled()) {
                 setPreviousSearch(suggestion.getItemId(), suggestion.getName());
             } else {

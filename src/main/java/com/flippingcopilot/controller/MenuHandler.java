@@ -28,6 +28,10 @@ public class MenuHandler {
     private final GrandExchange grandExchange;
     private final SuggestionManager suggestionManager;
     private final FlipsDialogController flipsDialogController;
+    private final InventoryPortfolioService inventoryPortfolioService;
+
+    private static final String MENU_ADD_TO_PORTFOLIO = "Add to portfolio";
+    private static final String MENU_REMOVE_FROM_PORTFOLIO = "Remove from portfolio";
 
 
     public void injectCopilotPriceGraphMenuEntry(MenuEntryAdded event) {
@@ -82,6 +86,23 @@ public class MenuHandler {
         }
     }
 
+    public void injectInventoryPortfolioMenuEntry(MenuEntryAdded event) {
+        InventoryMenuItem menuItem = getInventoryMenuItem(event);
+        if (menuItem == null) {
+            return;
+        }
+
+        Integer accountId = inventoryPortfolioService.getActiveAccountId();
+        boolean inPortfolio = inventoryPortfolioService.isInPortfolio(menuItem.unnotedItemId, accountId);
+        String option = inPortfolio ? MENU_REMOVE_FROM_PORTFOLIO : MENU_ADD_TO_PORTFOLIO;
+
+        client.getMenu()
+                .createMenuEntry(-1)
+                .setOption(option)
+                .setTarget(menuItem.menuTarget)
+                .onClick((MenuEntry e) -> log.info("{} clicked for item_id={}, name={}", option, menuItem.unnotedItemId, menuItem.itemName));
+    }
+
     private boolean shouldAddInventoryPriceGraphEntry(MenuEntryAdded event) {
         if (!grandExchange.isOpen() || !event.getOption().equals("Examine")) {
             return false;
@@ -93,6 +114,58 @@ public class MenuHandler {
         }
         Widget inventoryWidget = client.getWidget(149, 0);
         return inventoryWidget != null && inventoryWidget.getId() == widgetId;
+    }
+
+    private boolean isInventoryWidgetId(int widgetId) {
+        Widget geInventoryWidget = client.getWidget(467, 0);
+        if (geInventoryWidget != null && geInventoryWidget.getId() == widgetId) {
+            return true;
+        }
+        Widget inventoryWidget = client.getWidget(149, 0);
+        return inventoryWidget != null && inventoryWidget.getId() == widgetId;
+    }
+
+    private InventoryMenuItem getInventoryMenuItem(MenuEntryAdded event) {
+        if (!"Examine".equals(event.getOption())) {
+            return null;
+        }
+
+        int inventorySlot = event.getActionParam0();
+        int inventoryWidgetId = event.getActionParam1();
+        if (!isInventoryWidgetId(inventoryWidgetId)) {
+            return null;
+        }
+
+        Widget inventoryWidget = client.getWidget(inventoryWidgetId);
+        if (inventoryWidget == null || inventorySlot < 0) {
+            return null;
+        }
+        Widget[] items = inventoryWidget.getDynamicChildren();
+        if (items == null || inventorySlot >= items.length) {
+            return null;
+        }
+        Widget itemWidget = items[inventorySlot];
+        if (itemWidget == null || itemWidget.getItemId() <= 0) {
+            return null;
+        }
+
+        int unnotedItemId = inventoryPortfolioService.toUnnotedItemId(itemWidget.getItemId());
+        ItemComposition itemComposition = client.getItemDefinition(unnotedItemId);
+        String itemName = itemComposition.getName();
+        String menuTarget = resolveMenuTarget(event.getTarget(), unnotedItemId);
+        return new InventoryMenuItem(unnotedItemId, itemName, menuTarget);
+    }
+
+    private static class InventoryMenuItem {
+        private final int unnotedItemId;
+        private final String itemName;
+        private final String menuTarget;
+
+        private InventoryMenuItem(int unnotedItemId, String itemName, String menuTarget) {
+            this.unnotedItemId = unnotedItemId;
+            this.itemName = itemName;
+            this.menuTarget = menuTarget;
+        }
     }
 
     private boolean isGeTradableItem(int itemId) {
