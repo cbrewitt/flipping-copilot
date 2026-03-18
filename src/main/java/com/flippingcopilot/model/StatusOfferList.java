@@ -30,7 +30,7 @@ public class StatusOfferList extends ArrayList<Offer> {
     }
 
     public boolean isEmptySlotNeeded(Suggestion suggestion, boolean isMember) {
-        return (suggestion.getType().equals("buy") || suggestion.getType().equals("sell"))
+        return (suggestion.getType() == SuggestionType.BUY || suggestion.getType() == SuggestionType.SELL)
                 && !emptySlotExists(isMember);
     }
 
@@ -48,8 +48,8 @@ public class StatusOfferList extends ArrayList<Offer> {
         }
         int requiredSlots = reservedSlots;
         if (suggestion != null) {
-            String type = suggestion.getType();
-            if ("buy".equals(type) || "sell".equals(type)) {
+            SuggestionType type = suggestion.getType();
+            if (SuggestionType.BUY == type || SuggestionType.SELL == type) {
                 requiredSlots += 1;
             }
         }

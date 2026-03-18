@@ -1,5 +1,6 @@
 package com.flippingcopilot.model;
 
+import com.flippingcopilot.controller.PortfolioController;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ public class AccountStatusManager {
     private final GrandExchangeUncollectedManager geUncollected;
     private final SuggestionPreferencesManager suggestionPreferencesManager;
     private final PausedManager pausedManager;
+    private final PortfolioController portfolioController;
 
     // state
     @Setter
@@ -50,6 +52,7 @@ public class AccountStatusManager {
         status.setRsAccountHash(accountHash);
         status.setSkipSuggestion(skipSuggestion);
         status.setSellOnlyMode(suggestionPreferencesManager.isSellOnlyMode());
+        status.setBuyAndHold(suggestionPreferencesManager.isBuyAndHold());
         status.setF2pOnlyMode(suggestionPreferencesManager.isF2pOnlyMode());
         status.setWorldMember(osrsLoginManager.isMembersWorld());
         status.setAccountMember(osrsLoginManager.isAccountMember());

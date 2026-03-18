@@ -3,6 +3,8 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
+import com.flippingcopilot.rs.GrandExchangeOpenRS;
+import com.flippingcopilot.rs.ReactiveStateImpl;
 import com.flippingcopilot.ui.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.ui.graph.model.Data;
@@ -53,6 +55,8 @@ public class SuggestionController {
     private final GrandExchangeUncollectedManager uncollectedManager;
     private final FlipsDialogController flipDialogController;
     private final GePreviousSearch gePreviousSearch;
+    private final GrandExchangeOpenRS grandExchangeOpenRS;
+
 
     private MainPanel mainPanel;
     private LoginPanel loginPanel;
@@ -151,7 +155,11 @@ public class SuggestionController {
         suggestionManager.setGraphDataReadingInProgress(!skipGraphData);
         Consumer<Suggestion> suggestionConsumer = (newSuggestion) -> handleSuggestionReceived(oldSuggestion, newSuggestion, accountStatus);
         Consumer<Data> graphDataConsumer = (d) -> {
-            SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.setSuggestionPriceData(d));
+            SwingUtilities.invokeLater(() -> {
+                if (flipDialogController.priceGraphPanel != null) {
+                    flipDialogController.priceGraphPanel.setSuggestionPriceData(d);
+                }
+            });
             suggestionManager.setGraphDataReadingInProgress(false);
         };
         Consumer<HttpResponseException> onFailure = (e) -> {
@@ -169,7 +177,10 @@ public class SuggestionController {
         };
         suggestionPanel.refresh();
         log.debug("tick {} getting suggestion", client.getTickCount());
-        apiRequestHandler.getSuggestionAsync(accountStatus.toJson(gson, grandExchange.isOpen(), config.priceGraphWebsite() == FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT), suggestionConsumer, graphDataConsumer, onFailure, skipGraphData);
+        boolean sendGraphData = config.priceGraphWebsite() == FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT && !config.lowDataMode();
+        boolean geOpen = grandExchangeOpenRS.get();
+        log.debug("sending suggestion {}", accountStatus.toJson(gson, geOpen, sendGraphData));
+        apiRequestHandler.getSuggestionAsync(accountStatus.encodeProto(geOpen, sendGraphData), suggestionConsumer, graphDataConsumer, onFailure, skipGraphData);
     }
 
     void handleDumpSuggestion(Suggestion suggestion) {
@@ -208,12 +219,20 @@ public class SuggestionController {
         suggestionPanel.refresh();
         showNotifications(oldSuggestion, newSuggestion, accountStatus);
         if (!newSuggestion.isWaitSuggestion()) {
-            SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.newSuggestedItemId(
-                    newSuggestion.getItemId(),
-                    buildPriceLine(newSuggestion)
-            ));
+            SwingUtilities.invokeLater(() -> {
+                if (flipDialogController.priceGraphPanel != null) {
+                    flipDialogController.priceGraphPanel.newSuggestedItemId(
+                            newSuggestion.getItemId(),
+                            buildPriceLine(newSuggestion)
+                    );
+                }
+            });
         } else {
-            SwingUtilities.invokeLater(() -> flipDialogController.priceGraphPanel.suggestedPriceLine = null);
+            SwingUtilities.invokeLater(() -> {
+                if (flipDialogController.priceGraphPanel != null) {
+                    flipDialogController.priceGraphPanel.suggestedPriceLine = null;
+                }
+            });
         }
         if (client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 14) {
             clientThread.invokeLater(gePreviousSearch::showSuggestedItemInSearch);

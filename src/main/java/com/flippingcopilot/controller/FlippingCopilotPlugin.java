@@ -111,11 +111,17 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private DumpsStreamController dumpsStreamController;
 	@Inject
+	private PortfolioController portfolioController;
+	@Inject
 	private GrandExchangeOpenRS grandExchangeOpenRS;
 	@Inject
 	private OsrsLoginRS osrsLoginRS;
 	@Inject
 	private FlippingCopilotConfigRS configRS;
+	@Inject
+	private InventorySlotTooltipOverlay inventorySlotTooltipOverlay;
+	@Inject
+	private InventoryPortfolioBadgeOverlay inventoryPortfolioBadgeOverlay;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -137,6 +143,8 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void startUp() throws Exception {
+		overlayManager.add(inventorySlotTooltipOverlay);
+		overlayManager.add(inventoryPortfolioBadgeOverlay);
 		highlightController.activate();
 		Persistance.setUp(gson);
 		// seems we need to delay instantiating the UI till here as otherwise the panels look different
@@ -182,6 +190,8 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void shutDown() throws Exception {
+		overlayManager.remove(inventorySlotTooltipOverlay);
+		overlayManager.remove(inventoryPortfolioBadgeOverlay);
 		offerManager.saveAll();
 		highlightController.deactivateAndRemoveAll();
 		clientThread.invokeLater(() -> slotProfitColorizer.resetAllSlots());
@@ -219,10 +229,28 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameTick(GameTick event) {
+		portfolioController.onTick();
+
+		ItemContainer bankContainer = client.getItemContainer(InventoryID.BANK);
+		ItemContainer inventoryContainer = client.getItemContainer(InventoryID.INV);
+		Long bank560Qty = bankContainer == null ? null : getItemQuantity(bankContainer, 560);
+		long inv560Qty = inventoryContainer == null ? 0L : getItemQuantity(inventoryContainer, 560);
+		log.debug("tick {} item 560 qty inv={}, bank={}", client.getTickCount(), inv560Qty, bank560Qty);
+
 		suggestionController.onGameTick();
 		offerEventHandler.onGameTick();
 		grandExchangeOpenRS.set(grandExchange.isOpen());
 		osrsLoginRS.set(osrsLoginRS.get().nextState(client));
+	}
+
+	private long getItemQuantity(ItemContainer container, int itemId) {
+		long quantity = 0;
+		for (Item item : container.getItems()) {
+			if (item.getId() == itemId) {
+				quantity += item.getQuantity();
+			}
+		}
+		return quantity;
 	}
 
 	@Subscribe
@@ -245,6 +273,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event) {
+		menuHandler.injectInventoryPortfolioMenuEntry(event);
 		menuHandler.injectCopilotPriceGraphMenuEntry(event);
 		menuHandler.injectConfirmMenuEntry(event);
 	}

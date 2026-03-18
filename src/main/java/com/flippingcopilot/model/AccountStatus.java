@@ -1,12 +1,13 @@
 package com.flippingcopilot.model;
 import com.flippingcopilot.util.Constants;
+import com.flippingcopilot.util.ProtoUtils;
+import com.google.protobuf.CodedOutputStream;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +30,7 @@ public class AccountStatus {
     private Long rsAccountHash;
     private Boolean suggestionsPaused;
     private boolean sellOnlyMode = false;
+    private boolean buyAndHold = true;
     private boolean f2pOnlyMode = false;
     private List<Integer> blockedItems;
     private int timeframe = 5; // Default to 5 minutes
@@ -37,6 +39,9 @@ public class AccountStatus {
     private Integer minPredictedProfit;
     private Integer dumpMinPredictedProfit;
 
+    private Map<Integer, Long> bankInventory;
+    private boolean bankAvailable;
+
     public AccountStatus() {
         offers = new StatusOfferList();
         inventory = new Inventory();
@@ -44,7 +49,7 @@ public class AccountStatus {
 
     public synchronized boolean isCollectNeeded(Suggestion suggestion, boolean setUpOfferOpen) {
         if (!suggestion.isDumpAlert() && !setUpOfferOpen
-                && offers.reservedSlotNeeded(isWorldMember || isAccountMember, resolveReservedSlots(), suggestion))  {
+                && SuggestionType.WAIT.equals(suggestion.getType()) && offers.reservedSlotNeeded(isWorldMember || isAccountMember, resolveReservedSlots(), suggestion))  {
             log.debug("collected needed reservedSlotNeeded");
             return true;
         }
@@ -71,6 +76,7 @@ public class AccountStatus {
         JsonObject statusJson = new JsonObject();
         statusJson.addProperty("display_name", displayName);
         statusJson.addProperty("sell_only", sellOnlyMode);
+        statusJson.addProperty("buy_and_hold", buyAndHold);
         statusJson.addProperty("f2p_only", f2pOnlyMode);
         statusJson.addProperty("is_member", isWorldMember);
         statusJson.addProperty("is_account_member", isAccountMember);
@@ -92,15 +98,21 @@ public class AccountStatus {
         JsonArray itemsJsonArray = getItemsJson();
         statusJson.add("offers", offersJsonArray);
         statusJson.add("items", itemsJsonArray);
+        if (bankInventory != null) {
+            JsonObject bankInventoryJson = new JsonObject();
+            bankInventory.forEach((itemId, amount) -> bankInventoryJson.addProperty(itemId.toString(), amount));
+            statusJson.add("bank_inventory", bankInventoryJson);
+            statusJson.addProperty("bank_loaded", bankAvailable);
+        }
         JsonArray blockItemsArray = new JsonArray();
         if(blockedItems != null) {
             blockedItems.forEach(blockItemsArray::add);
         }
         statusJson.add("blocked_items", blockItemsArray);
 
-        Set<String> requestedSuggestionTypes = resolveRequestedSuggestionTypes(geOpen);
+        Set<SuggestionType> requestedSuggestionTypes = resolveRequestedSuggestionTypes(geOpen);
         JsonArray rstArray = new JsonArray();
-        requestedSuggestionTypes.forEach(rstArray::add);
+        requestedSuggestionTypes.forEach(type -> rstArray.add(type.apiValue()));
         statusJson.add("requested_suggestion_types", rstArray);
         log.debug("requested suggestion types for {} (geOpen={}, sellOnly={}): {}",
                 displayName, geOpen, sellOnlyMode, requestedSuggestionTypes);
@@ -111,9 +123,9 @@ public class AccountStatus {
     }
 
     private JsonArray getItemsJson() {
-        Map<Integer, Long> itemsAmount = getItemAmounts();
+        Map<Integer, Long> itemAmounts = computeInventory();
         JsonArray itemsJsonArray = new JsonArray();
-        for(Map.Entry<Integer, Long> entry : itemsAmount.entrySet()) {
+        for (Map.Entry<Integer, Long> entry : itemAmounts.entrySet()) {
             JsonObject itemJson = new JsonObject();
             itemJson.addProperty("item_id", entry.getKey());
             itemJson.addProperty("amount", entry.getValue());
@@ -122,11 +134,11 @@ public class AccountStatus {
         return itemsJsonArray;
     }
 
-    private Map<Integer, Long> getItemAmounts() {
-        Map<Integer, Long> itemsAmount = inventory.getItemAmounts();
-        uncollected.forEach((key, value) -> itemsAmount.merge(key, value, Long::sum));
-        itemsAmount.entrySet().removeIf(entry -> entry.getValue() == 0);
-        return itemsAmount;
+    private Map<Integer, Long> computeInventory() {
+        Map<Integer, Long> itemAmounts = inventory.getItemAmounts();
+        uncollected.forEach((key, value) -> itemAmounts.merge(key, value, Long::sum));
+        itemAmounts.entrySet().removeIf(entry -> entry.getValue() == 0);
+        return itemAmounts;
     }
 
     public synchronized boolean moreGpNeeded() {
@@ -153,21 +165,14 @@ public class AccountStatus {
         return offers.getGpOnMarket() + inventory.getTotalGp();
     }
 
-    private void addAbortAndModifySuggestionTypes(Set<String> requestedSuggestionTypes) {
-        requestedSuggestionTypes.add("abort");
-        requestedSuggestionTypes.add("modify_buy");
-        requestedSuggestionTypes.add("modify_sell");
-    }
-
-    private Set<String> resolveRequestedSuggestionTypes(boolean geOpen) {
-        Set<String> requestedSuggestionTypes = new HashSet<>();
-        addAbortAndModifySuggestionTypes(requestedSuggestionTypes);
+    private Set<SuggestionType> resolveRequestedSuggestionTypes(boolean geOpen) {
+        Set<SuggestionType> requestedSuggestionTypes = SuggestionType.abortAndModifyTypes();
         if (geOpen) {
             if (sellOnlyMode) {
-                requestedSuggestionTypes.add("sell");
+                requestedSuggestionTypes.add(SuggestionType.SELL);
             } else {
-                requestedSuggestionTypes.add("buy");
-                requestedSuggestionTypes.add("sell");
+                requestedSuggestionTypes.add(SuggestionType.BUY);
+                requestedSuggestionTypes.add(SuggestionType.SELL);
             }
         }
         return requestedSuggestionTypes;
@@ -175,5 +180,72 @@ public class AccountStatus {
 
     private int resolveReservedSlots() {
         return reservedSlots == null ? 0 : reservedSlots;
+    }
+
+    public synchronized byte[] encodeProto( boolean geOpen, boolean sendGraphData) {
+        return ProtoUtils.encodeMessage(out -> {
+            if (displayName != null && !displayName.isEmpty()) {
+                out.writeString(1, displayName);
+            }
+            out.writeBool(2, sellOnlyMode);
+            out.writeBool(3, isWorldMember);
+            out.writeBool(4, isAccountMember);
+            out.writeInt32(5, skipSuggestion);
+
+            if (offers != null) {
+                for (Offer offer : offers) {
+                    if (offer == null) {
+                        continue;
+                    }
+                    byte[] offerBytes = offer.encodeProto();
+                    if (offerBytes.length == 0) {
+                        continue;
+                    }
+                    ProtoUtils.writeDelimitedMessageField(out, 6, offerBytes);
+                }
+            }
+
+            Map<Integer, Long> protoInventory = computeInventory();
+            ProtoUtils.writeMap(out, 7, protoInventory, CodedOutputStream::writeInt32, CodedOutputStream::writeInt64);
+
+            out.writeBool(11, f2pOnlyMode);
+            ProtoUtils.writePacked(out, 12, blockedItems, CodedOutputStream::writeInt32NoTag);
+
+            Set<SuggestionType> requestedSuggestionTypes = resolveRequestedSuggestionTypes(geOpen);
+            List<Integer> requestedSuggestionTypeInts = new java.util.ArrayList<>(requestedSuggestionTypes.size());
+            for (SuggestionType suggestionType : requestedSuggestionTypes) {
+                requestedSuggestionTypeInts.add(suggestionType.protoInt());
+            }
+            ProtoUtils.writePacked(out, 13, requestedSuggestionTypeInts, CodedOutputStream::writeInt32NoTag);
+
+            out.writeBool(14, sendGraphData);
+
+            out.writeDouble(15, timeframe);
+            RiskLevel effectiveRiskLevel = riskLevel == null ? RiskLevel.MEDIUM : riskLevel;
+            out.writeInt32(16, effectiveRiskLevel.protoInt());
+            if (reservedSlots != null) {
+                out.writeInt32(17, reservedSlots);
+            }
+            if (minPredictedProfit != null) {
+                out.writeInt32(18, minPredictedProfit);
+            }
+            if (dumpMinPredictedProfit != null) {
+                out.writeInt32(19, dumpMinPredictedProfit);
+            }
+
+            ProtoUtils.writeMap(
+                    out,
+                    20,
+                    bankInventory,
+                    CodedOutputStream::writeInt32,
+                    CodedOutputStream::writeInt64
+            );
+            out.writeBool(21, bankAvailable);
+
+            if (suggestionsPaused != null) {
+                out.writeBool(28, suggestionsPaused);
+            }
+            out.writeBool(30, buyAndHold);
+        });
     }
 }
