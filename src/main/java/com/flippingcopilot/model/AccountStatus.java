@@ -30,6 +30,7 @@ public class AccountStatus {
     private Long rsAccountHash;
     private Boolean suggestionsPaused;
     private boolean sellOnlyMode = false;
+    private boolean buyAndHold = true;
     private boolean f2pOnlyMode = false;
     private List<Integer> blockedItems;
     private int timeframe = 5; // Default to 5 minutes
@@ -75,6 +76,7 @@ public class AccountStatus {
         JsonObject statusJson = new JsonObject();
         statusJson.addProperty("display_name", displayName);
         statusJson.addProperty("sell_only", sellOnlyMode);
+        statusJson.addProperty("buy_and_hold", buyAndHold);
         statusJson.addProperty("f2p_only", f2pOnlyMode);
         statusJson.addProperty("is_member", isWorldMember);
         statusJson.addProperty("is_account_member", isAccountMember);
@@ -243,6 +245,7 @@ public class AccountStatus {
             if (suggestionsPaused != null) {
                 out.writeBool(28, suggestionsPaused);
             }
+            out.writeBool(30, buyAndHold);
         });
     }
 }

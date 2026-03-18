@@ -34,6 +34,7 @@ import static com.flippingcopilot.util.Constants.MIN_GP_NEEDED_TO_FLIP;
 @Singleton
 @Slf4j
 public class SuggestionPanel extends JPanel {
+    private static final int DEFAULT_PANEL_HEIGHT = 150;
 
     // dependencies
     private final FlippingCopilotConfig config;
@@ -113,11 +114,11 @@ public class SuggestionPanel extends JPanel {
         this.profitCalculator = profitCalculator;
 
         layeredPane.setLayout(null);
-        setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, 150));
+        setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, DEFAULT_PANEL_HEIGHT));
         suggestedActionPanel = new JPanel(new BorderLayout());
         suggestedActionPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         suggestedActionPanel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
-        suggestedActionPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, 150);
+        suggestedActionPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, DEFAULT_PANEL_HEIGHT);
 
         JPanel suggestionContainer = new JPanel(new BorderLayout());
         suggestionContainer.setOpaque(true);
@@ -197,7 +198,7 @@ public class SuggestionPanel extends JPanel {
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        setPanelHeight(150);
+        setPanelHeight(DEFAULT_PANEL_HEIGHT);
 
         add(layeredPane);
     }
@@ -205,9 +206,9 @@ public class SuggestionPanel extends JPanel {
     private void handleGearClick() {
         isPreferencesPanelVisible = !isPreferencesPanelVisible;
         if (isPreferencesPanelVisible) {
-            setPanelHeight(260);
+            setPanelHeight(280);
         } else {
-            setPanelHeight(150);
+            setPanelHeight(DEFAULT_PANEL_HEIGHT);
         }
 
         preferencesPanel.setVisible(isPreferencesPanelVisible);
