@@ -247,6 +247,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	public void onMenuEntryAdded(MenuEntryAdded event) {
 		menuHandler.injectCopilotPriceGraphMenuEntry(event);
 		menuHandler.injectConfirmMenuEntry(event);
+		menuHandler.injectSlotActionSwapMenuEntry(event);
 	}
 
 	@Subscribe

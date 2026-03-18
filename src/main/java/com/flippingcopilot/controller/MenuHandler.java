@@ -169,6 +169,35 @@ public class MenuHandler {
         }
     }
 
+    public void injectSlotActionSwapMenuEntry(MenuEntryAdded event) {
+        if (!config.slotActionSwap()) {
+            return;
+        }
+
+        if (!grandExchange.isOpen() || grandExchange.isSlotOpen()) {
+            return;
+        }
+
+        Suggestion suggestion = suggestionManager.getSuggestion();
+        if (suggestion == null) {
+            return;
+        }
+
+        if (!suggestion.isAbortSuggestion() && !suggestion.isModifySuggestion()) {
+            return;
+        }
+
+        Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
+        if (slotWidget == null || slotWidget.getId() != event.getActionParam1()) {
+            return;
+        }
+
+        String target = suggestion.isAbortSuggestion() ? "Abort offer" : "Modify offer";
+        if (! event.getOption().equals(target)) {
+            event.getMenuEntry().setDeprioritized(true);
+        }
+    }
+
     private boolean offerDetailsCorrect() {
         Suggestion suggestion = suggestionManager.getSuggestion();
         if (suggestion == null) {
