@@ -1,5 +1,6 @@
 package com.flippingcopilot.model;
 
+import com.flippingcopilot.ui.graph.model.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -17,6 +18,7 @@ public class SuggestionManager {
     private Instant lastFailureAt;
     private HttpResponseException suggestionError;
     private Suggestion suggestion;
+    private volatile Data suggestionGraphData;
     private Instant suggestionReceivedAt;
     private int lastOfferSubmittedTick = -1;
 
@@ -33,7 +35,9 @@ public class SuggestionManager {
     public void setSuggestion(Suggestion suggestion) {
         this.suggestion = suggestion;
         suggestionReceivedAt = Instant.now();
-
+        if (suggestion == null || suggestion.isWaitSuggestion()) {
+            this.suggestionGraphData = null;
+        }
     }
 
     public void setSuggestionError(HttpResponseException error) {
@@ -44,6 +48,7 @@ public class SuggestionManager {
     public void reset() {
         suggestionNeeded = false;
         suggestion = null;
+        suggestionGraphData = null;
         suggestionReceivedAt = null;
         lastFailureAt = null;
         lastOfferSubmittedTick = -1;

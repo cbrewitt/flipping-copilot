@@ -10,13 +10,24 @@ import java.util.function.BiFunction;
 public class RenderV2 {
 
     public void drawGrid(Graphics2D g2, Config config, Rectangle pa, Bounds bounds, BiFunction<Rectangle, Long, Integer> toY, TimeAxis xAxis, YAxis yAxis) {
-        g2.setColor(config.gridColor);
-        g2.setStroke(Config.NORMAL_STROKE);
+        drawGrid(g2, config, pa, bounds, toY, xAxis, yAxis, null);
+    }
+
+    public void drawGrid(Graphics2D g2, Config config, Rectangle pa, Bounds bounds, BiFunction<Rectangle, Long, Integer> toY, TimeAxis xAxis, YAxis yAxis, Color gridColorOverride) {
+        drawGrid(g2, config, pa, bounds, toY, xAxis, yAxis, gridColorOverride, null);
+    }
+
+    public void drawGrid(Graphics2D g2, Config config, Rectangle pa, Bounds bounds, BiFunction<Rectangle, Long, Integer> toY, TimeAxis xAxis, YAxis yAxis, Color gridColorOverride, Stroke gridStrokeOverride) {
+        Color gridColor = gridColorOverride != null ? gridColorOverride : config.gridColor;
+        Stroke gridStroke = gridStrokeOverride != null ? gridStrokeOverride : Config.NORMAL_STROKE;
+        Stroke gridLineStroke = gridStrokeOverride != null ? gridStrokeOverride : Config.GRID_STROKE;
+        g2.setColor(gridColor);
+        g2.setStroke(gridStroke);
         for (int t : xAxis.dateOnlyTickTimes) {
             int x = bounds.toX(pa,t);
             g2.drawLine(x, pa.y, x, pa.y + pa.height);
         }
-        g2.setStroke(Config.GRID_STROKE);
+        g2.setStroke(gridLineStroke);
         for (int t : xAxis.timeOnlyTickTimes) {
             int x = bounds.toX(pa,t);
             g2.drawLine(x, pa.y, x, pa.y + pa.height);
@@ -36,15 +47,28 @@ public class RenderV2 {
     }
 
     public void drawAxes(Graphics2D g2, Config config,  Rectangle pa) {
-        g2.setColor(config.axisColor);
+        drawAxes(g2, config, pa, null);
+    }
+
+    public void drawAxes(Graphics2D g2, Config config, Rectangle pa, Color axisColorOverride) {
+        Color axisColor = axisColorOverride != null ? axisColorOverride : config.axisColor;
+        g2.setColor(axisColor);
         g2.setStroke(new BasicStroke(1.0f));
         g2.drawLine(pa.x,  pa.y + pa.height, pa.x + pa.width, pa.y + pa.height);
         g2.drawLine(pa.x, pa.y, pa.x, pa.y +pa.height);
     }
 
     public void drawXAxisLabels(Graphics2D g2, Config config, Rectangle pa, Bounds bounds, TimeAxis xAxis) {
-        g2.setFont(g2.getFont().deriveFont(Config.FONT_SIZE));
-        g2.setColor(config.textColor);
+        drawXAxisLabels(g2, config, pa, bounds, xAxis, Config.FONT_SIZE);
+    }
+
+    public void drawXAxisLabels(Graphics2D g2, Config config, Rectangle pa, Bounds bounds, TimeAxis xAxis, float fontSize) {
+        drawXAxisLabels(g2, config, pa, bounds, xAxis, fontSize, null);
+    }
+
+    public void drawXAxisLabels(Graphics2D g2, Config config, Rectangle pa, Bounds bounds, TimeAxis xAxis, float fontSize, Color textColorOverride) {
+        g2.setFont(g2.getFont().deriveFont(fontSize));
+        g2.setColor(textColorOverride != null ? textColorOverride : config.textColor);
         FontMetrics metrics = g2.getFontMetrics();
 
         java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("d MMM");
@@ -77,8 +101,16 @@ public class RenderV2 {
     }
 
     public void drawYAxisLabels(Graphics2D g2, Config config, Rectangle pa, BiFunction<Rectangle, Long, Integer> toY, YAxis yAxis, boolean skipLast) {
-        g2.setFont(g2.getFont().deriveFont(Config.FONT_SIZE));
-        g2.setColor(config.textColor);
+        drawYAxisLabels(g2, config, pa, toY, yAxis, skipLast, Config.FONT_SIZE, null);
+    }
+
+    public void drawYAxisLabels(Graphics2D g2, Config config, Rectangle pa, BiFunction<Rectangle, Long, Integer> toY, YAxis yAxis, boolean skipLast, float fontSize) {
+        drawYAxisLabels(g2, config, pa, toY, yAxis, skipLast, fontSize, null);
+    }
+
+    public void drawYAxisLabels(Graphics2D g2, Config config, Rectangle pa, BiFunction<Rectangle, Long, Integer> toY, YAxis yAxis, boolean skipLast, float fontSize, Color textColorOverride) {
+        g2.setFont(g2.getFont().deriveFont(fontSize));
+        g2.setColor(textColorOverride != null ? textColorOverride : config.textColor);
         FontMetrics metrics = g2.getFontMetrics();
         for (long v : yAxis.tickValues) {
             int y = toY.apply(pa, v);

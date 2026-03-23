@@ -101,8 +101,11 @@ public class AxisCalculator {
     }
 
     public static YAxis calculatePriceAxis(Bounds bounds) {
-        int maxAllowableTicks = 18;
-        int maxAllowableGridLines = 28;
+        return calculatePriceAxis(bounds, 18);
+    }
+
+    public static YAxis calculatePriceAxis(Bounds bounds, int maxAllowableTicks) {
+        int maxAllowableGridLines = maxAllowableTicks * 2;
 
         int priceRange = (int) bounds.yDelta();
         int priceMin = (int) bounds.yMin;

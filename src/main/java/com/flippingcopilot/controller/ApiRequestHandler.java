@@ -45,7 +45,6 @@ public class ApiRequestHandler {
     private final SuggestionPreferencesManager preferencesManager;
     private final ClientThread clientThread;
 
-
     public void authenticate(String username, String password, Consumer<LoginResponse> successCallback, Consumer<String> failureCallback) {
         Request request = new Request.Builder()
                 .url(serverUrl + "/login")

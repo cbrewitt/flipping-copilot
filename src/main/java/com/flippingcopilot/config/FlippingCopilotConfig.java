@@ -6,6 +6,7 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 import net.runelite.client.config.Keybind;
+import net.runelite.client.config.Range;
 import net.runelite.client.ui.ColorScheme;
 
 import java.awt.*;
@@ -144,6 +145,48 @@ public interface FlippingCopilotConfig extends Config
             position = 2
     )
     String appearanceSection = "appearanceSection";
+
+    @ConfigSection(
+            name = "Sidebar price graph",
+            description = "Configure the price graph shown in the sidebar for the current suggestion",
+            position = 21
+    )
+    String sidebarGraphSection = "sidebarGraphSection";
+
+    @ConfigItem(
+            keyName = "sidebarGraphEnabled",
+            name = "Show sidebar price graph",
+            description = "Show a compact price graph in the sidebar for the current suggestion.",
+            section = sidebarGraphSection,
+            position = 1
+    )
+    default boolean sidebarGraphEnabled() {
+        return true;
+    }
+
+    @ConfigItem(
+            keyName = "sidebarGraphMinutesBefore",
+            name = "Minutes before now",
+            description = "How many minutes before the current time to show on the sidebar graph.",
+            section = sidebarGraphSection,
+            position = 2
+    )
+    @Range(min = 15, max = 180)
+    default int sidebarGraphMinutesBefore() {
+        return 60;
+    }
+
+    @ConfigItem(
+            keyName = "sidebarGraphMinutesAfter",
+            name = "Minutes after now",
+            description = "How many minutes after the current time to show on the sidebar graph.",
+            section = sidebarGraphSection,
+            position = 3
+    )
+    @Range(min = 15, max = 180)
+    default int sidebarGraphMinutesAfter() {
+        return 60;
+    }
 
     @ConfigItem(
             keyName = "priceGraphMenuOptionEnabled",
