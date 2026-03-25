@@ -554,7 +554,7 @@ public class SuggestionPanel extends JPanel {
         String colorHex = String.format("#%06X", (0xFFFFFF & color.getRGB()));
         String text = "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit";
         if (expectedDuration != null) {
-            String formattedDuration = formatDuration(expectedDuration);
+            String formattedDuration = formatSuggestionDuration(expectedDuration);
             text += " in <b>" + formattedDuration + "</b>";
         }
         return text;
@@ -565,7 +565,7 @@ public class SuggestionPanel extends JPanel {
             return "";
         }
         String formattedProfit = formatProfit(expectedProfit);
-        String formattedDuration = formatDuration(expectedDuration);
+        String formattedDuration = formatSuggestionDuration(expectedDuration);
         Color profitColor = config.profitAmountColor();
 
         String colorHex = String.format("#%06X", (0xFFFFFF & profitColor.getRGB()));
@@ -579,24 +579,6 @@ public class SuggestionPanel extends JPanel {
             return String.format("%.1fK", profit / 1_000).replace(".0", "");
         } else {
             return String.format("%.0f", profit);
-        }
-    }
-
-    private String formatDuration(double durationSeconds) {
-        int totalMinutes = (int) Math.round(durationSeconds / 60.0);
-        // Round to nearest 5 minutes
-        totalMinutes = Math.round(totalMinutes / 5.0f) * 5;
-        totalMinutes = Math.max(totalMinutes, 5);
-        if (totalMinutes < 60) {
-            return totalMinutes + "min";
-        } else {
-            int hours = totalMinutes / 60;
-            int minutes = totalMinutes % 60;
-            if (minutes == 0) {
-                return hours + "h";
-            } else {
-                return hours + "h " + minutes + "m";
-            }
         }
     }
 }
