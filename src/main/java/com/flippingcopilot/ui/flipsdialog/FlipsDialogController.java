@@ -95,7 +95,15 @@ public class FlipsDialogController {
                     executorService, config, apiRequestHandler, flipsManager);
             ProfitPanel profitPanel = new ProfitPanel(flipsManager, executorService, sessionManager,
                     copilotLoginRS, config);
-            PortfolioPanel portfolioPanel = new PortfolioPanel(portfolioController, itemController, config, osrsLoginRS, clientThread);
+            PortfolioPanel portfolioPanel = new PortfolioPanel(
+                    portfolioController,
+                    itemController,
+                    config,
+                    osrsLoginRS,
+                    apiRequestHandler,
+                    flipsManager,
+                    clientThread
+            );
             TransactionsPanel transactionsPanel = new TransactionsPanel(copilotLoginRS, itemController,
                     executorService, apiRequestHandler, config, flipsManager);
             priceGraphPanel = new PriceGraphPanel(

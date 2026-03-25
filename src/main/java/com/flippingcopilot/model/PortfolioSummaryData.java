@@ -5,7 +5,7 @@ import lombok.Value;
 @Value
 public class PortfolioSummaryData {
     long portfolioMarketValue;
-    long unrealizedPnl;
+    long unrealizedProfit;
     long cashValue;
     long assetsValue;
 }

@@ -339,6 +339,47 @@ public class ApiRequestHandler {
         });
     }
 
+    public void syncPortfolioAsync(SyncPortfolioRequest payload,
+                                   BiConsumer<Integer, List<FlipV2>> onSuccess,
+                                   Consumer<HttpResponseException> onFailure) {
+        Integer userId = copilotLoginRS.get().getUserId();
+        String jwtToken = copilotLoginRS.get().getJwtToken();
+        log.debug("sync portfolio request payload: {}", gson.toJson(payload));
+        Request request = new Request.Builder()
+                .url(serverUrl + "/profit-tracking/sync-portfolio")
+                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Accept", "application/protobuf")
+                .post(RequestBody.create(MediaType.get("application/protobuf"), payload.encodeProto()))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.warn("sync portfolio failed for account {}", payload.getAccountId(), e);
+                onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        if (response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
+                            copilotLoginRS.clear();
+                        }
+                        String errorMessage = extractErrorMessage(response);
+                        onFailure.accept(new HttpResponseException(response.code(), errorMessage));
+                        return;
+                    }
+                    List<FlipV2> changedFlips = decodeClientFlipsProto(response.body().bytes());
+                    onSuccess.accept(userId, changedFlips);
+                } catch (Exception e) {
+                    log.warn("error parsing sync portfolio response", e);
+                    onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
+                }
+            }
+        });
+    }
+
     private List<FlipV2> decodeClientFlipsProto(byte[] bytes) throws IOException {
         List<FlipV2> flips = new ArrayList<>();
         if (bytes == null || bytes.length == 0) {

@@ -29,7 +29,7 @@ public class InventorySlotTooltipOverlay extends Overlay {
     private static final int GE_INVENTORY_WIDGET_GROUP = 467;
     private static final int GE_INVENTORY_WIDGET_CHILD = 0;
 
-    private static final String UNREALISED_PNL_PREFIX = "Unrealized PNL: ";
+    private static final String UNREALISED_PROFIT_PREFIX = "Unrealized Profit: ";
     private static final String POSITIVE_COLOR = "<col=50dc78>";
     private static final String NEGATIVE_COLOR = "<col=e65a5a>";
     private static final String COLOR_END = "</col>";
@@ -131,10 +131,10 @@ public class InventorySlotTooltipOverlay extends Overlay {
     }
 
     private String formatTooltipLine(String line) {
-        if (line != null && line.startsWith(UNREALISED_PNL_PREFIX)) {
-            String value = line.substring(UNREALISED_PNL_PREFIX.length());
+        if (line != null && line.startsWith(UNREALISED_PROFIT_PREFIX)) {
+            String value = line.substring(UNREALISED_PROFIT_PREFIX.length());
             String color = value.contains("-") ? NEGATIVE_COLOR : POSITIVE_COLOR;
-            return UNREALISED_PNL_PREFIX + color + value + COLOR_END;
+            return UNREALISED_PROFIT_PREFIX + color + value + COLOR_END;
         }
         return line == null ? "" : line;
     }

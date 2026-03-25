@@ -1,6 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.PortfolioController;
+import com.flippingcopilot.rs.BankStateRS;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ public class AccountStatusManager {
     private final SuggestionPreferencesManager suggestionPreferencesManager;
     private final PausedManager pausedManager;
     private final PortfolioController portfolioController;
+    private final BankStateRS bankStateRS;
 
     // state
     @Setter
@@ -63,6 +65,8 @@ public class AccountStatusManager {
         status.setReservedSlots(suggestionPreferencesManager.getEffectiveReservedSlots());
         status.setMinPredictedProfit(suggestionPreferencesManager.getMinPredictedProfit());
         status.setDumpMinPredictedProfit(suggestionPreferencesManager.getEffectiveDumpMinPredictedProfit());
+        status.setBankAvailable(bankStateRS.get().isLoaded());
+        status.setBankInventory(bankStateRS.get().getItems());
 
         Map<Integer, Long> inLimboItems = geUncollected.getLastClearedUncollected();
         List<Integer> clearedSlots = geUncollected.getLastClearedSlots();

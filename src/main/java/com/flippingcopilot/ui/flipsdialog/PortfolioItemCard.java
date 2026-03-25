@@ -16,8 +16,7 @@ import java.util.Locale;
 public class PortfolioItemCard extends JPanel {
     private static final NumberFormat GP_FORMAT = NumberFormat.getNumberInstance(Locale.US);
     private static final int LEFT_COLUMN_WIDTH = 260;
-    private static final int MIDDLE_COLUMN_WIDTH = 180;
-    private static final int RIGHT_COLUMN_WIDTH = 220;
+    private static final int STAT_COLUMN_WIDTH = 150;
 
     public PortfolioItemCard(PortfolioItemCardData data, ItemController itemController, FlippingCopilotConfig config) {
         setLayout(new BorderLayout(20, 0));
@@ -35,21 +34,45 @@ public class PortfolioItemCard extends JPanel {
         leftPanel.setMinimumSize(new Dimension(LEFT_COLUMN_WIDTH, 52));
         leftPanel.setMaximumSize(new Dimension(LEFT_COLUMN_WIDTH, Integer.MAX_VALUE));
 
-        JPanel detailsPanel = buildDetailsPanel(data);
-        detailsPanel.setPreferredSize(new Dimension(MIDDLE_COLUMN_WIDTH, 52));
-        detailsPanel.setMinimumSize(new Dimension(MIDDLE_COLUMN_WIDTH, 52));
-        detailsPanel.setMaximumSize(new Dimension(MIDDLE_COLUMN_WIDTH, Integer.MAX_VALUE));
+        JPanel portfolioQuantityPanel = buildStatColumn("Portfolio Quantity", GP_FORMAT.format(data.getOpenFlipsQuantity()));
+        portfolioQuantityPanel.setPreferredSize(new Dimension(STAT_COLUMN_WIDTH, 52));
+        portfolioQuantityPanel.setMinimumSize(new Dimension(STAT_COLUMN_WIDTH, 52));
+        portfolioQuantityPanel.setMaximumSize(new Dimension(STAT_COLUMN_WIDTH, Integer.MAX_VALUE));
 
-        JPanel metricsPanel = buildMetricsPanel(data, config);
-        metricsPanel.setPreferredSize(new Dimension(RIGHT_COLUMN_WIDTH, 52));
-        metricsPanel.setMinimumSize(new Dimension(RIGHT_COLUMN_WIDTH, 52));
-        metricsPanel.setMaximumSize(new Dimension(RIGHT_COLUMN_WIDTH, Integer.MAX_VALUE));
+        long heldQuantity = (long) data.getRuneliteInventoryQuantity() + data.getSuggestionBankQuantity() + data.getRuneliteGeQuantity();
+        JPanel heldQuantityPanel = buildStatColumn("Held Quantity", GP_FORMAT.format(heldQuantity));
+        heldQuantityPanel.setPreferredSize(new Dimension(STAT_COLUMN_WIDTH, 52));
+        heldQuantityPanel.setMinimumSize(new Dimension(STAT_COLUMN_WIDTH, 52));
+        heldQuantityPanel.setMaximumSize(new Dimension(STAT_COLUMN_WIDTH, Integer.MAX_VALUE));
+
+        JPanel openFlipsPanel = buildStatColumn("Open flips", String.valueOf(data.getOpenFlipsCount()));
+        openFlipsPanel.setPreferredSize(new Dimension(STAT_COLUMN_WIDTH, 52));
+        openFlipsPanel.setMinimumSize(new Dimension(STAT_COLUMN_WIDTH, 52));
+        openFlipsPanel.setMaximumSize(new Dimension(STAT_COLUMN_WIDTH, Integer.MAX_VALUE));
+
+        JPanel heldPanel = buildStatColumn("Time held", formatDuration(data.getHeldMinutes()));
+        heldPanel.setPreferredSize(new Dimension(STAT_COLUMN_WIDTH, 52));
+        heldPanel.setMinimumSize(new Dimension(STAT_COLUMN_WIDTH, 52));
+        heldPanel.setMaximumSize(new Dimension(STAT_COLUMN_WIDTH, Integer.MAX_VALUE));
+
+        JPanel profitPanel = buildStatColumn("Unrealized Profit", formatSignedGp(data.flipsUnrealizedProfit()));
+        profitPanel.setPreferredSize(new Dimension(STAT_COLUMN_WIDTH, 52));
+        profitPanel.setMinimumSize(new Dimension(STAT_COLUMN_WIDTH, 52));
+        profitPanel.setMaximumSize(new Dimension(STAT_COLUMN_WIDTH, Integer.MAX_VALUE));
+        setStatValueColor(profitPanel, getProfitColor(data.getUnrealizedUnitProfit(), config));
 
         contentPanel.add(leftPanel);
         contentPanel.add(Box.createHorizontalStrut(20));
-        contentPanel.add(detailsPanel);
+        contentPanel.add(portfolioQuantityPanel);
+        contentPanel.add(Box.createHorizontalStrut(12));
+        contentPanel.add(heldQuantityPanel);
+        contentPanel.add(Box.createHorizontalStrut(12));
+        contentPanel.add(openFlipsPanel);
+        contentPanel.add(Box.createHorizontalStrut(12));
+        contentPanel.add(heldPanel);
+        contentPanel.add(Box.createHorizontalStrut(12));
+        contentPanel.add(profitPanel);
         contentPanel.add(Box.createHorizontalGlue());
-        contentPanel.add(metricsPanel);
 
         add(contentPanel, BorderLayout.CENTER);
     }
@@ -83,40 +106,35 @@ public class PortfolioItemCard extends JPanel {
         SwingUtilities.invokeLater(() -> image.addTo(iconLabel));
     }
 
-    private JPanel buildDetailsPanel(PortfolioItemCardData data) {
-        JPanel detailsPanel = new JPanel();
-        detailsPanel.setOpaque(false);
-        detailsPanel.setLayout(new BoxLayout(detailsPanel, BoxLayout.Y_AXIS));
-        detailsPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
+    private JPanel buildStatColumn(String label, String value) {
+        JPanel statPanel = new JPanel();
+        statPanel.setOpaque(false);
+        statPanel.setLayout(new BoxLayout(statPanel, BoxLayout.Y_AXIS));
+        statPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
 
-        JLabel quantityLabel = createSecondaryLabel("Quantity: " + GP_FORMAT.format(data.getOpenFlipsQuantity()));
-        JLabel openFlipsLabel = createSecondaryLabel("Open flips: " + data.getOpenFlipsCount());
+        JLabel labelView = new JLabel(label);
+        labelView.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        labelView.setFont(labelView.getFont().deriveFont(Font.BOLD, 15f));
 
-        detailsPanel.add(Box.createVerticalGlue());
-        detailsPanel.add(quantityLabel);
-        detailsPanel.add(Box.createVerticalStrut(6));
-        detailsPanel.add(openFlipsLabel);
-        detailsPanel.add(Box.createVerticalGlue());
-        return detailsPanel;
+        JLabel valueView = new JLabel(value);
+        valueView.setForeground(Color.WHITE);
+        valueView.setFont(valueView.getFont().deriveFont(Font.BOLD, 16f));
+
+        statPanel.add(labelView);
+        statPanel.add(Box.createVerticalStrut(4));
+        statPanel.add(valueView);
+        return statPanel;
     }
 
-    private JPanel buildMetricsPanel(PortfolioItemCardData data, FlippingCopilotConfig config) {
-        JPanel metricsPanel = new JPanel();
-        metricsPanel.setOpaque(false);
-        metricsPanel.setLayout(new BoxLayout(metricsPanel, BoxLayout.Y_AXIS));
-        metricsPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
-
-        JLabel timeHeldLabel = createSecondaryLabel("Time held: " + formatDuration(data.getHeldMinutes()));
-        long flipsUnrealizedPnl = data.flipsUnrealizedPNL();
-        JLabel pnlLabel = createSecondaryLabel("Unrealized PNL: " + formatSignedGp(flipsUnrealizedPnl));
-        pnlLabel.setForeground(getPnlColor(data.getUnrealizedUnitPNL(), config));
-
-        metricsPanel.add(Box.createVerticalGlue());
-        metricsPanel.add(timeHeldLabel);
-        metricsPanel.add(Box.createVerticalStrut(6));
-        metricsPanel.add(pnlLabel);
-        metricsPanel.add(Box.createVerticalGlue());
-        return metricsPanel;
+    private void setStatValueColor(JPanel statPanel, Color color) {
+        for (Component component : statPanel.getComponents()) {
+            if (component instanceof JLabel) {
+                JLabel label = (JLabel) component;
+                if (label.getFont().isBold()) {
+                    label.setForeground(color);
+                }
+            }
+        }
     }
 
     private JLabel createPrimaryLabel(String text) {
@@ -133,14 +151,14 @@ public class PortfolioItemCard extends JPanel {
         return label;
     }
 
-    private Color getPnlColor(Long pnl, FlippingCopilotConfig config) {
-        if (pnl == null) {
+    private Color getProfitColor(Long profit, FlippingCopilotConfig config) {
+        if (profit == null) {
             return ColorScheme.LIGHT_GRAY_COLOR;
         }
-        if (pnl > 0) {
+        if (profit > 0) {
             return config.profitAmountColor();
         }
-        if (pnl < 0) {
+        if (profit < 0) {
             return config.lossAmountColor();
         }
         return ColorScheme.LIGHT_GRAY_COLOR;

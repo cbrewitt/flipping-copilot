@@ -50,10 +50,20 @@ public class InventorySlotTooltipDataProvider {
             lines.add("Time held: " + formatHoldTime(itemData.getHeldMinutes()));
             Long totalValue = calculateValue(itemData, portfolioItem);
             lines.add("Total value: " + (totalValue == null ? "Unknown" : UIUtilities.formatProfit(totalValue)));
-            Long unrealizedPnl = itemData.getUnrealizedUnitPNL() == null ? null : itemData.inventoryTooltipUnrealizedPNL();
-            lines.add("Unrealized PNL: " + (unrealizedPnl == null ? "Unknown" : UIUtilities.formatProfit(unrealizedPnl)));
+            Long unrealizedProfit = itemData.getUnrealizedUnitProfit() == null ? null : itemData.inventoryTooltipUnrealizedProfit();
+            lines.add("Unrealized Profit: " + (unrealizedProfit == null ? "Unknown" : UIUtilities.formatProfit(unrealizedProfit)));
+            String unrealizedRoi = calculateUnrealizedRoi(itemData, portfolioItem);
+            lines.add("Unrealized ROI: " + (unrealizedRoi == null ? "Unknown" : unrealizedRoi));
         }
         return lines;
+    }
+
+    private String calculateUnrealizedRoi(PortfolioItemCardData itemData, Suggestion.PortfolioItem portfolioItem) {
+        if (portfolioItem == null || portfolioItem.getAmount() <= 0 || portfolioItem.getUnitBuyPrice() <= 0 || itemData.getUnrealizedUnitProfit() == null) {
+            return null;
+        }
+        double roi = (double) itemData.getUnrealizedUnitProfit() / (double) portfolioItem.getUnitBuyPrice();
+        return String.format("%.2f%%", roi * 100.0d);
     }
 
     private Suggestion.PortfolioItem findPortfolioItem(Suggestion suggestion, int itemId) {

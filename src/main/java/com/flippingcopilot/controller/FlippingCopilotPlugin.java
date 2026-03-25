@@ -3,6 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
+import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.FlippingCopilotConfigRS;
 import com.flippingcopilot.rs.GrandExchangeOpenRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
@@ -120,8 +121,10 @@ public class FlippingCopilotPlugin extends Plugin {
 	private FlippingCopilotConfigRS configRS;
 	@Inject
 	private InventorySlotTooltipOverlay inventorySlotTooltipOverlay;
-	@Inject
+ 	@Inject
 	private InventoryPortfolioBadgeOverlay inventoryPortfolioBadgeOverlay;
+	@Inject
+	private BankStateRS bankStateRS;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -230,6 +233,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Subscribe
 	public void onGameTick(GameTick event) {
 		portfolioController.onTick();
+		bankStateRS.onGameTick();
 
 		ItemContainer bankContainer = client.getItemContainer(InventoryID.BANK);
 		ItemContainer inventoryContainer = client.getItemContainer(InventoryID.INV);

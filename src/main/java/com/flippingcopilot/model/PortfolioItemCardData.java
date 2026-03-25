@@ -12,19 +12,19 @@ public class PortfolioItemCardData {
     int openFlipsQuantity;
     int openFlipsCount;
     long postTaxSellUnitPrice;
-    Long unrealizedUnitPNL;
+    Long unrealizedUnitProfit;
     int heldMinutes;
     boolean inPortfolio;
 
-    public long inventoryTooltipUnrealizedPNL() {
-        return ((long) runeliteInventoryQuantity + suggestionBankQuantity) * safeUnrealizedUnitPNL();
+    public long inventoryTooltipUnrealizedProfit() {
+        return ((long) runeliteInventoryQuantity + suggestionBankQuantity) * safeUnrealizedUnitProfit();
     }
 
-    public long flipsUnrealizedPNL() {
-        return (long) openFlipsQuantity * safeUnrealizedUnitPNL();
+    public long flipsUnrealizedProfit() {
+        return (long) openFlipsQuantity * safeUnrealizedUnitProfit();
     }
 
-    private long safeUnrealizedUnitPNL() {
-        return unrealizedUnitPNL == null ? 0L : unrealizedUnitPNL;
+    private long safeUnrealizedUnitProfit() {
+        return unrealizedUnitProfit == null ? 0L : unrealizedUnitProfit;
     }
 }

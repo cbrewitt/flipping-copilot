@@ -6,12 +6,19 @@ import com.flippingcopilot.model.PortfolioSummaryData;
 import com.flippingcopilot.model.PortfolioState;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.model.SyncPortfolioItem;
+import com.flippingcopilot.model.SyncPortfolioRequest;
+import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.GrandExchangeOffer;
+import net.runelite.api.GrandExchangeOfferState;
 import net.runelite.api.Item;
+import net.runelite.api.ItemComposition;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.gameval.InventoryID;
+import net.runelite.client.game.ItemManager;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -32,6 +39,8 @@ public class PortfolioController {
     private final InventoryPortfolioService inventoryPortfolioService;
     private final SuggestionManager suggestionManager;
     private final ItemController itemController;
+    private final BankStateRS bankStateRS;
+    private final ItemManager itemManager;
 
     // state (only interact from within client thread!)
     private PortfolioState state;
@@ -42,12 +51,16 @@ public class PortfolioController {
                                OsrsLoginRS osrsLoginRS,
                                InventoryPortfolioService inventoryPortfolioService,
                                SuggestionManager suggestionManager,
-                               ItemController itemController) {
+                               ItemController itemController,
+                               BankStateRS bankStateRS,
+                               ItemManager itemManager) {
         this.client = client;
         this.osrsLoginRS = osrsLoginRS;
         this.inventoryPortfolioService = inventoryPortfolioService;
         this.suggestionManager = suggestionManager;
         this.itemController = itemController;
+        this.bankStateRS = bankStateRS;
+        this.itemManager = itemManager;
     }
 
     public void onTick() {
@@ -77,7 +90,7 @@ public class PortfolioController {
                 unnotedItemId,
                 0,
                 inventoryTotals.getOrDefault(unnotedItemId, fallbackQuantity),
-                suggestion == null || suggestion.getBankItems() == null ? 0 : suggestion.getBankItems().getOrDefault(unnotedItemId, 0L).intValue(),
+                getBankQuantity(unnotedItemId, suggestion),
                 findPortfolioItem(suggestion, unnotedItemId)
         );
     }
@@ -102,7 +115,7 @@ public class PortfolioController {
                     itemId,
                     0,
                     inventoryTotals.getOrDefault(itemId, 0),
-                    suggestion == null || suggestion.getBankItems() == null ? 0 : suggestion.getBankItems().getOrDefault(itemId, 0L).intValue(),
+                    getBankQuantity(itemId, suggestion),
                     findPortfolioItem(suggestion, itemId)
             );
             if (data != null) {
@@ -114,15 +127,67 @@ public class PortfolioController {
 
     public PortfolioSummaryData buildPortfolioSummaryData(List<PortfolioItemCardData> items) {
         long assetsValue = 0L;
-        long unrealizedPnl = 0L;
+        long unrealizedProfit = 0L;
         for (PortfolioItemCardData item : items) {
             assetsValue += item.getPostTaxSellUnitPrice() * item.getOpenFlipsQuantity();
-            unrealizedPnl += item.flipsUnrealizedPNL();
+            unrealizedProfit += item.flipsUnrealizedProfit();
         }
 
         Suggestion suggestion = suggestionManager.getSuggestion();
         long cashValue = getCashValue(suggestion);
-        return new PortfolioSummaryData(assetsValue + cashValue, unrealizedPnl, cashValue, assetsValue);
+        return new PortfolioSummaryData(assetsValue + cashValue, unrealizedProfit, cashValue, assetsValue);
+    }
+
+    public boolean isSyncEnabled() {
+        return bankStateRS.get().isLoaded();
+    }
+
+    public SyncPortfolioRequest buildSyncPortfolioRequest() {
+        Integer accountId = inventoryPortfolioService.getActiveAccountId();
+        Suggestion suggestion = suggestionManager.getSuggestion();
+        if (accountId == null || !bankStateRS.get().isLoaded()) {
+            return null;
+        }
+
+        Map<Integer, Integer> quantities = computeRuneliteTotalInventoryItems();
+        for (Map.Entry<Integer, Long> bankEntry : bankStateRS.get().getItems().entrySet()) {
+            int itemId = bankEntry.getKey();
+            long bankQuantity = bankEntry.getValue() == null ? 0L : bankEntry.getValue();
+            if (bankQuantity <= 0) {
+                continue;
+            }
+            mergeTradableQuantity(quantities, itemId, (int) Math.min(Integer.MAX_VALUE, bankQuantity));
+        }
+
+        List<Integer> activeGeItemIds = getActiveGrandExchangeItemIds();
+        for (Integer geItemId : activeGeItemIds) {
+            quantities.remove(geItemId);
+        }
+
+        if (suggestion != null && suggestion.getPortfolioItems() != null) {
+            for (Suggestion.PortfolioItem portfolioItem : suggestion.getPortfolioItems()) {
+                if (portfolioItem == null || !portfolioItem.inPortfolio) {
+                    continue;
+                }
+                int unnotedItemId = inventoryPortfolioService.toUnnotedItemId(portfolioItem.getItemId());
+                if (activeGeItemIds.contains(unnotedItemId)) {
+                    continue;
+                }
+                if (quantities.containsKey(unnotedItemId)) {
+                    continue;
+                }
+                mergeTradableQuantity(quantities, unnotedItemId, 0);
+                quantities.putIfAbsent(unnotedItemId, 0);
+            }
+        }
+
+        List<SyncPortfolioItem> syncItems = new ArrayList<>();
+        for (Map.Entry<Integer, Integer> e : quantities.entrySet()) {
+            if (e.getValue() != null && e.getValue() >= 0) {
+                syncItems.add(new SyncPortfolioItem(e.getKey(), e.getValue()));
+            }
+        }
+        return new SyncPortfolioRequest(accountId, syncItems);
     }
 
     private PortfolioItemCardData buildPortfolioItemCardData(int itemId,
@@ -145,13 +210,13 @@ public class PortfolioController {
                 openFlipsQuantity,
                 1,
                 getSellPricePostTax(suggestionPortfolioItem),
-                calculateUnrealizedUnitPnl(suggestionPortfolioItem),
+                calculateUnrealizedUnitProfit(suggestionPortfolioItem),
                 getHeldMinutes(suggestionPortfolioItem),
                 suggestionPortfolioItem != null && suggestionPortfolioItem.inPortfolio
         );
     }
 
-    private Long calculateUnrealizedUnitPnl(Suggestion.PortfolioItem portfolioItem) {
+    private Long calculateUnrealizedUnitProfit(Suggestion.PortfolioItem portfolioItem) {
         if (portfolioItem == null || portfolioItem.getAmount() <= 0) {
             return null;
         }
@@ -176,10 +241,42 @@ public class PortfolioController {
             if (item == null || item.getId() <= 0 || item.getQuantity() <= 0) {
                 continue;
             }
-            int unnotedId = inventoryPortfolioService.toUnnotedItemId(item.getId());
-            totals.merge(unnotedId, item.getQuantity(), Integer::sum);
+            mergeTradableQuantity(totals, item.getId(), item.getQuantity());
         }
         return totals;
+    }
+
+    private void mergeTradableQuantity(Map<Integer, Integer> totals, int itemId, int quantity) {
+        if (quantity <= 0) {
+            return;
+        }
+        int unnotedId = inventoryPortfolioService.toUnnotedItemId(itemId);
+        ItemComposition itemComposition = itemManager.getItemComposition(unnotedId);
+        if (itemComposition == null || !itemComposition.isTradeable()) {
+            return;
+        }
+        totals.merge(unnotedId, quantity, Integer::sum);
+    }
+
+    private List<Integer> getActiveGrandExchangeItemIds() {
+        List<Integer> itemIds = new ArrayList<>();
+        GrandExchangeOffer[] offers = client.getGrandExchangeOffers();
+        if (offers == null) {
+            return itemIds;
+        }
+        for (GrandExchangeOffer offer : offers) {
+            if (offer == null) {
+                continue;
+            }
+            GrandExchangeOfferState state = offer.getState();
+            if (state != GrandExchangeOfferState.EMPTY) {
+                int itemId = offer.getItemId();
+                if (itemId > 0) {
+                    itemIds.add(inventoryPortfolioService.toUnnotedItemId(itemId));
+                }
+            }
+        }
+        return itemIds;
     }
 
     private Suggestion.PortfolioItem findPortfolioItem(Suggestion suggestion, int itemId) {
@@ -192,6 +289,17 @@ public class PortfolioController {
             }
         }
         return null;
+    }
+
+    private int getBankQuantity(int itemId, Suggestion suggestion) {
+        Long quantity = bankStateRS.get().getItems().get(itemId);
+        if (quantity == null && suggestion != null && suggestion.getBankItems() != null) {
+            quantity = suggestion.getBankItems().get(itemId);
+        }
+        if (quantity == null || quantity <= 0) {
+            return 0;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, quantity);
     }
 
     private long getSellPricePostTax(Suggestion.PortfolioItem portfolioItem) {
