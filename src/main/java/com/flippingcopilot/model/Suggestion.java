@@ -34,6 +34,8 @@ public class Suggestion {
     private String message = "";
     private Double expectedProfit;
     private Double expectedDuration;
+    @SerializedName("is_hold")
+    private boolean isHold;
     private Map<Integer, Long> bankItems;
     private List<PortfolioItem> portfolioItems;
     private Data graphData;
@@ -122,7 +124,8 @@ public class Suggestion {
         }
         switch (type) {
             case BUY:
-                string += String.format("Buy %s %s for %s gp",
+                string += String.format("%s %s %s for %s gp",
+                        isHold ? "Buy and hold" : "Buy",
                         formatter.format(quantity), name, formatter.format(price));
                 break;
             case MODIFY_BUY:
@@ -189,6 +192,9 @@ public class Suggestion {
                     break;
                 case "ep":
                     s.expectedProfit = (Double) MsgPackUtil.decodePrimitive(b);
+                    break;
+                case "ih":
+                    s.isHold = (Boolean) MsgPackUtil.decodePrimitive(b);
                     break;
                 case "gd":
                     s.graphData = Data.fromMsgPack(b);
@@ -320,6 +326,9 @@ public class Suggestion {
                         }
                         suggestion.portfolioItems.add(portfolioItem);
                         input.popLimit(itemLimit);
+                        break;
+                    case 19:
+                        suggestion.isHold = input.readBool();
                         break;
                     default:
                         input.skipField(tag);

@@ -312,17 +312,23 @@ public class SuggestionPanel extends JPanel {
                 setItemIcon(suggestion.getItemId());
                 break;
             case BUY:
+                suggestionString += (suggestion.isHold() ? "Buy and hold" : "Buy") +
+                        " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
+                        "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
+                        "for <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
+                setItemIcon(suggestion.getItemId());
+                break;
             case SELL:
             case MODIFY_BUY:
             case MODIFY_SELL:
-                String action = suggestion.isBuySuggestion() ? "Buy" : "Sell";
+                String action = suggestion.isBuySuggestion() ? "buy" : "sell";
                 if (suggestion.isModifySuggestion()) {
-                    suggestionString += "Modify " + action.toLowerCase() +
+                    suggestionString += "Modify " + action +
                             "<br>" +
                             "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
                             "to <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
                 } else {
-                    suggestionString += action +
+                    suggestionString += (suggestion.isSellSuggestion() ? "Sell" : "Buy") +
                             " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
                             "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
                             "for <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
