@@ -15,7 +15,7 @@ import java.util.function.Function;
 public class ReactiveStateImpl<T> implements ReactiveState<T> {
 
     private final CopyOnWriteArrayList<Consumer<T>> listeners = new CopyOnWriteArrayList<>();
-    private T state;
+    private volatile T state;
 
     @Override
     public Runnable registerListener(Consumer<T> onUpdate) {
@@ -25,11 +25,7 @@ public class ReactiveStateImpl<T> implements ReactiveState<T> {
 
     @Override
     public void update(Function<T, T> updateFunc) {
-        final T updated;
-        synchronized (this) {
-            updated = updateFunc.apply(get());
-        }
-        setAndPublish(updated);
+        setAndPublish(updateFunc.apply(get()));
     }
 
     @Override
@@ -44,7 +40,7 @@ public class ReactiveStateImpl<T> implements ReactiveState<T> {
     }
 
     @Override
-    public synchronized T get() {
+    public T get() {
         return state;
     }
 
