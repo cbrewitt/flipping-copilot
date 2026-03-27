@@ -60,7 +60,9 @@ public class FlipsPanel extends JPanel {
     private final JScrollPane scrollPane;
     private final JPanel spinnerOverlay;
     private final ItemSearchMultiSelect searchField;
-    private final JCheckBox showOpeningFlipsCheckbox;
+    private final JCheckBox showFinishedCheckbox;
+    private final JCheckBox showBuyingCheckbox;
+    private final JCheckBox showSellingCheckbox;
     private final Consumer<FlipV2> onVisualizeFlip;
     private IntervalDropdown timeIntervalDropdown;
     private AccountDropdown accountDropdown;
@@ -107,11 +109,23 @@ public class FlipsPanel extends JPanel {
         searchField.setMinimumSize(new Dimension(300, 0));
         searchField.setToolTipText("Search by item name");
 
-        showOpeningFlipsCheckbox= new JCheckBox("Show buying flips", true);
-        showOpeningFlipsCheckbox.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        showOpeningFlipsCheckbox.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        showOpeningFlipsCheckbox.setFocusable(false);
-        showOpeningFlipsCheckbox.addActionListener(e -> sortAndFilter.setIncludeBuyingFlips(showOpeningFlipsCheckbox.isSelected()));
+        showFinishedCheckbox = new JCheckBox("FINISHED", true);
+        showBuyingCheckbox = new JCheckBox("BUYING", true);
+        showSellingCheckbox = new JCheckBox("SELLING", true);
+
+        showFinishedCheckbox.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        showBuyingCheckbox.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        showSellingCheckbox.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        showFinishedCheckbox.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        showBuyingCheckbox.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        showSellingCheckbox.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        showFinishedCheckbox.setFocusable(false);
+        showBuyingCheckbox.setFocusable(false);
+        showSellingCheckbox.setFocusable(false);
+
+        showFinishedCheckbox.addActionListener(e -> applyStatusFilters());
+        showBuyingCheckbox.addActionListener(e -> applyStatusFilters());
+        showSellingCheckbox.addActionListener(e -> applyStatusFilters());
 
         pageSizeComboBox = new JComboBox<>(PAGE_SIZE_OPTIONS);
         pageSizeComboBox.setSelectedItem(sortAndFilter.getPageSize());
@@ -268,7 +282,17 @@ public class FlipsPanel extends JPanel {
         leftPanel.add(Box.createRigidArea(new Dimension(3,0)));
         leftPanel.add(accountDropdown);
         leftPanel.add(Box.createRigidArea(new Dimension(3,0)));
-        leftPanel.add(showOpeningFlipsCheckbox);
+        JLabel showLabel = new JLabel("Show:");
+        showLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        leftPanel.add(showLabel);
+        leftPanel.add(Box.createRigidArea(new Dimension(3,0)));
+        leftPanel.add(showFinishedCheckbox);
+        leftPanel.add(Box.createRigidArea(new Dimension(2,0)));
+        leftPanel.add(showBuyingCheckbox);
+        leftPanel.add(Box.createRigidArea(new Dimension(2,0)));
+        leftPanel.add(showSellingCheckbox);
+
+        applyStatusFilters();
 
         JLayeredPane layeredPane = new JLayeredPane();
         layeredPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -549,5 +573,19 @@ public class FlipsPanel extends JPanel {
     public void onTabShown() {
         sortAndFilter.reloadFlips(true, true);
         accountDropdown.refresh();
+    }
+
+    private void applyStatusFilters() {
+        EnumSet<FlipStatus> statuses = EnumSet.noneOf(FlipStatus.class);
+        if (showFinishedCheckbox.isSelected()) {
+            statuses.add(FlipStatus.FINISHED);
+        }
+        if (showBuyingCheckbox.isSelected()) {
+            statuses.add(FlipStatus.BUYING);
+        }
+        if (showSellingCheckbox.isSelected()) {
+            statuses.add(FlipStatus.SELLING);
+        }
+        sortAndFilter.setIncludedStatuses(statuses);
     }
 }

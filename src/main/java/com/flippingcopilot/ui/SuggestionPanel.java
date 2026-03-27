@@ -34,6 +34,7 @@ import static com.flippingcopilot.util.Constants.MIN_GP_NEEDED_TO_FLIP;
 @Singleton
 @Slf4j
 public class SuggestionPanel extends JPanel {
+    private static final int DEFAULT_PANEL_HEIGHT = 150;
 
     // dependencies
     private final FlippingCopilotConfig config;
@@ -71,8 +72,11 @@ public class SuggestionPanel extends JPanel {
     private String innerSuggestionMessage;
     private String highlightedColor = "yellow";
 
-    @Setter
     private String serverMessage = "";
+
+    public void setServerMessage(String serverMessage) {
+        this.serverMessage = serverMessage == null ? "" : serverMessage;
+    }
 
 
     @Inject
@@ -110,11 +114,11 @@ public class SuggestionPanel extends JPanel {
         this.profitCalculator = profitCalculator;
 
         layeredPane.setLayout(null);
-        setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, 150));
+        setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, DEFAULT_PANEL_HEIGHT));
         suggestedActionPanel = new JPanel(new BorderLayout());
         suggestedActionPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         suggestedActionPanel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
-        suggestedActionPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, 150);
+        suggestedActionPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, DEFAULT_PANEL_HEIGHT);
 
         JPanel suggestionContainer = new JPanel(new BorderLayout());
         suggestionContainer.setOpaque(true);
@@ -194,7 +198,7 @@ public class SuggestionPanel extends JPanel {
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        setPanelHeight(150);
+        setPanelHeight(DEFAULT_PANEL_HEIGHT);
 
         add(layeredPane);
     }
@@ -202,9 +206,9 @@ public class SuggestionPanel extends JPanel {
     private void handleGearClick() {
         isPreferencesPanelVisible = !isPreferencesPanelVisible;
         if (isPreferencesPanelVisible) {
-            setPanelHeight(260);
+            setPanelHeight(280);
         } else {
-            setPanelHeight(150);
+            setPanelHeight(DEFAULT_PANEL_HEIGHT);
         }
 
         preferencesPanel.setVisible(isPreferencesPanelVisible);
@@ -262,7 +266,9 @@ public class SuggestionPanel extends JPanel {
             if(s != null) {
                 s.actionedTick = client.getTickCount();
             }
-            accountStatusManager.setSkipSuggestion(s != null ? s.getId() : -1);
+            int idToSkip = s != null ? s.getId() : -1;
+            log.info("skipping suggestion {}", idToSkip);
+            accountStatusManager.setSkipSuggestion(idToSkip);
             suggestionManager.setSuggestionNeeded(true);
         });
         centerPanel.add(skipButton);
@@ -292,27 +298,37 @@ public class SuggestionPanel extends JPanel {
         String suggestionString = "<html><center>";
         suggestionTextContainer.setVisible(false);
         additionalInfoText.setText("");
-        switch (suggestion.getType()) {
-            case "wait":
+        SuggestionType suggestionType = suggestion.getType();
+        if (suggestionType == null) {
+            suggestionString += "Error processing suggestion<br>";
+        } else {
+        switch (suggestionType) {
+            case WAIT:
                 suggestionString += "Wait <br>";
                 suggestionIcon.setVisible(false);
                 break;
-            case "abort":
+            case ABORT:
                 suggestionString += "Abort offer for<br><FONT COLOR=white>" + suggestion.getName() + "<br></FONT>";
                 setItemIcon(suggestion.getItemId());
                 break;
-            case "buy":
-            case "sell":
-            case "modify_buy":
-            case "modify_sell":
-                String action = suggestion.isBuySuggestion() ? "Buy" : "Sell";
+            case BUY:
+                suggestionString += (suggestion.isHold() ? "Buy and hold" : "Buy") +
+                        " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
+                        "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
+                        "for <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
+                setItemIcon(suggestion.getItemId());
+                break;
+            case SELL:
+            case MODIFY_BUY:
+            case MODIFY_SELL:
+                String action = suggestion.isBuySuggestion() ? "buy" : "sell";
                 if (suggestion.isModifySuggestion()) {
-                    suggestionString += "Modify " + action.toLowerCase() +
+                    suggestionString += "Modify " + action +
                             "<br>" +
                             "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
                             "to <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
                 } else {
-                    suggestionString += action +
+                    suggestionString += (suggestion.isSellSuggestion() ? "Sell" : "Buy") +
                             " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
                             "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
                             "for <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
@@ -321,6 +337,7 @@ public class SuggestionPanel extends JPanel {
                 break;
             default:
                 suggestionString += "Error processing suggestion<br>";
+        }
         }
         String additionalInfoMessage = Strings.isNullOrEmpty(suggestion.getMessage()) ? "" : "<br>" + suggestion.getMessage();
 
@@ -537,7 +554,7 @@ public class SuggestionPanel extends JPanel {
         String colorHex = String.format("#%06X", (0xFFFFFF & color.getRGB()));
         String text = "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit";
         if (expectedDuration != null) {
-            String formattedDuration = formatDuration(expectedDuration);
+            String formattedDuration = formatSuggestionDuration(expectedDuration);
             text += " in <b>" + formattedDuration + "</b>";
         }
         return text;
@@ -548,7 +565,7 @@ public class SuggestionPanel extends JPanel {
             return "";
         }
         String formattedProfit = formatProfit(expectedProfit);
-        String formattedDuration = formatDuration(expectedDuration);
+        String formattedDuration = formatSuggestionDuration(expectedDuration);
         Color profitColor = config.profitAmountColor();
 
         String colorHex = String.format("#%06X", (0xFFFFFF & profitColor.getRGB()));
@@ -562,24 +579,6 @@ public class SuggestionPanel extends JPanel {
             return String.format("%.1fK", profit / 1_000).replace(".0", "");
         } else {
             return String.format("%.0f", profit);
-        }
-    }
-
-    private String formatDuration(double durationSeconds) {
-        int totalMinutes = (int) Math.round(durationSeconds / 60.0);
-        // Round to nearest 5 minutes
-        totalMinutes = Math.round(totalMinutes / 5.0f) * 5;
-        totalMinutes = Math.max(totalMinutes, 5);
-        if (totalMinutes < 60) {
-            return totalMinutes + "min";
-        } else {
-            int hours = totalMinutes / 60;
-            int minutes = totalMinutes % 60;
-            if (minutes == 0) {
-                return hours + "h";
-            } else {
-                return hours + "h " + minutes + "m";
-            }
         }
     }
 }

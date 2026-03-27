@@ -29,8 +29,6 @@ public class CopilotLoginController {
     private MainPanel mainPanel;
     private final ApiRequestHandler apiRequestHandler;
     private final FlipManager flipManager;
-    private final HighlightController highlightController;
-    private final SuggestionManager suggestionManager;
     private final OsrsLoginManager osrsLoginManager;
     private final SessionManager sessionManager;
     private final TransactionManager transactionManager;
@@ -50,8 +48,6 @@ public class CopilotLoginController {
                                   CopilotLoginRS copilotLoginRS) {
         this.apiRequestHandler = apiRequestHandler;
         this.flipManager = flipManager;
-        this.highlightController = highlightController;
-        this.suggestionManager = suggestionManager;
         this.osrsLoginManager = osrsLoginManager;
         this.sessionManager = sessionManager;
         this.transactionManager = transactionManager;
@@ -157,5 +153,17 @@ public class CopilotLoginController {
     public void onLoginFailure(String errorMessage) {
         copilotLoginRS.set(new CopilotLoginState());
         loginPanel.showLoginErrorMessage(errorMessage);
+    }
+
+    public Integer getActiveAccountId() {
+        String displayName = osrsLoginManager.getPlayerDisplayName();
+        if (displayName == null) {
+            return null;
+        }
+        Integer accountId = copilotLoginRS.get().getAccountId(displayName);
+        if (accountId == null || accountId == -1) {
+            return null;
+        }
+        return accountId;
     }
 }

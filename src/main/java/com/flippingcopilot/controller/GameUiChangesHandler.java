@@ -4,6 +4,7 @@ import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.OfferStatus;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.rs.HeldItemSyncStateRS;
 import com.flippingcopilot.ui.OfferEditor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class GameUiChangesHandler {
     private final OfferManager offerManager;
     private final OfferHandler offerHandler;
     private final SlotProfitColorizer slotProfitColorizer;
+    private final HeldItemSyncStateRS heldItemSyncStateRS;
     // state
     boolean quantityOrPriceChatboxOpen;
     boolean itemSearchChatboxOpen = false;
@@ -132,6 +134,7 @@ public class GameUiChangesHandler {
     public void handleMenuOptionClicked(MenuOptionClicked event) {
         if (event.getMenuOption().equals("Confirm") && grandExchange.isSlotOpen()) {
             log.debug("offer confirmed tick {}", client.getTickCount());
+            heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
             offerManager.setOfferJustPlaced(true);
             suggestionManager.setLastOfferSubmittedTick(client.getTickCount());
             suggestionManager.setSuggestionNeeded(true);

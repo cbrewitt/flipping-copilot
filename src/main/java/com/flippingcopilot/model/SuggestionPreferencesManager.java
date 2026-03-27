@@ -71,6 +71,16 @@ public class SuggestionPreferencesManager {
         return osrsAccountPreferences.get().isF2pOnlyMode();
     }
 
+    public synchronized boolean isBuyAndHold() {
+        return osrsAccountPreferences.get().isBuyAndHold();
+    }
+
+    public synchronized void setBuyAndHold(boolean buyAndHold) {
+        AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
+        preferences.setBuyAndHold(buyAndHold);
+        osrsAccountPreferences.updateAndPersist(preferences);
+    }
+
     public synchronized void setF2pOnlyMode(boolean f2pOnlyMode) {
         AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
         preferences.setF2pOnlyMode(f2pOnlyMode);

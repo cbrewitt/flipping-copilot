@@ -31,7 +31,6 @@ public class FlipManager {
 
     public static final Comparator<FlipV2> FLIP_STATUS_TIME_COMPARATOR =
                 Comparator.comparing(FlipV2::isClosed).reversed().thenComparing(f -> f.getClosedTime() > 0 ? f.getClosedTime() : f.getOpenedTime());
-    public static final Comparator<FlipV2> TIME_DESC_COMPARATOR = Comparator.comparing(FlipV2::lastTransactionTime).reversed();
 
     // dependencies
     private final ItemController itemController;
@@ -168,7 +167,10 @@ public class FlipManager {
         if(includeBuyingFlips) {
             WeekAggregate w = getOrInitWeek(0);
             List<FlipV2> f = accountId == null ? w.flipsAfter(-1, false) : w.flipsAfterForAccount(-1, accountId);
-            f.stream().filter(i -> i.getOpenedTime() > intervalStartTime).forEach(c);
+            f.stream()
+                    .filter(i -> i.getOpenedTime() > intervalStartTime)
+                    .filter(this::isTrackedFlip)
+                    .forEach(c);
         }
         WeekAggregate intervalWeek = getOrInitWeek(intervalStartTime);
         for(int i=weeks.size()-1; i >= intervalWeek.pos; i--) {
@@ -181,7 +183,9 @@ public class FlipManager {
             // note: weekFlips are ascending order but we consume in descending order
             for(int ii=n-1; ii >= 0; ii--) {
                 FlipV2 f = weekFlips.get(ii);
-                c.accept(f);
+                if (isTrackedFlip(f)) {
+                    c.accept(f);
+                }
             }
         }
     }
@@ -201,16 +205,16 @@ public class FlipManager {
             WeekAggregate w = weeks.get(i);
             List<FlipV2> weekFlips = accountId == null ? w.flipsAfter(intervalStartTime, true) : w.flipsAfterForAccount(intervalStartTime, accountId);
             int n = weekFlips.size();
-            if (n > toSkip) {
-                // note: weekFlips are ascending order but we return pages of descending order
-                int end = n - toSkip;
-                int start = Math.max(0, end - (pageSize - pageFlips.size()));
-                for(int ii=end-1; ii >= start; ii--) {
-                    pageFlips.add(weekFlips.get(ii));
+            for(int ii=n-1; ii >= 0 && pageFlips.size() < pageSize; ii--) {
+                FlipV2 flip = weekFlips.get(ii);
+                if (!isTrackedFlip(flip)) {
+                    continue;
                 }
-                toSkip = 0;
-            } else {
-                toSkip -= n;
+                if (toSkip > 0) {
+                    toSkip -= 1;
+                    continue;
+                }
+                pageFlips.add(flip);
             }
         }
         if (itemController != null) {
@@ -391,5 +395,9 @@ public class FlipManager {
                 return mid; // key found
         }
         return -(low + 1);  // key not found (low = insertion point)
+    }
+
+    private boolean isTrackedFlip(FlipV2 flip) {
+        return flip != null && flip.getPortfolioId() != -2;
     }
 }

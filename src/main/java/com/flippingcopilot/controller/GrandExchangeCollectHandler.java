@@ -3,6 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.model.GrandExchangeUncollectedManager;
 import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.rs.HeldItemSyncStateRS;
 import com.flippingcopilot.ui.SuggestionPanel;
 import com.google.inject.Singleton;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class GrandExchangeCollectHandler {
     private final GrandExchangeUncollectedManager geUncollected;
     private final SuggestionManager suggestionManager;
     private final Client client;
+    private final HeldItemSyncStateRS heldItemSyncStateRS;
 
     @Setter
     private SuggestionPanel suggestionPanel;
@@ -53,8 +55,10 @@ public class GrandExchangeCollectHandler {
         if (widget.getId() == 30474246) {
             if (menuOption.equals("Collect to inventory")) {
                 geUncollected.clearAllUncollected(osrsLoginManager.getAccountHash());
+                heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
             } else if (menuOption.equals("Collect to bank")) {
                 geUncollected.clearAllUncollected(osrsLoginManager.getAccountHash());
+                heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
             }
             suggestionPanel.refresh();
         }
@@ -64,8 +68,10 @@ public class GrandExchangeCollectHandler {
         if (widget.getId() == 30474264 ) {
             if (menuOption.contains("Collect")) {
                 geUncollected.clearSlotUncollected(osrsLoginManager.getAccountHash(), slot);
+                heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
             } else if (menuOption.contains("Bank")) {
                 geUncollected.clearSlotUncollected(osrsLoginManager.getAccountHash(), slot);
+                heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
             }
             suggestionPanel.refresh();
         }
@@ -74,10 +80,12 @@ public class GrandExchangeCollectHandler {
     private void handleCollectionBoxCollectAll(String menuOption, Widget widget) {
         if (widget.getId() == 26345476 && menuOption.equals("Collect to bank")) {
             geUncollected.clearAllUncollected(osrsLoginManager.getAccountHash());
+            heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
             suggestionPanel.refresh();
             
         } else if (widget.getId() == 26345475 && menuOption.equals("Collect to inventory")) {
             geUncollected.clearAllUncollected(osrsLoginManager.getAccountHash());
+            heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
             suggestionPanel.refresh();
         }
     }
@@ -87,8 +95,10 @@ public class GrandExchangeCollectHandler {
         if (slot >= 0 && slot <= 7) {
             if (menuOption.contains("Collect")) {
                 geUncollected.clearSlotUncollected(osrsLoginManager.getAccountHash(), slot);
+                heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
             } else if (menuOption.contains("Bank")) {
                 geUncollected.clearSlotUncollected(osrsLoginManager.getAccountHash(), slot);
+                heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
             }
             suggestionPanel.refresh();
         }

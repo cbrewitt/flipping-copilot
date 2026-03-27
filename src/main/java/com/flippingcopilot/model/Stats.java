@@ -35,6 +35,9 @@ public class Stats {
     }
 
     public void addFlip(FlipV2 f) {
+        if (f == null || !isTrackedFlip(f)) {
+            return;
+        }
         profit += f.getProfit();
         gross += f.getSpent();
         taxPaid += f.getTaxPaid();
@@ -42,9 +45,16 @@ public class Stats {
     }
 
     public void subtractFlip(FlipV2 f) {
+        if (f == null || !isTrackedFlip(f)) {
+            return;
+        }
         profit -= f.getProfit();
         gross -= f.getSpent();
         taxPaid -= f.getTaxPaid();
         flipsMade -= 1;
+    }
+
+    private boolean isTrackedFlip(FlipV2 f) {
+        return f.getPortfolioId() != -2;
     }
 }

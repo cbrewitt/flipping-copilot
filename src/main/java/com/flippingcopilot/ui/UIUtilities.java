@@ -77,6 +77,36 @@ public class UIUtilities {
         return quantityToRSDecimalStack(profit, true);
     }
 
+    public static String formatSuggestionDuration(double durationSeconds) {
+        int totalMinutes = (int) Math.round(durationSeconds / 60.0);
+        totalMinutes = Math.round(totalMinutes / 5.0f) * 5;
+        totalMinutes = Math.max(totalMinutes, 5);
+
+        if (durationSeconds >= 86_400 || totalMinutes >= 1_440) {
+            long totalHours = Math.max(24L, Math.round(durationSeconds / 3600.0));
+            long days = totalHours / 24;
+            long hours = totalHours % 24;
+
+            if (hours == 0) {
+                return days + "d";
+            }
+
+            return days + "d " + hours + "h";
+        }
+
+        if (totalMinutes < 60) {
+            return totalMinutes + "min";
+        }
+
+        int hours = totalMinutes / 60;
+        int minutes = totalMinutes % 60;
+        if (minutes == 0) {
+            return hours + "h";
+        }
+
+        return hours + "h " + minutes + "m";
+    }
+
     public static String truncateString(String string, int length) {
         if (string.length() > length) {
             return string.substring(0, length) + "...";
