@@ -1,8 +1,12 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.ProfitCalculator;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -10,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+@Slf4j
 @Data
 public class FlipV2 {
 
@@ -29,6 +34,7 @@ public class FlipV2 {
     private FlipStatus status;
     private int updatedTime;
     private boolean deleted;
+    private int portfolioId;
 
     private String cachedItemName;
 
@@ -123,6 +129,98 @@ public class FlipV2 {
         return flip;
     }
 
+    public static FlipV2 decodeProto(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return null;
+        }
+
+        FlipV2 flip = new FlipV2();
+        boolean isClosed = false;
+
+        try {
+            CodedInputStream input = CodedInputStream.newInstance(bytes);
+            while (!input.isAtEnd()) {
+                int tag = input.readTag();
+                if (tag == 0) {
+                    break;
+                }
+
+                int fieldNumber = WireFormat.getTagFieldNumber(tag);
+                switch (fieldNumber) {
+                    case 1:
+                        flip.id = decodeUuid(input.readByteArray());
+                        break;
+                    case 2:
+                        flip.accountId = input.readInt32();
+                        break;
+                    case 3:
+                        flip.itemId = input.readInt32();
+                        break;
+                    case 4:
+                        flip.cachedItemName = input.readString();
+                        break;
+                    case 5:
+                        flip.openedTime = input.readInt32();
+                        break;
+                    case 6:
+                        flip.openedQuantity = input.readInt32();
+                        break;
+                    case 7:
+                        flip.spent = input.readInt64();
+                        break;
+                    case 8:
+                        flip.closedTime = input.readInt32();
+                        break;
+                    case 9:
+                        flip.closedQuantity = input.readInt32();
+                        break;
+                    case 10:
+                        flip.receivedPostTax = input.readInt64();
+                        break;
+                    case 11:
+                        flip.taxPaid = input.readInt64();
+                        break;
+                    case 12:
+                        flip.profit = input.readInt64();
+                        break;
+                    case 13:
+                        isClosed = input.readBool();
+                        break;
+                    case 14:
+                        flip.status = FlipStatus.fromValue(input.readString());
+                        break;
+                    case 16:
+                        flip.updatedTime = input.readInt32();
+                        break;
+                    case 17:
+                        flip.deleted = input.readBool();
+                        break;
+                    case 19:
+                        flip.portfolioId = input.readSInt32();
+                        break;
+                    default:
+                        input.skipField(tag);
+                }
+            }
+        } catch (IOException e) {
+            log.warn("failed decoding flip proto", e);
+            return null;
+        }
+
+        if (flip.status == null) {
+            flip.status = isClosed ? FlipStatus.FINISHED : FlipStatus.BUYING;
+        }
+        return flip;
+    }
+
+    private static UUID decodeUuid(byte[] raw) {
+        if (raw == null || raw.length != 16) {
+            return null;
+        }
+        ByteBuffer b = ByteBuffer.wrap(raw).order(ByteOrder.BIG_ENDIAN);
+        return new UUID(b.getLong(), b.getLong());
+    }
+
     public boolean isClosed() {
         return Objects.equals(status, FlipStatus.FINISHED);
     }
@@ -133,7 +231,7 @@ public class FlipV2 {
 
     public boolean isNewer(FlipV2 o) {
         if (updatedTime == o.updatedTime) {
-            return closedQuantity > o.closedQuantity || (closedQuantity == o.closedQuantity && openedQuantity > o.openedQuantity);
+            return closedQuantity > o.closedQuantity || (closedQuantity == o.closedQuantity && openedQuantity >= o.openedQuantity);
         }
         return updatedTime > o.updatedTime;
     }

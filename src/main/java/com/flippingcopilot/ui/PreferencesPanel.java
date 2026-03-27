@@ -22,7 +22,6 @@ import java.util.Objects;
 @Slf4j
 @Singleton
 public class PreferencesPanel extends JPanel {
-
     private static final MinProfitOption[] MIN_PREDICTED_PROFIT_OPTIONS = new MinProfitOption[]{
             new MinProfitOption("Auto", null),
             new MinProfitOption("20K", 20_000),
@@ -60,6 +59,8 @@ public class PreferencesPanel extends JPanel {
     private final OsrsLoginManager osrsLoginManager;
     private final JPanel sellOnlyButton;
     private final PreferencesToggleButton sellOnlyModeToggleButton;
+    private final JPanel buyAndHoldButton;
+    private final PreferencesToggleButton buyAndHoldToggleButton;
     private final JPanel f2pOnlyButton;
     private final PreferencesToggleButton f2pOnlyModeToggleButton;
     private final ItemSearchMultiSelect blocklistDropdownPanel;
@@ -222,6 +223,21 @@ public class PreferencesPanel extends JPanel {
                 blocklistDropdownPanel.getBorder()));
         preferencesContent.add(blocklistDropdownPanel);
 
+        // Buy and hold toggle
+        buyAndHoldToggleButton = new PreferencesToggleButton("Disable buy and hold", "Enable buy and hold");
+        buyAndHoldButton = new JPanel();
+        buyAndHoldButton.setLayout(new BorderLayout());
+        buyAndHoldButton.setOpaque(false);
+        preferencesContent.add(buyAndHoldButton);
+        JLabel buyAndHoldButtonText = new JLabel("Buy and hold");
+        buyAndHoldButton.add(buyAndHoldButtonText, BorderLayout.LINE_START);
+        buyAndHoldButton.add(buyAndHoldToggleButton, BorderLayout.LINE_END);
+        buyAndHoldToggleButton.addItemListener(i -> {
+            preferencesManager.setBuyAndHold(buyAndHoldToggleButton.isSelected());
+            suggestionManager.setSuggestionNeeded(true);
+        });
+        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
+
         // Sell-only mode toggle
         sellOnlyModeToggleButton = new PreferencesToggleButton("Disable sell-only mode", "Enable sell-only mode");
         sellOnlyButton = new JPanel();
@@ -346,6 +362,7 @@ public class PreferencesPanel extends JPanel {
         }
         layout.show(this, "preferences");
         sellOnlyModeToggleButton.setSelected(preferencesManager.isSellOnlyMode());
+        buyAndHoldToggleButton.setSelected(preferencesManager.isBuyAndHold());
         f2pOnlyModeToggleButton.setSelected(preferencesManager.isF2pOnlyMode());
         syncReservedSlots(preferencesManager.getReservedSlots());
         syncDumpAlerts(preferencesManager.isReceiveDumpSuggestions(), preferencesManager.getDumpMinPredictedProfit());
