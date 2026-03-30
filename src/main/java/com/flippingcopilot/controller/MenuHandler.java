@@ -143,6 +143,7 @@ public class MenuHandler {
                             suggestion == null ? null : suggestion.getBankItems(),
                             result == null ? null : result.getPortfolioItems()
                     );
+                    suggestionManager.setSuggestionNeeded(true);
                     int itemsUpdated = result == null || result.getPortfolioItems() == null ? 0 : result.getPortfolioItems().size();
                     log.info("{} succeeded for item_id={}, account_id={}, portfolio_items_updated={}", option, menuItem.unnotedItemId, accountId, itemsUpdated);
                 },
