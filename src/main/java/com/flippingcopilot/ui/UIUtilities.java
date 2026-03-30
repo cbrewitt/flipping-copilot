@@ -69,6 +69,16 @@ public class UIUtilities {
         }
     }
 
+    public static Color getProfitColor(double profit, FlippingCopilotConfig config) {
+        if (profit > 0) {
+            return config.profitAmountColor();
+        } else if (profit < 0) {
+            return config.lossAmountColor();
+        } else {
+            return Color.WHITE;
+        }
+    }
+
     public static String formatProfit(long profit) {
         return quantityToRSDecimalStack(profit, true) + " gp";
     }

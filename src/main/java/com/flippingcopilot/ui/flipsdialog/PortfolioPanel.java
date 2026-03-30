@@ -8,6 +8,7 @@ import com.flippingcopilot.model.PortfolioSummaryData;
 import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.rs.PortfolioStateRS;
+import com.flippingcopilot.ui.UIUtilities;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
@@ -29,7 +30,7 @@ public class PortfolioPanel extends JPanel {
     private static final String CONTENT_CARD = "content";
     private static final String LOGIN_PROMPT_CARD = "login";
     private static final String[] COLUMN_NAMES = {
-            "Item", "Market value", "Portfolio Quantity", "Held Quantity", "Open flips", "Time held", "Unrealized Profit", "Unrealized RIO"
+            "Item", "Market value", "Portfolio Quantity", "Held Quantity", "Open flips", "Time held", "Unrealized Profit", "Unrealized ROI"
     };
 
     private final ItemController itemController;
@@ -162,7 +163,7 @@ public class PortfolioPanel extends JPanel {
                     setText(formatGp(amount, true));
                     setHorizontalAlignment(RIGHT);
                     if (!isSelected) {
-                        setForeground(getProfitColor(amount));
+                        setForeground(UIUtilities.getProfitColor(amount, config));
                     }
                 }
                 return c;
@@ -170,8 +171,23 @@ public class PortfolioPanel extends JPanel {
         };
         table.getColumnModel().getColumn(6).setCellRenderer(profitRenderer);
 
-        DefaultTableCellRenderer roiRenderer = new DefaultTableCellRenderer();
-        roiRenderer.setHorizontalAlignment(JLabel.RIGHT);
+        DefaultTableCellRenderer roiRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(RIGHT);
+                if (value instanceof Double) {
+                    double roi = (Double) value;
+                    setText(String.format("%.2f%%", roi * 100.0d));
+                    if (!isSelected) {
+                        setForeground(UIUtilities.getProfitColor(roi, config));
+                    }
+                } else {
+                    setText(value == null ? "Unknown" : value.toString());
+                }
+                return c;
+            }
+        };
         table.getColumnModel().getColumn(7).setCellRenderer(roiRenderer);
 
         JScrollPane scrollPane = new JScrollPane(table);
@@ -244,19 +260,23 @@ public class PortfolioPanel extends JPanel {
             return;
         }
         addSummaryRow("Portfolio Market Value", formatGp(data.getPortfolioMarketValue(), false));
-        addSummaryRow("Unrealised Profit", formatGp(data.getUnrealizedProfit(), true));
+        addSummaryRow("Unrealised Profit", formatGp(data.getUnrealizedProfit(), true), UIUtilities.getProfitColor(data.getUnrealizedProfit(), config));
         addSummaryRow("Cash Value", formatGp(data.getCashValue(), false));
         addSummaryRow("Assets Value", formatGp(data.getAssetsValue(), false));
         addSummaryRow("Total items in portfolio", NumberFormat.getIntegerInstance(Locale.US).format(totalItemsInPortfolio));
     }
 
     private void addSummaryRow(String label, String value) {
+        addSummaryRow(label, value, ColorScheme.LIGHT_GRAY_COLOR);
+    }
+
+    private void addSummaryRow(String label, String value, Color valueColor) {
         JLabel keyLabel = new JLabel(label);
         keyLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
         keyLabel.setFont(keyLabel.getFont().deriveFont(19f));
 
         JLabel valueLabel = new JLabel(value, SwingConstants.RIGHT);
-        valueLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        valueLabel.setForeground(valueColor);
         valueLabel.setFont(valueLabel.getFont().deriveFont(19f));
 
         summaryTablePanel.add(keyLabel);
@@ -281,7 +301,7 @@ public class PortfolioPanel extends JPanel {
                     item.getOpenFlipsCount(),
                     formatDuration(item.getHeldMinutes()),
                     item.flipsUnrealizedProfit(),
-                    formatUnrealizedRio(item)
+                    calculateUnrealizedRoi(item)
             });
         }
     }
@@ -294,16 +314,6 @@ public class PortfolioPanel extends JPanel {
         messageLabel.setFont(messageLabel.getFont().deriveFont(18f));
         loginPromptPanel.add(messageLabel);
         return loginPromptPanel;
-    }
-
-    private Color getProfitColor(long profit) {
-        if (profit > 0) {
-            return config.profitAmountColor();
-        }
-        if (profit < 0) {
-            return config.lossAmountColor();
-        }
-        return Color.WHITE;
     }
 
     private String formatGp(long amount, boolean signed) {
@@ -325,16 +335,15 @@ public class PortfolioPanel extends JPanel {
         return Math.max(1, minutes) + "m";
     }
 
-    private String formatUnrealizedRio(PortfolioItemCardData item) {
+    private Double calculateUnrealizedRoi(PortfolioItemCardData item) {
         if (item.getUnrealizedUnitProfit() == null) {
-            return "Unknown";
+            return null;
         }
         long unitBuyPrice = item.getPostTaxSellUnitPrice() - item.getUnrealizedUnitProfit();
         if (unitBuyPrice <= 0) {
-            return "Unknown";
+            return null;
         }
-        double rio = (double) item.getUnrealizedUnitProfit() / (double) unitBuyPrice;
-        return String.format("%.2f%%", rio * 100.0d);
+        return (double) item.getUnrealizedUnitProfit() / (double) unitBuyPrice;
     }
 
     private static class ItemCell {
