@@ -3,9 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
-import com.flippingcopilot.rs.GrandExchangeOpenRS;
 import com.flippingcopilot.rs.PortfolioStateRS;
-import com.flippingcopilot.rs.ReactiveStateImpl;
 import com.flippingcopilot.ui.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.ui.graph.model.Data;
@@ -57,7 +55,6 @@ public class SuggestionController {
     private final PortfolioStateRS portfolioStateRS;
     private final FlipsDialogController flipDialogController;
     private final GePreviousSearch gePreviousSearch;
-    private final GrandExchangeOpenRS grandExchangeOpenRS;
 
 
     private MainPanel mainPanel;
@@ -180,7 +177,7 @@ public class SuggestionController {
         suggestionPanel.refresh();
         log.debug("tick {} getting suggestion", client.getTickCount());
         boolean sendGraphData = config.priceGraphWebsite() == FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT && !config.lowDataMode();
-        boolean geOpen = grandExchangeOpenRS.get();
+        boolean geOpen = grandExchange.isOpen();
         log.debug("sending suggestion {}", accountStatus.toJson(gson, geOpen, sendGraphData));
         apiRequestHandler.getSuggestionAsync(accountStatus.encodeProto(geOpen, sendGraphData), suggestionConsumer, graphDataConsumer, onFailure, skipGraphData);
     }

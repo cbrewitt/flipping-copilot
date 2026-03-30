@@ -434,7 +434,7 @@ public class FlipsPanel extends JPanel {
                         t.setPrice(price);
                         t.setQuantity(qty);
                         t.setBoxId(0);
-                        t.setAmountSpent(price * qty);
+                        t.setAmountSpent((long) price * qty);
                         t.setTimestamp(Instant.now());
                         t.setCopilotPriceUsed(true);
                         t.setWasCopilotSuggestion(true);

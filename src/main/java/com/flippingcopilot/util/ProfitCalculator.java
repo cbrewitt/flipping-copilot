@@ -134,7 +134,7 @@ public class ProfitCalculator {
         t.setItemId(suggestion.getItemId());
         t.setPrice(suggestion.getPrice());
         t.setQuantity(suggestion.getQuantity());
-        t.setAmountSpent(suggestion.getPrice() * suggestion.getQuantity());
+        t.setAmountSpent((long) suggestion.getPrice() * suggestion.getQuantity());
         t.setType(OfferStatus.SELL);
 
         return flipManager.estimateTransactionProfit(accountId, t);

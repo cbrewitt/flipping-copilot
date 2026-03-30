@@ -247,7 +247,8 @@ public class HighlightController {
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (offerQuantity != suggestion.getQuantity()) {
             Widget setQuantityButton;
-            if (accountStatus.getInventory().getTotalAmount(suggestion.getItemId()) == suggestion.getQuantity()) {
+            if (accountStatus.getInventory().getTotalAmount(suggestion.getItemId()) == suggestion.getQuantity()
+                && suggestion.isSellSuggestion()) {
                 setQuantityButton = grandExchange.getSetQuantityAllButton();
             } else {
                 setQuantityButton = grandExchange.getSetQuantityButton();

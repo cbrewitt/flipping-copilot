@@ -36,6 +36,7 @@ public class InventorySlotTooltipOverlay extends Overlay {
     private static final int BANK_INVENTORY_WIDGET_CHILD = 3;
 
     private static final String UNREALISED_PROFIT_PREFIX = "Unrealized Profit: ";
+    private static final String UNREALISED_ROI_PREFIX = "Unrealized ROI: ";
     private static final String POSITIVE_COLOR = "<col=50dc78>";
     private static final String NEGATIVE_COLOR = "<col=e65a5a>";
     private static final String COLOR_END = "</col>";
@@ -152,12 +153,31 @@ public class InventorySlotTooltipOverlay extends Overlay {
     }
 
     private String formatTooltipLine(String line) {
-        if (line != null && line.startsWith(UNREALISED_PROFIT_PREFIX)) {
-            String value = line.substring(UNREALISED_PROFIT_PREFIX.length());
-            String color = value.contains("-") ? NEGATIVE_COLOR : POSITIVE_COLOR;
-            return UNREALISED_PROFIT_PREFIX + color + value + COLOR_END;
+        String formattedSignedValueLine = formatSignedValueLine(line, UNREALISED_PROFIT_PREFIX);
+        if (formattedSignedValueLine != null) {
+            return formattedSignedValueLine;
         }
+
+        formattedSignedValueLine = formatSignedValueLine(line, UNREALISED_ROI_PREFIX);
+        if (formattedSignedValueLine != null) {
+            return formattedSignedValueLine;
+        }
+
         return line == null ? "" : line;
+    }
+
+    private String formatSignedValueLine(String line, String prefix) {
+        if (line == null || !line.startsWith(prefix)) {
+            return null;
+        }
+
+        String value = line.substring(prefix.length());
+        if ("Unknown".equals(value)) {
+            return line;
+        }
+
+        String color = value.startsWith("-") ? NEGATIVE_COLOR : POSITIVE_COLOR;
+        return prefix + color + value + COLOR_END;
     }
 
     private static class HoveredInventorySlot {
