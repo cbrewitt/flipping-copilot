@@ -117,8 +117,6 @@ public class AccountStatus {
         JsonArray rstArray = new JsonArray();
         requestedSuggestionTypes.forEach(type -> rstArray.add(type.apiValue()));
         statusJson.add("requested_suggestion_types", rstArray);
-        log.debug("requested suggestion types for {} (geOpen={}, sellOnly={}): {}",
-                displayName, geOpen, sellOnlyMode, requestedSuggestionTypes);
         if (reservedSlots != null && reservedSlots > 0) {
             statusJson.addProperty("reserved_slots", reservedSlots);
         }

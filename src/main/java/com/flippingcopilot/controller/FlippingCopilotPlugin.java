@@ -231,10 +231,10 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Subscribe
 	public void onGameTick(GameTick event) {
 		bankStateRS.onGameTick();
+		grandExchangeOpenRS.set(grandExchange.isOpen());
 
 		suggestionController.onGameTick();
 		offerEventHandler.onGameTick();
-		grandExchangeOpenRS.set(grandExchange.isOpen());
 		osrsLoginRS.set(osrsLoginRS.get().nextState(client));
 	}
 
