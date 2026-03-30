@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class AccountSuggestionPreferences {
     public int timeframe = 5;
+    public boolean buyAndHold = true;
     public boolean f2pOnlyMode = false;
     public RiskLevel riskLevel = RiskLevel.MEDIUM;
     public Integer reservedSlots = null;

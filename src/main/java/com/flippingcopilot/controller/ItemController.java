@@ -4,7 +4,10 @@ import com.flippingcopilot.model.ItemIdName;
 import com.flippingcopilot.ui.FuzzySearchScorer;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.Item;
 import net.runelite.api.ItemComposition;
+import net.runelite.api.ItemContainer;
+import net.runelite.api.InventoryID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.util.AsyncBufferedImage;
@@ -25,10 +28,14 @@ import java.util.stream.IntStream;
 @Slf4j
 @Singleton
 public class ItemController {
+
+    public static final int COINS_ITEM_ID = 995;
+    public static final int PLATINUM_TOKENS_ITEM_ID = 13204;
     private static final int NAME_CHAR_LIMIT = 25;
 
     // dependencies
     private final FuzzySearchScorer fuzzySearchScorer;
+    private final Client client;
     private final ItemManager itemManager;
     private final ClientThread clientThread;
 
@@ -44,6 +51,7 @@ public class ItemController {
                           FuzzySearchScorer fuzzySearchScorer,
                           ScheduledExecutorService executorService) {
         this.fuzzySearchScorer = fuzzySearchScorer;
+        this.client = client;
         this.itemManager = itemManager;
         this.clientThread = clientThread;
 
@@ -109,5 +117,60 @@ public class ItemController {
         clientThread.invokeLater(() -> {
             c.accept(itemManager.getImage(itemId));
         });
+    }
+
+    public int toUnnotedItemId(int itemId) {
+        ItemComposition composition = itemManager.getItemComposition(itemId);
+        if (composition != null && composition.getNote() != -1 && composition.getLinkedNoteId() > 0) {
+            return composition.getLinkedNoteId();
+        }
+        return itemId;
+    }
+
+    public long totalCash(Map<Integer, Integer> itemQuantities) {
+        if (itemQuantities == null) {
+            return 0L;
+        }
+        return itemQuantities.getOrDefault(COINS_ITEM_ID, 0)
+                + (long) itemQuantities.getOrDefault(PLATINUM_TOKENS_ITEM_ID, 0) * 1000L;
+    }
+
+    public Map<Integer, Integer> getRunliteInventory() {
+        return buildRuneliteItemMap(InventoryID.INVENTORY);
+    }
+
+    public Map<Integer, Integer> getRunliteBankInventory() {
+        return buildRuneliteItemMap(InventoryID.BANK);
+    }
+
+    private Map<Integer, Integer> buildRuneliteItemMap(InventoryID inventoryID) {
+        ItemContainer container = client.getItemContainer(inventoryID);
+        if (container == null) {
+            return null;
+        }
+        Map<Integer, Integer> totals = new HashMap<>();
+        for (Item item : container.getItems()) {
+            if (item == null || item.getId() <= 0 || item.getQuantity() <= 0) {
+                continue;
+            }
+            Integer unnotedTradeableItemId = toUnnotedTradeableItemId(item.getId());
+            if (unnotedTradeableItemId == null) {
+                continue;
+            }
+            totals.merge(unnotedTradeableItemId, item.getQuantity(), Integer::sum);
+        }
+        return totals;
+    }
+
+    private Integer toUnnotedTradeableItemId(int itemId) {
+        int unnotedItemId = toUnnotedItemId(itemId);
+        if (unnotedItemId == COINS_ITEM_ID || unnotedItemId == PLATINUM_TOKENS_ITEM_ID) {
+            return unnotedItemId;
+        }
+        ItemComposition unnoted = itemManager.getItemComposition(unnotedItemId);
+        if (unnoted == null || !unnoted.isTradeable()) {
+            return null;
+        }
+        return unnotedItemId;
     }
 }

@@ -3,6 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
+import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.FlippingCopilotConfigRS;
 import com.flippingcopilot.rs.GrandExchangeOpenRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
@@ -116,6 +117,12 @@ public class FlippingCopilotPlugin extends Plugin {
 	private OsrsLoginRS osrsLoginRS;
 	@Inject
 	private FlippingCopilotConfigRS configRS;
+	@Inject
+	private InventorySlotTooltipOverlay inventorySlotTooltipOverlay;
+ 	@Inject
+	private InventoryPortfolioBadgeOverlay inventoryPortfolioBadgeOverlay;
+	@Inject
+	private BankStateRS bankStateRS;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -137,6 +144,8 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void startUp() throws Exception {
+		overlayManager.add(inventorySlotTooltipOverlay);
+		overlayManager.add(inventoryPortfolioBadgeOverlay);
 		highlightController.activate();
 		Persistance.setUp(gson);
 		// seems we need to delay instantiating the UI till here as otherwise the panels look different
@@ -182,6 +191,8 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void shutDown() throws Exception {
+		overlayManager.remove(inventorySlotTooltipOverlay);
+		overlayManager.remove(inventoryPortfolioBadgeOverlay);
 		offerManager.saveAll();
 		highlightController.deactivateAndRemoveAll();
 		clientThread.invokeLater(() -> slotProfitColorizer.resetAllSlots());
@@ -219,6 +230,8 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameTick(GameTick event) {
+		bankStateRS.onGameTick();
+
 		suggestionController.onGameTick();
 		offerEventHandler.onGameTick();
 		grandExchangeOpenRS.set(grandExchange.isOpen());
@@ -245,6 +258,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event) {
+		menuHandler.injectInventoryPortfolioMenuEntry(event);
 		menuHandler.injectCopilotPriceGraphMenuEntry(event);
 		menuHandler.injectConfirmMenuEntry(event);
 		menuHandler.injectSlotActionSwapMenuEntry(event);

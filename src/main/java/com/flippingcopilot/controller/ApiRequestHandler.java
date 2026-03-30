@@ -7,7 +7,6 @@ import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Singleton;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 import okhttp3.*;
@@ -135,19 +134,18 @@ public class ApiRequestHandler {
         return call;
     }
 
-    public void getSuggestionAsync(JsonObject status,
+    public void getSuggestionAsync(byte[] status,
                                    Consumer<Suggestion> suggestionConsumer,
                                    Consumer<Data> graphDataConsumer,
                                    Consumer<HttpResponseException>  onFailure,
                                    boolean skipGraphData) {
-        log.debug("sending status {}", status.toString());
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request.Builder rb = new Request.Builder()
                 .url(serverUrl + "/suggestion")
                 .addHeader("Authorization", "Bearer " + jwtToken)
-                .addHeader("Accept", "application/x-msgpack")
+                .addHeader("Accept", "application/protobuf")
                 .addHeader("X-VERSION", "1")
-                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), status.toString()));
+                .post(RequestBody.create(MediaType.get("application/protobuf"), status));
 
         if(skipGraphData){
             rb.addHeader("X-SKIP-GD", "true");
@@ -185,67 +183,56 @@ public class ApiRequestHandler {
         if (response.body() == null) {
             throw new IOException("empty suggestion request response");
         }
-        String contentType = response.header("Content-Type");
         Suggestion s;
-        if (contentType != null && contentType.contains("application/x-msgpack")) {
-            int contentLength = resolveContentLength(response);
-            int suggestionContentLength = resolveSuggestionContentLength(response);
-            int graphDataContentLength = contentLength - suggestionContentLength;
-            log.debug("msgpack suggestion response size is: {}, suggestion size is {}", contentLength, suggestionContentLength);
+        int contentLength = resolveContentLength(response);
+        int suggestionContentLength = resolveSuggestionContentLength(response);
+        int graphDataContentLength = contentLength - suggestionContentLength;
+        log.debug("msgpack suggestion response size is: {}, suggestion size is {}", contentLength, suggestionContentLength);
 
-            Data d = new Data();
-            try(InputStream is = response.body().byteStream()) {
-                // This is some bespoke handling to make the user experience better. We basically pack two different
-                // objects in the response body. The suggestion (first object) and the graph data (second
-                // object). The graph data can be a few kb, and we want the suggestion to be displayed
-                // immediately, without having to wait for the graph data to be loaded.
+        Data d = new Data();
+        try(InputStream is = response.body().byteStream()) {
+            // This is some bespoke handling to make the user experience better. We basically pack two different
+            // objects in the response body. The suggestion (first object) and the graph data (second
+            // object). The graph data can be a few kb, and we want the suggestion to be displayed
+            // immediately, without having to wait for the graph data to be loaded.
 
-                byte[] suggestionBytes = new byte[suggestionContentLength];
-                int bytesRead = is.readNBytes(suggestionBytes, 0, suggestionContentLength);
-                if (bytesRead != suggestionContentLength) {
-                    throw new IOException("failed to read complete suggestion content: " + bytesRead + " of " + suggestionContentLength + " bytes");
-                }
-                s = Suggestion.fromMsgPack(ByteBuffer.wrap(suggestionBytes));
-                log.debug("suggestion received");
-                clientThread.invoke(() -> suggestionConsumer.accept(s));
-
-                if (graphDataContentLength == 0) {
-                    d.loadingErrorMessage = "No graph data loaded for this item.";
-                } else {
-                    try {
-                        byte[] remainingBytes = is.readAllBytes();
-                        if (graphDataContentLength != remainingBytes.length) {
-                            log.error("the graph data bytes read {} doesn't match the expected bytes {}", bytesRead, graphDataContentLength);
-                            d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
-                        } else {
-                            try {
-                                d = Data.fromMsgPack(ByteBuffer.wrap(remainingBytes));
-                                log.debug("graph data received");
-                            } catch (Exception e) {
-                                log.error("error deserializing graph data", e);
-                                d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
-                            }
-                        }
-                    } catch (IOException e) {
-                        log.error("error on reading graph data bytes from the suggestion response", e);
-                        d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
-                    }
-                }
+            byte[] suggestionBytes = new byte[suggestionContentLength];
+            int bytesRead = is.readNBytes(suggestionBytes, 0, suggestionContentLength);
+            if (bytesRead != suggestionContentLength) {
+                throw new IOException("failed to read complete suggestion content: " + bytesRead + " of " + suggestionContentLength + " bytes");
             }
-            if (s != null && "wait".equals(s.getType())){
-                d.fromWaitSuggestion = true;
-            }
-            Data finalD = d;
-            clientThread.invoke(() -> graphDataConsumer.accept(finalD));
-        } else {
-            String body = response.body().string();
-            log.debug("json suggestion response size is: {}", body.getBytes().length);
-            s = gson.fromJson(body, Suggestion.class);
+            s = Suggestion.decodeProto(suggestionBytes);
+            log.debug("suggestion received");
             clientThread.invoke(() -> suggestionConsumer.accept(s));
-            Data d = new Data();
-            d.loadingErrorMessage = "No graph data loaded for this item.";
-            clientThread.invoke(() -> graphDataConsumer.accept(d));
+
+            if (graphDataContentLength == 0) {
+                d.loadingErrorMessage = "No graph data loaded for this item.";
+            } else {
+                try {
+                    byte[] remainingBytes = is.readAllBytes();
+                    if (graphDataContentLength != remainingBytes.length) {
+                        log.error("the graph data bytes read {} doesn't match the expected bytes {}", bytesRead, graphDataContentLength);
+                        d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
+                    } else {
+                        try {
+                            d = Data.fromMsgPack(ByteBuffer.wrap(remainingBytes));
+                            log.debug("graph data received");
+                        } catch (Exception e) {
+                            log.error("error deserializing graph data", e);
+                            d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
+                        }
+                    }
+                } catch (IOException e) {
+                    log.error("error on reading graph data bytes from the suggestion response", e);
+                    d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
+                }
+            }
         }
+        if (s != null && s.getType() == SuggestionType.WAIT){
+            d.fromWaitSuggestion = true;
+        }
+        Data finalD = d;
+        clientThread.invoke(() -> graphDataConsumer.accept(finalD));
     }
 
     private int resolveContentLength(Response resp) throws IOException {
@@ -304,6 +291,46 @@ public class ApiRequestHandler {
                     onSuccess.accept(userId, changedFlips);
                 } catch (Exception e) {
                     log.warn("error reading/parsing sync transactions response body", e);
+                    onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
+                }
+            }
+        });
+    }
+
+    public void toggleItemPortfolioAsync(ToggleItemPortfolioRequest payload,
+                                         BiConsumer<Integer, ToggleItemPortfolioResult> onSuccess,
+                                         Consumer<HttpResponseException> onFailure) {
+        Integer userId = copilotLoginRS.get().getUserId();
+        String jwtToken = copilotLoginRS.get().getJwtToken();
+        Request request = new Request.Builder()
+                .url(serverUrl + "/profit-tracking/toggle-item-portfolio")
+                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Accept", "application/protobuf")
+                .post(RequestBody.create(MediaType.get("application/protobuf"), payload.encodeProto()))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.warn("toggle item portfolio failed for account {}, item {}", payload.getAccountId(), payload.getItemId(), e);
+                onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        if (response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
+                            copilotLoginRS.clear();
+                        }
+                        String errorMessage = extractErrorMessage(response);
+                        onFailure.accept(new HttpResponseException(response.code(), errorMessage));
+                        return;
+                    }
+                    ToggleItemPortfolioResult result = ToggleItemPortfolioResult.decodeProto(response.body().bytes());
+                    onSuccess.accept(userId, result);
+                } catch (Exception e) {
+                    log.warn("error parsing toggle item portfolio response", e);
                     onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
                 }
             }
