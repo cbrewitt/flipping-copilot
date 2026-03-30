@@ -111,7 +111,7 @@ public interface FlippingCopilotConfig extends Config
             position = 2
     )
     default boolean slotActionSwap() {
-        return false;
+        return true;
     }
 
     @ConfigItem(
