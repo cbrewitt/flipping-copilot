@@ -22,7 +22,7 @@ public class Transaction {
     private int price;
     private int quantity;
     private int boxId;
-    private int amountSpent;
+    private long amountSpent;
     private Instant timestamp;
     private boolean copilotPriceUsed;
     private boolean wasCopilotSuggestion;
@@ -61,5 +61,4 @@ public class Transaction {
         return String.format("%s %d %d on slot %d", type, quantity, itemId, boxId);
     }
 }
-
 

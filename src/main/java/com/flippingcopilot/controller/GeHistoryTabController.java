@@ -113,7 +113,7 @@ public class GeHistoryTabController {
         t.setPrice(price);
         t.setQuantity(quantity);
         t.setBoxId(0);
-        t.setAmountSpent(price * quantity);
+        t.setAmountSpent((long) price * quantity);
         t.setTimestamp(Instant.now());
         t.setCopilotPriceUsed(true);
         t.setWasCopilotSuggestion(true);
