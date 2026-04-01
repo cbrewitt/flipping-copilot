@@ -11,6 +11,7 @@ public class ToggleItemPortfolioRequest {
     private final int accountId;
     private final int itemId;
     private final int portfolioId;
+    private final int bagQuantity;
     private final int bankQuantity;
 
     public byte[] encodeProto() {
@@ -18,7 +19,8 @@ public class ToggleItemPortfolioRequest {
             out.writeInt32(1, accountId);
             out.writeInt32(2, itemId);
             out.writeSInt32(3, portfolioId);
-            out.writeInt32(4, bankQuantity);
+            out.writeInt32(4, bagQuantity);
+            out.writeInt32(5, bankQuantity);
         });
     }
 }
