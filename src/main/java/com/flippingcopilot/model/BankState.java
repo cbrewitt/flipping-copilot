@@ -9,8 +9,9 @@ import java.util.Map;
 public class BankState {
     boolean loaded;
     Map<Integer, Integer> items;
+    Long loadedAccountHash;
 
     public static BankState empty() {
-        return new BankState(false, Collections.emptyMap());
+        return new BankState(false, Collections.emptyMap(), null);
     }
 }

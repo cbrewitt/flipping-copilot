@@ -9,7 +9,9 @@ import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import com.flippingcopilot.ui.UIUtilities;
+import net.runelite.client.RuneLite;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.FontManager;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -85,8 +87,10 @@ public class PortfolioPanel extends JPanel {
 
         JPanel bottomRightWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         bottomRightWrap.setOpaque(false);
-        autoSyncInfoLabel = new JLabel("Open your bank once to auto sync held item quantities");
-        autoSyncInfoLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        autoSyncInfoLabel = new JLabel();
+        autoSyncInfoLabel.setForeground(ColorScheme.BRAND_ORANGE);
+        autoSyncInfoLabel.setFont(autoSyncInfoLabel.getFont().deriveFont(20f));
+        autoSyncInfoLabel.setHorizontalAlignment(SwingConstants.LEFT);
         bottomRightWrap.add(autoSyncInfoLabel);
 
         rightControlsPanel.add(bottomRightWrap, BorderLayout.SOUTH);
@@ -229,9 +233,10 @@ public class PortfolioPanel extends JPanel {
     }
 
     private void refreshAutoSyncLabel() {
-        autoSyncInfoLabel.setText(bankStateRS.get().isLoaded()
-                ? "Item quantities sync enabled"
-                : "Open your bank once to auto sync held item quantities");
+        String labelText = bankStateRS.get().isLoaded()
+                ? "Bank loaded. Held items quantities automatically syncing. Note: items are excluded from syncing whilst active in one of your Grand Exchange slots."
+                : "Please open your bank once to enable auto syncing of your item quantities.";
+        autoSyncInfoLabel.setText(String.format("<html><div style='width: 560px; text-align: left;'>%s</div></html>", labelText));
     }
 
     private List<PortfolioItemCardData> filterInPortfolioItems(List<PortfolioItemCardData> items) {
@@ -273,11 +278,11 @@ public class PortfolioPanel extends JPanel {
     private void addSummaryRow(String label, String value, Color valueColor) {
         JLabel keyLabel = new JLabel(label);
         keyLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        keyLabel.setFont(keyLabel.getFont().deriveFont(19f));
+        keyLabel.setFont(FontManager.getRunescapeFont());
 
         JLabel valueLabel = new JLabel(value, SwingConstants.RIGHT);
         valueLabel.setForeground(valueColor);
-        valueLabel.setFont(valueLabel.getFont().deriveFont(19f));
+        valueLabel.setFont(FontManager.getRunescapeBoldFont());
 
         summaryTablePanel.add(keyLabel);
         summaryTablePanel.add(valueLabel);
