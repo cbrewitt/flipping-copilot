@@ -6,8 +6,8 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @Singleton
 @Slf4j
@@ -21,7 +21,18 @@ public class BankStateRS extends ReactiveStateImpl<BankState> {
         this.itemController = itemController;
         this.osrsLoginRS = osrsLoginRS;
         osrsLoginRS.registerListener(state -> {
-            if (state == null || !state.loggedIn) {
+            if (state == null) {
+                set(BankState.empty());
+                return;
+            }
+
+            if (!state.loggedIn) {
+                return;
+            }
+
+            Long accountHash = state.accountHash;
+            Long loadedAccountHash = get().getLoadedAccountHash();
+            if (loadedAccountHash != null && !Objects.equals(loadedAccountHash, accountHash)) {
                 set(BankState.empty());
             }
         });
@@ -35,6 +46,6 @@ public class BankStateRS extends ReactiveStateImpl<BankState> {
         if (bankInventory == null) {
             return;
         }
-        set(new BankState(true, bankInventory));
+        set(new BankState(true, bankInventory, osrsLoginRS.get().accountHash));
     }
 }

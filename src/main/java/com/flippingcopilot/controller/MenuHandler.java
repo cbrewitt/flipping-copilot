@@ -6,11 +6,13 @@ import com.flippingcopilot.model.PortfolioItemCardData;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.model.ToggleItemPortfolioRequest;
+import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.ui.graph.model.PriceLine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.api.*;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.gameval.VarPlayerID;
@@ -18,6 +20,7 @@ import net.runelite.api.widgets.Widget;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.Map;
 
 @Slf4j
 @Singleton
@@ -40,6 +43,8 @@ public class MenuHandler {
     private final CopilotLoginController copilotLoginController;
     private final ApiRequestHandler apiRequestHandler;
     private final PortfolioStateRS portfolioStateRS;
+    private final BankStateRS bankStateRS;
+    private final ClientThread clientThread;
     private final PlayerLocationController playerLocationController;
 
     private static final String MENU_ADD_TO_PORTFOLIO = "Add to portfolio";
@@ -131,24 +136,35 @@ public class MenuHandler {
         if (accountId == null) {
             return;
         }
-        PortfolioItemCardData cardData = portfolioStateRS.get().getItemCardDataByItemId().get(menuItem.unnotedItemId);
-        int bankQuantity = cardData == null ? 0 : Math.max(0, cardData.getSuggestionBankQuantity());
-        int portfolioId = MENU_REMOVE_FROM_PORTFOLIO.equals(option) ? -1 : 0;
-        ToggleItemPortfolioRequest request = new ToggleItemPortfolioRequest(accountId, menuItem.unnotedItemId, portfolioId, bankQuantity);
-        apiRequestHandler.toggleItemPortfolioAsync(
-                request,
-                (userId, result) -> {
-                    Suggestion suggestion = suggestionManager.getSuggestion();
-                    portfolioStateRS.updatePortfolioState(
-                            suggestion == null ? null : suggestion.getBankItems(),
-                            result == null ? null : result.getPortfolioItems()
-                    );
-                    suggestionManager.setSuggestionNeeded(true);
-                    int itemsUpdated = result == null || result.getPortfolioItems() == null ? 0 : result.getPortfolioItems().size();
-                    log.info("{} succeeded for item_id={}, account_id={}, portfolio_items_updated={}", option, menuItem.unnotedItemId, accountId, itemsUpdated);
-                },
-                error -> log.warn("{} failed for item_id={}, account_id={}, status={}, message={}", option, menuItem.unnotedItemId, accountId, error.getResponseCode(), error.getResponseMessage())
-        );
+        clientThread.invokeLater(() -> {
+            Map<Integer, Integer> runeliteInventory = itemController.getRunliteInventory();
+            int bagQuantity = runeliteInventory == null ? 0 : Math.max(0, runeliteInventory.getOrDefault(menuItem.unnotedItemId, 0));
+
+            int bankQuantity;
+            if (bankStateRS.get().isLoaded()) {
+                bankQuantity = Math.max(0, bankStateRS.get().getItems().getOrDefault(menuItem.unnotedItemId, 0));
+            } else {
+                bankQuantity = -1;
+            }
+
+            int portfolioId = MENU_REMOVE_FROM_PORTFOLIO.equals(option) ? -1 : 0;
+            ToggleItemPortfolioRequest request = new ToggleItemPortfolioRequest(accountId, menuItem.unnotedItemId, portfolioId, bagQuantity, bankQuantity);
+            apiRequestHandler.toggleItemPortfolioAsync(
+                    request,
+                    (userId, result) -> {
+                        Suggestion suggestion = suggestionManager.getSuggestion();
+                        portfolioStateRS.updatePortfolioState(
+                                suggestion == null ? null : suggestion.getBankItems(),
+                                result == null ? null : result.getPortfolioItems()
+                        );
+                        suggestionManager.setSuggestionNeeded(true);
+                        int itemsUpdated = result == null || result.getPortfolioItems() == null ? 0 : result.getPortfolioItems().size();
+                        log.info("{} succeeded for item_id={}, account_id={}, portfolio_items_updated={}", option, menuItem.unnotedItemId, accountId, itemsUpdated);
+                    },
+                    error -> log.warn("{} failed for item_id={}, account_id={}, status={}, message={}", option, menuItem.unnotedItemId, accountId, error.getResponseCode(), error.getResponseMessage())
+            );
+            return true;
+        });
     }
 
     private boolean shouldAddInventoryPriceGraphEntry(MenuEntryAdded event) {
