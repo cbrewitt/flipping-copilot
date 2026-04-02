@@ -3,6 +3,7 @@ package com.flippingcopilot.ui.flipsdialog;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.PortfolioItemCardData;
+import com.flippingcopilot.ui.UIUtilities;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.AsyncBufferedImage;
 
@@ -10,7 +11,6 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.text.NumberFormat;
-import java.time.Duration;
 import java.util.Locale;
 
 public class PortfolioItemCard extends JPanel {
@@ -50,7 +50,7 @@ public class PortfolioItemCard extends JPanel {
         openFlipsPanel.setMinimumSize(new Dimension(STAT_COLUMN_WIDTH, 52));
         openFlipsPanel.setMaximumSize(new Dimension(STAT_COLUMN_WIDTH, Integer.MAX_VALUE));
 
-        JPanel heldPanel = buildStatColumn("Time held", formatDuration(data.getHeldMinutes()));
+        JPanel heldPanel = buildStatColumn("Time held", UIUtilities.formatDurationMinutes(data.getHeldMinutes()));
         heldPanel.setPreferredSize(new Dimension(STAT_COLUMN_WIDTH, 52));
         heldPanel.setMinimumSize(new Dimension(STAT_COLUMN_WIDTH, 52));
         heldPanel.setMaximumSize(new Dimension(STAT_COLUMN_WIDTH, Integer.MAX_VALUE));
@@ -169,18 +169,4 @@ public class PortfolioItemCard extends JPanel {
         return prefix + GP_FORMAT.format(amount) + " gp";
     }
 
-    private String formatDuration(int heldMinutes) {
-        Duration duration = Duration.ofMinutes(Math.max(0, heldMinutes));
-        long days = duration.toDays();
-        long hours = duration.minusDays(days).toHours();
-        long minutes = duration.minusDays(days).minusHours(hours).toMinutes();
-
-        if (days > 0) {
-            return days + "d " + hours + "h";
-        }
-        if (hours > 0) {
-            return hours + "h " + minutes + "m";
-        }
-        return Math.max(1, minutes) + "m";
-    }
 }

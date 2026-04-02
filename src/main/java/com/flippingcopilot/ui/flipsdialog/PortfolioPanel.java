@@ -1,15 +1,22 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
+import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.PortfolioItemCardData;
 import com.flippingcopilot.model.PortfolioState;
 import com.flippingcopilot.model.PortfolioSummaryData;
+import com.flippingcopilot.model.Suggestion;
+import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.model.ToggleItemPortfolioRequest;
+import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import com.flippingcopilot.ui.UIUtilities;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.FontManager;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -18,26 +25,31 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.text.NumberFormat;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 public class PortfolioPanel extends JPanel {
     private static final NumberFormat GP_FORMAT = NumberFormat.getNumberInstance(Locale.US);
     private static final String CONTENT_CARD = "content";
     private static final String LOGIN_PROMPT_CARD = "login";
     private static final String[] COLUMN_NAMES = {
-            "Item", "Market value", "Portfolio Quantity", "Held Quantity", "Open flips", "Time held", "Unrealized Profit", "Unrealized ROI"
+            "Item", "Market value", "Quantities", "Avg buy price", "Open flips", "Time held", "Unrealized Profit", "Unrealized ROI"
     };
 
     private final ItemController itemController;
     private final FlippingCopilotConfig config;
+    private final ApiRequestHandler apiRequestHandler;
+    private final SuggestionManager suggestionManager;
+    private final CopilotLoginRS copilotLoginRS;
     private final OsrsLoginRS osrsLoginRS;
     private final PortfolioStateRS portfolioStateRS;
     private final BankStateRS bankStateRS;
+    private final ClientThread clientThread;
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
     private final JPanel summaryTablePanel;
@@ -48,14 +60,22 @@ public class PortfolioPanel extends JPanel {
 
     public PortfolioPanel(ItemController itemController,
                           FlippingCopilotConfig config,
+                          ApiRequestHandler apiRequestHandler,
+                          SuggestionManager suggestionManager,
+                          CopilotLoginRS copilotLoginRS,
                           OsrsLoginRS osrsLoginRs,
                           PortfolioStateRS portfolioStateRS,
-                          BankStateRS bankStateRS) {
+                          BankStateRS bankStateRS,
+                          ClientThread clientThread) {
         this.itemController = itemController;
         this.config = config;
+        this.apiRequestHandler = apiRequestHandler;
+        this.suggestionManager = suggestionManager;
+        this.copilotLoginRS = copilotLoginRS;
         this.osrsLoginRS = osrsLoginRs;
         this.portfolioStateRS = portfolioStateRS;
         this.bankStateRS = bankStateRS;
+        this.clientThread = clientThread;
 
         setLayout(new BorderLayout(0, 12));
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -87,7 +107,7 @@ public class PortfolioPanel extends JPanel {
         bottomRightWrap.setOpaque(false);
         autoSyncInfoLabel = new JLabel();
         autoSyncInfoLabel.setForeground(ColorScheme.BRAND_ORANGE);
-        autoSyncInfoLabel.setFont(autoSyncInfoLabel.getFont().deriveFont(20f));
+        autoSyncInfoLabel.setFont(FontManager.getRunescapeFont());
         autoSyncInfoLabel.setHorizontalAlignment(SwingConstants.LEFT);
         bottomRightWrap.add(autoSyncInfoLabel);
 
@@ -116,15 +136,28 @@ public class PortfolioPanel extends JPanel {
         DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
         rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
         table.getColumnModel().getColumn(2).setCellRenderer(rightRenderer);
+        table.getColumnModel().getColumn(3).setCellRenderer(rightRenderer);
         table.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
         table.getColumnModel().getColumn(5).setCellRenderer(rightRenderer);
-        table.getColumnModel().getColumn(3).setCellRenderer(new HeldQuantityCellRenderer());
         table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 if (value instanceof Long) {
                     setText(formatGp((Long) value, false));
+                }
+                setHorizontalAlignment(RIGHT);
+                return c;
+            }
+        });
+        table.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (value instanceof Long) {
+                    setText(formatGp((Long) value, false));
+                } else if (value == null) {
+                    setText("Unknown");
                 }
                 setHorizontalAlignment(RIGHT);
                 return c;
@@ -191,6 +224,7 @@ public class PortfolioPanel extends JPanel {
             }
         };
         table.getColumnModel().getColumn(7).setCellRenderer(roiRenderer);
+        installRowContextMenu();
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(null);
@@ -209,6 +243,7 @@ public class PortfolioPanel extends JPanel {
                 renderFromState(state);
             }
         }));
+        osrsLoginRS.registerListener(state -> SwingUtilities.invokeLater(this::refresh));
         bankStateRS.registerListener(state -> SwingUtilities.invokeLater(this::refreshAutoSyncLabel));
 
         refresh();
@@ -232,8 +267,8 @@ public class PortfolioPanel extends JPanel {
 
     private void refreshAutoSyncLabel() {
         String labelText = bankStateRS.get().isLoaded()
-                ? "Bank loaded. Held items quantities automatically syncing. Note: items are excluded from syncing whilst active in one of your Grand Exchange slots."
-                : "Please open your bank once to enable auto syncing of your item quantities.";
+                ? "Bank loaded. Full quantity syncing enabled. Note: items are excluded from syncing whilst active in one of your Grand Exchange slots."
+                : "Please open your bank once to enable more accurate quantity syncing.";
         autoSyncInfoLabel.setText(String.format("<html><div style='width: 560px; text-align: left;'>%s</div></html>", labelText));
     }
 
@@ -276,11 +311,11 @@ public class PortfolioPanel extends JPanel {
     private void addSummaryRow(String label, String value, Color valueColor) {
         JLabel keyLabel = new JLabel(label);
         keyLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        keyLabel.setFont(keyLabel.getFont().deriveFont(19f));
+        keyLabel.setFont(FontManager.getRunescapeFont());
 
         JLabel valueLabel = new JLabel(value, SwingConstants.RIGHT);
         valueLabel.setForeground(valueColor);
-        valueLabel.setFont(valueLabel.getFont().deriveFont(19f));
+        valueLabel.setFont(FontManager.getRunescapeBoldFont());
 
         summaryTablePanel.add(keyLabel);
         summaryTablePanel.add(valueLabel);
@@ -295,18 +330,96 @@ public class PortfolioPanel extends JPanel {
         ));
 
         for (PortfolioItemCardData item : sortedItems) {
-            long heldQuantity = (long) item.getRuneliteInventoryQuantity() + item.getSuggestionBankQuantity() + item.getRuneliteGeQuantity();
+            long avgBuyPrice = item.getUnitBuyPrice();
+            String quantitySummary = NumberFormat.getIntegerInstance(Locale.US).format(item.getOpenFlipsQuantity())
+                    + " (inv: " + NumberFormat.getIntegerInstance(Locale.US).format(item.getRuneliteInventoryQuantity())
+                    + " bank: " + NumberFormat.getIntegerInstance(Locale.US).format(item.getSuggestionBankQuantity())
+                    + " GE: " + NumberFormat.getIntegerInstance(Locale.US).format(item.getRuneliteGeQuantity())
+                    + ")";
             tableModel.addRow(new Object[]{
                     new ItemCell(item.getItemId(), item.getItemName()),
                     item.getPostTaxSellUnitPrice() * item.getOpenFlipsQuantity(),
-                    item.getOpenFlipsQuantity(),
-                    new HeldQuantityCell(item.getRuneliteInventoryQuantity(), item.getSuggestionBankQuantity(), item.getRuneliteGeQuantity()),
+                    quantitySummary,
+                    avgBuyPrice > 0 ? avgBuyPrice : null,
                     item.getOpenFlipsCount(),
-                    formatDuration(item.getHeldMinutes()),
+                    UIUtilities.formatDurationMinutes(item.getHeldMinutes()),
                     item.flipsUnrealizedProfit(),
                     calculateUnrealizedRoi(item)
             });
         }
+    }
+
+    private void installRowContextMenu() {
+        JPopupMenu popupMenu = new JPopupMenu();
+        JMenuItem removeFromPortfolioItem = new JMenuItem("Remove from portfolio");
+        removeFromPortfolioItem.addActionListener(e -> removeSelectedRowFromPortfolio());
+        popupMenu.add(removeFromPortfolioItem);
+
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                showPopupIfNeeded(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                showPopupIfNeeded(e);
+            }
+
+            private void showPopupIfNeeded(MouseEvent e) {
+                if (!e.isPopupTrigger()) {
+                    return;
+                }
+                int row = table.rowAtPoint(e.getPoint());
+                if (row < 0) {
+                    return;
+                }
+                table.setRowSelectionInterval(row, row);
+                popupMenu.show(e.getComponent(), e.getX(), e.getY());
+            }
+        });
+    }
+
+    private void removeSelectedRowFromPortfolio() {
+        int viewRow = table.getSelectedRow();
+        if (viewRow < 0) {
+            return;
+        }
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        Object itemCellObj = tableModel.getValueAt(modelRow, 0);
+        if (!(itemCellObj instanceof ItemCell)) {
+            return;
+        }
+
+        ItemCell itemCell = (ItemCell) itemCellObj;
+        Integer accountId = copilotLoginRS.get().getAccountId(osrsLoginRS.get().displayName);
+        if (accountId == null || accountId == -1) {
+            return;
+        }
+
+        clientThread.invokeLater(() -> {
+            Map<Integer, Integer> runeliteInventory = itemController.getRunliteInventory();
+            int bagQuantity = runeliteInventory == null ? 0 : Math.max(0, runeliteInventory.getOrDefault(itemCell.itemId, 0));
+            int bankQuantity = bankStateRS.get().isLoaded()
+                    ? Math.max(0, bankStateRS.get().getItems().getOrDefault(itemCell.itemId, 0))
+                    : -1;
+
+            ToggleItemPortfolioRequest request = new ToggleItemPortfolioRequest(accountId, itemCell.itemId, -1, bagQuantity, bankQuantity);
+            apiRequestHandler.toggleItemPortfolioAsync(
+                    request,
+                    (userId, result) -> {
+                        Suggestion suggestion = suggestionManager.getSuggestion();
+                        portfolioStateRS.updatePortfolioState(
+                                suggestion == null ? null : suggestion.getBankItems(),
+                                result == null ? null : result.getPortfolioItems()
+                        );
+                        suggestionManager.setSuggestionNeeded(true);
+                    },
+                    error -> {
+                    }
+            );
+            return true;
+        });
     }
 
     private JPanel buildLoginPromptPanel() {
@@ -322,20 +435,6 @@ public class PortfolioPanel extends JPanel {
     private String formatGp(long amount, boolean signed) {
         String prefix = signed && amount > 0 ? "+" : "";
         return prefix + GP_FORMAT.format(amount) + " gp";
-    }
-
-    private String formatDuration(int heldMinutes) {
-        Duration duration = Duration.ofMinutes(Math.max(0, heldMinutes));
-        long days = duration.toDays();
-        long hours = duration.minusDays(days).toHours();
-        long minutes = duration.minusDays(days).minusHours(hours).toMinutes();
-        if (days > 0) {
-            return days + "d " + hours + "h";
-        }
-        if (hours > 0) {
-            return hours + "h " + minutes + "m";
-        }
-        return Math.max(1, minutes) + "m";
     }
 
     private Double calculateUnrealizedRoi(PortfolioItemCardData item) {
@@ -359,78 +458,4 @@ public class PortfolioPanel extends JPanel {
         }
     }
 
-    private static class HeldQuantityCell {
-        private final long inventory;
-        private final long bank;
-        private final long ge;
-
-        private HeldQuantityCell(long inventory, long bank, long ge) {
-            this.inventory = inventory;
-            this.bank = bank;
-            this.ge = ge;
-        }
-    }
-
-    private static class HeldQuantityCellRenderer extends JPanel implements TableCellRenderer {
-        private final JLabel inventoryKeyLabel = new JLabel("Inventory:");
-        private final JLabel bankKeyLabel = new JLabel("Bank:");
-        private final JLabel geKeyLabel = new JLabel("GE:");
-        private final JLabel inventoryValueLabel = new JLabel();
-        private final JLabel bankValueLabel = new JLabel();
-        private final JLabel geValueLabel = new JLabel();
-        private final JPanel miniTablePanel = new JPanel(new GridLayout(3, 2, 8, 3));
-
-        private HeldQuantityCellRenderer() {
-            setLayout(new BorderLayout());
-            setBorder(new EmptyBorder(8, 6, 8, 6));
-
-            inventoryKeyLabel.setHorizontalAlignment(SwingConstants.LEFT);
-            bankKeyLabel.setHorizontalAlignment(SwingConstants.LEFT);
-            geKeyLabel.setHorizontalAlignment(SwingConstants.LEFT);
-
-            inventoryValueLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-            bankValueLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-            geValueLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-
-            miniTablePanel.setOpaque(false);
-            miniTablePanel.add(inventoryKeyLabel);
-            miniTablePanel.add(inventoryValueLabel);
-            miniTablePanel.add(bankKeyLabel);
-            miniTablePanel.add(bankValueLabel);
-            miniTablePanel.add(geKeyLabel);
-            miniTablePanel.add(geValueLabel);
-
-            JPanel rightAlignWrap = new JPanel(new BorderLayout());
-            rightAlignWrap.setOpaque(false);
-            rightAlignWrap.add(miniTablePanel, BorderLayout.EAST);
-            add(rightAlignWrap, BorderLayout.CENTER);
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-            Color bg = isSelected ? table.getSelectionBackground() : table.getBackground();
-            Color fg = isSelected ? table.getSelectionForeground() : table.getForeground();
-            setBackground(bg);
-            setOpaque(true);
-            miniTablePanel.setBackground(bg);
-            inventoryKeyLabel.setForeground(fg);
-            bankKeyLabel.setForeground(fg);
-            geKeyLabel.setForeground(fg);
-            inventoryValueLabel.setForeground(fg);
-            bankValueLabel.setForeground(fg);
-            geValueLabel.setForeground(fg);
-
-            if (value instanceof HeldQuantityCell) {
-                HeldQuantityCell cell = (HeldQuantityCell) value;
-                inventoryValueLabel.setText(NumberFormat.getIntegerInstance(Locale.US).format(cell.inventory));
-                bankValueLabel.setText(NumberFormat.getIntegerInstance(Locale.US).format(cell.bank));
-                geValueLabel.setText(NumberFormat.getIntegerInstance(Locale.US).format(cell.ge));
-            } else {
-                inventoryValueLabel.setText("");
-                bankValueLabel.setText("");
-                geValueLabel.setText("");
-            }
-            return this;
-        }
-    }
 }

@@ -80,8 +80,7 @@ public class AccountStatusManager {
         status.setBagInventory(extractBagInventory());
         status.setSyncExcluded(computeSyncExcludedItems(status.getDisplayName(), u));
         status.setAllowedSync(
-                status.isBankAvailable()
-                        && grandExchange.isOpen()
+                grandExchange.isOpen()
                         && client.getTickCount() > heldItemSyncStateRS.get().getDelayUntilTick()
         );
 

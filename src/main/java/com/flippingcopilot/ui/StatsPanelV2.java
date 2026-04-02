@@ -164,7 +164,7 @@ public class StatsPanelV2 extends JPanel {
             @Override
             public void mouseClicked(MouseEvent e) {
                 log.debug("opening flips dialog");
-                flipsDialogController.showFlipsTab();
+                flipsDialogController.showPortfolioTab();
             }
             @Override
             public void mouseEntered(MouseEvent e) {

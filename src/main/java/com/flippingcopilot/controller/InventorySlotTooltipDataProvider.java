@@ -53,7 +53,10 @@ public class InventorySlotTooltipDataProvider {
             Long totalValue = calculateValue(itemData, portfolioItem);
             lines.add("Total value: " + (totalValue == null ? "Unknown" : UIUtilities.formatProfit(totalValue)));
         } else {
-            lines.add("Time held: " + formatHoldTime(itemData.getHeldMinutes()));
+            lines.add("Time held: " + UIUtilities.formatDurationMinutes(itemData.getHeldMinutes()));
+            lines.add("Avg buy price: " + (portfolioItem == null || portfolioItem.getAmount() <= 0
+                    ? "Unknown"
+                    : UIUtilities.formatProfit(portfolioItem.getUnitBuyPrice())));
             Long totalValue = calculateValue(itemData, portfolioItem);
             lines.add("Total value: " + (totalValue == null ? "Unknown" : UIUtilities.formatProfit(totalValue)));
             Long unrealizedProfit = itemData.getUnrealizedUnitProfit() == null ? null : itemData.inventoryTooltipUnrealizedProfit();
@@ -100,27 +103,4 @@ public class InventorySlotTooltipDataProvider {
         return "Quantity: " + quantity;
     }
 
-    private String formatHoldTime(int heldMinutes) {
-        if (heldMinutes <= 0) {
-            return "0m";
-        }
-
-        long elapsed = Math.max(0L, (long) heldMinutes * 60L);
-        if (elapsed > 2L * 24 * 60 * 60) {
-            return formatHoldTimeWithDayHourPrecision(elapsed);
-        }
-
-        long hours = elapsed / 3600;
-        long minutes = (elapsed % 3600) / 60;
-        if (hours > 0) {
-            return hours + "h " + minutes + "m";
-        }
-        return minutes + "m";
-    }
-
-    private String formatHoldTimeWithDayHourPrecision(long elapsedSeconds) {
-        long days = elapsedSeconds / (24 * 3600);
-        long hours = (elapsedSeconds % (24 * 3600)) / 3600;
-        return days + "d " + hours + "h";
-    }
 }

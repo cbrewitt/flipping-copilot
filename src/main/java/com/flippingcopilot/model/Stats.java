@@ -55,6 +55,7 @@ public class Stats {
     }
 
     private boolean isTrackedFlip(FlipV2 f) {
-        return f.getPortfolioId() != -2;
+        int portfolioId = f.getPortfolioId();
+        return portfolioId != -2 && portfolioId != -3;
     }
 }

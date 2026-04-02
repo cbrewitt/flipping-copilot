@@ -398,6 +398,10 @@ public class FlipManager {
     }
 
     private boolean isTrackedFlip(FlipV2 flip) {
-        return flip != null && flip.getPortfolioId() != -2;
+        if (flip == null) {
+            return false;
+        }
+        int portfolioId = flip.getPortfolioId();
+        return portfolioId != -2 && portfolioId != -3;
     }
 }
