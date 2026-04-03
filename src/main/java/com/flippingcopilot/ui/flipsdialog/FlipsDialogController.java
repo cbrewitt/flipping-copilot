@@ -12,6 +12,7 @@ import com.flippingcopilot.rs.PortfolioStateRS;
 import com.flippingcopilot.ui.graph.model.PriceLine;
 import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.inject.Inject;
@@ -38,6 +39,7 @@ public class FlipsDialogController {
     private final OsrsLoginRS osrsLoginRS;
     private final PortfolioStateRS portfolioStateRS;
     private final BankStateRS bankStateRS;
+    private final ClientThread clientThread;
 
     public PriceGraphPanel priceGraphPanel;
     private JTabbedPane tabbedPane;
@@ -58,7 +60,8 @@ public class FlipsDialogController {
             SuggestionManager suggestionManager,
             OsrsLoginRS osrsLoginRS,
             PortfolioStateRS portfolioStateRS,
-            BankStateRS bankStateRS) {
+            BankStateRS bankStateRS,
+            ClientThread clientThread) {
         this.itemController = itemController;
         this.flipsManager = flipsManager;
         this.executorService = executorService;
@@ -72,6 +75,7 @@ public class FlipsDialogController {
         this.osrsLoginRS = osrsLoginRS;
         this.portfolioStateRS = portfolioStateRS;
         this.bankStateRS = bankStateRS;
+        this.clientThread = clientThread;
     }
 
     public void initDialog(Window windowAncestor) {
@@ -99,9 +103,13 @@ public class FlipsDialogController {
             PortfolioPanel portfolioPanel = new PortfolioPanel(
                     itemController,
                     config,
+                    apiRequestHandler,
+                    suggestionManager,
+                    copilotLoginRS,
                     osrsLoginRS,
                     portfolioStateRS,
-                    bankStateRS
+                    bankStateRS,
+                    clientThread
             );
             TransactionsPanel transactionsPanel = new TransactionsPanel(copilotLoginRS, itemController,
                     executorService, apiRequestHandler, config, flipsManager);
@@ -114,11 +122,11 @@ public class FlipsDialogController {
                     priceGraphConfigManager,
                     suggestionManager
             );
+            tabbedPane.addTab("Portfolio", portfolioPanel);
             tabbedPane.addTab("Flips", flipsPanel);
             tabbedPane.addTab("Items", itemsPanel);
             tabbedPane.addTab("Accounts", accountsPanel);
             tabbedPane.addTab("Profit graph", profitPanel);
-            tabbedPane.addTab("Portfolio", portfolioPanel);
             tabbedPane.addTab("Transactions", transactionsPanel);
             tabbedPane.addTab("Price graph", priceGraphPanel);
             tabbedPane.addTab("Visualize flip", visualizeFlipPanel);
@@ -134,18 +142,19 @@ public class FlipsDialogController {
                 int selectedIndex = tabbedPane.getSelectedIndex();
                 switch (selectedIndex) {
                     case 0:
-                        flipsPanel.onTabShown();
+                        portfolioPanel.onTabShown();
                         break;
                     case 1:
-                        itemsPanel.onTabShown();
+                        flipsPanel.onTabShown();
                         break;
                     case 2:
-                        accountsPanel.onTabShown();
+                        itemsPanel.onTabShown();
                         break;
                     case 3:
-                        profitPanel.refreshGraph(true);
+                        accountsPanel.onTabShown();
+                        break;
                     case 4:
-                        portfolioPanel.onTabShown();
+                        profitPanel.refreshGraph(true);
                         break;
                     case 5:
                         transactionsPanel.loadTransactionsIfNeeded();
@@ -185,8 +194,13 @@ public class FlipsDialogController {
 
 
     public void showFlipsTab() {
-        tabbedPane.setSelectedIndex(0);
+        tabbedPane.setSelectedIndex(1);
         dialog.setVisible(true);
         flipsPanel.onTabShown();
+    }
+
+    public void showPortfolioTab() {
+        tabbedPane.setSelectedIndex(0);
+        dialog.setVisible(true);
     }
 }

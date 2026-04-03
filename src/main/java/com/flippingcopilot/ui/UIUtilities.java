@@ -92,29 +92,26 @@ public class UIUtilities {
         totalMinutes = Math.round(totalMinutes / 5.0f) * 5;
         totalMinutes = Math.max(totalMinutes, 5);
 
-        if (durationSeconds >= 86_400 || totalMinutes >= 1_440) {
-            long totalHours = Math.max(24L, Math.round(durationSeconds / 3600.0));
-            long days = totalHours / 24;
-            long hours = totalHours % 24;
+        String formatted = formatDurationMinutes(totalMinutes);
+        if (!formatted.contains("h") && !formatted.contains("d")) {
+            return formatted.replace("m", "min");
+        }
+        return formatted;
+    }
 
-            if (hours == 0) {
-                return days + "d";
-            }
+    public static String formatDurationMinutes(int minutes) {
+        int safeMinutes = Math.max(0, minutes);
+        int days = safeMinutes / (24 * 60);
+        int hours = (safeMinutes % (24 * 60)) / 60;
+        int remainingMinutes = safeMinutes % 60;
 
+        if (days > 0) {
             return days + "d " + hours + "h";
         }
-
-        if (totalMinutes < 60) {
-            return totalMinutes + "min";
+        if (hours > 0) {
+            return hours + "h " + remainingMinutes + "m";
         }
-
-        int hours = totalMinutes / 60;
-        int minutes = totalMinutes % 60;
-        if (minutes == 0) {
-            return hours + "h";
-        }
-
-        return hours + "h " + minutes + "m";
+        return Math.max(1, remainingMinutes) + "m";
     }
 
     public static String truncateString(String string, int length) {

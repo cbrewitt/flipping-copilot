@@ -12,6 +12,7 @@ public class PortfolioItemCardData {
     int openFlipsQuantity;
     int openFlipsCount;
     long postTaxSellUnitPrice;
+    long unitBuyPrice;
     Long unrealizedUnitProfit;
     int heldMinutes;
     boolean inPortfolio;

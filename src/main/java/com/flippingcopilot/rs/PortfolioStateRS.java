@@ -72,6 +72,7 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
                     openFlipsQuantity,
                     1,
                     portfolioItem.getPostTaxSellUnitPrice(),
+                    portfolioItem.getUnitBuyPrice(),
                     calculateUnrealizedUnitProfit(portfolioItem),
                     Math.max(0, portfolioItem.heldMinutes),
                     portfolioItem.inPortfolio
