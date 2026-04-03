@@ -49,6 +49,9 @@ public class InventorySlotTooltipDataProvider {
         List<String> lines = new ArrayList<>(5);
 
         lines.add(formatQuantityLine(itemData.getRuneliteInventoryQuantity(), itemData.getSuggestionBankQuantity()));
+        if (itemData.isPartiallyInPortfolio()) {
+            lines.add("Quantity in Portfolio: " + NumberFormat.getIntegerInstance().format(itemData.getPortfolioQuantity()));
+        }
         if (!inPortfolio) {
             Long totalValue = calculateValue(itemData, portfolioItem);
             lines.add("Total value: " + (totalValue == null ? "Unknown" : UIUtilities.formatProfit(totalValue)));

@@ -2,6 +2,7 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.OfferManager;
+import com.flippingcopilot.model.PortfolioId;
 import com.flippingcopilot.model.PortfolioItemCardData;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
@@ -13,6 +14,7 @@ import com.flippingcopilot.ui.graph.model.PriceLine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.api.*;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.gameval.VarPlayerID;
@@ -46,9 +48,14 @@ public class MenuHandler {
     private final BankStateRS bankStateRS;
     private final ClientThread clientThread;
     private final PlayerLocationController playerLocationController;
+    private final ChatboxPanelManager chatboxPanelManager;
 
-    private static final String MENU_ADD_TO_PORTFOLIO = "Add to portfolio";
-    private static final String MENU_REMOVE_FROM_PORTFOLIO = "Remove from portfolio";
+    private static final String MENU_ADD = "Add-All to portfolio";
+    private static final String MENU_ADD_X = "Add-X to portfolio";
+    private static final String MENU_REMOVE = "Remove-All from portfolio";
+    private static final String MENU_REMOVE_X = "Remove-X from portfolio";
+
+    private enum MenuLocation { INVENTORY, BANK }
 
 
     public void injectCopilotPriceGraphMenuEntry(MenuEntryAdded event) {
@@ -122,17 +129,86 @@ public class MenuHandler {
 
         Integer accountId = copilotLoginController.getActiveAccountId();
         PortfolioItemCardData cardData = portfolioStateRS.get().getItemCardDataByItemId().get(menuItem.unnotedItemId);
-        boolean inPortfolio = cardData != null && cardData.isInPortfolio();
-        String option = inPortfolio ? MENU_REMOVE_FROM_PORTFOLIO : MENU_ADD_TO_PORTFOLIO;
 
-        client.getMenu()
-                .createMenuEntry(-1)
-                .setOption(option)
-                .setTarget(menuItem.menuTarget)
-                .onClick((MenuEntry e) -> onTogglePortfolioClicked(option, menuItem, accountId));
+        int notInPortfolio = cardData == null ? 0 : cardData.getNotInPortfolioQuantity();
+        int portfolioQty = cardData == null ? 0 : cardData.getPortfolioQuantity();
+        int locationQty = getLocationQuantity(menuItem.unnotedItemId, menuItem.location);
+        boolean showAdd = locationQty > 0 && (cardData == null || !cardData.isInPortfolio() || notInPortfolio > 0);
+        boolean showRemove = locationQty > 0 && portfolioQty > 0;
+
+        // Menu entries are added in reverse display order (last added = top of menu)
+
+        // Remove X — cross-location custom amount, when portfolioQuantity > 1
+        if (portfolioQty > 1) {
+            client.getMenu()
+                    .createMenuEntry(-1)
+                    .setOption(MENU_REMOVE_X)
+                    .setTarget(menuItem.menuTarget)
+                    .onClick((MenuEntry e) -> promptQuantityAndToggle(menuItem, accountId, ToggleItemPortfolioRequest.REMOVE, "Enter quantity to remove:"));
+        }
+
+        // Remove (location-scoped) — removes only the qty present at the clicked location
+        if (showRemove) {
+            client.getMenu()
+                    .createMenuEntry(-1)
+                    .setOption(MENU_REMOVE)
+                    .setTarget(menuItem.menuTarget)
+                    .onClick((MenuEntry e) -> onTogglePortfolioClicked(menuItem, accountId, ToggleItemPortfolioRequest.REMOVE, locationQty));
+        }
+
+        // Add X — cross-location custom amount, when notInPortfolio > 1
+        if (notInPortfolio > 1) {
+            client.getMenu()
+                    .createMenuEntry(-1)
+                    .setOption(MENU_ADD_X)
+                    .setTarget(menuItem.menuTarget)
+                    .onClick((MenuEntry e) -> promptQuantityAndToggle(menuItem, accountId, PortfolioId.COFLIP_PORTFOLIO, "Enter quantity to add:"));
+        }
+
+        // Add (location-scoped) — adds only the qty present at the clicked location
+        if (showAdd) {
+            client.getMenu()
+                    .createMenuEntry(-1)
+                    .setOption(MENU_ADD)
+                    .setTarget(menuItem.menuTarget)
+                    .onClick((MenuEntry e) -> onTogglePortfolioClicked(menuItem, accountId, PortfolioId.COFLIP_PORTFOLIO, locationQty));
+        }
     }
 
-    private void onTogglePortfolioClicked(String option, InventoryMenuItem menuItem, Integer accountId) {
+    private int getLocationQuantity(int itemId, MenuLocation location) {
+        if (location == MenuLocation.INVENTORY) {
+            Map<Integer, Integer> inv = itemController.getRunliteInventory();
+            return inv == null ? 0 : Math.max(0, inv.getOrDefault(itemId, 0));
+        }
+        if (location == MenuLocation.BANK) {
+            if (!bankStateRS.get().isLoaded()) {
+                return 0;
+            }
+            Map<Integer, Integer> bank = bankStateRS.get().getItems();
+            return bank == null ? 0 : Math.max(0, bank.getOrDefault(itemId, 0));
+        }
+        return 0;
+    }
+
+    private void promptQuantityAndToggle(InventoryMenuItem menuItem, Integer accountId, int portfolioId, String prompt) {
+        chatboxPanelManager.openTextInput(prompt)
+                .charValidator(c -> c >= '0' && c <= '9')
+                .onDone((String input) -> {
+                    if (input == null || input.isEmpty()) {
+                        return;
+                    }
+                    try {
+                        int qty = Integer.parseInt(input);
+                        if (qty > 0) {
+                            onTogglePortfolioClicked(menuItem, accountId, portfolioId, qty);
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
+                })
+                .build();
+    }
+
+    private void onTogglePortfolioClicked(InventoryMenuItem menuItem, Integer accountId, int portfolioId, int quantity) {
         if (accountId == null) {
             return;
         }
@@ -147,8 +223,7 @@ public class MenuHandler {
                 bankQuantity = -1;
             }
 
-            int portfolioId = MENU_REMOVE_FROM_PORTFOLIO.equals(option) ? -1 : 0;
-            ToggleItemPortfolioRequest request = new ToggleItemPortfolioRequest(accountId, menuItem.unnotedItemId, portfolioId, bagQuantity, bankQuantity);
+            ToggleItemPortfolioRequest request = new ToggleItemPortfolioRequest(accountId, menuItem.unnotedItemId, portfolioId, bagQuantity, bankQuantity, quantity);
             apiRequestHandler.toggleItemPortfolioAsync(
                     request,
                     (userId, result) -> {
@@ -159,9 +234,9 @@ public class MenuHandler {
                         );
                         suggestionManager.setSuggestionNeeded(true);
                         int itemsUpdated = result == null || result.getPortfolioItems() == null ? 0 : result.getPortfolioItems().size();
-                        log.info("{} succeeded for item_id={}, account_id={}, portfolio_items_updated={}", option, menuItem.unnotedItemId, accountId, itemsUpdated);
+                        log.info("toggle portfolio succeeded for item_id={}, account_id={}, portfolio_id={}, quantity={}, portfolio_items_updated={}", menuItem.unnotedItemId, accountId, portfolioId, quantity, itemsUpdated);
                     },
-                    error -> log.warn("{} failed for item_id={}, account_id={}, status={}, message={}", option, menuItem.unnotedItemId, accountId, error.getResponseCode(), error.getResponseMessage())
+                    error -> log.warn("toggle portfolio failed for item_id={}, account_id={}, portfolio_id={}, quantity={}, status={}, message={}", menuItem.unnotedItemId, accountId, portfolioId, quantity, error.getResponseCode(), error.getResponseMessage())
             );
             return true;
         });
@@ -180,26 +255,26 @@ public class MenuHandler {
         return inventoryWidget != null && inventoryWidget.getId() == widgetId;
     }
 
-    private boolean isInventoryWidgetId(int widgetId) {
+    private MenuLocation getMenuLocation(int widgetId) {
         Widget geInventoryWidget = client.getWidget(467, 0);
         if (geInventoryWidget != null && geInventoryWidget.getId() == widgetId) {
-            return true;
+            return MenuLocation.INVENTORY;
         }
         Widget inventoryWidget = client.getWidget(149, 0);
         if (inventoryWidget != null && inventoryWidget.getId() == widgetId) {
-            return true;
+            return MenuLocation.INVENTORY;
+        }
+        Widget bankInventoryWidget = client.getWidget(BANK_INVENTORY_WIDGET_GROUP, BANK_INVENTORY_WIDGET_CHILD);
+        if (bankInventoryWidget != null && bankInventoryWidget.getId() == widgetId) {
+            return MenuLocation.INVENTORY;
         }
         for (int childId : BANK_ITEM_CONTAINER_CHILDREN) {
             Widget bankItemWidget = client.getWidget(BANK_WIDGET_GROUP, childId);
             if (bankItemWidget != null && bankItemWidget.getId() == widgetId) {
-                return true;
+                return MenuLocation.BANK;
             }
         }
-        Widget bankInventoryWidget = client.getWidget(BANK_INVENTORY_WIDGET_GROUP, BANK_INVENTORY_WIDGET_CHILD);
-        if (bankInventoryWidget != null && bankInventoryWidget.getId() == widgetId) {
-            return true;
-        }
-        return false;
+        return null;
     }
 
     private InventoryMenuItem getInventoryMenuItem(MenuEntryAdded event) {
@@ -209,7 +284,8 @@ public class MenuHandler {
 
         int inventorySlot = event.getActionParam0();
         int inventoryWidgetId = event.getActionParam1();
-        if (!isInventoryWidgetId(inventoryWidgetId)) {
+        MenuLocation location = getMenuLocation(inventoryWidgetId);
+        if (location == null) {
             return null;
         }
 
@@ -230,18 +306,20 @@ public class MenuHandler {
         ItemComposition itemComposition = client.getItemDefinition(unnotedItemId);
         String itemName = itemComposition.getName();
         String menuTarget = resolveMenuTarget(event.getTarget(), unnotedItemId);
-        return new InventoryMenuItem(unnotedItemId, itemName, menuTarget);
+        return new InventoryMenuItem(unnotedItemId, itemName, menuTarget, location);
     }
 
     private static class InventoryMenuItem {
         private final int unnotedItemId;
         private final String itemName;
         private final String menuTarget;
+        private final MenuLocation location;
 
-        private InventoryMenuItem(int unnotedItemId, String itemName, String menuTarget) {
+        private InventoryMenuItem(int unnotedItemId, String itemName, String menuTarget, MenuLocation location) {
             this.unnotedItemId = unnotedItemId;
             this.itemName = itemName;
             this.menuTarget = menuTarget;
+            this.location = location;
         }
     }
 

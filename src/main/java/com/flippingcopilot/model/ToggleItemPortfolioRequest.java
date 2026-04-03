@@ -8,11 +8,15 @@ import lombok.Getter;
 @AllArgsConstructor
 public class ToggleItemPortfolioRequest {
 
+    // Sentinel for the portfolioId field meaning "remove from portfolio".
+    public static final int REMOVE = -1;
+
     private final int accountId;
     private final int itemId;
     private final int portfolioId;
     private final int bagQuantity;
     private final int bankQuantity;
+    private final int quantity;
 
     public byte[] encodeProto() {
         return ProtoUtils.encodeMessage(out -> {
@@ -21,6 +25,7 @@ public class ToggleItemPortfolioRequest {
             out.writeSInt32(3, portfolioId);
             out.writeInt32(4, bagQuantity);
             out.writeInt32(5, bankQuantity);
+            out.writeInt32(6, quantity);
         });
     }
 }

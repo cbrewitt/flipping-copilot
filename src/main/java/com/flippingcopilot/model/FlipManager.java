@@ -247,8 +247,15 @@ public class FlipManager {
                 intervalStats.subtractFlip(removed);
             }
         }
-        if(flip.isDeleted()) {
+        if(flip.isDeleted() || !PortfolioId.isInPortfolio(flip.getPortfolioId())) {
             existingCloseTimes.remove(flip.getId());
+            Map<Integer, FlipV2> openByItem = lastOpenFlipByItemId.get(flip.getAccountId());
+            if (openByItem != null) {
+                FlipV2 lastOpen = openByItem.get(flip.getItemId());
+                if (lastOpen != null && lastOpen.getId().equals(flip.getId())) {
+                    openByItem.remove(flip.getItemId());
+                }
+            }
             return;
         }
         WeekAggregate wa = getOrInitWeek(flip.getClosedTime());
@@ -401,7 +408,6 @@ public class FlipManager {
         if (flip == null) {
             return false;
         }
-        int portfolioId = flip.getPortfolioId();
-        return portfolioId != -2 && portfolioId != -3;
+        return PortfolioId.isInPortfolio(flip.getPortfolioId());
     }
 }

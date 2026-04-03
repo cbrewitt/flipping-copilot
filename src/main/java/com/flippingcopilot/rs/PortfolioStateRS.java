@@ -61,7 +61,7 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
             int itemId = portfolioItem.getItemId();
             int inventoryQty = safeQty(runeliteInventory, itemId);
             int bankQty = safeQty(bank, itemId);
-            int openFlipsQuantity = Math.max(0, portfolioItem.getAmount());
+            int portfolioQuantity = Math.max(0, portfolioItem.getAmount());
 
             PortfolioItemCardData data = new PortfolioItemCardData(
                     itemId,
@@ -69,13 +69,12 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
                     safeQty(geQuantitiesByItemId, itemId),
                     inventoryQty,
                     bankQty,
-                    openFlipsQuantity,
                     1,
                     portfolioItem.getPostTaxSellUnitPrice(),
                     portfolioItem.getUnitBuyPrice(),
                     calculateUnrealizedUnitProfit(portfolioItem),
-                    Math.max(0, portfolioItem.heldMinutes),
-                    portfolioItem.inPortfolio
+                    Math.max(0, portfolioItem.getHeldMinutes()),
+                    portfolioQuantity
             );
             map.put(itemId, data);
         }
@@ -165,8 +164,8 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
             if (!item.isInPortfolio()) {
                 continue;
             }
-            assetsValue += item.getPostTaxSellUnitPrice() * item.getOpenFlipsQuantity();
-            unrealizedProfit += item.flipsUnrealizedProfit();
+            assetsValue += item.getPostTaxSellUnitPrice() * item.getPortfolioQuantity();
+            unrealizedProfit += item.portfolioUnrealizedProfit();
         }
         long cashValue = itemController.totalCash(bank)
                 + itemController.totalCash(runeliteInventory)

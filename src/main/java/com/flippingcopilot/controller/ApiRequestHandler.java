@@ -266,7 +266,7 @@ public class ApiRequestHandler {
                 .url(serverUrl + "/profit-tracking/client-transactions?display_name=" + encodedDisplayName)
                 .addHeader("Authorization", "Bearer " + jwtToken)
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
-                .header("Accept", "application/x-bytes")
+                .header("Accept", "application/protobuf")
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
@@ -287,7 +287,7 @@ public class ApiRequestHandler {
                         onFailure.accept(new HttpResponseException(response.code(), errorMessage));
                         return;
                     }
-                    List<FlipV2> changedFlips = FlipV2.listFromRaw(response.body().bytes());
+                    List<FlipV2> changedFlips = FlipV2.listDecodeProto(response.body().bytes());
                     onSuccess.accept(userId, changedFlips);
                 } catch (Exception e) {
                     log.warn("error reading/parsing sync transactions response body", e);
@@ -538,7 +538,7 @@ public class ApiRequestHandler {
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/delete-flip")
                 .addHeader("Authorization", "Bearer " + jwtToken)
-                .header("Accept", "application/x-bytes")
+                .header("Accept", "application/protobuf")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .build();
 
@@ -558,7 +558,7 @@ public class ApiRequestHandler {
                         log.error("deleting flip {}, bad response code {}", flip.getId(), response.code());
                         onFailure.run();
                     } else {
-                        FlipV2 flip = FlipV2.fromRaw(response.body().bytes());
+                        FlipV2 flip = FlipV2.decodeProto(response.body().bytes());
                         onSuccess.accept(flip);
                     }
                 } catch (Exception e) {
@@ -655,7 +655,7 @@ public class ApiRequestHandler {
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/client-flips-delta")
                 .addHeader("Authorization", "Bearer " + jwtToken)
-                .header("Accept", "application/x-bytes")
+                .header("Accept", "application/protobuf")
                 .method("POST", RequestBody.create(MediaType.get("application/json; charset=utf-8"), bodyStr))
                 .build();
 
@@ -678,7 +678,7 @@ public class ApiRequestHandler {
                         onFailure.accept(errorMessage);
                         return;
                     }
-                    FlipsDeltaResult res = FlipsDeltaResult.fromRaw(response.body().bytes());
+                    FlipsDeltaResult res = FlipsDeltaResult.decodeProto(response.body().bytes());
                     onSuccess.accept(userId, res);
                 } catch (Exception e) {
                     log.error("error reading/parsing flips response body", e);
@@ -784,7 +784,7 @@ public class ApiRequestHandler {
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/orphan-transaction")
                 .addHeader("Authorization", "Bearer " + jwtToken)
-                .header("Accept", "application/x-bytes")
+                .header("Accept", "application/protobuf")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .build();
 
@@ -804,7 +804,7 @@ public class ApiRequestHandler {
                         log.error("orphaning transaction {}, bad response code {}", transaction.getId(), response.code());
                         onFailure.run();
                     } else {
-                        List<FlipV2> flips = FlipV2.listFromRaw(response.body().bytes());
+                        List<FlipV2> flips = FlipV2.listDecodeProto(response.body().bytes());
                         onSuccess.accept(userId, flips);
                     }
                 } catch (Exception e) {
@@ -824,7 +824,7 @@ public class ApiRequestHandler {
         Request request = new Request.Builder()
                 .url(serverUrl + "/profit-tracking/delete-transaction")
                 .addHeader("Authorization", "Bearer " + jwtToken)
-                .header("Accept", "application/x-bytes")
+                .header("Accept", "application/protobuf")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
                 .build();
 
@@ -844,7 +844,7 @@ public class ApiRequestHandler {
                         log.error("delete transaction {}, bad response code {}", transaction.getId(), response.code());
                         onFailure.run();
                     } else {
-                        List<FlipV2> flips = FlipV2.listFromRaw(response.body().bytes());
+                        List<FlipV2> flips = FlipV2.listDecodeProto(response.body().bytes());
                         onSuccess.accept(userId, flips);
                     }
                 } catch (Exception e) {

@@ -325,25 +325,29 @@ public class PortfolioPanel extends JPanel {
         tableModel.setRowCount(0);
         List<PortfolioItemCardData> sortedItems = new ArrayList<>(items);
         sortedItems.sort((a, b) -> Long.compare(
-                b.getPostTaxSellUnitPrice() * b.getOpenFlipsQuantity(),
-                a.getPostTaxSellUnitPrice() * a.getOpenFlipsQuantity()
+                b.getPostTaxSellUnitPrice() * b.getPortfolioQuantity(),
+                a.getPostTaxSellUnitPrice() * a.getPortfolioQuantity()
         ));
 
         for (PortfolioItemCardData item : sortedItems) {
             long avgBuyPrice = item.getUnitBuyPrice();
-            String quantitySummary = NumberFormat.getIntegerInstance(Locale.US).format(item.getOpenFlipsQuantity())
-                    + " (inv: " + NumberFormat.getIntegerInstance(Locale.US).format(item.getRuneliteInventoryQuantity())
-                    + " bank: " + NumberFormat.getIntegerInstance(Locale.US).format(item.getSuggestionBankQuantity())
-                    + " GE: " + NumberFormat.getIntegerInstance(Locale.US).format(item.getRuneliteGeQuantity())
+            NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
+            String quantitySummary = nf.format(item.getPortfolioQuantity())
+                    + " (inv: " + nf.format(item.getRuneliteInventoryQuantity())
+                    + " bank: " + nf.format(item.getSuggestionBankQuantity())
+                    + " GE: " + nf.format(item.getRuneliteGeQuantity())
                     + ")";
+            if (item.isPartiallyInPortfolio()) {
+                quantitySummary = "<html>" + quantitySummary + "<br>In portfolio: " + nf.format(item.getPortfolioQuantity()) + "</html>";
+            }
             tableModel.addRow(new Object[]{
                     new ItemCell(item.getItemId(), item.getItemName()),
-                    item.getPostTaxSellUnitPrice() * item.getOpenFlipsQuantity(),
+                    item.getPostTaxSellUnitPrice() * item.getPortfolioQuantity(),
                     quantitySummary,
                     avgBuyPrice > 0 ? avgBuyPrice : null,
                     item.getOpenFlipsCount(),
                     UIUtilities.formatDurationMinutes(item.getHeldMinutes()),
-                    item.flipsUnrealizedProfit(),
+                    item.portfolioUnrealizedProfit(),
                     calculateUnrealizedRoi(item)
             });
         }
@@ -351,9 +355,6 @@ public class PortfolioPanel extends JPanel {
 
     private void installRowContextMenu() {
         JPopupMenu popupMenu = new JPopupMenu();
-        JMenuItem removeFromPortfolioItem = new JMenuItem("Remove from portfolio");
-        removeFromPortfolioItem.addActionListener(e -> removeSelectedRowFromPortfolio());
-        popupMenu.add(removeFromPortfolioItem);
 
         table.addMouseListener(new MouseAdapter() {
             @Override
@@ -375,23 +376,59 @@ public class PortfolioPanel extends JPanel {
                     return;
                 }
                 table.setRowSelectionInterval(row, row);
+                PortfolioItemCardData item = getSelectedItemCardData();
+                if (item == null) {
+                    return;
+                }
+                popupMenu.removeAll();
+                buildContextMenu(popupMenu, item);
                 popupMenu.show(e.getComponent(), e.getX(), e.getY());
             }
         });
     }
 
-    private void removeSelectedRowFromPortfolio() {
+    private void buildContextMenu(JPopupMenu menu, PortfolioItemCardData item) {
+        int portfolioQty = item.getPortfolioQuantity();
+
+        if (portfolioQty > 0) {
+            JMenuItem removeAll = new JMenuItem("Remove from portfolio");
+            removeAll.addActionListener(e -> togglePortfolio(item.getItemId(), ToggleItemPortfolioRequest.REMOVE, 0));
+            menu.add(removeAll);
+        }
+
+        if (portfolioQty > 1) {
+            JMenuItem removeX = new JMenuItem("Remove X from portfolio");
+            removeX.addActionListener(e -> {
+                String input = JOptionPane.showInputDialog(this, "Quantity to remove:", "Remove from portfolio", JOptionPane.PLAIN_MESSAGE);
+                if (input != null) {
+                    try {
+                        int qty = Integer.parseInt(input.trim());
+                        if (qty > 0) {
+                            togglePortfolio(item.getItemId(), ToggleItemPortfolioRequest.REMOVE, qty);
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            });
+            menu.add(removeX);
+        }
+    }
+
+    private PortfolioItemCardData getSelectedItemCardData() {
         int viewRow = table.getSelectedRow();
         if (viewRow < 0) {
-            return;
+            return null;
         }
         int modelRow = table.convertRowIndexToModel(viewRow);
         Object itemCellObj = tableModel.getValueAt(modelRow, 0);
         if (!(itemCellObj instanceof ItemCell)) {
-            return;
+            return null;
         }
-
         ItemCell itemCell = (ItemCell) itemCellObj;
+        return portfolioStateRS.get().getItemCardDataByItemId().get(itemCell.itemId);
+    }
+
+    private void togglePortfolio(int itemId, int portfolioId, int quantity) {
         Integer accountId = copilotLoginRS.get().getAccountId(osrsLoginRS.get().displayName);
         if (accountId == null || accountId == -1) {
             return;
@@ -399,12 +436,12 @@ public class PortfolioPanel extends JPanel {
 
         clientThread.invokeLater(() -> {
             Map<Integer, Integer> runeliteInventory = itemController.getRunliteInventory();
-            int bagQuantity = runeliteInventory == null ? 0 : Math.max(0, runeliteInventory.getOrDefault(itemCell.itemId, 0));
+            int bagQuantity = runeliteInventory == null ? 0 : Math.max(0, runeliteInventory.getOrDefault(itemId, 0));
             int bankQuantity = bankStateRS.get().isLoaded()
-                    ? Math.max(0, bankStateRS.get().getItems().getOrDefault(itemCell.itemId, 0))
+                    ? Math.max(0, bankStateRS.get().getItems().getOrDefault(itemId, 0))
                     : -1;
 
-            ToggleItemPortfolioRequest request = new ToggleItemPortfolioRequest(accountId, itemCell.itemId, -1, bagQuantity, bankQuantity);
+            ToggleItemPortfolioRequest request = new ToggleItemPortfolioRequest(accountId, itemId, portfolioId, bagQuantity, bankQuantity, quantity);
             apiRequestHandler.toggleItemPortfolioAsync(
                     request,
                     (userId, result) -> {

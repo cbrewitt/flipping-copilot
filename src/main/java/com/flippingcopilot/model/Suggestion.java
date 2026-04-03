@@ -46,24 +46,93 @@ public class Suggestion {
     @NoArgsConstructor
     public static class PortfolioItem {
         public int itemId;
-        public int amount;
-        public long sellValue;
-        public long buySpend;
-        public boolean inPortfolio;
-        public int heldMinutes;
+
+        // Per-portfolio breakdowns. Only portfolio_id 0 (COFLIP_PORTFOLIO) and 1 (PERSONAL_PORTFOLIO)
+        // count as "in portfolio". Ghost (portfolio_id -1) is intentionally not represented here —
+        // it is excluded from all portfolio totals and stats.
+        public int portfolioAmount;
+        public long portfolioSellValue;
+        public long portfolioBuySpend;
+        public int portfolioHeldMinutes;
+        public int personalAmount;
+        public long personalSellValue;
+        public long personalBuySpend;
+        public int personalHeldMinutes;
+
+        public int getAmount() {
+            return portfolioAmount + personalAmount;
+        }
+
+        public long getSellValue() {
+            return portfolioSellValue + personalSellValue;
+        }
+
+        public long getBuySpend() {
+            return portfolioBuySpend + personalBuySpend;
+        }
+
+        public int getHeldMinutes() {
+            return Math.max(portfolioHeldMinutes, personalHeldMinutes);
+        }
 
         public long getPostTaxSellUnitPrice() {
-            if (amount <= 0) {
+            int amt = getAmount();
+            if (amt <= 0) {
                 return 0L;
             }
-            return sellValue / amount;
+            return getSellValue() / amt;
         }
 
         public long getUnitBuyPrice() {
-            if (amount <= 0) {
+            int amt = getAmount();
+            if (amt <= 0) {
                 return 0L;
             }
-            return buySpend / amount;
+            return getBuySpend() / amt;
+        }
+
+        public static PortfolioItem decodeProto(CodedInputStream input) throws IOException {
+            PortfolioItem item = new PortfolioItem();
+            while (!input.isAtEnd()) {
+                int tag = input.readTag();
+                if (tag == 0) {
+                    break;
+                }
+                int field = WireFormat.getTagFieldNumber(tag);
+                switch (field) {
+                    case 1:
+                        item.itemId = input.readInt32();
+                        break;
+                    case 7:
+                        item.portfolioAmount = input.readInt32();
+                        break;
+                    case 8:
+                        item.portfolioSellValue = input.readInt64();
+                        break;
+                    case 9:
+                        item.portfolioBuySpend = input.readInt64();
+                        break;
+                    case 10:
+                        item.portfolioHeldMinutes = input.readInt32();
+                        break;
+                    case 11:
+                        item.personalAmount = input.readInt32();
+                        break;
+                    case 12:
+                        item.personalSellValue = input.readInt64();
+                        break;
+                    case 13:
+                        item.personalBuySpend = input.readInt64();
+                        break;
+                    case 14:
+                        item.personalHeldMinutes = input.readInt32();
+                        break;
+                    default:
+                        // Skips legacy ghost-tainted totals (2-6) and ghost-prefixed fields (15-18).
+                        input.skipField(tag);
+                }
+            }
+            return item;
         }
     }
 
@@ -294,37 +363,7 @@ public class Suggestion {
                         }
                         int itemLength = input.readRawVarint32();
                         int itemLimit = input.pushLimit(itemLength);
-                        PortfolioItem portfolioItem = new PortfolioItem();
-                        while (!input.isAtEnd()) {
-                            int itemTag = input.readTag();
-                            if (itemTag == 0) {
-                                break;
-                            }
-                            int itemFieldNumber = WireFormat.getTagFieldNumber(itemTag);
-                            switch (itemFieldNumber) {
-                                case 1:
-                                    portfolioItem.itemId = input.readInt32();
-                                    break;
-                                case 2:
-                                    portfolioItem.amount = input.readInt32();
-                                    break;
-                                case 3:
-                                    portfolioItem.sellValue = input.readInt64();
-                                    break;
-                                case 4:
-                                    portfolioItem.buySpend = input.readInt64();
-                                    break;
-                                case 5:
-                                    portfolioItem.inPortfolio = input.readBool();
-                                    break;
-                                case 6:
-                                    portfolioItem.heldMinutes = input.readInt32();
-                                    break;
-                                default:
-                                    input.skipField(itemTag);
-                            }
-                        }
-                        suggestion.portfolioItems.add(portfolioItem);
+                        suggestion.portfolioItems.add(PortfolioItem.decodeProto(input));
                         input.popLimit(itemLimit);
                         break;
                     case 19:
