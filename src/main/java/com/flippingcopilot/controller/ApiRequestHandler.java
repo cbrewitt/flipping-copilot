@@ -688,14 +688,16 @@ public class ApiRequestHandler {
         });
     }
 
-    public void asyncLoadTransactionsData(Consumer<byte[]> onSuccess, Consumer<String> onFailure) {
+    public void asyncLoadTransactionsData(String displayName, Consumer<byte[]> onSuccess, Consumer<String> onFailure) {
+        String encodedDisplayName = URLEncoder.encode(displayName, StandardCharsets.UTF_8);
         String jwtToken = copilotLoginRS.get().getJwtToken();
+        AccountClientTransactionsRequest body = new AccountClientTransactionsRequest(0, 0);
 
         Request request = new Request.Builder()
-                .url(serverUrl + "/profit-tracking/client-transactions")
+                .url(serverUrl + "/profit-tracking/account-client-transactions?display_name=" + encodedDisplayName)
                 .addHeader("Authorization", "Bearer " + jwtToken)
                 .header("Accept", "application/x-bytes")
-                .get()
+                .post(RequestBody.create(MediaType.get("application/protobuf"), body.encodeProto()))
                 .build();
 
         client.newCall(request).enqueue(new Callback() {

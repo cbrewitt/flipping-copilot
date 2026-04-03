@@ -50,6 +50,7 @@ public class TransactionsPanel extends JPanel {
     private final ItemController itemController;
     private final ExecutorService executorService;
     private final ApiRequestHandler apiRequestHandler;
+    private final OsrsLoginManager osrsLoginManager;
     private final FlipManager flipManager;
 
     // ui components
@@ -80,12 +81,14 @@ public class TransactionsPanel extends JPanel {
                              ItemController itemController,
                              @Named("copilotExecutor") ExecutorService executorService,
                              ApiRequestHandler apiRequestHandler,
+                             OsrsLoginManager osrsLoginManager,
                              FlippingCopilotConfig config,
                              FlipManager flipManager) {
         this.copilotLoginRS = copilotLoginRS;
         this.itemController = itemController;
         this.executorService = executorService;
         this.apiRequestHandler = apiRequestHandler;
+        this.osrsLoginManager = osrsLoginManager;
         this.flipManager = flipManager;
 
         setLayout(new BorderLayout());
@@ -271,6 +274,12 @@ public class TransactionsPanel extends JPanel {
      * Load transactions when the panel is first shown
      */
     public void loadTransactionsIfNeeded() {
+        if (!canLoadForCurrentPlayer()) {
+            setSpinnerVisible(false);
+            errorLabel.setText("Log into the game to view account transactions");
+            errorLabel.setVisible(true);
+            return;
+        }
         if (loadTransactionsTriggered.compareAndSet(false, true)) {
             loadTransactions();
         }
@@ -355,9 +364,25 @@ public class TransactionsPanel extends JPanel {
     }
 
     private void loadTransactions() {
+        if (!canLoadForCurrentPlayer()) {
+            setSpinnerVisible(false);
+            errorLabel.setText("Log into the game to view account transactions");
+            errorLabel.setVisible(true);
+            return;
+        }
+
+        String displayName = osrsLoginManager.getPlayerDisplayName();
+        if (Strings.isNullOrEmpty(displayName)) {
+            setSpinnerVisible(false);
+            errorLabel.setText("Log into the game to view account transactions");
+            errorLabel.setVisible(true);
+            return;
+        }
+
         setSpinnerVisible(true);
         errorLabel.setVisible(false);
         apiRequestHandler.asyncLoadTransactionsData(
+                displayName,
                 transactionsData -> {
                     SwingUtilities.invokeLater(() -> {
                         setSpinnerVisible(false);
@@ -373,6 +398,10 @@ public class TransactionsPanel extends JPanel {
                     });
                 }
         );
+    }
+
+    private boolean canLoadForCurrentPlayer() {
+        return osrsLoginManager.isValidLoginState() && !Strings.isNullOrEmpty(osrsLoginManager.getPlayerDisplayName());
     }
 
     private void setSpinnerVisible(boolean visible) {

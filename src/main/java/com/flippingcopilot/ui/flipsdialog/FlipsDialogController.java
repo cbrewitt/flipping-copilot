@@ -112,7 +112,7 @@ public class FlipsDialogController {
                     clientThread
             );
             TransactionsPanel transactionsPanel = new TransactionsPanel(copilotLoginRS, itemController,
-                    executorService, apiRequestHandler, config, flipsManager);
+                    executorService, apiRequestHandler, osrsLoginManager, config, flipsManager);
             priceGraphPanel = new PriceGraphPanel(
                     itemController,
                     priceGraphConfigManager,
