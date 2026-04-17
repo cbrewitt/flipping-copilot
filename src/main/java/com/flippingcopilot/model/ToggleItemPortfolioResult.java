@@ -30,49 +30,12 @@ public class ToggleItemPortfolioResult {
             if (fieldNumber == 1) {
                 int length = input.readRawVarint32();
                 int limit = input.pushLimit(length);
-                Suggestion.PortfolioItem item = decodePortfolioItem(input);
+                result.portfolioItems.add(Suggestion.PortfolioItem.decodeProto(input));
                 input.popLimit(limit);
-                if (item != null) {
-                    result.portfolioItems.add(item);
-                }
             } else {
                 input.skipField(tag);
             }
         }
         return result;
-    }
-
-    private static Suggestion.PortfolioItem decodePortfolioItem(CodedInputStream input) throws IOException {
-        Suggestion.PortfolioItem item = new Suggestion.PortfolioItem();
-        while (!input.isAtEnd()) {
-            int tag = input.readTag();
-            if (tag == 0) {
-                break;
-            }
-            int fieldNumber = WireFormat.getTagFieldNumber(tag);
-            switch (fieldNumber) {
-                case 1:
-                    item.itemId = input.readInt32();
-                    break;
-                case 2:
-                    item.amount = input.readInt32();
-                    break;
-                case 3:
-                    item.sellValue = input.readInt64();
-                    break;
-                case 4:
-                    item.buySpend = input.readInt64();
-                    break;
-                case 5:
-                    item.inPortfolio = input.readBool();
-                    break;
-                case 6:
-                    item.heldMinutes = input.readInt32();
-                    break;
-                default:
-                    input.skipField(tag);
-            }
-        }
-        return item;
     }
 }

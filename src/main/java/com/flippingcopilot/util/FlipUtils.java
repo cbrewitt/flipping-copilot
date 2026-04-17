@@ -1,6 +1,7 @@
 package com.flippingcopilot.util;
 
 import com.flippingcopilot.model.FlipV2;
+import com.flippingcopilot.model.PortfolioId;
 
 import java.util.List;
 
@@ -43,7 +44,7 @@ public class FlipUtils {
             return false;
         }
         for (FlipV2 f : itemFlips) {
-            if(f.getPortfolioId() != 0) {
+            if (!PortfolioId.isInPortfolio(f.getPortfolioId())) {
                 return false;
             }
         }

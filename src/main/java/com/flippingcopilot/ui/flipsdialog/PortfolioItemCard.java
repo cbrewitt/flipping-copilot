@@ -34,7 +34,7 @@ public class PortfolioItemCard extends JPanel {
         leftPanel.setMinimumSize(new Dimension(LEFT_COLUMN_WIDTH, 52));
         leftPanel.setMaximumSize(new Dimension(LEFT_COLUMN_WIDTH, Integer.MAX_VALUE));
 
-        JPanel portfolioQuantityPanel = buildStatColumn("Portfolio Quantity", GP_FORMAT.format(data.getOpenFlipsQuantity()));
+        JPanel portfolioQuantityPanel = buildStatColumn("Portfolio Quantity", GP_FORMAT.format(data.getPortfolioQuantity()));
         portfolioQuantityPanel.setPreferredSize(new Dimension(STAT_COLUMN_WIDTH, 52));
         portfolioQuantityPanel.setMinimumSize(new Dimension(STAT_COLUMN_WIDTH, 52));
         portfolioQuantityPanel.setMaximumSize(new Dimension(STAT_COLUMN_WIDTH, Integer.MAX_VALUE));
@@ -55,7 +55,7 @@ public class PortfolioItemCard extends JPanel {
         heldPanel.setMinimumSize(new Dimension(STAT_COLUMN_WIDTH, 52));
         heldPanel.setMaximumSize(new Dimension(STAT_COLUMN_WIDTH, Integer.MAX_VALUE));
 
-        JPanel profitPanel = buildStatColumn("Unrealized Profit", formatSignedGp(data.flipsUnrealizedProfit()));
+        JPanel profitPanel = buildStatColumn("Unrealized Profit", formatSignedGp(data.portfolioUnrealizedProfit()));
         profitPanel.setPreferredSize(new Dimension(STAT_COLUMN_WIDTH, 52));
         profitPanel.setMinimumSize(new Dimension(STAT_COLUMN_WIDTH, 52));
         profitPanel.setMaximumSize(new Dimension(STAT_COLUMN_WIDTH, Integer.MAX_VALUE));

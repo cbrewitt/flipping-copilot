@@ -135,10 +135,19 @@ public class FlipV2 {
         if (bytes == null || bytes.length == 0) {
             return null;
         }
+        try {
+            return decodeProto(CodedInputStream.newInstance(bytes));
+        } catch (IOException e) {
+            log.warn("failed decoding flip proto", e);
+            return null;
+        }
+    }
 
-        FlipV2 flip = new FlipV2();
-        boolean isClosed = false;
-
+    public static List<FlipV2> listDecodeProto(byte[] bytes) {
+        List<FlipV2> flips = new ArrayList<>();
+        if (bytes == null || bytes.length == 0) {
+            return flips;
+        }
         try {
             CodedInputStream input = CodedInputStream.newInstance(bytes);
             while (!input.isAtEnd()) {
@@ -146,75 +155,96 @@ public class FlipV2 {
                 if (tag == 0) {
                     break;
                 }
-
                 int fieldNumber = WireFormat.getTagFieldNumber(tag);
-                switch (fieldNumber) {
-                    case 1:
-                        flip.id = decodeUuid(input.readByteArray());
-                        break;
-                    case 2:
-                        flip.accountId = input.readInt32();
-                        break;
-                    case 3:
-                        flip.itemId = input.readInt32();
-                        break;
-                    case 4:
-                        flip.cachedItemName = input.readString();
-                        break;
-                    case 5:
-                        flip.openedTime = input.readInt32();
-                        break;
-                    case 6:
-                        flip.openedQuantity = input.readInt32();
-                        break;
-                    case 7:
-                        flip.spent = input.readInt64();
-                        break;
-                    case 8:
-                        flip.closedTime = input.readInt32();
-                        break;
-                    case 9:
-                        flip.closedQuantity = input.readInt32();
-                        break;
-                    case 10:
-                        flip.receivedPostTax = input.readInt64();
-                        break;
-                    case 11:
-                        flip.taxPaid = input.readInt64();
-                        break;
-                    case 12:
-                        flip.profit = input.readInt64();
-                        break;
-                    case 13:
-                        isClosed = input.readBool();
-                        break;
-                    case 14:
-                        flip.status = FlipStatus.fromValue(input.readString());
-                        break;
-                    case 16:
-                        flip.updatedTime = input.readInt32();
-                        break;
-                    case 17:
-                        flip.deleted = input.readBool();
-                        break;
-                    case 19:
-                        flip.portfolioId = input.readSInt32();
-                        break;
-                    case 20:
-                        flip.seqNo = input.readInt64();
-                        break;
-                    case 21:
-                        flip.userId = input.readInt32();
-                        break;
-                    default:
-                        input.skipField(tag);
+                if (fieldNumber == 1) {
+                    int length = input.readRawVarint32();
+                    int limit = input.pushLimit(length);
+                    FlipV2 f = decodeProto(input);
+                    input.popLimit(limit);
+                    if (f != null) {
+                        flips.add(f);
+                    }
+                } else {
+                    input.skipField(tag);
                 }
             }
         } catch (IOException e) {
-            log.warn("failed decoding flip proto", e);
-            return null;
+            log.warn("failed decoding flip list proto", e);
         }
+        return flips;
+    }
 
+    public static FlipV2 decodeProto(CodedInputStream input) throws IOException {
+        FlipV2 flip = new FlipV2();
+        boolean isClosed = false;
+        while (!input.isAtEnd()) {
+            int tag = input.readTag();
+            if (tag == 0) {
+                break;
+            }
+            int fieldNumber = WireFormat.getTagFieldNumber(tag);
+            switch (fieldNumber) {
+                case 1:
+                    flip.id = decodeUuid(input.readByteArray());
+                    break;
+                case 2:
+                    flip.accountId = input.readInt32();
+                    break;
+                case 3:
+                    flip.itemId = input.readInt32();
+                    break;
+                case 4:
+                    flip.cachedItemName = input.readString();
+                    break;
+                case 5:
+                    flip.openedTime = input.readInt32();
+                    break;
+                case 6:
+                    flip.openedQuantity = input.readInt32();
+                    break;
+                case 7:
+                    flip.spent = input.readInt64();
+                    break;
+                case 8:
+                    flip.closedTime = input.readInt32();
+                    break;
+                case 9:
+                    flip.closedQuantity = input.readInt32();
+                    break;
+                case 10:
+                    flip.receivedPostTax = input.readInt64();
+                    break;
+                case 11:
+                    flip.taxPaid = input.readInt64();
+                    break;
+                case 12:
+                    flip.profit = input.readInt64();
+                    break;
+                case 13:
+                    isClosed = input.readBool();
+                    break;
+                case 14:
+                    flip.status = FlipStatus.fromValue(input.readString());
+                    break;
+                case 16:
+                    flip.updatedTime = input.readInt32();
+                    break;
+                case 17:
+                    flip.deleted = input.readBool();
+                    break;
+                case 19:
+                    flip.portfolioId = input.readSInt32();
+                    break;
+                case 20:
+                    flip.seqNo = input.readInt64();
+                    break;
+                case 21:
+                    flip.userId = input.readInt32();
+                    break;
+                default:
+                    input.skipField(tag);
+            }
+        }
         if (flip.status == null) {
             flip.status = isClosed ? FlipStatus.FINISHED : FlipStatus.BUYING;
         }

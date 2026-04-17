@@ -20,6 +20,8 @@ import java.util.Set;
 @Data
 public class AccountStatus {
 
+    private final int version = 100;
+
     private StatusOfferList offers;
     private Inventory inventory;
     private Map<Integer, Long> uncollected;
@@ -77,6 +79,7 @@ public class AccountStatus {
 
     public synchronized JsonObject toJson(Gson gson, boolean geOpen, boolean sendGraphData) {
         JsonObject statusJson = new JsonObject();
+        statusJson.addProperty("version", version);
         statusJson.addProperty("display_name", displayName);
         statusJson.addProperty("sell_only", sellOnlyMode);
         statusJson.addProperty("buy_and_hold", buyAndHold);
@@ -185,6 +188,7 @@ public class AccountStatus {
 
     public synchronized byte[] encodeProto( boolean geOpen, boolean sendGraphData) {
         return ProtoUtils.encodeMessage(out -> {
+            out.writeInt32(8, version);
             if (displayName != null && !displayName.isEmpty()) {
                 out.writeString(1, displayName);
             }
