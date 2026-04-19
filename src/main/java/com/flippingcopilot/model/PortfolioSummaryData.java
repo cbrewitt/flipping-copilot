@@ -8,4 +8,5 @@ public class PortfolioSummaryData {
     long unrealizedProfit;
     long cashValue;
     long assetsValue;
+    long lockedBuyCash;
 }

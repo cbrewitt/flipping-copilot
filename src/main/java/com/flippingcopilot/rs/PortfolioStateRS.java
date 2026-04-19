@@ -49,7 +49,8 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
             long cashValue = itemController.totalCash(bank)
                     + itemController.totalCash(runeliteInventory)
                     + totalUncollectedCash(uncollected);
-            return new PortfolioState(true, Collections.emptyMap(), new PortfolioSummaryData(cashValue, 0L, cashValue, 0L));
+            long lockedBuyCash = totalLockedBuyCash(offers);
+            return new PortfolioState(true, Collections.emptyMap(), new PortfolioSummaryData(cashValue + lockedBuyCash, 0L, cashValue, 0L, lockedBuyCash));
         }
 
         Map<Integer, Integer> geQuantitiesByItemId = buildGeQuantitiesByItemId(offers, uncollected);
@@ -78,7 +79,7 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
             );
             map.put(itemId, data);
         }
-        return new PortfolioState(true, map, buildSummaryData(map, bank, runeliteInventory, uncollected));
+        return new PortfolioState(true, map, buildSummaryData(map, bank, runeliteInventory, uncollected, offers));
     }
 
     public void updatePortfolioState(Map<Integer, Integer> suggestionBank,
@@ -157,7 +158,8 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
     private PortfolioSummaryData buildSummaryData(Map<Integer, PortfolioItemCardData> map,
                                                   Map<Integer, Integer> bank,
                                                   Map<Integer, Integer> runeliteInventory,
-                                                  Map<Integer, Long> uncollected) {
+                                                  Map<Integer, Long> uncollected,
+                                                  StatusOfferList offers) {
         long assetsValue = 0L;
         long unrealizedProfit = 0L;
         for (PortfolioItemCardData item : map.values()) {
@@ -170,7 +172,8 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
         long cashValue = itemController.totalCash(bank)
                 + itemController.totalCash(runeliteInventory)
                 + totalUncollectedCash(uncollected);
-        return new PortfolioSummaryData(assetsValue + cashValue, unrealizedProfit, cashValue, assetsValue);
+        long lockedBuyCash = totalLockedBuyCash(offers);
+        return new PortfolioSummaryData(assetsValue + cashValue + lockedBuyCash, unrealizedProfit, cashValue, assetsValue, lockedBuyCash);
     }
 
     private long totalUncollectedCash(Map<Integer, Long> uncollected) {
@@ -179,5 +182,18 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
         }
         Long coins = uncollected.get(ItemID.COINS_995);
         return coins == null ? 0L : Math.max(0L, coins);
+    }
+
+    private long totalLockedBuyCash(StatusOfferList offers) {
+        if (offers == null) {
+            return 0L;
+        }
+        long total = 0L;
+        for (Offer offer : offers) {
+            if (offer != null && offer.getStatus() == OfferStatus.BUY) {
+                total += offer.cashStackGpValue();
+            }
+        }
+        return total;
     }
 }

@@ -38,7 +38,7 @@ public class PortfolioPanel extends JPanel {
     private static final String CONTENT_CARD = "content";
     private static final String LOGIN_PROMPT_CARD = "login";
     private static final String[] COLUMN_NAMES = {
-            "Item", "Market value", "Quantities", "Avg buy price", "Open flips", "Time held", "Unrealized Profit", "Unrealized ROI"
+            "Item", "Market value", "Quantities", "Avg buy price", "Time held", "Unrealized Profit", "Unrealized ROI"
     };
 
     private final ItemController itemController;
@@ -128,7 +128,7 @@ public class PortfolioPanel extends JPanel {
         table.setSelectionBackground(ColorScheme.BRAND_ORANGE);
         table.setSelectionForeground(Color.WHITE);
         table.setGridColor(ColorScheme.MEDIUM_GRAY_COLOR);
-        table.setRowHeight(92);
+        table.setRowHeight(40);
         table.setRowSorter(null);
         table.getTableHeader().setReorderingAllowed(false);
         table.setFocusable(false);
@@ -138,7 +138,6 @@ public class PortfolioPanel extends JPanel {
         table.getColumnModel().getColumn(2).setCellRenderer(rightRenderer);
         table.getColumnModel().getColumn(3).setCellRenderer(rightRenderer);
         table.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
-        table.getColumnModel().getColumn(5).setCellRenderer(rightRenderer);
         table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -204,7 +203,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         };
-        table.getColumnModel().getColumn(6).setCellRenderer(profitRenderer);
+        table.getColumnModel().getColumn(5).setCellRenderer(profitRenderer);
 
         DefaultTableCellRenderer roiRenderer = new DefaultTableCellRenderer() {
             @Override
@@ -223,7 +222,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         };
-        table.getColumnModel().getColumn(7).setCellRenderer(roiRenderer);
+        table.getColumnModel().getColumn(6).setCellRenderer(roiRenderer);
         installRowContextMenu();
 
         JScrollPane scrollPane = new JScrollPane(table);
@@ -300,6 +299,7 @@ public class PortfolioPanel extends JPanel {
         addSummaryRow("Portfolio Market Value", formatGp(data.getPortfolioMarketValue(), false));
         addSummaryRow("Unrealised Profit", formatGp(data.getUnrealizedProfit(), true), UIUtilities.getProfitColor(data.getUnrealizedProfit(), config));
         addSummaryRow("Cash Value", formatGp(data.getCashValue(), false));
+        addSummaryRow("Cash in Buy Offers", formatGp(data.getLockedBuyCash(), false));
         addSummaryRow("Assets Value", formatGp(data.getAssetsValue(), false));
         addSummaryRow("Total items in portfolio", NumberFormat.getIntegerInstance(Locale.US).format(totalItemsInPortfolio));
     }
@@ -345,7 +345,6 @@ public class PortfolioPanel extends JPanel {
                     item.getPostTaxSellUnitPrice() * item.getPortfolioQuantity(),
                     quantitySummary,
                     avgBuyPrice > 0 ? avgBuyPrice : null,
-                    item.getOpenFlipsCount(),
                     UIUtilities.formatDurationMinutes(item.getHeldMinutes()),
                     item.portfolioUnrealizedProfit(),
                     calculateUnrealizedRoi(item)

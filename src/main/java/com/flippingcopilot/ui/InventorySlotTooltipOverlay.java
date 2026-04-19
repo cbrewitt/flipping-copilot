@@ -3,6 +3,7 @@ package com.flippingcopilot.ui;
 import com.flippingcopilot.controller.InventorySlotTooltipDataProvider;
 import com.flippingcopilot.controller.PlayerLocationController;
 import com.flippingcopilot.model.InventorySlotTooltipData;
+import com.flippingcopilot.model.TooltipHoverSource;
 import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 import net.runelite.api.Point;
@@ -63,7 +64,7 @@ public class InventorySlotTooltipOverlay extends Overlay {
             return null;
         }
 
-        InventorySlotTooltipData tooltipData = tooltipDataProvider.getTooltipData(slot.itemId, slot.quantity);
+        InventorySlotTooltipData tooltipData = tooltipDataProvider.getTooltipData(slot.itemId, slot.quantity, slot.source);
         if (tooltipData == null) {
             return null;
         }
@@ -81,8 +82,8 @@ public class InventorySlotTooltipOverlay extends Overlay {
             return null;
         }
 
-        for (Widget itemWidget : getVisibleItemWidgets()) {
-            Widget[] children = itemWidget.getDynamicChildren();
+        for (SourcedWidget sourcedWidget : getVisibleItemWidgets()) {
+            Widget[] children = sourcedWidget.widget.getDynamicChildren();
             if (children == null) {
                 continue;
             }
@@ -103,35 +104,35 @@ public class InventorySlotTooltipOverlay extends Overlay {
                     continue;
                 }
 
-                return new HoveredInventorySlot(itemId, quantity);
+                return new HoveredInventorySlot(itemId, quantity, sourcedWidget.source);
             }
         }
 
         return null;
     }
 
-    private List<Widget> getVisibleItemWidgets() {
-        List<Widget> widgets = new ArrayList<>(3);
+    private List<SourcedWidget> getVisibleItemWidgets() {
+        List<SourcedWidget> widgets = new ArrayList<>(3);
         Widget geInventory = client.getWidget(GE_INVENTORY_WIDGET_GROUP, GE_INVENTORY_WIDGET_CHILD);
         if (geInventory != null && !geInventory.isHidden()) {
-            widgets.add(geInventory);
+            widgets.add(new SourcedWidget(geInventory, TooltipHoverSource.INVENTORY));
         }
 
         Widget inventory = client.getWidget(INVENTORY_WIDGET_GROUP, INVENTORY_WIDGET_CHILD);
         if (inventory != null && !inventory.isHidden()) {
-            widgets.add(inventory);
+            widgets.add(new SourcedWidget(inventory, TooltipHoverSource.INVENTORY));
         }
 
         for (int childId : BANK_ITEM_CONTAINER_CHILDREN) {
             Widget bankItems = client.getWidget(BANK_WIDGET_GROUP, childId);
             if (bankItems != null && !bankItems.isHidden()) {
-                widgets.add(bankItems);
+                widgets.add(new SourcedWidget(bankItems, TooltipHoverSource.BANK));
             }
         }
 
         Widget bankInventory = client.getWidget(BANK_INVENTORY_WIDGET_GROUP, BANK_INVENTORY_WIDGET_CHILD);
         if (bankInventory != null && !bankInventory.isHidden()) {
-            widgets.add(bankInventory);
+            widgets.add(new SourcedWidget(bankInventory, TooltipHoverSource.INVENTORY));
         }
 
         return widgets;
@@ -183,10 +184,22 @@ public class InventorySlotTooltipOverlay extends Overlay {
     private static class HoveredInventorySlot {
         private final int itemId;
         private final int quantity;
+        private final TooltipHoverSource source;
 
-        private HoveredInventorySlot(int itemId, int quantity) {
+        private HoveredInventorySlot(int itemId, int quantity, TooltipHoverSource source) {
             this.itemId = itemId;
             this.quantity = quantity;
+            this.source = source;
+        }
+    }
+
+    private static class SourcedWidget {
+        private final Widget widget;
+        private final TooltipHoverSource source;
+
+        private SourcedWidget(Widget widget, TooltipHoverSource source) {
+            this.widget = widget;
+            this.source = source;
         }
     }
 }

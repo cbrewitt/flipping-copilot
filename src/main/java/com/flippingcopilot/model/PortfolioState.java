@@ -12,6 +12,6 @@ public class PortfolioState {
     PortfolioSummaryData summaryData;
 
     public static PortfolioState empty() {
-        return new PortfolioState(false, Collections.emptyMap(), new PortfolioSummaryData(0L, 0L, 0L, 0L));
+        return new PortfolioState(false, Collections.emptyMap(), new PortfolioSummaryData(0L, 0L, 0L, 0L, 0L));
     }
 }

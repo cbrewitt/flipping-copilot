@@ -4,6 +4,7 @@ import com.flippingcopilot.model.InventorySlotTooltipData;
 import com.flippingcopilot.model.PortfolioItemCardData;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.model.TooltipHoverSource;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import com.flippingcopilot.ui.UIUtilities;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,7 @@ public class InventorySlotTooltipDataProvider {
     private final ItemController itemController;
     private final PortfolioStateRS portfolioStateRS;
 
-    public InventorySlotTooltipData getTooltipData(int itemId, int quantity) {
+    public InventorySlotTooltipData getTooltipData(int itemId, int quantity, TooltipHoverSource source) {
         if (!portfolioStateRS.get().isLoaded()) {
             return null;
         }
@@ -39,16 +40,16 @@ public class InventorySlotTooltipDataProvider {
         String itemName = itemManager.getItemComposition(itemData.getItemId()).getName();
         Suggestion suggestion = suggestionManager.getSuggestion();
         Suggestion.PortfolioItem portfolioItem = findPortfolioItem(suggestion, itemData.getItemId());
-        List<String> lines = buildTooltipLines(itemData, portfolioItem);
+        List<String> lines = buildTooltipLines(itemData, portfolioItem, source);
         return new InventorySlotTooltipData(itemData.getItemId(), quantity, itemName, lines);
     }
 
-    private List<String> buildTooltipLines(PortfolioItemCardData itemData, Suggestion.PortfolioItem portfolioItem) {
+    private List<String> buildTooltipLines(PortfolioItemCardData itemData, Suggestion.PortfolioItem portfolioItem, TooltipHoverSource source) {
         boolean inPortfolio = itemData.isInPortfolio();
 
         List<String> lines = new ArrayList<>(5);
 
-        lines.add(formatQuantityLine(itemData.getRuneliteInventoryQuantity(), itemData.getSuggestionBankQuantity()));
+        lines.add(formatQuantityLine(itemData.getRuneliteInventoryQuantity(), itemData.getSuggestionBankQuantity(), source));
         if (itemData.isPartiallyInPortfolio()) {
             lines.add("Quantity in Portfolio: " + NumberFormat.getIntegerInstance().format(itemData.getPortfolioQuantity()));
         }
@@ -98,12 +99,21 @@ public class InventorySlotTooltipDataProvider {
         return (portfolioItem.getSellValue() * totalQuantity) / portfolioItem.getAmount();
     }
 
-    private String formatQuantityLine(int totalInventoryQuantity, long bankQuantity) {
-        String quantity = NumberFormat.getIntegerInstance().format(totalInventoryQuantity);
-        if (bankQuantity > 0) {
-            return "Quantity: " + quantity + " (" + NumberFormat.getIntegerInstance().format(bankQuantity) + " in bank)";
+    private String formatQuantityLine(int inventoryQuantity, long bankQuantity, TooltipHoverSource source) {
+        NumberFormat fmt = NumberFormat.getIntegerInstance();
+        String invPart = "Inventory: " + fmt.format(Math.max(0, inventoryQuantity));
+        String bankPart = "Bank: " + fmt.format(Math.max(0L, bankQuantity));
+
+        if (source == TooltipHoverSource.BANK) {
+            if (inventoryQuantity <= 0) {
+                return bankPart;
+            }
+            return bankPart + ", " + invPart;
         }
-        return "Quantity: " + quantity;
+        if (bankQuantity <= 0) {
+            return invPart;
+        }
+        return invPart + ", " + bankPart;
     }
 
 }
