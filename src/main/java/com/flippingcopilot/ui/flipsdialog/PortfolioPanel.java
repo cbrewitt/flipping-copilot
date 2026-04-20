@@ -41,7 +41,7 @@ public class PortfolioPanel extends JPanel {
     private static final String CONTENT_CARD = "content";
     private static final String LOGIN_PROMPT_CARD = "login";
     private static final String[] COLUMN_NAMES = {
-            "Item", "Market value", "Unrealized Profit", "Unrealized ROI", "Quantity", "Avg buy price", "Time held"
+            "Item", "Market value", "Quantity", "Unrealized Profit", "Unrealized ROI", "Avg buy price", "Time held"
     };
 
     private static final Map<String, Comparator<PortfolioItemCardData>> SORT_COMPARATORS = new HashMap<>();
@@ -177,7 +177,7 @@ public class PortfolioPanel extends JPanel {
 
         DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
         rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-        table.getColumnModel().getColumn(4).setCellRenderer(rightRenderer); // Quantity
+        table.getColumnModel().getColumn(2).setCellRenderer(rightRenderer); // Quantity
         table.getColumnModel().getColumn(6).setCellRenderer(rightRenderer); // Time held
         table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
@@ -244,7 +244,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         };
-        table.getColumnModel().getColumn(2).setCellRenderer(profitRenderer);
+        table.getColumnModel().getColumn(3).setCellRenderer(profitRenderer);
 
         DefaultTableCellRenderer roiRenderer = new DefaultTableCellRenderer() {
             @Override
@@ -263,7 +263,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         };
-        table.getColumnModel().getColumn(3).setCellRenderer(roiRenderer);
+        table.getColumnModel().getColumn(4).setCellRenderer(roiRenderer);
         installRowContextMenu();
 
         JScrollPane scrollPane = new JScrollPane(table);
@@ -379,9 +379,9 @@ public class PortfolioPanel extends JPanel {
             tableModel.addRow(new Object[]{
                     new ItemCell(item.getItemId(), item.getItemName()),
                     item.getPostTaxSellUnitPrice() * item.getPortfolioQuantity(),
+                    nf.format(item.getPortfolioQuantity()),
                     item.portfolioUnrealizedProfit(),
                     calculateUnrealizedRoi(item),
-                    nf.format(item.getPortfolioQuantity()),
                     avgBuyPrice > 0 ? avgBuyPrice : null,
                     UIUtilities.formatDurationMinutes(item.getHeldMinutes())
             });

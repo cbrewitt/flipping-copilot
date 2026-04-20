@@ -64,6 +64,7 @@ public class SuggestionPanel extends JPanel {
     private JLabel skipButton;
     private final JPanel buttonContainer = new JPanel();
     private JLabel graphButton;
+    private JLabel portfolioButton;
     private final JPanel suggestedActionPanel;
     private final PreferencesPanel preferencesPanel;
     private final JLayeredPane layeredPane = new JLayeredPane();
@@ -253,9 +254,10 @@ public class SuggestionPanel extends JPanel {
         });
         centerPanel.add(graphButton);
 
-        JPanel emptyPanel = new JPanel();
-        emptyPanel.setOpaque(false);
-        centerPanel.add(emptyPanel);
+        BufferedImage portfolioIcon = ImageUtil.loadImageResource(getClass(), "/pie-chart.png");
+        portfolioButton = buildButton(portfolioIcon, "Open portfolio", flipsDialogController::showPortfolioTab);
+        centerPanel.add(portfolioButton);
+
         centerPanel.add(pauseButton);
         centerPanel.add(blockButton);
 
