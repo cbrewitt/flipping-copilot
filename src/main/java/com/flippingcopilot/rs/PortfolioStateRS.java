@@ -1,6 +1,8 @@
 package com.flippingcopilot.rs;
 
 import com.flippingcopilot.controller.ItemController;
+import com.flippingcopilot.model.AccountStatus;
+import com.flippingcopilot.model.AccountStatusManager;
 import com.flippingcopilot.model.PortfolioItemCardData;
 import com.flippingcopilot.model.PortfolioState;
 import com.flippingcopilot.model.PortfolioSummaryData;
@@ -10,32 +12,41 @@ import com.flippingcopilot.model.StatusOfferList;
 import com.flippingcopilot.model.Suggestion;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import net.runelite.api.ItemID;
 
+@Slf4j
 @Singleton
 public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
     private final ItemController itemController;
     private final BankStateRS bankStateRS;
     private final ClientThread clientThread;
+    private final AccountStatusManager accountStatusManager;
+
+    private volatile Instant portfolioItemsServerTime;
 
     @Inject
     public PortfolioStateRS(OsrsLoginRS osrsLoginRS,
                             ItemController itemController,
                             BankStateRS bankStateRS,
-                            ClientThread clientThread) {
+                            ClientThread clientThread,
+                            AccountStatusManager accountStatusManager) {
         super(PortfolioState.empty());
         this.itemController = itemController;
         this.bankStateRS = bankStateRS;
         this.clientThread = clientThread;
+        this.accountStatusManager = accountStatusManager;
         osrsLoginRS.registerListener(state -> {
             if (state == null || !state.loggedIn) {
                 set(PortfolioState.empty());
+                portfolioItemsServerTime = null;
             }
         });
     }
@@ -85,8 +96,16 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
     public void updatePortfolioState(Map<Integer, Integer> suggestionBank,
                                      List<Suggestion.PortfolioItem> portfolioItems,
                                      StatusOfferList offers,
-                                     Map<Integer, Long> uncollected) {
+                                     Map<Integer, Long> uncollected,
+                                     Instant portfolioItemsTime) {
         clientThread.invokeLater(() -> {
+            if (portfolioItems != null && portfolioItemsTime != null) {
+                Instant current = portfolioItemsServerTime;
+                if (current != null && !portfolioItemsTime.isAfter(current)) {
+                    log.debug("discarding stale portfolio items update, incoming={}, current={}", portfolioItemsTime, current);
+                    return true;
+                }
+            }
             Map<Integer, Integer> runeliteBank = bankStateRS.get().isLoaded() ? bankStateRS.get().getItems() : null;
             Map<Integer, Integer> effectiveBank = runeliteBank == null ? suggestionBank : runeliteBank;
             set(buildPortfolioState(
@@ -96,13 +115,27 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
                     offers,
                     uncollected
             ));
+            if (portfolioItems != null && portfolioItemsTime != null) {
+                portfolioItemsServerTime = portfolioItemsTime;
+            }
             return true;
         });
     }
 
     public void updatePortfolioState(Map<Integer, Integer> suggestionBank,
-                                     List<Suggestion.PortfolioItem> portfolioItems) {
-        updatePortfolioState(suggestionBank, portfolioItems, null, null);
+                                     List<Suggestion.PortfolioItem> portfolioItems,
+                                     Instant portfolioItemsTime) {
+        clientThread.invokeLater(() -> {
+            AccountStatus s = accountStatusManager.getAccountStatus();
+            updatePortfolioState(
+                    suggestionBank,
+                    portfolioItems,
+                    s == null ? null : s.getOffers(),
+                    s == null ? null : s.getUncollected(),
+                    portfolioItemsTime
+            );
+            return true;
+        });
     }
 
     private int safeQty(Map<Integer, Integer> map, int itemId) {

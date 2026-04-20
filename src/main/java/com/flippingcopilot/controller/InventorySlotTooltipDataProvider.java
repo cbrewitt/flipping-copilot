@@ -54,14 +54,14 @@ public class InventorySlotTooltipDataProvider {
             lines.add("Quantity in Portfolio: " + NumberFormat.getIntegerInstance().format(itemData.getPortfolioQuantity()));
         }
         if (!inPortfolio) {
-            Long totalValue = calculateValue(itemData, portfolioItem);
+            Long totalValue = calculateValue(itemData);
             lines.add("Total value: " + (totalValue == null ? "Unknown" : UIUtilities.formatProfit(totalValue)));
         } else {
             lines.add("Time held: " + UIUtilities.formatDurationMinutes(itemData.getHeldMinutes()));
             lines.add("Avg buy price: " + (portfolioItem == null || portfolioItem.getAmount() <= 0
                     ? "Unknown"
                     : UIUtilities.formatProfit(portfolioItem.getUnitBuyPrice())));
-            Long totalValue = calculateValue(itemData, portfolioItem);
+            Long totalValue = calculateValue(itemData);
             lines.add("Total value: " + (totalValue == null ? "Unknown" : UIUtilities.formatProfit(totalValue)));
             Long unrealizedProfit = itemData.getUnrealizedUnitProfit() == null ? null : itemData.inventoryTooltipUnrealizedProfit();
             lines.add("Unrealized Profit: " + (unrealizedProfit == null ? "Unknown" : UIUtilities.formatProfit(unrealizedProfit)));
@@ -91,12 +91,13 @@ public class InventorySlotTooltipDataProvider {
         return null;
     }
 
-    private Long calculateValue(PortfolioItemCardData itemData, Suggestion.PortfolioItem portfolioItem) {
-        if (portfolioItem == null || portfolioItem.getAmount() <= 0) {
+    private Long calculateValue(PortfolioItemCardData itemData) {
+        long unitPrice = itemData.getPostTaxSellUnitPrice();
+        if (unitPrice <= 0) {
             return null;
         }
         long totalQuantity = Math.max(0L, (long) itemData.getRuneliteInventoryQuantity() + itemData.getSuggestionBankQuantity());
-        return (portfolioItem.getSellValue() * totalQuantity) / portfolioItem.getAmount();
+        return unitPrice * totalQuantity;
     }
 
     private String formatQuantityLine(int inventoryQuantity, long bankQuantity, TooltipHoverSource source) {

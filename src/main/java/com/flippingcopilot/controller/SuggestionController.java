@@ -214,7 +214,8 @@ public class SuggestionController {
                 newSuggestion.getBankItems(),
                 newSuggestion.getPortfolioItems(),
                 accountStatus.getOffers(),
-                accountStatus.getUncollected()
+                accountStatus.getUncollected(),
+                newSuggestion.getTimeIssued()
         );
         suggestionManager.setSuggestionError(null);
         suggestionManager.setSuggestionRequestInProgress(false);

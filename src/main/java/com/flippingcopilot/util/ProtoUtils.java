@@ -1,11 +1,13 @@
 package com.flippingcopilot.util;
 
+import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.WireFormat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
 
@@ -67,6 +69,32 @@ public final class ProtoUtils {
             });
             writeDelimitedMessageField(out, fieldNumber, entryBytes);
         }
+    }
+
+    public static Instant decodeTimestamp(CodedInputStream input) throws IOException {
+        int length = input.readRawVarint32();
+        int limit = input.pushLimit(length);
+        long seconds = 0L;
+        int nanos = 0;
+        while (!input.isAtEnd()) {
+            int tag = input.readTag();
+            if (tag == 0) {
+                break;
+            }
+            int fieldNumber = WireFormat.getTagFieldNumber(tag);
+            switch (fieldNumber) {
+                case 1:
+                    seconds = input.readInt64();
+                    break;
+                case 2:
+                    nanos = input.readInt32();
+                    break;
+                default:
+                    input.skipField(tag);
+            }
+        }
+        input.popLimit(limit);
+        return Instant.ofEpochSecond(seconds, nanos);
     }
 
     public static <T> void writePacked(CodedOutputStream out, int fieldNumber, Collection<T> values, ValueWriter<T> valueWriter) {

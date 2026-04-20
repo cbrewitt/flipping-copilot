@@ -2,6 +2,7 @@ package com.flippingcopilot.model;
 
 import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.util.MsgPackUtil;
+import com.flippingcopilot.util.ProtoUtils;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import com.google.gson.annotations.SerializedName;
@@ -39,6 +40,7 @@ public class Suggestion {
     private Map<Integer, Integer> bankItems;
     private List<PortfolioItem> portfolioItems;
     private Data graphData;
+    private Instant timeIssued;
 
     @Setter
     @Getter
@@ -48,8 +50,10 @@ public class Suggestion {
         public int itemId;
 
         // Per-portfolio breakdowns. Only portfolio_id 0 (COFLIP_PORTFOLIO) and 1 (PERSONAL_PORTFOLIO)
-        // count as "in portfolio". Ghost (portfolio_id -1) is intentionally not represented here —
-        // it is excluded from all portfolio totals and stats.
+        // count as "in portfolio" (getAmount / getSellValue / getBuySpend / getHeldMinutes).
+        // Ghost (portfolio_id -1) is tracked separately and excluded from those totals; it only
+        // surfaces as a fallback when computing per-unit market prices for items the user holds
+        // client-side but has no visible portfolio/personal entry for.
         public int portfolioAmount;
         public long portfolioSellValue;
         public long portfolioBuySpend;
@@ -58,6 +62,10 @@ public class Suggestion {
         public long personalSellValue;
         public long personalBuySpend;
         public int personalHeldMinutes;
+        public int ghostAmount;
+        public long ghostSellValue;
+        public long ghostBuySpend;
+        public int ghostHeldMinutes;
 
         public int getAmount() {
             return portfolioAmount + personalAmount;
@@ -77,18 +85,24 @@ public class Suggestion {
 
         public long getPostTaxSellUnitPrice() {
             int amt = getAmount();
-            if (amt <= 0) {
-                return 0L;
+            if (amt > 0) {
+                return getSellValue() / amt;
             }
-            return getSellValue() / amt;
+            if (ghostAmount > 0) {
+                return ghostSellValue / ghostAmount;
+            }
+            return 0L;
         }
 
         public long getUnitBuyPrice() {
             int amt = getAmount();
-            if (amt <= 0) {
-                return 0L;
+            if (amt > 0) {
+                return getBuySpend() / amt;
             }
-            return getBuySpend() / amt;
+            if (ghostAmount > 0) {
+                return ghostBuySpend / ghostAmount;
+            }
+            return 0L;
         }
 
         public static PortfolioItem decodeProto(CodedInputStream input) throws IOException {
@@ -127,8 +141,20 @@ public class Suggestion {
                     case 14:
                         item.personalHeldMinutes = input.readInt32();
                         break;
+                    case 15:
+                        item.ghostAmount = input.readInt32();
+                        break;
+                    case 16:
+                        item.ghostSellValue = input.readInt64();
+                        break;
+                    case 17:
+                        item.ghostBuySpend = input.readInt64();
+                        break;
+                    case 18:
+                        item.ghostHeldMinutes = input.readInt32();
+                        break;
                     default:
-                        // Skips legacy ghost-tainted totals (2-6) and ghost-prefixed fields (15-18).
+                        // Skips deprecated legacy aggregates (2-6).
                         input.skipField(tag);
                 }
             }
@@ -296,6 +322,9 @@ public class Suggestion {
 
                 int fieldNumber = WireFormat.getTagFieldNumber(tag);
                 switch (fieldNumber) {
+                    case 1:
+                        suggestion.timeIssued = ProtoUtils.decodeTimestamp(input);
+                        break;
                     case 2:
                         suggestion.boxId = input.readInt32();
                         break;

@@ -230,7 +230,8 @@ public class MenuHandler {
                         Suggestion suggestion = suggestionManager.getSuggestion();
                         portfolioStateRS.updatePortfolioState(
                                 suggestion == null ? null : suggestion.getBankItems(),
-                                result == null ? null : result.getPortfolioItems()
+                                result == null ? null : result.getPortfolioItems(),
+                                result == null ? null : result.getTime()
                         );
                         suggestionManager.setSuggestionNeeded(true);
                         int itemsUpdated = result == null || result.getPortfolioItems() == null ? 0 : result.getPortfolioItems().size();

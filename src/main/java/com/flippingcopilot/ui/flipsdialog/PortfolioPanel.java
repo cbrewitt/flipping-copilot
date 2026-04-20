@@ -447,7 +447,8 @@ public class PortfolioPanel extends JPanel {
                         Suggestion suggestion = suggestionManager.getSuggestion();
                         portfolioStateRS.updatePortfolioState(
                                 suggestion == null ? null : suggestion.getBankItems(),
-                                result == null ? null : result.getPortfolioItems()
+                                result == null ? null : result.getPortfolioItems(),
+                                result == null ? null : result.getTime()
                         );
                         suggestionManager.setSuggestionNeeded(true);
                     },

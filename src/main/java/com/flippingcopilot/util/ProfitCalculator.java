@@ -1,7 +1,7 @@
 package com.flippingcopilot.util;
 
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.CopilotLoginRS;
+import com.flippingcopilot.rs.PortfolioStateRS;
 import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 
@@ -24,9 +24,7 @@ public class ProfitCalculator {
 
     private final Client client;
     private final OfferManager offerManager;
-    private final FlipManager flipManager;
-    private final OsrsLoginManager osrsLoginManager;
-    private final CopilotLoginRS copilotLoginRS;
+    private final PortfolioStateRS portfolioStateRS;
 
     /**
      * Calculates the post-tax price for an item.
@@ -52,7 +50,7 @@ public class ProfitCalculator {
 
     /**
      * Calculates the profit per item for a sell at the given price.
-     * 
+     *
      * @param itemId The item ID
      * @param sellPrice The price to sell at
      * @param avgBuyPrice The average buy price
@@ -63,88 +61,49 @@ public class ProfitCalculator {
     }
 
     /**
-     * Calculates the profit for a sell offer based on the buy price from a flip.
-     * 
-     * @param offer The sell offer
-     * @param flip The flip containing the average buy price
-     * @return The profit in GP (post-tax)
-     */
-    public static long calculateOfferProfit(SavedOffer offer, FlipV2 flip) {
-        long profitPerItem = calculateProfitPerItem(offer.getItemId(), offer.getPrice(), flip.getAvgBuyPrice());
-        return profitPerItem * offer.getTotalQuantity();
-    }
-
-    /**
      * Calculates the profit for a sell offer in a specific GE slot.
      * Only calculates profit for SELL offers.
-     * 
+     * Cost basis comes from portfolio card data (unit buy price).
+     *
      * @param slotIndex The GE slot index (0-7)
      * @return The profit in GP, or null if cannot be calculated
      */
     public Long calculateSlotProfit(int slotIndex) {
-        String displayName = osrsLoginManager.getPlayerDisplayName();
-        if (displayName == null) {
-            return null;
-        }
-
         long accountHash = client.getAccountHash();
         SavedOffer offer = offerManager.loadOffer(accountHash, slotIndex);
-        
         if (offer == null || !offer.getOfferStatus().equals(OfferStatus.SELL)) {
             return null;
         }
-
-        Integer accountId = copilotLoginRS.get().getAccountId(displayName);
-        if (accountId == null || accountId == -1) {
+        Long avgBuyPrice = portfolioUnitBuyPrice(offer.getItemId());
+        if (avgBuyPrice == null) {
             return null;
         }
-
-        FlipV2 flip = flipManager.getLastFlipByItemId(accountId, offer.getItemId());
-        if (flip == null || FlipStatus.FINISHED.equals(flip.getStatus())) {
-            return null;
-        }
-
-        return calculateOfferProfit(offer, flip);
+        return calculateProfitPerItem(offer.getItemId(), offer.getPrice(), avgBuyPrice) * offer.getTotalQuantity();
     }
 
     /**
      * Calculates the profit for a suggested sell offer.
      * Used for sell suggestions before the offer is actually placed.
-     * 
+     *
      * @param suggestion The sell suggestion
      * @return The profit in GP, or null if cannot be calculated
      */
     public Long calculateSuggestionProfit(Suggestion suggestion) {
-        if (!suggestion.isSellSuggestion()) {
+        if (!suggestion.isSellSuggestion() || suggestion.getPrice() <= 0) {
             return null;
         }
-
-        String displayName = osrsLoginManager.getPlayerDisplayName();
-        if (displayName == null) {
+        Long avgBuyPrice = portfolioUnitBuyPrice(suggestion.getItemId());
+        if (avgBuyPrice == null) {
             return null;
         }
-
-        Integer accountId = copilotLoginRS.get().getAccountId(displayName);
-        if (accountId == null || accountId == -1) {
-            return null;
-        }
-
-        // Create a transaction from the suggestion to estimate profit
-        Transaction t = new Transaction();
-        t.setItemId(suggestion.getItemId());
-        t.setPrice(suggestion.getPrice());
-        t.setQuantity(suggestion.getQuantity());
-        t.setAmountSpent((long) suggestion.getPrice() * suggestion.getQuantity());
-        t.setType(OfferStatus.SELL);
-
-        return flipManager.estimateTransactionProfit(accountId, t);
+        return calculateProfitPerItem(suggestion.getItemId(), suggestion.getPrice(), avgBuyPrice) * suggestion.getQuantity();
     }
 
     /**
      * Calculates the profit per item for a given item and price for the current player.
      * This is useful for determining profitability before placing an offer.
-     * Only calculates for flips that are not yet finished.
-     * 
+     * Cost basis comes from portfolio card data (unit buy price).
+     *
      * @param itemId The item ID
      * @param sellPrice The price to sell at
      * @return Profit per item in GP (post-tax revenue minus buy price), or null if cannot be calculated
@@ -153,67 +112,49 @@ public class ProfitCalculator {
         if (sellPrice <= 0) {
             return null;
         }
-
-        String displayName = osrsLoginManager.getPlayerDisplayName();
-        if (displayName == null) {
+        Long avgBuyPrice = portfolioUnitBuyPrice(itemId);
+        if (avgBuyPrice == null) {
             return null;
         }
-
-        Integer accountId = copilotLoginRS.get().getAccountId(displayName);
-        if (accountId == null || accountId == -1) {
-            return null;
-        }
-
-        FlipV2 flip = flipManager.getLastFlipByItemId(accountId, itemId);
-        if (flip == null || FlipStatus.FINISHED.equals(flip.getStatus())) {
-            return null;
-        }
-
-        long avgBuyPrice = flip.getAvgBuyPrice();
-        if (avgBuyPrice <= 0) {
-            return null;
-        }
-
         return calculateProfitPerItem(itemId, sellPrice, avgBuyPrice);
     }
 
     /**
      * Finds the profit for a sell offer by item name.
      * Searches through all GE slots to find a matching sell offer.
-     * 
+     * Cost basis comes from portfolio card data (unit buy price).
+     *
      * @param itemName The item name to search for
      * @return The profit in GP, or 0 if not found
      */
     public long getProfitByItemName(String itemName) {
-        String displayName = osrsLoginManager.getPlayerDisplayName();
-        if (displayName == null) {
+        if (itemName == null || !portfolioStateRS.get().isLoaded()) {
             return 0;
         }
-
-        Integer accountId = copilotLoginRS.get().getAccountId(displayName);
-        if (accountId == null || accountId == -1) {
-            return 0;
-        }
-
         long accountHash = client.getAccountHash();
-        
         for (int slotIndex = 0; slotIndex < GE_SLOT_COUNT; slotIndex++) {
             SavedOffer offer = offerManager.loadOffer(accountHash, slotIndex);
-            
             if (offer == null || !offer.getOfferStatus().equals(OfferStatus.SELL)) {
                 continue;
             }
-
-            FlipV2 flip = flipManager.getLastFlipByItemId(accountId, offer.getItemId());
-            if (flip == null || FlipStatus.FINISHED.equals(flip.getStatus())) {
+            PortfolioItemCardData card = portfolioStateRS.get().getItemCardDataByItemId().get(offer.getItemId());
+            if (card == null || card.getUnitBuyPrice() <= 0 || !itemName.equals(card.getItemName())) {
                 continue;
             }
-
-            if (flip.getCachedItemName().equals(itemName)) {
-                return calculateOfferProfit(offer, flip);
-            }
+            return calculateProfitPerItem(offer.getItemId(), offer.getPrice(), card.getUnitBuyPrice()) * offer.getTotalQuantity();
         }
-
         return 0;
+    }
+
+    private Long portfolioUnitBuyPrice(int itemId) {
+        if (!portfolioStateRS.get().isLoaded()) {
+            return null;
+        }
+        PortfolioItemCardData card = portfolioStateRS.get().getItemCardDataByItemId().get(itemId);
+        if (card == null) {
+            return null;
+        }
+        long unitBuyPrice = card.getUnitBuyPrice();
+        return unitBuyPrice > 0 ? unitBuyPrice : null;
     }
 }
