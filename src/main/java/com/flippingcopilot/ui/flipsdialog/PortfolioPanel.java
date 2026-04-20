@@ -41,7 +41,7 @@ public class PortfolioPanel extends JPanel {
     private static final String CONTENT_CARD = "content";
     private static final String LOGIN_PROMPT_CARD = "login";
     private static final String[] COLUMN_NAMES = {
-            "Item", "Market value", "Quantities", "Avg buy price", "Time held", "Unrealized Profit", "Unrealized ROI"
+            "Item", "Market value", "Unrealized Profit", "Unrealized ROI", "Quantity", "Avg buy price", "Time held"
     };
 
     private static final Map<String, Comparator<PortfolioItemCardData>> SORT_COMPARATORS = new HashMap<>();
@@ -52,7 +52,7 @@ public class PortfolioPanel extends JPanel {
         // Numeric columns are pre-reversed so the default DESC direction shows largest-first
         SORT_COMPARATORS.put("Market value", Comparator.<PortfolioItemCardData>comparingLong(
                 i -> i.getPostTaxSellUnitPrice() * (long) i.getPortfolioQuantity()).reversed());
-        SORT_COMPARATORS.put("Quantities", Comparator.comparingInt(PortfolioItemCardData::getPortfolioQuantity).reversed());
+        SORT_COMPARATORS.put("Quantity", Comparator.comparingInt(PortfolioItemCardData::getPortfolioQuantity).reversed());
         SORT_COMPARATORS.put("Avg buy price", Comparator.comparingLong(PortfolioItemCardData::getUnitBuyPrice).reversed());
         SORT_COMPARATORS.put("Time held", Comparator.comparingInt(PortfolioItemCardData::getHeldMinutes));
         SORT_COMPARATORS.put("Unrealized Profit", Comparator.comparingLong(PortfolioItemCardData::portfolioUnrealizedProfit).reversed());
@@ -177,9 +177,8 @@ public class PortfolioPanel extends JPanel {
 
         DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
         rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-        table.getColumnModel().getColumn(2).setCellRenderer(rightRenderer);
-        table.getColumnModel().getColumn(3).setCellRenderer(rightRenderer);
-        table.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
+        table.getColumnModel().getColumn(4).setCellRenderer(rightRenderer); // Quantity
+        table.getColumnModel().getColumn(6).setCellRenderer(rightRenderer); // Time held
         table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -191,7 +190,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         });
-        table.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
+        table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -245,7 +244,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         };
-        table.getColumnModel().getColumn(5).setCellRenderer(profitRenderer);
+        table.getColumnModel().getColumn(2).setCellRenderer(profitRenderer);
 
         DefaultTableCellRenderer roiRenderer = new DefaultTableCellRenderer() {
             @Override
@@ -264,7 +263,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         };
-        table.getColumnModel().getColumn(6).setCellRenderer(roiRenderer);
+        table.getColumnModel().getColumn(3).setCellRenderer(roiRenderer);
         installRowContextMenu();
 
         JScrollPane scrollPane = new JScrollPane(table);
@@ -374,25 +373,17 @@ public class PortfolioPanel extends JPanel {
             sortedItems.sort(comparator);
         }
 
+        NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
         for (PortfolioItemCardData item : sortedItems) {
             long avgBuyPrice = item.getUnitBuyPrice();
-            NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
-            String quantitySummary = nf.format(item.getPortfolioQuantity())
-                    + " (inv: " + nf.format(item.getRuneliteInventoryQuantity())
-                    + " bank: " + nf.format(item.getSuggestionBankQuantity())
-                    + " GE: " + nf.format(item.getRuneliteGeQuantity())
-                    + ")";
-            if (item.isPartiallyInPortfolio()) {
-                quantitySummary = "<html>" + quantitySummary + "<br>In portfolio: " + nf.format(item.getPortfolioQuantity()) + "</html>";
-            }
             tableModel.addRow(new Object[]{
                     new ItemCell(item.getItemId(), item.getItemName()),
                     item.getPostTaxSellUnitPrice() * item.getPortfolioQuantity(),
-                    quantitySummary,
-                    avgBuyPrice > 0 ? avgBuyPrice : null,
-                    UIUtilities.formatDurationMinutes(item.getHeldMinutes()),
                     item.portfolioUnrealizedProfit(),
-                    calculateUnrealizedRoi(item)
+                    calculateUnrealizedRoi(item),
+                    nf.format(item.getPortfolioQuantity()),
+                    avgBuyPrice > 0 ? avgBuyPrice : null,
+                    UIUtilities.formatDurationMinutes(item.getHeldMinutes())
             });
         }
     }
