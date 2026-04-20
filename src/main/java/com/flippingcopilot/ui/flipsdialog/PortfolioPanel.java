@@ -6,6 +6,7 @@ import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.PortfolioItemCardData;
 import com.flippingcopilot.model.PortfolioState;
 import com.flippingcopilot.model.PortfolioSummaryData;
+import com.flippingcopilot.model.SortDirection;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.model.ToggleItemPortfolioRequest;
@@ -26,6 +27,8 @@ import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.Locale;
@@ -40,6 +43,23 @@ public class PortfolioPanel extends JPanel {
     private static final String[] COLUMN_NAMES = {
             "Item", "Market value", "Quantities", "Avg buy price", "Time held", "Unrealized Profit", "Unrealized ROI"
     };
+
+    private static final Map<String, Comparator<PortfolioItemCardData>> SORT_COMPARATORS = new HashMap<>();
+    static {
+        SORT_COMPARATORS.put("Item", Comparator.comparing(
+                PortfolioItemCardData::getItemName,
+                Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+        // Numeric columns are pre-reversed so the default DESC direction shows largest-first
+        SORT_COMPARATORS.put("Market value", Comparator.<PortfolioItemCardData>comparingLong(
+                i -> i.getPostTaxSellUnitPrice() * (long) i.getPortfolioQuantity()).reversed());
+        SORT_COMPARATORS.put("Quantities", Comparator.comparingInt(PortfolioItemCardData::getPortfolioQuantity).reversed());
+        SORT_COMPARATORS.put("Avg buy price", Comparator.comparingLong(PortfolioItemCardData::getUnitBuyPrice).reversed());
+        SORT_COMPARATORS.put("Time held", Comparator.comparingInt(PortfolioItemCardData::getHeldMinutes));
+        SORT_COMPARATORS.put("Unrealized Profit", Comparator.comparingLong(PortfolioItemCardData::portfolioUnrealizedProfit).reversed());
+        SORT_COMPARATORS.put("Unrealized ROI", Comparator.comparing(
+                PortfolioPanel::calculateUnrealizedRoi,
+                Comparator.nullsLast(Comparator.<Double>naturalOrder().reversed())));
+    }
 
     private final ItemController itemController;
     private final FlippingCopilotConfig config;
@@ -57,6 +77,10 @@ public class PortfolioPanel extends JPanel {
     private final JTable table;
     private final JLabel autoSyncInfoLabel;
     private final Map<Integer, ImageIcon> itemIconCache = new ConcurrentHashMap<>();
+
+    private List<PortfolioItemCardData> currentItems = new ArrayList<>();
+    private String sortColumn = "Market value";
+    private SortDirection sortDirection = SortDirection.DESC;
 
     public PortfolioPanel(ItemController itemController,
                           FlippingCopilotConfig config,
@@ -132,6 +156,24 @@ public class PortfolioPanel extends JPanel {
         table.setRowSorter(null);
         table.getTableHeader().setReorderingAllowed(false);
         table.setFocusable(false);
+
+        table.getTableHeader().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int columnIndex = table.getTableHeader().columnAtPoint(e.getPoint());
+                if (columnIndex < 0 || columnIndex >= COLUMN_NAMES.length) {
+                    return;
+                }
+                String clickedColumn = COLUMN_NAMES[columnIndex];
+                SortDirection newDirection = SortDirection.DESC;
+                if (clickedColumn.equals(sortColumn)) {
+                    newDirection = sortDirection == SortDirection.DESC ? SortDirection.ASC : SortDirection.DESC;
+                }
+                sortColumn = clickedColumn;
+                sortDirection = newDirection;
+                renderTable();
+            }
+        });
 
         DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
         rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
@@ -283,10 +325,10 @@ public class PortfolioPanel extends JPanel {
 
     private void renderFromState(PortfolioState state) {
         List<PortfolioItemCardData> items = new ArrayList<>(state.getItemCardDataByItemId().values());
-        List<PortfolioItemCardData> inPortfolioItems = filterInPortfolioItems(items);
+        currentItems = filterInPortfolioItems(items);
         PortfolioSummaryData sm = state.getSummaryData();
-        renderSummary(sm, inPortfolioItems.size());
-        renderTable(inPortfolioItems);
+        renderSummary(sm, currentItems.size());
+        renderTable();
         revalidate();
         repaint();
     }
@@ -321,13 +363,16 @@ public class PortfolioPanel extends JPanel {
         summaryTablePanel.add(valueLabel);
     }
 
-    private void renderTable(List<PortfolioItemCardData> items) {
+    private void renderTable() {
         tableModel.setRowCount(0);
-        List<PortfolioItemCardData> sortedItems = new ArrayList<>(items);
-        sortedItems.sort((a, b) -> Long.compare(
-                b.getPostTaxSellUnitPrice() * b.getPortfolioQuantity(),
-                a.getPostTaxSellUnitPrice() * a.getPortfolioQuantity()
-        ));
+        List<PortfolioItemCardData> sortedItems = new ArrayList<>(currentItems);
+        Comparator<PortfolioItemCardData> comparator = SORT_COMPARATORS.get(sortColumn);
+        if (comparator != null) {
+            if (sortDirection == SortDirection.ASC) {
+                comparator = comparator.reversed();
+            }
+            sortedItems.sort(comparator);
+        }
 
         for (PortfolioItemCardData item : sortedItems) {
             long avgBuyPrice = item.getUnitBuyPrice();
@@ -474,7 +519,7 @@ public class PortfolioPanel extends JPanel {
         return prefix + GP_FORMAT.format(amount) + " gp";
     }
 
-    private Double calculateUnrealizedRoi(PortfolioItemCardData item) {
+    private static Double calculateUnrealizedRoi(PortfolioItemCardData item) {
         if (item.getUnrealizedUnitProfit() == null) {
             return null;
         }
