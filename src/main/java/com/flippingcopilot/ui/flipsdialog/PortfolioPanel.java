@@ -342,7 +342,7 @@ public class PortfolioPanel extends JPanel {
         addSummaryRow("Cash Value", formatGp(data.getCashValue(), false));
         addSummaryRow("Cash in Buy Offers", formatGp(data.getLockedBuyCash(), false));
         addSummaryRow("Assets Value", formatGp(data.getAssetsValue(), false));
-        addSummaryRow("Total items in portfolio", NumberFormat.getIntegerInstance(Locale.US).format(totalItemsInPortfolio));
+        addSummaryRow("Unique Items in Portfolio", NumberFormat.getIntegerInstance(Locale.US).format(totalItemsInPortfolio));
     }
 
     private void addSummaryRow(String label, String value) {
