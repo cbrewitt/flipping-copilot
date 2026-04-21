@@ -330,7 +330,7 @@ public class SuggestionPanel extends JPanel {
                             "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
                             "to <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
                 } else {
-                    suggestionString += (suggestion.isSellSuggestion() ? "Sell" : "Buy") +
+                    suggestionString += (shouldSellFromBank(suggestion) ? "Sell from bank" : suggestion.isSellSuggestion() ? "Sell" : "Buy") +
                             " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
                             "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
                             "for <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
@@ -366,6 +366,28 @@ public class SuggestionPanel extends JPanel {
         suggestionTextContainer.setVisible(true);
         suggestionTextContainer.revalidate();
         suggestionTextContainer.repaint();
+    }
+
+    private boolean shouldSellFromBank(Suggestion suggestion) {
+        if (suggestion == null || !suggestion.isSellSuggestion() || suggestion.isModifySuggestion()) {
+            return false;
+        }
+
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
+        if (accountStatus == null || accountStatus.getInventory() == null) {
+            return false;
+        }
+
+        long inventoryQty = accountStatus.getInventory().getTotalAmount(suggestion.getItemId());
+        if (inventoryQty >= suggestion.getQuantity()) {
+            return false;
+        }
+
+        if (accountStatus.getBankInventory() == null) {
+            return false;
+        }
+
+        return accountStatus.getBankInventory().getOrDefault(suggestion.getItemId(), 0) > 0;
     }
 
     public void suggestCollect() {
