@@ -22,10 +22,10 @@ class PreferencesToggleButton extends JToggleButton
         setSelectedIcon(ON_SWITCHER);
         SwingUtil.removeButtonDecorations(this);
         setPreferredSize(new Dimension(25, 25));
-        addItemListener(l -> updateTooltip());
-        updateTooltip();
         this.selectedToolTipText = selectedToolTipText;
         this.unSelectedToolTipText = unSelectedToolTipText;
+        addItemListener(l -> updateTooltip());
+        updateTooltip();
     }
 
     static

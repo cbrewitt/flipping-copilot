@@ -224,12 +224,12 @@ public class PreferencesPanel extends JPanel {
         preferencesContent.add(blocklistDropdownPanel);
 
         // Buy and hold toggle
-        buyAndHoldToggleButton = new PreferencesToggleButton("Disable buy and hold", "Enable buy and hold");
+        buyAndHoldToggleButton = new PreferencesToggleButton("Disable holds", "Enable holds");
         buyAndHoldButton = new JPanel();
         buyAndHoldButton.setLayout(new BorderLayout());
         buyAndHoldButton.setOpaque(false);
         preferencesContent.add(buyAndHoldButton);
-        JLabel buyAndHoldButtonText = new JLabel("Buy and hold");
+        JLabel buyAndHoldButtonText = new JLabel("Enable holds");
         buyAndHoldButton.add(buyAndHoldButtonText, BorderLayout.LINE_START);
         buyAndHoldButton.add(buyAndHoldToggleButton, BorderLayout.LINE_END);
         buyAndHoldToggleButton.addItemListener(i -> {
