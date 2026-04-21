@@ -44,15 +44,26 @@ public class FlipPanel extends JPanel {
         setMaximumSize(new Dimension(Integer.MAX_VALUE, getPreferredSize().height));
 
         String closeLabel = flip.getClosedQuantity() == flip.getOpenedQuantity() ? "Close time" : "Partial close time";
+        long closedCostBasis = flip.getOpenedQuantity() <= 0
+                ? 0
+                : (flip.getSpent() * flip.getClosedQuantity()) / flip.getOpenedQuantity();
+        String roiText = closedCostBasis > 0
+                ? String.format("%.2f%%", ((double) flip.getProfit() / (double) closedCostBasis) * 100.0d)
+                : "Unknown";
+        Color profitColor = UIUtilities.getProfitColor(flip.getProfit(), config);
+        String profitColorHex = String.format("#%06X", (0xFFFFFF & profitColor.getRGB()));
 
-        String tooltipText = String.format("Opened time: %s\nAvg buy price: %s\n%s: %s\nAvg sell price: %s\nTax paid: %s\nProfit: %s",
+        String tooltipText = String.format("<html>Opened time: %s<br>Avg buy price: %s<br>%s: %s<br>Avg sell price: %s<br>Tax paid: %s<br>Profit: <font color='%s'>%s</font><br>ROI: <font color='%s'>%s</font></html>",
                 formatEpoch(flip.getOpenedTime()),
                 UIUtilities.formatProfit(flip.getAvgBuyPrice()),
                 closeLabel,
                 formatEpoch(flip.getClosedTime()),
                 UIUtilities.formatProfit(flip.getAvgSellPrice()),
                 UIUtilities.formatProfit(flip.getTaxPaid()),
-                UIUtilities.formatProfit(flip.getProfit()));
+                profitColorHex,
+                UIUtilities.formatProfit(flip.getProfit()),
+                profitColorHex,
+                roiText);
         setToolTipText(tooltipText);
         leftPanel.setToolTipText(tooltipText);
         itemQuantity.setToolTipText(tooltipText);
