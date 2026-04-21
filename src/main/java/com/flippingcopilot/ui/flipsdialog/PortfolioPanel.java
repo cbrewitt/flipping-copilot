@@ -337,7 +337,7 @@ public class PortfolioPanel extends JPanel {
         if (data == null) {
             return;
         }
-        addSummaryRow("Portfolio Market Value", formatGp(data.getPortfolioMarketValue(), false));
+        addSummaryRow("Portfolio Market Value", formatGp(data.getPortfolioMarketValue(), false), config.profitAmountColor());
         addSummaryRow("Unrealised Profit", formatGp(data.getUnrealizedProfit(), true), UIUtilities.getProfitColor(data.getUnrealizedProfit(), config));
         addSummaryRow("Cash Value", formatGp(data.getCashValue(), false));
         addSummaryRow("Cash in Buy Offers", formatGp(data.getLockedBuyCash(), false));

@@ -65,6 +65,7 @@ public class FlipStatsPanel extends JPanel {
         model.addRow(new Object[]{"Tax", ""});
         model.addRow(new Object[]{"Profit", ""});
         model.addRow(new Object[]{"Profit ea.", ""});
+        model.addRow(new Object[]{"ROI", ""});
 
         statsTable = new JTable(model);
         statsTable.setRowHeight(26);
@@ -84,22 +85,31 @@ public class FlipStatsPanel extends JPanel {
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
-                // Apply color to profit rows (Profit and Profit ea.)
-                if (row == 9 || row == 10) { // Index of Profit and Profit ea. rows
+                // Apply color to Profit and ROI rows only.
+                if (row == 8 || row == 10) {
                     String valueStr = value.toString();
-                    // Remove formatting characters and check if negative
-                    String numStr = valueStr.replace(",", "");
-                    try {
-                        long profitValue = Long.parseLong(numStr);
-                        if (profitValue < 0) {
+                    if (row == 10) {
+                        if (valueStr.contains("-")) {
                             c.setForeground(copilotConfig.lossAmountColor());
-                        } else if (profitValue > 0) {
+                        } else if (!valueStr.equals("0.00%")) {
                             c.setForeground(copilotConfig.profitAmountColor());
                         } else {
                             c.setForeground(table.getForeground());
                         }
-                    } catch (NumberFormatException e) {
-                        c.setForeground(table.getForeground());
+                    } else {
+                        String numStr = valueStr.replace(",", "");
+                        try {
+                            long profitValue = Long.parseLong(numStr);
+                            if (profitValue < 0) {
+                                c.setForeground(copilotConfig.lossAmountColor());
+                            } else if (profitValue > 0) {
+                                c.setForeground(copilotConfig.profitAmountColor());
+                            } else {
+                                c.setForeground(table.getForeground());
+                            }
+                        } catch (NumberFormatException e) {
+                            c.setForeground(table.getForeground());
+                        }
                     }
                 } else {
                     c.setForeground(table.getForeground());
@@ -136,6 +146,12 @@ public class FlipStatsPanel extends JPanel {
 
         long profitPerItem = flip.getClosedQuantity() > 0 ?
                 flip.getProfit() / flip.getClosedQuantity() : 0L;
+        long closedCostBasis = flip.getOpenedQuantity() > 0
+                ? (flip.getSpent() * flip.getClosedQuantity()) / flip.getOpenedQuantity()
+                : 0L;
+        String roi = closedCostBasis > 0
+                ? String.format("%.2f%%", ((double) flip.getProfit() / (double) closedCostBasis) * 100.0d)
+                : "Unknown";
 
         model.setValueAt(formatTimestamp(flip.getOpenedTime()), 0, 1);
         model.setValueAt(formatTimestamp(flip.getClosedTime()), 1, 1);
@@ -147,6 +163,7 @@ public class FlipStatsPanel extends JPanel {
         model.setValueAt(formatNumber(flip.getTaxPaid()), 7, 1);
         model.setValueAt(formatNumber(flip.getProfit()), 8, 1);
         model.setValueAt(formatNumber(profitPerItem), 9, 1);
+        model.setValueAt(roi, 10, 1);
     }
 
     private String formatNumber(long number) {
