@@ -109,7 +109,8 @@ public class FlipsDialogController {
                     osrsLoginRS,
                     portfolioStateRS,
                     bankStateRS,
-                    clientThread
+                    clientThread,
+                    itemId -> showPriceGraphTab(itemId, false, null)
             );
             TransactionsPanel transactionsPanel = new TransactionsPanel(copilotLoginRS, itemController,
                     executorService, apiRequestHandler, osrsLoginManager, config, flipsManager);

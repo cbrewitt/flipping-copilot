@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -70,6 +71,7 @@ public class PortfolioPanel extends JPanel {
     private final PortfolioStateRS portfolioStateRS;
     private final BankStateRS bankStateRS;
     private final ClientThread clientThread;
+    private final Consumer<Integer> openPriceGraph;
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
     private final JPanel summaryTablePanel;
@@ -90,7 +92,8 @@ public class PortfolioPanel extends JPanel {
                           OsrsLoginRS osrsLoginRs,
                           PortfolioStateRS portfolioStateRS,
                           BankStateRS bankStateRS,
-                          ClientThread clientThread) {
+                          ClientThread clientThread,
+                          Consumer<Integer> openPriceGraph) {
         this.itemController = itemController;
         this.config = config;
         this.apiRequestHandler = apiRequestHandler;
@@ -100,6 +103,7 @@ public class PortfolioPanel extends JPanel {
         this.portfolioStateRS = portfolioStateRS;
         this.bankStateRS = bankStateRS;
         this.clientThread = clientThread;
+        this.openPriceGraph = openPriceGraph;
 
         setLayout(new BorderLayout(0, 12));
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -424,6 +428,10 @@ public class PortfolioPanel extends JPanel {
 
     private void buildContextMenu(JPopupMenu menu, PortfolioItemCardData item) {
         int portfolioQty = item.getPortfolioQuantity();
+
+        JMenuItem showGraph = new JMenuItem("Show price graph");
+        showGraph.addActionListener(e -> openPriceGraph.accept(item.getItemId()));
+        menu.add(showGraph);
 
         if (portfolioQty > 0) {
             String removeAllLabel = portfolioQty > 1 ? "Remove all from portfolio" : "Remove from portfolio";
