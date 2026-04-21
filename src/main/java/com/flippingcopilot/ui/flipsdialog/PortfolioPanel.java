@@ -6,6 +6,7 @@ import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.PortfolioItemCardData;
 import com.flippingcopilot.model.PortfolioState;
 import com.flippingcopilot.model.PortfolioSummaryData;
+import com.flippingcopilot.model.SortDirection;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.model.ToggleItemPortfolioRequest;
@@ -26,6 +27,8 @@ import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.Locale;
@@ -38,8 +41,25 @@ public class PortfolioPanel extends JPanel {
     private static final String CONTENT_CARD = "content";
     private static final String LOGIN_PROMPT_CARD = "login";
     private static final String[] COLUMN_NAMES = {
-            "Item", "Market value", "Quantities", "Avg buy price", "Time held", "Unrealized Profit", "Unrealized ROI"
+            "Item", "Market value", "Quantity", "Unrealized Profit", "Unrealized ROI", "Avg buy price", "Time held"
     };
+
+    private static final Map<String, Comparator<PortfolioItemCardData>> SORT_COMPARATORS = new HashMap<>();
+    static {
+        SORT_COMPARATORS.put("Item", Comparator.comparing(
+                PortfolioItemCardData::getItemName,
+                Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+        // Numeric columns are pre-reversed so the default DESC direction shows largest-first
+        SORT_COMPARATORS.put("Market value", Comparator.<PortfolioItemCardData>comparingLong(
+                i -> i.getPostTaxSellUnitPrice() * (long) i.getPortfolioQuantity()).reversed());
+        SORT_COMPARATORS.put("Quantity", Comparator.comparingInt(PortfolioItemCardData::getPortfolioQuantity).reversed());
+        SORT_COMPARATORS.put("Avg buy price", Comparator.comparingLong(PortfolioItemCardData::getUnitBuyPrice).reversed());
+        SORT_COMPARATORS.put("Time held", Comparator.comparingInt(PortfolioItemCardData::getHeldMinutes));
+        SORT_COMPARATORS.put("Unrealized Profit", Comparator.comparingLong(PortfolioItemCardData::portfolioUnrealizedProfit).reversed());
+        SORT_COMPARATORS.put("Unrealized ROI", Comparator.comparing(
+                PortfolioPanel::calculateUnrealizedRoi,
+                Comparator.nullsLast(Comparator.<Double>naturalOrder().reversed())));
+    }
 
     private final ItemController itemController;
     private final FlippingCopilotConfig config;
@@ -57,6 +77,10 @@ public class PortfolioPanel extends JPanel {
     private final JTable table;
     private final JLabel autoSyncInfoLabel;
     private final Map<Integer, ImageIcon> itemIconCache = new ConcurrentHashMap<>();
+
+    private List<PortfolioItemCardData> currentItems = new ArrayList<>();
+    private String sortColumn = "Market value";
+    private SortDirection sortDirection = SortDirection.DESC;
 
     public PortfolioPanel(ItemController itemController,
                           FlippingCopilotConfig config,
@@ -133,11 +157,28 @@ public class PortfolioPanel extends JPanel {
         table.getTableHeader().setReorderingAllowed(false);
         table.setFocusable(false);
 
+        table.getTableHeader().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int columnIndex = table.getTableHeader().columnAtPoint(e.getPoint());
+                if (columnIndex < 0 || columnIndex >= COLUMN_NAMES.length) {
+                    return;
+                }
+                String clickedColumn = COLUMN_NAMES[columnIndex];
+                SortDirection newDirection = SortDirection.DESC;
+                if (clickedColumn.equals(sortColumn)) {
+                    newDirection = sortDirection == SortDirection.DESC ? SortDirection.ASC : SortDirection.DESC;
+                }
+                sortColumn = clickedColumn;
+                sortDirection = newDirection;
+                renderTable();
+            }
+        });
+
         DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
         rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-        table.getColumnModel().getColumn(2).setCellRenderer(rightRenderer);
-        table.getColumnModel().getColumn(3).setCellRenderer(rightRenderer);
-        table.getColumnModel().getColumn(4).setCellRenderer(rightRenderer);
+        table.getColumnModel().getColumn(2).setCellRenderer(rightRenderer); // Quantity
+        table.getColumnModel().getColumn(6).setCellRenderer(rightRenderer); // Time held
         table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -149,7 +190,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         });
-        table.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
+        table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -203,7 +244,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         };
-        table.getColumnModel().getColumn(5).setCellRenderer(profitRenderer);
+        table.getColumnModel().getColumn(3).setCellRenderer(profitRenderer);
 
         DefaultTableCellRenderer roiRenderer = new DefaultTableCellRenderer() {
             @Override
@@ -222,7 +263,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         };
-        table.getColumnModel().getColumn(6).setCellRenderer(roiRenderer);
+        table.getColumnModel().getColumn(4).setCellRenderer(roiRenderer);
         installRowContextMenu();
 
         JScrollPane scrollPane = new JScrollPane(table);
@@ -283,10 +324,10 @@ public class PortfolioPanel extends JPanel {
 
     private void renderFromState(PortfolioState state) {
         List<PortfolioItemCardData> items = new ArrayList<>(state.getItemCardDataByItemId().values());
-        List<PortfolioItemCardData> inPortfolioItems = filterInPortfolioItems(items);
+        currentItems = filterInPortfolioItems(items);
         PortfolioSummaryData sm = state.getSummaryData();
-        renderSummary(sm, inPortfolioItems.size());
-        renderTable(inPortfolioItems);
+        renderSummary(sm, currentItems.size());
+        renderTable();
         revalidate();
         repaint();
     }
@@ -296,12 +337,12 @@ public class PortfolioPanel extends JPanel {
         if (data == null) {
             return;
         }
-        addSummaryRow("Portfolio Market Value", formatGp(data.getPortfolioMarketValue(), false));
+        addSummaryRow("Portfolio Market Value", formatGp(data.getPortfolioMarketValue(), false), config.profitAmountColor());
         addSummaryRow("Unrealised Profit", formatGp(data.getUnrealizedProfit(), true), UIUtilities.getProfitColor(data.getUnrealizedProfit(), config));
         addSummaryRow("Cash Value", formatGp(data.getCashValue(), false));
         addSummaryRow("Cash in Buy Offers", formatGp(data.getLockedBuyCash(), false));
         addSummaryRow("Assets Value", formatGp(data.getAssetsValue(), false));
-        addSummaryRow("Total items in portfolio", NumberFormat.getIntegerInstance(Locale.US).format(totalItemsInPortfolio));
+        addSummaryRow("Unique Items in Portfolio", NumberFormat.getIntegerInstance(Locale.US).format(totalItemsInPortfolio));
     }
 
     private void addSummaryRow(String label, String value) {
@@ -321,33 +362,28 @@ public class PortfolioPanel extends JPanel {
         summaryTablePanel.add(valueLabel);
     }
 
-    private void renderTable(List<PortfolioItemCardData> items) {
+    private void renderTable() {
         tableModel.setRowCount(0);
-        List<PortfolioItemCardData> sortedItems = new ArrayList<>(items);
-        sortedItems.sort((a, b) -> Long.compare(
-                b.getPostTaxSellUnitPrice() * b.getPortfolioQuantity(),
-                a.getPostTaxSellUnitPrice() * a.getPortfolioQuantity()
-        ));
+        List<PortfolioItemCardData> sortedItems = new ArrayList<>(currentItems);
+        Comparator<PortfolioItemCardData> comparator = SORT_COMPARATORS.get(sortColumn);
+        if (comparator != null) {
+            if (sortDirection == SortDirection.ASC) {
+                comparator = comparator.reversed();
+            }
+            sortedItems.sort(comparator);
+        }
 
+        NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
         for (PortfolioItemCardData item : sortedItems) {
             long avgBuyPrice = item.getUnitBuyPrice();
-            NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
-            String quantitySummary = nf.format(item.getPortfolioQuantity())
-                    + " (inv: " + nf.format(item.getRuneliteInventoryQuantity())
-                    + " bank: " + nf.format(item.getSuggestionBankQuantity())
-                    + " GE: " + nf.format(item.getRuneliteGeQuantity())
-                    + ")";
-            if (item.isPartiallyInPortfolio()) {
-                quantitySummary = "<html>" + quantitySummary + "<br>In portfolio: " + nf.format(item.getPortfolioQuantity()) + "</html>";
-            }
             tableModel.addRow(new Object[]{
                     new ItemCell(item.getItemId(), item.getItemName()),
                     item.getPostTaxSellUnitPrice() * item.getPortfolioQuantity(),
-                    quantitySummary,
-                    avgBuyPrice > 0 ? avgBuyPrice : null,
-                    UIUtilities.formatDurationMinutes(item.getHeldMinutes()),
+                    nf.format(item.getPortfolioQuantity()),
                     item.portfolioUnrealizedProfit(),
-                    calculateUnrealizedRoi(item)
+                    calculateUnrealizedRoi(item),
+                    avgBuyPrice > 0 ? avgBuyPrice : null,
+                    UIUtilities.formatDurationMinutes(item.getHeldMinutes())
             });
         }
     }
@@ -390,7 +426,8 @@ public class PortfolioPanel extends JPanel {
         int portfolioQty = item.getPortfolioQuantity();
 
         if (portfolioQty > 0) {
-            JMenuItem removeAll = new JMenuItem("Remove from portfolio");
+            String removeAllLabel = portfolioQty > 1 ? "Remove all from portfolio" : "Remove from portfolio";
+            JMenuItem removeAll = new JMenuItem(removeAllLabel);
             removeAll.addActionListener(e -> togglePortfolio(item.getItemId(), ToggleItemPortfolioRequest.REMOVE, 0));
             menu.add(removeAll);
         }
@@ -474,7 +511,7 @@ public class PortfolioPanel extends JPanel {
         return prefix + GP_FORMAT.format(amount) + " gp";
     }
 
-    private Double calculateUnrealizedRoi(PortfolioItemCardData item) {
+    private static Double calculateUnrealizedRoi(PortfolioItemCardData item) {
         if (item.getUnrealizedUnitProfit() == null) {
             return null;
         }

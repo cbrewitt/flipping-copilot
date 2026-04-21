@@ -62,15 +62,36 @@ public class AccountStatus {
             log.debug("collected needed isEmptySlotNeeded");
             return true;
         }
+        if (suggestion.isModifySuggestion() || suggestion.isAbortSuggestion()) {
+            return false;
+        }
         if (!inventory.hasSufficientGp(suggestion)) {
             log.debug("collected needed hasSufficientGp");
             return true;
         }
-        if (!inventory.hasSufficientItems(suggestion)) {
+        if (!hasSufficientItemsForSuggestion(suggestion)) {
             log.debug("collected needed hasSufficientItems");
             return true;
         }
         return false;
+    }
+
+    private boolean hasSufficientItemsForSuggestion(Suggestion suggestion) {
+        if (suggestion == null || !suggestion.isSellSuggestion()) {
+            return inventory.hasSufficientItems(suggestion);
+        }
+
+        long inventoryQty = inventory.getTotalAmount(suggestion.getItemId());
+        if (inventoryQty >= suggestion.getQuantity()) {
+            return true;
+        }
+
+        if (!bankAvailable || bankInventory == null) {
+            return false;
+        }
+
+        long bankQty = Math.max(0, bankInventory.getOrDefault(suggestion.getItemId(), 0));
+        return inventoryQty + bankQty >= suggestion.getQuantity();
     }
 
     public int findEmptySlot() {
@@ -171,13 +192,9 @@ public class AccountStatus {
 
     private Set<SuggestionType> resolveRequestedSuggestionTypes(boolean geOpen) {
         Set<SuggestionType> requestedSuggestionTypes = SuggestionType.abortAndModifyTypes();
-        if (geOpen) {
-            if (sellOnlyMode) {
-                requestedSuggestionTypes.add(SuggestionType.SELL);
-            } else {
-                requestedSuggestionTypes.add(SuggestionType.BUY);
-                requestedSuggestionTypes.add(SuggestionType.SELL);
-            }
+        requestedSuggestionTypes.add(SuggestionType.SELL);
+        if (geOpen && !sellOnlyMode) {
+            requestedSuggestionTypes.add(SuggestionType.BUY);
         }
         return requestedSuggestionTypes;
     }

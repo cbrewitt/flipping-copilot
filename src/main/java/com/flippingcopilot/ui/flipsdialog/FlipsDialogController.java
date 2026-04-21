@@ -45,6 +45,7 @@ public class FlipsDialogController {
     private JTabbedPane tabbedPane;
     private JDialog dialog;
     private FlipsPanel flipsPanel;
+    private VisualizeFlipPanel visualizeFlipPanel;
 
     @Inject
     public FlipsDialogController(
@@ -83,7 +84,7 @@ public class FlipsDialogController {
             tabbedPane = new JTabbedPane();
             tabbedPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-            VisualizeFlipPanel visualizeFlipPanel = new VisualizeFlipPanel(
+            visualizeFlipPanel = new VisualizeFlipPanel(
                     itemController,
                     priceGraphConfigManager,
                     config,
@@ -91,8 +92,7 @@ public class FlipsDialogController {
             );
             flipsPanel = new FlipsPanel(osrsLoginRS, flipsManager, itemController, copilotLoginRS,
                     executorService, config, apiRequestHandler, (f) -> {
-                visualizeFlipPanel.showFlipVisualization(f);
-                tabbedPane.setSelectedIndex(7);
+                showVisualizeFlip(f);
             });
             ItemAggregatePanel itemsPanel = new ItemAggregatePanel(flipsManager, itemController,
                     copilotLoginRS, executorService, config);
@@ -201,6 +201,15 @@ public class FlipsDialogController {
 
     public void showPortfolioTab() {
         tabbedPane.setSelectedIndex(0);
+        dialog.setVisible(true);
+    }
+
+    public void showVisualizeFlip(FlipV2 flip) {
+        if (flip == null) {
+            return;
+        }
+        visualizeFlipPanel.showFlipVisualization(flip);
+        tabbedPane.setSelectedIndex(7);
         dialog.setVisible(true);
     }
 }
