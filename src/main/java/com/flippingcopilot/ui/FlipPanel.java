@@ -18,6 +18,7 @@ import java.awt.event.MouseEvent;
 import static com.flippingcopilot.util.DateUtil.formatEpoch;
 
 public class FlipPanel extends JPanel {
+    private static final Color HOVER_BACKGROUND = ColorScheme.DARKER_GRAY_COLOR.brighter();
 
     public FlipPanel(FlipV2 flip, FlippingCopilotConfig config, Runnable onClick) {
         setLayout(new BorderLayout());
@@ -80,6 +81,8 @@ public class FlipPanel extends JPanel {
 
                 @Override
                 public void mouseEntered(MouseEvent e) {
+                    setBackground(HOVER_BACKGROUND);
+                    leftPanel.setBackground(HOVER_BACKGROUND);
                     for (Component component : clickableComponents) {
                         component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                     }
@@ -87,6 +90,8 @@ public class FlipPanel extends JPanel {
 
                 @Override
                 public void mouseExited(MouseEvent e) {
+                    setBackground(ColorScheme.DARKER_GRAY_COLOR);
+                    leftPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
                     for (Component component : clickableComponents) {
                         component.setCursor(Cursor.getDefaultCursor());
                     }
