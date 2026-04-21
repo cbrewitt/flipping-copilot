@@ -401,7 +401,8 @@ public class StatsPanelV2 extends JPanel {
         long s = System.nanoTime();
         if (flipsMaybeChanged) {
             flipsPanel.removeAll();
-            flipManager.getPageFlips(paginator.getPageNumber(), 50).forEach(f -> flipsPanel.add(new FlipPanel(f, config)));
+            flipManager.getPageFlips(paginator.getPageNumber(), 50)
+                    .forEach(f -> flipsPanel.add(new FlipPanel(f, config, () -> flipsDialogController.showVisualizeFlip(f))));
             // labels displayed to the user
             roiVal.setText(String.format("%.3f%%", stats.calculateRoi() * 100));
             roiVal.setForeground(UIUtilities.getProfitColor(stats.profit, config));

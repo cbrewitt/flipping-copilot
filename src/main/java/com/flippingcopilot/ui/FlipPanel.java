@@ -8,14 +8,18 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 import static com.flippingcopilot.util.DateUtil.formatEpoch;
 
 public class FlipPanel extends JPanel {
 
-    public FlipPanel(FlipV2 flip, FlippingCopilotConfig config) {
+    public FlipPanel(FlipV2 flip, FlippingCopilotConfig config, Runnable onClick) {
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
@@ -50,5 +54,37 @@ public class FlipPanel extends JPanel {
                 UIUtilities.formatProfit(flip.getTaxPaid()),
                 UIUtilities.formatProfit(flip.getProfit()));
         setToolTipText(tooltipText);
+        leftPanel.setToolTipText(tooltipText);
+        itemQuantity.setToolTipText(tooltipText);
+        itemNameLabel.setToolTipText(tooltipText);
+        profitLabel.setToolTipText(tooltipText);
+
+        if (onClick != null) {
+            Component[] clickableComponents = {this, leftPanel, itemQuantity, itemNameLabel, profitLabel};
+            MouseAdapter clickListener = new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    onClick.run();
+                }
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    for (Component component : clickableComponents) {
+                        component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    }
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    for (Component component : clickableComponents) {
+                        component.setCursor(Cursor.getDefaultCursor());
+                    }
+                }
+            };
+
+            for (Component component : clickableComponents) {
+                component.addMouseListener(clickListener);
+            }
+        }
     }
 }
