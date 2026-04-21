@@ -62,6 +62,9 @@ public class AccountStatus {
             log.debug("collected needed isEmptySlotNeeded");
             return true;
         }
+        if (suggestion.isModifySuggestion() || suggestion.isAbortSuggestion()) {
+            return false;
+        }
         if (!inventory.hasSufficientGp(suggestion)) {
             log.debug("collected needed hasSufficientGp");
             return true;
