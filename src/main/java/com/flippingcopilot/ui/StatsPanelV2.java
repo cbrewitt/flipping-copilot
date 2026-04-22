@@ -269,7 +269,7 @@ public class StatsPanelV2 extends JPanel {
 
     private JPanel buildSubInfoPanel() {
         JPanel subInfoPanel = UIUtilities.newVerticalBoxLayoutJPanel();
-        subInfoPanel.add(buildSubInfoPanelItem("Portfolio value:", portfolioValueVal, config.profitAmountColor(), flipsDialogController::showPortfolioTab));
+        subInfoPanel.add(buildSubInfoPanelItem("Portfolio value:", portfolioValueVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
         subInfoPanel.add(buildSubInfoPanelItem("Unrealized profit:", unrealizedProfitVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
         subInfoPanel.add(buildSubInfoPanelItem("Flips made:", flipsMadeVal, ColorScheme.LIGHT_GRAY_COLOR));
         subInfoPanel.add(buildSubInfoPanelItem("ROI:", roiVal, UIUtilities.TOMATO));
@@ -415,7 +415,6 @@ public class StatsPanelV2 extends JPanel {
         PortfolioSummaryData summaryData = portfolioStateRS.get().getSummaryData();
         long portfolioValue = summaryData.getPortfolioMarketValue();
         portfolioValueVal.setText(UIUtilities.quantityToRSDecimalStack(Math.abs(portfolioValue), true) + " gp");
-        portfolioValueVal.setForeground(config.profitAmountColor());
         long unrealizedProfit = summaryData.getUnrealizedProfit();
         unrealizedProfitVal.setText(UIUtilities.formatProfit(unrealizedProfit));
         unrealizedProfitVal.setForeground(UIUtilities.getProfitColor(unrealizedProfit, config));

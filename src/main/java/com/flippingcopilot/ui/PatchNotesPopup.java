@@ -1,6 +1,5 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.util.PluginVersion;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.ImageUtil;
 
@@ -22,8 +21,11 @@ public final class PatchNotesPopup {
     private PatchNotesPopup() {
     }
 
+    // When shipping new patch notes: bump LATEST_VERSION and update writeNotes below.
+    public static final int LATEST_VERSION = 1;
+
     public static void show(Component parent) {
-        JLabel heading = new JLabel("Flipping Copilot has been updated to v" + PluginVersion.get());
+        JLabel heading = new JLabel("Flipping Copilot has been updated to v1.8.0");
         heading.setForeground(Color.WHITE);
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 16f));
 
@@ -54,9 +56,6 @@ public final class PatchNotesPopup {
                 buildLogoIcon()
         );
     }
-
-    // When shipping new patch notes: bump LATEST_VERSION and update writeNotes below.
-    public static final int LATEST_VERSION = 1;
 
     private static void writeNotes(JTextPane pane) {
         StyledDocument doc = pane.getStyledDocument();
