@@ -14,13 +14,15 @@ import java.awt.image.BufferedImage;
 
 public final class PatchNotesPopup {
 
+
+
     private static final int LOGO_WIDTH = 50;
     private static final int LOGO_HEIGHT = 45;
 
     private PatchNotesPopup() {
     }
 
-    public static void show(Component parent, int patchNotesVersion) {
+    public static void show(Component parent) {
         JLabel heading = new JLabel("Flipping Copilot has been updated to v" + PluginVersion.get());
         heading.setForeground(Color.WHITE);
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 16f));
@@ -32,7 +34,7 @@ public final class PatchNotesPopup {
         notes.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         notes.setFont(UIManager.getFont("TextArea.font"));
         notes.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        writeNotes(notes, patchNotesVersion);
+        writeNotes(notes);
 
         JScrollPane scrollPane = new JScrollPane(notes);
         scrollPane.setPreferredSize(new Dimension(430, 220));
@@ -53,33 +55,29 @@ public final class PatchNotesPopup {
         );
     }
 
-    private static void writeNotes(JTextPane pane, int patchNotesVersion) {
+    // When shipping new patch notes: bump LATEST_VERSION and update writeNotes below.
+    public static final int LATEST_VERSION = 1;
+
+    private static void writeNotes(JTextPane pane) {
         StyledDocument doc = pane.getStyledDocument();
         SimpleAttributeSet bold = new SimpleAttributeSet();
         StyleConstants.setBold(bold, true);
         try {
-            switch (patchNotesVersion) {
-                case 1:
-                    doc.insertString(doc.getLength(),
-                            "Two new features in this update:\n\n", null);
-                    doc.insertString(doc.getLength(), "Portfolio Tracking\n", bold);
-                    doc.insertString(doc.getLength(),
-                            "- See your unrealized profit for held items\n"
-                                    + "- Right click items to add/remove\n"
-                                    + "- Track your total portfolio value, along with per-item breakdown\n"
-                                    + "\n",
-                            null);
-                    doc.insertString(doc.getLength(), "Holds\n", bold);
-                    doc.insertString(doc.getLength(),
-                            "- Hold items for bigger margins instead of selling immediately\n"
-                                    + "- Earn passive GP on holds while your GE slots stay free for active flips\n"
-                                    + "- Get sell suggestions when a held item is ready to flip",
-                            null);
-                    break;
-                default:
-                    doc.insertString(doc.getLength(), "Flipping Copilot has been updated.", null);
-                    break;
-            }
+            doc.insertString(doc.getLength(),
+                    "Two new features in this update:\n\n", null);
+            doc.insertString(doc.getLength(), "Portfolio Tracking\n", bold);
+            doc.insertString(doc.getLength(),
+                    "- See your unrealized profit for held items\n"
+                            + "- Right click items to add/remove\n"
+                            + "- Track your total portfolio value, along with per-item breakdown\n"
+                            + "\n",
+                    null);
+            doc.insertString(doc.getLength(), "Holds\n", bold);
+            doc.insertString(doc.getLength(),
+                    "- Hold items for bigger margins instead of selling immediately\n"
+                            + "- Earn passive GP on holds while your GE slots stay free for active flips\n"
+                            + "- Get sell suggestions when a held item is ready to flip",
+                    null);
         } catch (BadLocationException e) {
             throw new IllegalStateException(e);
         }

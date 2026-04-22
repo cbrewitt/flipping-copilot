@@ -15,8 +15,6 @@ import java.nio.file.Path;
 @Slf4j
 public class PatchNotesController {
 
-    // Bump this and update PatchNotesPopup when shipping a new patch-note popup.
-    public static final int PATCH_NOTES_VERSION = 1;
     static final String PATCH_NOTES_VERSION_FILE = "patch-notes-version.txt";
 
     public void maybeShowOnStartup(Component parent, boolean hadExistingInstallation) {
@@ -25,16 +23,17 @@ public class PatchNotesController {
             return;
         }
 
+        int latestVersion = PatchNotesPopup.LATEST_VERSION;
         Integer lastSeenVersion = loadLastSeenVersion();
-        boolean shouldShow = shouldShowPatchNotes(PATCH_NOTES_VERSION, lastSeenVersion, hadExistingInstallation);
-        persistSeenVersion(lastSeenVersion == null ? PATCH_NOTES_VERSION : Math.max(lastSeenVersion, PATCH_NOTES_VERSION));
+        boolean shouldShow = shouldShowPatchNotes(latestVersion, lastSeenVersion, hadExistingInstallation);
+        persistSeenVersion(lastSeenVersion == null ? latestVersion : Math.max(lastSeenVersion, latestVersion));
 
         if (!shouldShow || GraphicsEnvironment.isHeadless()) {
             return;
         }
 
         Window owner = parent == null ? null : SwingUtilities.getWindowAncestor(parent);
-        PatchNotesPopup.show(owner != null ? owner : parent, PATCH_NOTES_VERSION);
+        PatchNotesPopup.show(owner != null ? owner : parent);
     }
 
     static boolean shouldShowPatchNotes(int currentVersion, Integer lastSeenVersion, boolean hadExistingInstallation) {
