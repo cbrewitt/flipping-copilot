@@ -23,7 +23,7 @@ dependencies {
 
 
 group = 'com.flippingcopilot'
-version = '1.7.24'
+version = '1.8.0'
 
 processResources {
 	filesMatching('flippingcopilot.properties') {
