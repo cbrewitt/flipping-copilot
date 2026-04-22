@@ -25,6 +25,12 @@ dependencies {
 group = 'com.flippingcopilot'
 version = '1.7.24'
 
+processResources {
+	filesMatching('flippingcopilot.properties') {
+		expand(projectVersion: project.version)
+	}
+}
+
 tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
 	options.release.set(11)
