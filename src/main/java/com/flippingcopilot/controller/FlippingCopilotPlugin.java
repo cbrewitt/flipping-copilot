@@ -123,6 +123,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	private InventoryPortfolioBadgeOverlay inventoryPortfolioBadgeOverlay;
 	@Inject
 	private BankStateRS bankStateRS;
+	@Inject
+	private PatchNotesController patchNotesController;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -144,6 +146,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void startUp() throws Exception {
+		boolean hadExistingInstallation = Persistance.hasExistingInstallation();
 		overlayManager.add(inventorySlotTooltipOverlay);
 		overlayManager.add(inventoryPortfolioBadgeOverlay);
 		highlightController.activate();
@@ -168,6 +171,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		statsPanel = mainPanel.copilotPanel.statsPanel;
 
 		mainPanel.refresh();
+		SwingUtilities.invokeLater(() -> patchNotesController.maybeShowOnStartup(mainPanel, hadExistingInstallation));
 
 		if(osrsLoginManager.getInvalidStateDisplayMessage() == null) {
 			flipManager.setIntervalAccount(null);

@@ -39,6 +39,15 @@ public class Persistance {
         createRequiredFiles();
     }
 
+    public static boolean hasExistingInstallation() {
+        if (!COPILOT_DIR.exists() || !COPILOT_DIR.isDirectory()) {
+            return false;
+        }
+
+        String[] files = COPILOT_DIR.list();
+        return files != null && files.length > 0;
+    }
+
     private static void createRequiredFiles() throws IOException {
         generateFileIfDoesNotExist(LOGIN_RESPONSE_JSON_FILE);
     }

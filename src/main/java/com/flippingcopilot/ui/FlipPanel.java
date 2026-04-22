@@ -54,17 +54,17 @@ public class FlipPanel extends JPanel {
         Color profitColor = UIUtilities.getProfitColor(flip.getProfit(), config);
         String profitColorHex = String.format("#%06X", (0xFFFFFF & profitColor.getRGB()));
 
-        String tooltipText = String.format("<html>Opened time: %s<br>Avg buy price: %s<br>%s: %s<br>Avg sell price: %s<br>Tax paid: %s<br>Profit: <font color='%s'>%s</font><br>ROI: <font color='%s'>%s</font></html>",
-                formatEpoch(flip.getOpenedTime()),
-                UIUtilities.formatProfit(flip.getAvgBuyPrice()),
-                closeLabel,
-                formatEpoch(flip.getClosedTime()),
-                UIUtilities.formatProfit(flip.getAvgSellPrice()),
-                UIUtilities.formatProfit(flip.getTaxPaid()),
+        String tooltipText = String.format("<html>Profit: <font color='%s'>%s</font><br>ROI: <font color='%s'>%s</font><br>Avg buy price: %s<br>Avg sell price: %s<br>Tax paid: %s<br>Opened time: %s<br>%s: %s</html>",
                 profitColorHex,
                 UIUtilities.formatProfit(flip.getProfit()),
                 profitColorHex,
-                roiText);
+                roiText,
+                UIUtilities.formatProfit(flip.getAvgBuyPrice()),
+                UIUtilities.formatProfit(flip.getAvgSellPrice()),
+                UIUtilities.formatProfit(flip.getTaxPaid()),
+                formatEpoch(flip.getOpenedTime()),
+                closeLabel,
+                formatEpoch(flip.getClosedTime()));
         setToolTipText(tooltipText);
         leftPanel.setToolTipText(tooltipText);
         itemQuantity.setToolTipText(tooltipText);
