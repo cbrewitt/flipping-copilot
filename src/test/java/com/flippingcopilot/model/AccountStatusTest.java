@@ -6,6 +6,7 @@ import org.junit.Test;
 import java.util.Collections;
 
 public class AccountStatusTest {
+    private static final int ITEM_ID = 4151;
 
     @Test
     public void testMoreGpNeeded() {
@@ -37,14 +38,10 @@ public class AccountStatusTest {
     @Test
     public void testHasSufficientInventoryForSellSuggestionRequiresInventoryQuantity() {
         AccountStatus accountStatus = new AccountStatus();
-        accountStatus.getInventory().add(new RSItem(4151, 3));
+        accountStatus.getInventory().add(new RSItem(ITEM_ID, 3));
         accountStatus.setBankAvailable(true);
-        accountStatus.setBankInventory(Collections.singletonMap(4151, 10));
-
-        Suggestion suggestion = new Suggestion();
-        suggestion.setType(SuggestionType.SELL);
-        suggestion.setItemId(4151);
-        suggestion.setQuantity(5);
+        accountStatus.setBankInventory(Collections.singletonMap(ITEM_ID, 10));
+        Suggestion suggestion = sellSuggestion(5);
 
         assert !accountStatus.hasSufficientInventoryForSellSuggestion(suggestion);
         assert !accountStatus.isCollectNeeded(suggestion, false);
@@ -53,12 +50,8 @@ public class AccountStatusTest {
     @Test
     public void testHasSufficientInventoryForSellSuggestionWhenInventoryQuantityMatches() {
         AccountStatus accountStatus = new AccountStatus();
-        accountStatus.getInventory().add(new RSItem(4151, 5));
-
-        Suggestion suggestion = new Suggestion();
-        suggestion.setType(SuggestionType.SELL);
-        suggestion.setItemId(4151);
-        suggestion.setQuantity(5);
+        accountStatus.getInventory().add(new RSItem(ITEM_ID, 5));
+        Suggestion suggestion = sellSuggestion(5);
 
         assert accountStatus.hasSufficientInventoryForSellSuggestion(suggestion);
     }
@@ -85,5 +78,13 @@ public class AccountStatusTest {
             return true;
         }
         return false;
+    }
+
+    private static Suggestion sellSuggestion(int quantity) {
+        Suggestion suggestion = new Suggestion();
+        suggestion.setType(SuggestionType.SELL);
+        suggestion.setItemId(ITEM_ID);
+        suggestion.setQuantity(quantity);
+        return suggestion;
     }
 }

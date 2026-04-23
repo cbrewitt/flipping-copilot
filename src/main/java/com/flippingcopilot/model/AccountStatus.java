@@ -70,8 +70,10 @@ public class AccountStatus {
             return true;
         }
         if (!hasSufficientItemsForSuggestion(suggestion)) {
-            log.debug("collected needed hasSufficientItems");
-            return true;
+            if (hasSufficientCollectibleItemsForSuggestion(suggestion)) {
+                log.debug("collected needed hasSufficientItems");
+                return true;
+            }
         }
         return false;
     }
@@ -99,6 +101,22 @@ public class AccountStatus {
         long inventoryQty = inventory.getTotalAmount(suggestion.getItemId());
         long bankQty = Math.max(0, bankInventory.getOrDefault(suggestion.getItemId(), 0));
         return inventoryQty + bankQty >= suggestion.getQuantity();
+    }
+
+    private boolean hasSufficientCollectibleItemsForSuggestion(Suggestion suggestion) {
+        if (suggestion == null || !suggestion.isSellSuggestion() || uncollected == null) {
+            return false;
+        }
+
+        long inventoryQty = inventory == null ? 0 : inventory.getTotalAmount(suggestion.getItemId());
+        long bankQty = 0;
+        if (bankAvailable && bankInventory != null) {
+            bankQty = Math.max(0, bankInventory.getOrDefault(suggestion.getItemId(), 0));
+        }
+
+        long collectibleQty = Math.max(0, uncollected.getOrDefault(suggestion.getItemId(), 0L));
+        long missingQty = suggestion.getQuantity() - inventoryQty - bankQty;
+        return missingQty > 0 && collectibleQty >= missingQty;
     }
 
     public int findEmptySlot() {
