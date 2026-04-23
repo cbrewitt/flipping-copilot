@@ -133,7 +133,7 @@ public class MainPanel extends PluginPanel {
         }
 
         container.add(topBar);
-        container.setBorder(new EmptyBorder(3, 0, 10, 0));
+        container.setBorder(new EmptyBorder(3, 0, 6, 0));
         return container;
     }
 

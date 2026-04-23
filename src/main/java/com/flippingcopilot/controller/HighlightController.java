@@ -121,7 +121,7 @@ public class HighlightController {
         else if (suggestion.isBuySuggestion()) {
             highlightCreateBuyOfferButton(accountStatus, blueHighlight);
         }
-        else if (suggestion.isSellSuggestion()) {
+        else if (suggestion.isSellSuggestion() && accountStatus.hasSufficientInventoryForSellSuggestion(suggestion)) {
             Widget itemWidget = getInventoryItemWidget(suggestion.getItemId());
             if (itemWidget != null && !itemWidget.isHidden()) {
                 add(itemWidget, blueHighlight, new Rectangle(0, 0, 34, 32));

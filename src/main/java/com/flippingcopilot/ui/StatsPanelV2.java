@@ -30,7 +30,8 @@ import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
 @Slf4j
 @Singleton
 public class StatsPanelV2 extends JPanel {
-
+    private static final int SUB_INFO_ROW_VERTICAL_PADDING = 3;
+    private static final int SUB_INFO_ROW_HEIGHT = 18;
 
     public final BufferedImage TRASH_ICON = ImageUtil.loadImageResource(getClass(), "/trash.png");
     public final BufferedImage ARROW_ICON = ImageUtil.loadImageResource(getClass(),"/small_open_arrow.png");
@@ -225,7 +226,7 @@ public class StatsPanelV2 extends JPanel {
 
     private JPanel buildSubInfoPanelItem(String key, JLabel value, Color valueColor, Runnable onClick) {
         JPanel item = new JPanel(new BorderLayout());
-        item.setBorder(new EmptyBorder(4, 2, 4, 2));
+        item.setBorder(new EmptyBorder(SUB_INFO_ROW_VERTICAL_PADDING, 2, SUB_INFO_ROW_VERTICAL_PADDING, 2));
         item.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         JLabel keyLabel = new JLabel(key);
         keyLabel.setFont(FontManager.getRunescapeSmallFont());
@@ -233,7 +234,7 @@ public class StatsPanelV2 extends JPanel {
         value.setFont(FontManager.getRunescapeSmallFont());
         value.setForeground(valueColor);
         item.add(value, BorderLayout.EAST);
-        item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        item.setMaximumSize(new Dimension(Integer.MAX_VALUE, SUB_INFO_ROW_HEIGHT));
 
         if (onClick != null) {
             item.setToolTipText("Open portfolio");
@@ -269,12 +270,12 @@ public class StatsPanelV2 extends JPanel {
 
     private JPanel buildSubInfoPanel() {
         JPanel subInfoPanel = UIUtilities.newVerticalBoxLayoutJPanel();
-        subInfoPanel.add(buildSubInfoPanelItem("Portfolio value:", portfolioValueVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
         subInfoPanel.add(buildSubInfoPanelItem("Unrealized profit:", unrealizedProfitVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
         subInfoPanel.add(buildSubInfoPanelItem("Flips made:", flipsMadeVal, ColorScheme.LIGHT_GRAY_COLOR));
         subInfoPanel.add(buildSubInfoPanelItem("ROI:", roiVal, UIUtilities.TOMATO));
         subInfoPanel.add(buildSubInfoPanelItem("Session time:", sessionTimeVal, ColorScheme.GRAND_EXCHANGE_ALCH));
         subInfoPanel.add(buildSubInfoPanelItem("Hourly profit:", hourlyProfitVal, Color.WHITE));
+        subInfoPanel.add(buildSubInfoPanelItem("Portfolio value:", portfolioValueVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
         subInfoPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         subInfoPanel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0,0,1,0, ColorScheme.DARK_GRAY_COLOR),
                 new EmptyBorder(2, 5, 5, 5)));
@@ -290,7 +291,7 @@ public class StatsPanelV2 extends JPanel {
         headerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         headerPanel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(1,0,1,0, ColorScheme.DARK_GRAY_COLOR),
-                new EmptyBorder(5, 0, 5, 0)));
+                new EmptyBorder(4, 0, 4, 0)));
 
         final JLabel profitTitle = new JLabel("Profit: ");
         profitTitle.setFont(FontManager.getRunescapeBoldFont());
@@ -306,7 +307,7 @@ public class StatsPanelV2 extends JPanel {
         profitTextPanel.add(profitTitle);
         profitTextPanel.add(Box.createRigidArea(new Dimension(5, 0))); // Spacing between title and value
         profitTextPanel.add(totalProfitVal);
-        profitTextPanel.setBorder(BorderFactory.createEmptyBorder(2,4,2,4));
+        profitTextPanel.setBorder(BorderFactory.createEmptyBorder(1,4,1,4));
 
         // Arrow label
         JLabel arrowLabel = new JLabel(OPEN_ICON);
