@@ -35,6 +35,35 @@ public class AccountStatusTest {
     }
 
     @Test
+    public void testHasSufficientInventoryForSellSuggestionRequiresInventoryQuantity() {
+        AccountStatus accountStatus = new AccountStatus();
+        accountStatus.getInventory().add(new RSItem(4151, 3));
+        accountStatus.setBankAvailable(true);
+        accountStatus.setBankInventory(Collections.singletonMap(4151, 10));
+
+        Suggestion suggestion = new Suggestion();
+        suggestion.setType(SuggestionType.SELL);
+        suggestion.setItemId(4151);
+        suggestion.setQuantity(5);
+
+        assert !accountStatus.hasSufficientInventoryForSellSuggestion(suggestion);
+        assert !accountStatus.isCollectNeeded(suggestion, false);
+    }
+
+    @Test
+    public void testHasSufficientInventoryForSellSuggestionWhenInventoryQuantityMatches() {
+        AccountStatus accountStatus = new AccountStatus();
+        accountStatus.getInventory().add(new RSItem(4151, 5));
+
+        Suggestion suggestion = new Suggestion();
+        suggestion.setType(SuggestionType.SELL);
+        suggestion.setItemId(4151);
+        suggestion.setQuantity(5);
+
+        assert accountStatus.hasSufficientInventoryForSellSuggestion(suggestion);
+    }
+
+    @Test
     public void testEncodeProtoIncludesBuyAndHoldAtField30() {
         AccountStatus accountStatus = new AccountStatus();
         accountStatus.setUncollected(Collections.emptyMap());

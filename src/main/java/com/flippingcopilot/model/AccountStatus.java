@@ -76,13 +76,19 @@ public class AccountStatus {
         return false;
     }
 
+    public synchronized boolean hasSufficientInventoryForSellSuggestion(Suggestion suggestion) {
+        return suggestion != null
+                && suggestion.isSellSuggestion()
+                && inventory != null
+                && inventory.getTotalAmount(suggestion.getItemId()) >= suggestion.getQuantity();
+    }
+
     private boolean hasSufficientItemsForSuggestion(Suggestion suggestion) {
-        if (suggestion == null || !suggestion.isSellSuggestion()) {
-            return inventory.hasSufficientItems(suggestion);
+        if (!suggestion.isSellSuggestion()) {
+            return true;
         }
 
-        long inventoryQty = inventory.getTotalAmount(suggestion.getItemId());
-        if (inventoryQty >= suggestion.getQuantity()) {
+        if (hasSufficientInventoryForSellSuggestion(suggestion)) {
             return true;
         }
 
@@ -90,6 +96,7 @@ public class AccountStatus {
             return false;
         }
 
+        long inventoryQty = inventory.getTotalAmount(suggestion.getItemId());
         long bankQty = Math.max(0, bankInventory.getOrDefault(suggestion.getItemId(), 0));
         return inventoryQty + bankQty >= suggestion.getQuantity();
     }

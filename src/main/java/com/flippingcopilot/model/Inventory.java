@@ -16,11 +16,6 @@ public class Inventory extends ArrayList<RSItem> {
                 || getTotalGp() >= (long) suggestion.getPrice() * suggestion.getQuantity();
     }
 
-    boolean hasSufficientItems(Suggestion suggestion) {
-        return suggestion.getType() != SuggestionType.SELL
-                || getTotalAmount(suggestion.getItemId()) >= suggestion.getQuantity();
-    }
-
     public long getTotalGp() {
         return getTotalAmount(ItemID.COINS_995) + PLATINUM_TOKEN_VALUE * getTotalAmount(ItemID.PLATINUM_TOKEN);
     }

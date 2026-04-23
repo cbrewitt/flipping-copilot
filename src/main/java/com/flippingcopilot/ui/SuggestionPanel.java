@@ -378,8 +378,7 @@ public class SuggestionPanel extends JPanel {
             return false;
         }
 
-        long inventoryQty = accountStatus.getInventory().getTotalAmount(suggestion.getItemId());
-        if (inventoryQty >= suggestion.getQuantity()) {
+        if (accountStatus.hasSufficientInventoryForSellSuggestion(suggestion)) {
             return false;
         }
 
