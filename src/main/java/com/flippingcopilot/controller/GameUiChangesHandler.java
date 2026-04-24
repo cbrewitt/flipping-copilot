@@ -104,6 +104,7 @@ public class GameUiChangesHandler {
         }
         if (event.getGroupId() == 383
                 || event.getGroupId() == InterfaceID.GE_OFFERS
+                || event.getGroupId() == InterfaceID.BANKMAIN
                 || event.getGroupId() == 213
                 || event.getGroupId() == GE_HISTORY_TAB_WIDGET_ID) {
             clientThread.invokeLater(highlightController::redraw);
@@ -114,6 +115,9 @@ public class GameUiChangesHandler {
         if (event.getGroupId() == InterfaceID.GE_OFFERS) {
             clientThread.invokeLater(highlightController::removeAll);
             suggestionManager.setSuggestionNeeded(true);
+        }
+        if (event.getGroupId() == InterfaceID.BANKMAIN) {
+            clientThread.invokeLater(highlightController::redraw);
         }
     }
 
@@ -163,6 +167,9 @@ public class GameUiChangesHandler {
     public void onScriptPostFired(ScriptPostFired event) {
         if (event.getScriptId() == SCRIPT_GE_COLLECT || event.getScriptId() == SCRIPT_GE_SLOT_REDRAW) {
             clientThread.invokeLater(slotProfitColorizer::updateAllSlots);
+        }
+        if (event.getScriptId() == ScriptID.BANKMAIN_FINISHBUILDING) {
+            clientThread.invokeLater(highlightController::redraw);
         }
     }
 

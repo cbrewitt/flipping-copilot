@@ -7,9 +7,14 @@ import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.VarClientStr;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.banktags.BankTagsPlugin;
+import net.runelite.client.plugins.banktags.BankTagsService;
 import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.util.Text;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -25,6 +30,10 @@ import java.util.function.Supplier;
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class HighlightController {
+    private static final int BANK_WIDGET_GROUP = 12;
+    private static final int[] BANK_ITEM_CONTAINER_CHILDREN = {12, 13, 89};
+    private static final String PORTFOLIO_BANK_TAG = "portfolio";
+    private static final int BANK_TAG_TAB_CHILD_OFFSET = 4;
 
     // dependencies
     private final FlippingCopilotConfig config;
@@ -36,6 +45,9 @@ public class HighlightController {
     private final OfferManager offerManager;
     private final OverlayManager overlayManager;
     private final HighlightColorController highlightColorController;
+    private final PluginManager pluginManager;
+    private final BankTagsPlugin bankTagsPlugin;
+    private final BankTagsService bankTagsService;
 
     // state
     private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
@@ -73,9 +85,6 @@ public class HighlightController {
         if(!config.suggestionHighlights()) {
             return;
         }
-        if(!grandExchange.isOpen()) {
-            return;
-        }
         if (offerManager.isOfferJustPlaced()) {
             return;
         }
@@ -84,6 +93,12 @@ public class HighlightController {
         }
         Suggestion suggestion = suggestionManager.getSuggestion();
         if (suggestion == null) {
+            return;
+        }
+        if (drawSellFromBankHighlight(suggestion)) {
+            return;
+        }
+        if(!grandExchange.isOpen()) {
             return;
         }
         if (grandExchange.isHomeScreenOpen()) {
@@ -127,6 +142,46 @@ public class HighlightController {
                 add(itemWidget, blueHighlight, new Rectangle(0, 0, 34, 32));
             }
         }
+    }
+
+    private boolean drawSellFromBankHighlight(Suggestion suggestion) {
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
+        if (!shouldSellFromBank(suggestion, accountStatus)) {
+            return false;
+        }
+
+        boolean isDumpSuggestion = suggestion.isDumpSuggestion();
+        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
+
+        Widget bankItemWidget = getBankItemWidget(suggestion.getItemId());
+        if (bankItemWidget != null && !bankItemWidget.isHidden()) {
+            add(bankItemWidget, blueHighlight, new Rectangle(0, 0, 34, 32));
+            return true;
+        }
+
+        Widget portfolioTagButton = getPortfolioBankTagButton();
+        if (portfolioTagButton != null) {
+            add(portfolioTagButton, blueHighlight);
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean shouldSellFromBank(Suggestion suggestion, AccountStatus accountStatus) {
+        if (suggestion == null || !suggestion.isSellSuggestion() || suggestion.isModifySuggestion()) {
+            return false;
+        }
+        if (accountStatus == null || accountStatus.getInventory() == null) {
+            return false;
+        }
+        if (accountStatus.hasSufficientInventoryForSellSuggestion(suggestion)) {
+            return false;
+        }
+        if (accountStatus.getBankInventory() == null) {
+            return false;
+        }
+        return accountStatus.getBankInventory().getOrDefault(suggestion.getItemId(), 0) > 0;
     }
 
     private boolean isScanningForDumpsSuggested(Suggestion suggestion, AccountStatus accountStatus) {
@@ -355,10 +410,19 @@ public class HighlightController {
             }
         }
 
+        Widget[] children = inventory.getDynamicChildren();
+        if (children == null) {
+            return null;
+        }
+
         Widget notedWidget = null;
         Widget unnotedWidget = null;
 
-        for (Widget widget : inventory.getDynamicChildren()) {
+        for (Widget widget : children) {
+            if (widget == null) {
+                continue;
+            }
+
             int itemId = widget.getItemId();
             ItemComposition itemComposition = client.getItemDefinition(itemId);
 
@@ -371,5 +435,87 @@ public class HighlightController {
             }
         }
         return notedWidget != null ? notedWidget : unnotedWidget;
+    }
+
+    private Widget getBankItemWidget(int unnotedItemId) {
+        for (int childId : BANK_ITEM_CONTAINER_CHILDREN) {
+            Widget bankItems = client.getWidget(BANK_WIDGET_GROUP, childId);
+            if (bankItems == null || bankItems.isHidden()) {
+                continue;
+            }
+
+            Widget itemWidget = getVisibleItemWidget(bankItems, unnotedItemId);
+            if (itemWidget != null) {
+                return itemWidget;
+            }
+        }
+        return null;
+    }
+
+    private Widget getPortfolioBankTagButton() {
+        if (!config.portfolioBankTag()
+                || !pluginManager.isPluginActive(bankTagsPlugin)
+                || PORTFOLIO_BANK_TAG.equals(bankTagsService.getActiveTag())) {
+            return null;
+        }
+
+        Widget parent = client.getWidget(InterfaceID.Bankmain.ITEMS_CONTAINER);
+        if (parent == null || parent.isHidden() || parent.getChildren() == null) {
+            return null;
+        }
+
+        Widget[] children = parent.getChildren();
+        for (int i = BANK_TAG_TAB_CHILD_OFFSET; i < children.length; i += 2) {
+            Widget button = children[i];
+            if (button == null || button.isHidden()) {
+                continue;
+            }
+
+            String widgetName = button.getName();
+            if (widgetName == null) {
+                continue;
+            }
+
+            if (PORTFOLIO_BANK_TAG.equals(Text.removeTags(widgetName))) {
+                return button;
+            }
+        }
+        return null;
+    }
+
+    private Widget getVisibleItemWidget(Widget itemContainer, int unnotedItemId) {
+        Widget[] children = itemContainer.getDynamicChildren();
+        if (children == null) {
+            return null;
+        }
+
+        Rectangle containerBounds = itemContainer.getBounds();
+        for (Widget widget : children) {
+            if (widget == null || widget.isHidden() || widget.getItemQuantity() <= 0) {
+                continue;
+            }
+
+            Rectangle bounds = widget.getBounds();
+            if (bounds == null || (containerBounds != null && !containerBounds.intersects(bounds))) {
+                continue;
+            }
+
+            if (matchesItemId(widget.getItemId(), unnotedItemId)) {
+                return widget;
+            }
+        }
+        return null;
+    }
+
+    private boolean matchesItemId(int itemId, int unnotedItemId) {
+        if (itemId == unnotedItemId) {
+            return true;
+        }
+        if (itemId <= 0) {
+            return false;
+        }
+
+        ItemComposition itemComposition = client.getItemDefinition(itemId);
+        return itemComposition.getNote() != -1 && itemComposition.getLinkedNoteId() == unnotedItemId;
     }
 }
