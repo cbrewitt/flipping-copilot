@@ -22,8 +22,10 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ClientShutdown;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.banktags.BankTagsPlugin;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -42,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 		name = "Flipping Copilot",
 		description = "Your AI assistant for trading"
 )
+@PluginDependency(BankTagsPlugin.class)
 public class FlippingCopilotPlugin extends Plugin {
 
 	@Inject
@@ -119,12 +122,14 @@ public class FlippingCopilotPlugin extends Plugin {
 	private FlippingCopilotConfigRS configRS;
 	@Inject
 	private InventorySlotTooltipOverlay inventorySlotTooltipOverlay;
- 	@Inject
+	@Inject
 	private InventoryPortfolioBadgeOverlay inventoryPortfolioBadgeOverlay;
 	@Inject
 	private BankStateRS bankStateRS;
 	@Inject
 	private PatchNotesController patchNotesController;
+	@Inject
+	private PortfolioBankTagController portfolioBankTagController;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -149,6 +154,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		boolean hadExistingInstallation = Persistance.hasExistingInstallation();
 		overlayManager.add(inventorySlotTooltipOverlay);
 		overlayManager.add(inventoryPortfolioBadgeOverlay);
+		portfolioBankTagController.startUp();
 		highlightController.activate();
 		Persistance.setUp(gson);
 		// seems we need to delay instantiating the UI till here as otherwise the panels look different
@@ -197,6 +203,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	protected void shutDown() throws Exception {
 		overlayManager.remove(inventorySlotTooltipOverlay);
 		overlayManager.remove(inventoryPortfolioBadgeOverlay);
+		portfolioBankTagController.shutDown();
 		offerManager.saveAll();
 		highlightController.deactivateAndRemoveAll();
 		clientThread.invokeLater(() -> slotProfitColorizer.resetAllSlots());
@@ -384,6 +391,9 @@ public class FlippingCopilotPlugin extends Plugin {
 					slotProfitColorizer.updateAllSlots();
 					highlightController.redraw();
 				});
+			}
+			if (event.getKey().equals("portfolioBankTag")) {
+				portfolioBankTagController.onConfigChanged();
 			}
 		}
 	}
