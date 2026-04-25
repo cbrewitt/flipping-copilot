@@ -369,24 +369,8 @@ public class SuggestionPanel extends JPanel {
     }
 
     private boolean shouldSellFromBank(Suggestion suggestion) {
-        if (suggestion == null || !suggestion.isSellSuggestion() || suggestion.isModifySuggestion()) {
-            return false;
-        }
-
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
-        if (accountStatus == null || accountStatus.getInventory() == null) {
-            return false;
-        }
-
-        if (accountStatus.hasSufficientInventoryForSellSuggestion(suggestion)) {
-            return false;
-        }
-
-        if (accountStatus.getBankInventory() == null) {
-            return false;
-        }
-
-        return accountStatus.getBankInventory().getOrDefault(suggestion.getItemId(), 0) > 0;
+        return accountStatus != null && accountStatus.shouldSellFromBank(suggestion);
     }
 
     public void suggestCollect() {

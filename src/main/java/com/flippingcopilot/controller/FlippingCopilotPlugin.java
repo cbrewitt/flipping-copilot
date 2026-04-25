@@ -15,15 +15,19 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.events.*;
+import net.runelite.api.widgets.Widget;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ClientShutdown;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.banktags.BankTagsPlugin;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -42,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 		name = "Flipping Copilot",
 		description = "Your AI assistant for trading"
 )
+@PluginDependency(BankTagsPlugin.class)
 public class FlippingCopilotPlugin extends Plugin {
 
 	@Inject
@@ -119,12 +124,14 @@ public class FlippingCopilotPlugin extends Plugin {
 	private FlippingCopilotConfigRS configRS;
 	@Inject
 	private InventorySlotTooltipOverlay inventorySlotTooltipOverlay;
- 	@Inject
+	@Inject
 	private InventoryPortfolioBadgeOverlay inventoryPortfolioBadgeOverlay;
 	@Inject
 	private BankStateRS bankStateRS;
 	@Inject
 	private PatchNotesController patchNotesController;
+	@Inject
+	private PortfolioBankTagController portfolioBankTagController;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -149,6 +156,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		boolean hadExistingInstallation = Persistance.hasExistingInstallation();
 		overlayManager.add(inventorySlotTooltipOverlay);
 		overlayManager.add(inventoryPortfolioBadgeOverlay);
+		portfolioBankTagController.startUp();
 		highlightController.activate();
 		Persistance.setUp(gson);
 		// seems we need to delay instantiating the UI till here as otherwise the panels look different
@@ -197,6 +205,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	protected void shutDown() throws Exception {
 		overlayManager.remove(inventorySlotTooltipOverlay);
 		overlayManager.remove(inventoryPortfolioBadgeOverlay);
+		portfolioBankTagController.shutDown();
 		offerManager.saveAll();
 		highlightController.deactivateAndRemoveAll();
 		clientThread.invokeLater(() -> slotProfitColorizer.resetAllSlots());
@@ -225,11 +234,24 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event) {
+		boolean inventoryChanged = event.getContainerId() == InventoryID.INV;
+		boolean bankChanged = event.getContainerId() == InventoryID.BANK;
+
+		if (bankChanged || (inventoryChanged && isBankOpen())) {
+			bankStateRS.onGameTick();
+			clientThread.invokeLater(() -> highlightController.redraw());
+		}
+
 		if (event.getContainerId() == InventoryID.INV && grandExchange.isOpen()) {
 			suggestionManager.setSuggestionNeeded(true);
 //			log.debug("inventory change item {} qty {}", lastItems, event.getItemContainer().getItems());
 			clientThread.invokeLater(() -> highlightController.redraw());
 		}
+	}
+
+	private boolean isBankOpen() {
+		Widget bank = client.getWidget(InterfaceID.Bankmain.UNIVERSE);
+		return bank != null && !bank.isHidden();
 	}
 
 	@Subscribe
@@ -384,6 +406,9 @@ public class FlippingCopilotPlugin extends Plugin {
 					slotProfitColorizer.updateAllSlots();
 					highlightController.redraw();
 				});
+			}
+			if (event.getKey().equals("portfolioBankTag")) {
+				portfolioBankTagController.onConfigChanged();
 			}
 		}
 	}

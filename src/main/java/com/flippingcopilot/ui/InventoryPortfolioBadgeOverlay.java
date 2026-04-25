@@ -1,16 +1,21 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.controller.PlayerLocationController;
 import com.flippingcopilot.model.PortfolioItemCardData;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import lombok.RequiredArgsConstructor;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
+import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.banktags.BankTagsPlugin;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.Text;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -35,15 +40,22 @@ public class InventoryPortfolioBadgeOverlay extends Overlay {
     private static final int[] BANK_ITEM_CONTAINER_CHILDREN = {12, 13, 89};
     private static final int BANK_INVENTORY_WIDGET_GROUP = 15;
     private static final int BANK_INVENTORY_WIDGET_CHILD = 3;
+    private static final String PORTFOLIO_BANK_TAG = "portfolio";
+    private static final int BANK_TAG_TAB_CHILD_OFFSET = 4;
 
     private static final Color BADGE_BG = new Color(30, 60, 35, 220);
     private static final Color BADGE_BORDER = new Color(120, 230, 150);
     private static final Color BADGE_TEXT = Color.WHITE;
     private static final int BADGE_SIZE = 12;
+    private static final int BANK_TAG_BADGE_SIZE = 16;
     private static final int BADGE_MARGIN = 1;
     private static final BufferedImage BADGE_ICON = loadBadgeIcon();
+    private static final BufferedImage BANK_TAG_BADGE_ICON = loadBadgeIcon(BANK_TAG_BADGE_SIZE);
 
     private final net.runelite.api.Client client;
+    private final FlippingCopilotConfig config;
+    private final PluginManager pluginManager;
+    private final BankTagsPlugin bankTagsPlugin;
     private final ItemController itemController;
     private final PortfolioStateRS portfolioStateRS;
     private final PlayerLocationController playerLocationController;
@@ -56,6 +68,8 @@ public class InventoryPortfolioBadgeOverlay extends Overlay {
 
     @Override
     public Dimension render(Graphics2D graphics) {
+        drawPortfolioBankTabBadge(graphics);
+
         List<Widget> itemWidgets = getVisibleItemWidgets();
         if (itemWidgets.isEmpty()) {
             return null;
@@ -108,6 +122,49 @@ public class InventoryPortfolioBadgeOverlay extends Overlay {
         return null;
     }
 
+    private void drawPortfolioBankTabBadge(Graphics2D graphics) {
+        if (!config.portfolioBankTag() || !pluginManager.isPluginActive(bankTagsPlugin)) {
+            return;
+        }
+
+        Widget tabIcon = getPortfolioBankTabIcon();
+        if (tabIcon == null) {
+            return;
+        }
+
+        Rectangle bounds = tabIcon.getBounds();
+        if (bounds == null) {
+            return;
+        }
+
+        drawPortfolioBadge(graphics, bounds, BANK_TAG_BADGE_ICON, BANK_TAG_BADGE_SIZE);
+    }
+
+    private Widget getPortfolioBankTabIcon() {
+        Widget parent = client.getWidget(InterfaceID.Bankmain.ITEMS_CONTAINER);
+        if (parent == null || parent.isHidden() || parent.getChildren() == null) {
+            return null;
+        }
+
+        Widget[] children = parent.getChildren();
+        for (int i = BANK_TAG_TAB_CHILD_OFFSET + 1; i < children.length; i += 2) {
+            Widget icon = children[i];
+            if (icon == null || icon.isHidden()) {
+                continue;
+            }
+
+            String widgetName = icon.getName();
+            if (widgetName == null) {
+                continue;
+            }
+
+            if (PORTFOLIO_BANK_TAG.equals(Text.removeTags(widgetName))) {
+                return icon;
+            }
+        }
+        return null;
+    }
+
     private List<Widget> getVisibleItemWidgets() {
         List<Widget> widgets = new ArrayList<>(3);
         Widget geInventory = client.getWidget(GE_INVENTORY_WIDGET_GROUP, GE_INVENTORY_WIDGET_CHILD);
@@ -132,23 +189,27 @@ public class InventoryPortfolioBadgeOverlay extends Overlay {
     }
 
     private void drawPortfolioBadge(Graphics2D graphics, Rectangle slotBounds) {
-        int x = slotBounds.x + slotBounds.width - BADGE_SIZE - BADGE_MARGIN;
-        int y = slotBounds.y + slotBounds.height - BADGE_SIZE - BADGE_MARGIN;
+        drawPortfolioBadge(graphics, slotBounds, BADGE_ICON, BADGE_SIZE);
+    }
 
-        if (BADGE_ICON != null) {
-            graphics.drawImage(BADGE_ICON, x, y, null);
+    private void drawPortfolioBadge(Graphics2D graphics, Rectangle slotBounds, BufferedImage badgeIcon, int badgeSize) {
+        int x = slotBounds.x + slotBounds.width - badgeSize - BADGE_MARGIN;
+        int y = slotBounds.y + slotBounds.height - badgeSize - BADGE_MARGIN;
+
+        if (badgeIcon != null) {
+            graphics.drawImage(badgeIcon, x, y, null);
             return;
         }
 
         graphics.setColor(BADGE_BG);
-        graphics.fillOval(x, y, BADGE_SIZE, BADGE_SIZE);
+        graphics.fillOval(x, y, badgeSize, badgeSize);
         graphics.setColor(BADGE_BORDER);
-        graphics.drawOval(x, y, BADGE_SIZE, BADGE_SIZE);
+        graphics.drawOval(x, y, badgeSize, badgeSize);
 
         Font originalFont = graphics.getFont();
-        graphics.setFont(originalFont.deriveFont(Font.BOLD, 8f));
+        graphics.setFont(originalFont.deriveFont(Font.BOLD, Math.max(8f, badgeSize - 4f)));
         graphics.setColor(BADGE_TEXT);
-        graphics.drawString("P", x + 2, y + 8);
+        graphics.drawString("P", x + 2, y + badgeSize - 4);
         graphics.setFont(originalFont);
     }
 
@@ -161,10 +222,14 @@ public class InventoryPortfolioBadgeOverlay extends Overlay {
     }
 
     private static BufferedImage loadBadgeIcon() {
+        return loadBadgeIcon(BADGE_SIZE);
+    }
+
+    private static BufferedImage loadBadgeIcon(int badgeSize) {
         BufferedImage icon = ImageUtil.loadImageResource(InventoryPortfolioBadgeOverlay.class, "/icon-small.png");
         if (icon == null) {
             return null;
         }
-        return ImageUtil.resizeImage(icon, BADGE_SIZE, BADGE_SIZE);
+        return ImageUtil.resizeImage(icon, badgeSize, badgeSize);
     }
 }

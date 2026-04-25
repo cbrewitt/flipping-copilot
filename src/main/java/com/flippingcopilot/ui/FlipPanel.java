@@ -54,7 +54,7 @@ public class FlipPanel extends JPanel {
         Color profitColor = UIUtilities.getProfitColor(flip.getProfit(), config);
         String profitColorHex = String.format("#%06X", (0xFFFFFF & profitColor.getRGB()));
 
-        String tooltipText = String.format("<html>Profit: <font color='%s'>%s</font><br>ROI: <font color='%s'>%s</font><br>Avg buy price: %s<br>Avg sell price: %s<br>Tax paid: %s<br>Opened time: %s<br>%s: %s</html>",
+        String tooltipText = String.format("<html>Profit: <font color='%s'>%s</font><br>ROI: <font color='%s'>%s</font><br>Avg buy price: <font color='#32A0FA'>%s</font><br>Avg sell price: <font color='#F0CF7B'>%s</font><br>Tax paid: <font color='#FFFFFF'>%s</font><br>Opened time: %s<br>%s: %s</html>",
                 profitColorHex,
                 UIUtilities.formatProfit(flip.getProfit()),
                 profitColorHex,

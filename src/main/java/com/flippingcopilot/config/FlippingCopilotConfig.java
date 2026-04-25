@@ -191,6 +191,18 @@ public interface FlippingCopilotConfig extends Config
         return UIUtilities.OUTDATED_COLOR;
     }
 
+    @ConfigItem(
+            keyName = "portfolioBankTag",
+            name = "Portfolio bank tag",
+            description = "Create a Bank Tags tab for banked portfolio items.",
+            section = appearanceSection,
+            position = 5
+    )
+    default boolean portfolioBankTag()
+    {
+        return true;
+    }
+
     @ConfigSection(
             name = "Slot Price Coloring",
             description = "Configure GE slot price colors based on profitability",

@@ -85,6 +85,26 @@ public class AccountStatus {
                 && inventory.getTotalAmount(suggestion.getItemId()) >= suggestion.getQuantity();
     }
 
+    public synchronized boolean shouldSellFromBank(Suggestion suggestion) {
+        if (suggestion == null || !suggestion.isSellSuggestion() || suggestion.isModifySuggestion()) {
+            return false;
+        }
+        if (inventory == null || hasSufficientInventoryForSellSuggestion(suggestion)) {
+            return false;
+        }
+        return getBankQuantity(suggestion) > 0;
+    }
+
+    private long getBankQuantity(Suggestion suggestion) {
+        if (bankAvailable && bankInventory != null) {
+            return Math.max(0, bankInventory.getOrDefault(suggestion.getItemId(), 0));
+        }
+        if (suggestion.getBankItems() == null) {
+            return 0;
+        }
+        return Math.max(0, suggestion.getBankItems().getOrDefault(suggestion.getItemId(), 0));
+    }
+
     private boolean hasSufficientItemsForSuggestion(Suggestion suggestion) {
         if (!suggestion.isSellSuggestion()) {
             return true;
