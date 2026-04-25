@@ -29,6 +29,7 @@ public class GameUiChangesHandler {
     private static final int GE_HISTORY_TAB_WIDGET_ID = 149;
     private static final int SCRIPT_GE_COLLECT = 782;
     private static final int SCRIPT_GE_SLOT_REDRAW = 804;
+    private static final String BANK_TAG_TAB_VIEW_OPTION = "View tag tab";
 
     // dependencies
     private final ClientThread clientThread;
@@ -44,10 +45,16 @@ public class GameUiChangesHandler {
     // state
     boolean quantityOrPriceChatboxOpen;
     boolean itemSearchChatboxOpen = false;
+    boolean bankRebuildHighlightRedrawPending = false;
     @Getter
     OfferEditor flippingWidget = null;
 
     public void onVarClientIntChanged(VarClientIntChanged event) {
+        if (event.getIndex() == VarClientID.CHAT_LASTREBUILD) {
+            // this is triggered when a bank tag tab is opened/closed
+            clientThread.invokeLater(highlightController::redraw);
+        }
+
         if (event.getIndex() == VarClientID.MESLAYERMODE
                 && client.getVarcIntValue(VarClientID.MESLAYERMODE) == 14
                 && client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS) != null) {
@@ -152,6 +159,9 @@ public class GameUiChangesHandler {
                 suggestionManager.setSuggestionOfferStatusOnOfferSubmitted(null);
             }
         }
+        if (BANK_TAG_TAB_VIEW_OPTION.equals(event.getMenuOption())) {
+            bankRebuildHighlightRedrawPending = true;
+        }
     }
 
     private OfferStatus suggestionOfferStatus(Suggestion suggestion) {
@@ -169,11 +179,15 @@ public class GameUiChangesHandler {
             clientThread.invokeLater(slotProfitColorizer::updateAllSlots);
         }
         if (event.getScriptId() == ScriptID.BANKMAIN_FINISHBUILDING) {
-            clientThread.invokeLater(highlightController::redraw);
+            bankRebuildHighlightRedrawPending = true;
         }
     }
 
     public void onBeforeRender(BeforeRender event) {
+        if (bankRebuildHighlightRedrawPending) {
+            bankRebuildHighlightRedrawPending = false;
+            highlightController.redraw();
+        }
         if (grandExchange.isOpen()) {
             slotProfitColorizer.updateAllSlots();
         }

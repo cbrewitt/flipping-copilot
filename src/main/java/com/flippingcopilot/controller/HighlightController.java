@@ -34,6 +34,9 @@ public class HighlightController {
     private static final int[] BANK_ITEM_CONTAINER_CHILDREN = {12, 13, 89};
     private static final String PORTFOLIO_BANK_TAG = "portfolio";
     private static final int BANK_TAG_TAB_CHILD_OFFSET = 4;
+    private static final int BANK_CLOSE_BUTTON_INDEX = 11;
+    private static final int GE_CLOSE_BUTTON_INDEX = 11;
+    private static final Rectangle CLOSE_BUTTON_HIGHLIGHT_BOUNDS = new Rectangle(2, 2, 19, 19);
 
     // dependencies
     private final FlippingCopilotConfig config;
@@ -95,7 +98,15 @@ public class HighlightController {
         if (suggestion == null) {
             return;
         }
-        if (drawSellFromBankHighlight(suggestion)) {
+        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
+        boolean sellFromBank = accountStatus != null && accountStatus.shouldSellFromBank(suggestion);
+        if (sellFromBank && grandExchange.isOpen() && highlightGrandExchangeCloseButton(suggestion)) {
+            return;
+        }
+        if (!sellFromBank && isBankOpen() && highlightBankCloseButton(suggestion)) {
+            return;
+        }
+        if (sellFromBank && drawSellFromBankHighlight(suggestion, accountStatus)) {
             return;
         }
         if(!grandExchange.isOpen()) {
@@ -144,12 +155,7 @@ public class HighlightController {
         }
     }
 
-    private boolean drawSellFromBankHighlight(Suggestion suggestion) {
-        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
-        if (!shouldSellFromBank(suggestion, accountStatus)) {
-            return false;
-        }
-
+    private boolean drawSellFromBankHighlight(Suggestion suggestion, AccountStatus accountStatus) {
         boolean isDumpSuggestion = suggestion.isDumpSuggestion();
         Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
 
@@ -168,20 +174,23 @@ public class HighlightController {
         return false;
     }
 
-    private boolean shouldSellFromBank(Suggestion suggestion, AccountStatus accountStatus) {
-        if (suggestion == null || !suggestion.isSellSuggestion() || suggestion.isModifySuggestion()) {
+    private boolean highlightGrandExchangeCloseButton(Suggestion suggestion) {
+        return highlightCloseButton(getGrandExchangeCloseButton(), suggestion);
+    }
+
+    private boolean highlightBankCloseButton(Suggestion suggestion) {
+        return highlightCloseButton(getBankCloseButton(), suggestion);
+    }
+
+    private boolean highlightCloseButton(Widget closeButton, Suggestion suggestion) {
+        if (closeButton == null || closeButton.isHidden()) {
             return false;
         }
-        if (accountStatus == null || accountStatus.getInventory() == null) {
-            return false;
-        }
-        if (accountStatus.hasSufficientInventoryForSellSuggestion(suggestion)) {
-            return false;
-        }
-        if (accountStatus.getBankInventory() == null) {
-            return false;
-        }
-        return accountStatus.getBankInventory().getOrDefault(suggestion.getItemId(), 0) > 0;
+
+        boolean isDumpSuggestion = suggestion.isDumpSuggestion();
+        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
+        add(closeButton, blueHighlight, new Rectangle(CLOSE_BUTTON_HIGHLIGHT_BOUNDS));
+        return true;
     }
 
     private boolean isScanningForDumpsSuggested(Suggestion suggestion, AccountStatus accountStatus) {
@@ -450,6 +459,35 @@ public class HighlightController {
             }
         }
         return null;
+    }
+
+    private boolean isBankOpen() {
+        Widget bank = client.getWidget(InterfaceID.Bankmain.UNIVERSE);
+        return bank != null && !bank.isHidden();
+    }
+
+    private Widget getBankCloseButton() {
+        Widget frame = client.getWidget(InterfaceID.Bankmain.FRAME);
+        if (frame == null || frame.getDynamicChildren() == null) {
+            return null;
+        }
+        Widget[] children = frame.getDynamicChildren();
+        if (children.length <= BANK_CLOSE_BUTTON_INDEX) {
+            return null;
+        }
+        return children[BANK_CLOSE_BUTTON_INDEX];
+    }
+
+    private Widget getGrandExchangeCloseButton() {
+        Widget frame = client.getWidget(InterfaceID.GeOffers.FRAME);
+        if (frame == null || frame.getDynamicChildren() == null) {
+            return null;
+        }
+        Widget[] children = frame.getDynamicChildren();
+        if (children.length <= GE_CLOSE_BUTTON_INDEX) {
+            return null;
+        }
+        return children[GE_CLOSE_BUTTON_INDEX];
     }
 
     private Widget getPortfolioBankTagButton() {

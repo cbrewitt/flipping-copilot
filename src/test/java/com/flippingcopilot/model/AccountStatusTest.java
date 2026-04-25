@@ -57,6 +57,26 @@ public class AccountStatusTest {
     }
 
     @Test
+    public void testShouldSellFromBankUsesSuggestionBankItemsWhenBankNotLoaded() {
+        AccountStatus accountStatus = new AccountStatus();
+        Suggestion suggestion = sellSuggestion(8);
+        suggestion.setBankItems(Collections.singletonMap(ITEM_ID, 8));
+
+        assert accountStatus.shouldSellFromBank(suggestion);
+    }
+
+    @Test
+    public void testShouldSellFromBankPrefersLoadedBankInventory() {
+        AccountStatus accountStatus = new AccountStatus();
+        accountStatus.setBankAvailable(true);
+        accountStatus.setBankInventory(Collections.emptyMap());
+        Suggestion suggestion = sellSuggestion(8);
+        suggestion.setBankItems(Collections.singletonMap(ITEM_ID, 8));
+
+        assert !accountStatus.shouldSellFromBank(suggestion);
+    }
+
+    @Test
     public void testEncodeProtoIncludesBuyAndHoldAtField30() {
         AccountStatus accountStatus = new AccountStatus();
         accountStatus.setUncollected(Collections.emptyMap());

@@ -15,8 +15,10 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.events.*;
+import net.runelite.api.widgets.Widget;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -232,11 +234,24 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event) {
+		boolean inventoryChanged = event.getContainerId() == InventoryID.INV;
+		boolean bankChanged = event.getContainerId() == InventoryID.BANK;
+
+		if (bankChanged || (inventoryChanged && isBankOpen())) {
+			bankStateRS.onGameTick();
+			clientThread.invokeLater(() -> highlightController.redraw());
+		}
+
 		if (event.getContainerId() == InventoryID.INV && grandExchange.isOpen()) {
 			suggestionManager.setSuggestionNeeded(true);
 //			log.debug("inventory change item {} qty {}", lastItems, event.getItemContainer().getItems());
 			clientThread.invokeLater(() -> highlightController.redraw());
 		}
+	}
+
+	private boolean isBankOpen() {
+		Widget bank = client.getWidget(InterfaceID.Bankmain.UNIVERSE);
+		return bank != null && !bank.isHidden();
 	}
 
 	@Subscribe
