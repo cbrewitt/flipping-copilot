@@ -109,18 +109,22 @@ public class HighlightController {
         }
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         boolean sellFromBank = accountStatus != null && accountStatus.shouldSellFromBank(suggestion);
-        if (sellFromBank && grandExchange.isOpen() && highlightGrandExchangeCloseButton(suggestion)) {
+        // When the user must collect first (e.g. no free slot for the sell-from-bank offer),
+        // sending them to the bank is wrong — they have to go to the GE clerk first.
+        boolean isCollectNeeded = accountStatus != null && accountStatus.isCollectNeeded(suggestion, grandExchange.isSetupOfferOpen());
+        boolean goToBank = sellFromBank && !isCollectNeeded;
+        if (goToBank && grandExchange.isOpen() && highlightGrandExchangeCloseButton(suggestion)) {
             return;
         }
-        if (!sellFromBank && isBankOpen() && highlightBankCloseButton(suggestion)) {
+        if (!goToBank && isBankOpen() && !suggestion.isWaitSuggestion() && highlightBankCloseButton(suggestion)) {
             return;
         }
-        if (sellFromBank && drawSellFromBankHighlight(suggestion, accountStatus)) {
+        if (goToBank && drawSellFromBankHighlight(suggestion, accountStatus)) {
             return;
         }
         if(!grandExchange.isOpen()) {
             if (!isBankOpen()) {
-                highlightNpcAtGrandExchange(suggestion, accountStatus, sellFromBank);
+                highlightNpcAtGrandExchange(suggestion, accountStatus, goToBank);
             }
             return;
         }
@@ -131,7 +135,7 @@ public class HighlightController {
         }
     }
 
-    private void highlightNpcAtGrandExchange(Suggestion suggestion, AccountStatus accountStatus, boolean sellFromBank) {
+    private void highlightNpcAtGrandExchange(Suggestion suggestion, AccountStatus accountStatus, boolean goToBank) {
         if (accountStatus == null) {
             return;
         }
@@ -141,8 +145,7 @@ public class HighlightController {
             return;
         }
         NPC target;
-        if (sellFromBank) {
-            // shouldSellFromBank already guarantees an actionable sell suggestion needing items from the bank
+        if (goToBank) {
             target = findClosestNpcByName(BANKER_NAME);
         } else if (drawHomeScreenHighLights(suggestion)) {
             // Reuses the existing home-screen decision tree as the actionability check;
