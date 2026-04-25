@@ -2,18 +2,24 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.ui.NpcHighlightOverlay;
 import com.flippingcopilot.ui.WidgetHighlightOverlay;
 import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
+import net.runelite.api.NPC;
+import net.runelite.api.Player;
 import net.runelite.api.VarClientStr;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.plugins.banktags.BankTagsPlugin;
 import net.runelite.client.plugins.banktags.BankTagsService;
+import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.ui.overlay.outline.ModelOutlineRenderer;
 import net.runelite.client.util.Text;
 
 import javax.inject.Inject;
@@ -37,6 +43,8 @@ public class HighlightController {
     private static final int BANK_CLOSE_BUTTON_INDEX = 11;
     private static final int GE_CLOSE_BUTTON_INDEX = 11;
     private static final Rectangle CLOSE_BUTTON_HIGHLIGHT_BOUNDS = new Rectangle(2, 2, 19, 19);
+    private static final String GE_CLERK_NAME = "Grand Exchange Clerk";
+    private static final String BANKER_NAME = "Banker";
 
     // dependencies
     private final FlippingCopilotConfig config;
@@ -51,9 +59,10 @@ public class HighlightController {
     private final PluginManager pluginManager;
     private final BankTagsPlugin bankTagsPlugin;
     private final BankTagsService bankTagsService;
+    private final ModelOutlineRenderer modelOutlineRenderer;
 
     // state
-    private final ArrayList<WidgetHighlightOverlay> highlightOverlays = new ArrayList<>();
+    private final ArrayList<Overlay> highlightOverlays = new ArrayList<>();
     private volatile boolean active = true;
     private final AtomicInteger generation = new AtomicInteger(0);
 
@@ -110,6 +119,9 @@ public class HighlightController {
             return;
         }
         if(!grandExchange.isOpen()) {
+            if (!isBankOpen()) {
+                highlightNpcAtGrandExchange(suggestion, accountStatus, sellFromBank);
+            }
             return;
         }
         if (grandExchange.isHomeScreenOpen()) {
@@ -119,7 +131,84 @@ public class HighlightController {
         }
     }
 
-    private void drawHomeScreenHighLights(Suggestion suggestion) {
+    private void highlightNpcAtGrandExchange(Suggestion suggestion, AccountStatus accountStatus, boolean sellFromBank) {
+        if (accountStatus == null) {
+            return;
+        }
+        // Player is considered at the GE only if a clerk is loaded nearby
+        NPC clerk = findClosestNpcByName(GE_CLERK_NAME);
+        if (clerk == null) {
+            return;
+        }
+        NPC target;
+        if (sellFromBank) {
+            // shouldSellFromBank already guarantees an actionable sell suggestion needing items from the bank
+            target = findClosestNpcByName(BANKER_NAME);
+        } else if (drawHomeScreenHighLights(suggestion)) {
+            // Reuses the existing home-screen decision tree as the actionability check;
+            // widget lookups inside no-op while the GE is closed
+            target = clerk;
+        } else {
+            return;
+        }
+        if (target == null) {
+            return;
+        }
+        boolean isDumpSuggestion = suggestion.isDumpSuggestion();
+        addNpcHighlight(target, () -> {
+            Color base = highlightColorController.getBlueColor(isDumpSuggestion);
+            if (base == null) {
+                return null;
+            }
+            // Feathered outlines need a higher alpha than filled widget overlays to read as a glow
+            return new Color(base.getRed(), base.getGreen(), base.getBlue(), Math.min(255, base.getAlpha() * 3));
+        });
+    }
+
+    private NPC findClosestNpcByName(String name) {
+        Player player = client.getLocalPlayer();
+        if (player == null) {
+            return null;
+        }
+        WorldPoint playerLocation = player.getWorldLocation();
+        if (playerLocation == null) {
+            return null;
+        }
+        NPC closest = null;
+        int closestDistance = Integer.MAX_VALUE;
+        for (NPC npc : client.getNpcs()) {
+            if (npc == null || !name.equals(npc.getName())) {
+                continue;
+            }
+            WorldPoint npcLocation = npc.getWorldLocation();
+            if (npcLocation == null) {
+                continue;
+            }
+            int distance = npcLocation.distanceTo(playerLocation);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closest = npc;
+            }
+        }
+        return closest;
+    }
+
+    private void addNpcHighlight(NPC npc, Supplier<Color> colorSupplier) {
+        if (!active || npc == null) {
+            return;
+        }
+        final int addGeneration = generation.get();
+        SwingUtilities.invokeLater(() -> {
+            if (!active || generation.get() != addGeneration) {
+                return;
+            }
+            NpcHighlightOverlay overlay = new NpcHighlightOverlay(npc, colorSupplier, modelOutlineRenderer);
+            highlightOverlays.add(overlay);
+            overlayManager.add(overlay);
+        });
+    }
+
+    private boolean drawHomeScreenHighLights(Suggestion suggestion) {
         boolean isDumpSuggestion = suggestion.isDumpSuggestion();
         Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
         Supplier<Color> redHighlight = () -> highlightColorController.getRedColor(isDumpSuggestion);
@@ -130,29 +219,36 @@ public class HighlightController {
             if (collectButton != null) {
                 add(collectButton, blueHighlight, new Rectangle(2, 1, 81, 18));
             }
+            return true;
         }
         else if (suggestion.isAbortSuggestion()) {
             Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
             add(slotWidget, redHighlight);
+            return true;
         }
         else if (suggestion.isModifySuggestion()) {
             Widget slotWidget = grandExchange.getSlotWidget(suggestion.getBoxId());
             if (slotWidget != null && !slotWidget.isHidden()) {
                 add(slotWidget, amberHighlight);
             }
+            return true;
         }
         else if (isScanningForDumpsSuggested(suggestion, accountStatus)) {
             highlightCreateBuyOfferButton(accountStatus, blueHighlight);
+            return true;
         }
         else if (suggestion.isBuySuggestion()) {
             highlightCreateBuyOfferButton(accountStatus, blueHighlight);
+            return true;
         }
         else if (suggestion.isSellSuggestion() && accountStatus.hasSufficientInventoryForSellSuggestion(suggestion)) {
             Widget itemWidget = getInventoryItemWidget(suggestion.getItemId());
             if (itemWidget != null && !itemWidget.isHidden()) {
                 add(itemWidget, blueHighlight, new Rectangle(0, 0, 34, 32));
             }
+            return true;
         }
+        return false;
     }
 
     private boolean drawSellFromBankHighlight(Suggestion suggestion, AccountStatus accountStatus) {
@@ -391,6 +487,9 @@ public class HighlightController {
     }
 
     private void add(Widget widget, Supplier<Color> colorSupplier) {
+        if (widget == null) {
+            return;
+        }
         add(widget, colorSupplier, new Rectangle(0, 0, widget.getWidth(), widget.getHeight()));
     }
 
@@ -410,13 +509,11 @@ public class HighlightController {
     }
 
     private Widget getInventoryItemWidget(int unnotedItemId) {
-        // Inventory has a different widget if GE is open
+        // Only the GE-specific inventory widget is relevant here — the regular inventory
+        // (149,0) is shown when the GE is closed, and we don't highlight items in that case.
         Widget inventory = client.getWidget(467, 0);
         if (inventory == null) {
-            inventory = client.getWidget(149, 0);
-            if (inventory == null) {
-                return null;
-            }
+            return null;
         }
 
         Widget[] children = inventory.getDynamicChildren();
