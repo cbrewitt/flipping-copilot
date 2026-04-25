@@ -628,21 +628,28 @@ public class HighlightController {
         }
 
         Rectangle containerBounds = itemContainer.getBounds();
+        boolean clipToContainerBounds = hasUsableBounds(containerBounds);
         for (Widget widget : children) {
             if (widget == null || widget.isHidden() || widget.getItemQuantity() <= 0) {
                 continue;
             }
 
-            Rectangle bounds = widget.getBounds();
-            if (bounds == null || (containerBounds != null && !containerBounds.intersects(bounds))) {
+            if (!matchesItemId(widget.getItemId(), unnotedItemId)) {
                 continue;
             }
 
-            if (matchesItemId(widget.getItemId(), unnotedItemId)) {
-                return widget;
+            Rectangle bounds = widget.getBounds();
+            if (clipToContainerBounds && (bounds == null || !containerBounds.intersects(bounds))) {
+                continue;
             }
+
+            return widget;
         }
         return null;
+    }
+
+    private boolean hasUsableBounds(Rectangle bounds) {
+        return bounds != null && bounds.width > 0 && bounds.height > 0;
     }
 
     private boolean matchesItemId(int itemId, int unnotedItemId) {

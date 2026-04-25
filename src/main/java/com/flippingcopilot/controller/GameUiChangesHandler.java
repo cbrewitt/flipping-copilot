@@ -30,6 +30,9 @@ public class GameUiChangesHandler {
     private static final int SCRIPT_GE_COLLECT = 782;
     private static final int SCRIPT_GE_SLOT_REDRAW = 804;
     private static final String BANK_TAG_TAB_VIEW_OPTION = "View tag tab";
+    // Bank tag tab widgets exist before bank item bounds settle.
+    // Wait one full frame before resolving the highlight target.
+    private static final int BANK_REBUILD_HIGHLIGHT_REDRAW_DELAY_FRAMES = 2;
 
     // dependencies
     private final ClientThread clientThread;
@@ -45,14 +48,14 @@ public class GameUiChangesHandler {
     // state
     boolean quantityOrPriceChatboxOpen;
     boolean itemSearchChatboxOpen = false;
-    boolean bankRebuildHighlightRedrawPending = false;
+    int bankRebuildHighlightRedrawFramesRemaining = 0;
     @Getter
     OfferEditor flippingWidget = null;
 
     public void onVarClientIntChanged(VarClientIntChanged event) {
         if (event.getIndex() == VarClientID.CHAT_LASTREBUILD) {
             // this is triggered when a bank tag tab is opened/closed
-            clientThread.invokeLater(highlightController::redraw);
+            requestBankRebuildHighlightRedraw();
         }
 
         if (event.getIndex() == VarClientID.MESLAYERMODE
@@ -111,10 +114,12 @@ public class GameUiChangesHandler {
         }
         if (event.getGroupId() == 383
                 || event.getGroupId() == InterfaceID.GE_OFFERS
-                || event.getGroupId() == InterfaceID.BANKMAIN
                 || event.getGroupId() == 213
                 || event.getGroupId() == GE_HISTORY_TAB_WIDGET_ID) {
             clientThread.invokeLater(highlightController::redraw);
+        }
+        if (event.getGroupId() == InterfaceID.BANKMAIN) {
+            requestBankRebuildHighlightRedraw();
         }
     }
 
@@ -160,7 +165,7 @@ public class GameUiChangesHandler {
             }
         }
         if (BANK_TAG_TAB_VIEW_OPTION.equals(event.getMenuOption())) {
-            bankRebuildHighlightRedrawPending = true;
+            requestBankRebuildHighlightRedraw();
         }
     }
 
@@ -179,17 +184,23 @@ public class GameUiChangesHandler {
             clientThread.invokeLater(slotProfitColorizer::updateAllSlots);
         }
         if (event.getScriptId() == ScriptID.BANKMAIN_FINISHBUILDING) {
-            bankRebuildHighlightRedrawPending = true;
+            requestBankRebuildHighlightRedraw();
         }
     }
 
     public void onBeforeRender(BeforeRender event) {
-        if (bankRebuildHighlightRedrawPending) {
-            bankRebuildHighlightRedrawPending = false;
-            highlightController.redraw();
+        if (bankRebuildHighlightRedrawFramesRemaining > 0) {
+            bankRebuildHighlightRedrawFramesRemaining--;
+            if (bankRebuildHighlightRedrawFramesRemaining == 0) {
+                highlightController.redraw();
+            }
         }
         if (grandExchange.isOpen()) {
             slotProfitColorizer.updateAllSlots();
         }
+    }
+
+    private void requestBankRebuildHighlightRedraw() {
+        bankRebuildHighlightRedrawFramesRemaining = BANK_REBUILD_HIGHLIGHT_REDRAW_DELAY_FRAMES;
     }
 }
