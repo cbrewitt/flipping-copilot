@@ -227,18 +227,6 @@ public interface FlippingCopilotConfig extends Config
         return true;
     }
 
-    @ConfigItem(
-            keyName = "personalPortfolioEnabled",
-            name = "Enable personal portfolio",
-            description = "Enable the personal portfolio feature.",
-            section = appearanceSection,
-            position = 8
-    )
-    default boolean personalPortfolioEnabled()
-    {
-        return false;
-    }
-
     @ConfigSection(
             name = "Slot Price Coloring",
             description = "Configure GE slot price colors based on profitability",
