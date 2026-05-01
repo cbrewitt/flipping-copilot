@@ -1,5 +1,6 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.InventorySlotTooltipDataProvider;
 import com.flippingcopilot.controller.PlayerLocationController;
 import com.flippingcopilot.model.InventorySlotTooltipData;
@@ -46,6 +47,7 @@ public class InventorySlotTooltipOverlay extends Overlay {
     private final InventorySlotTooltipDataProvider tooltipDataProvider;
     private final TooltipManager tooltipManager;
     private final PlayerLocationController playerLocationController;
+    private final FlippingCopilotConfig config;
 
     {
         setPosition(OverlayPosition.DYNAMIC);
@@ -55,6 +57,9 @@ public class InventorySlotTooltipOverlay extends Overlay {
 
     @Override
     public Dimension render(Graphics2D graphics) {
+        if (!config.portfolioTooltips()) {
+            return null;
+        }
         if (!playerLocationController.isNearGE()) {
             return null;
         }

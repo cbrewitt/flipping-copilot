@@ -70,6 +70,10 @@ public class InventoryPortfolioBadgeOverlay extends Overlay {
     public Dimension render(Graphics2D graphics) {
         drawPortfolioBankTabBadge(graphics);
 
+        if (!config.portfolioIcons()) {
+            return null;
+        }
+
         List<Widget> itemWidgets = getVisibleItemWidgets();
         if (itemWidgets.isEmpty()) {
             return null;

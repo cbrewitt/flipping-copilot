@@ -569,6 +569,50 @@ public class ApiRequestHandler {
         });
     }
 
+    public void asyncClearAccountPortfolio(int accountId,
+                                            BiConsumer<Integer, ToggleItemPortfolioResult> onSuccess,
+                                            Consumer<HttpResponseException> onFailure) {
+        JsonObject body = new JsonObject();
+        body.addProperty("account_id", accountId);
+        Integer userId = copilotLoginRS.get().getUserId();
+        String jwtToken = copilotLoginRS.get().getJwtToken();
+
+        Request request = new Request.Builder()
+                .url(serverUrl + "/profit-tracking/clear-account-portfolio")
+                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Accept", "application/protobuf")
+                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.warn("clear account portfolio failed for account {}", accountId, e);
+                onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        if (response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
+                            copilotLoginRS.clear();
+                        }
+                        String errorMessage = extractErrorMessage(response);
+                        log.warn("clear account portfolio failed for account {}, status {}, error {}", accountId, response.code(), errorMessage);
+                        onFailure.accept(new HttpResponseException(response.code(), errorMessage));
+                        return;
+                    }
+                    ToggleItemPortfolioResult result = ToggleItemPortfolioResult.decodeProto(response.body().bytes());
+                    onSuccess.accept(userId, result);
+                } catch (Exception e) {
+                    log.warn("error parsing clear account portfolio response", e);
+                    onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
+                }
+            }
+        });
+    }
+
     public void asyncDeleteAccount(int accountId, Runnable onSuccess, Runnable onFailure) {
         JsonObject body = new JsonObject();
         body.addProperty("account_id", accountId);

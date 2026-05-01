@@ -203,6 +203,42 @@ public interface FlippingCopilotConfig extends Config
         return true;
     }
 
+    @ConfigItem(
+            keyName = "portfolioTooltips",
+            name = "Enable portfolio tooltips",
+            description = "Show portfolio-related tooltips on items.",
+            section = appearanceSection,
+            position = 6
+    )
+    default boolean portfolioTooltips()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+            keyName = "portfolioIcons",
+            name = "Enable portfolio icons",
+            description = "Show portfolio icons on items.",
+            section = appearanceSection,
+            position = 7
+    )
+    default boolean portfolioIcons()
+    {
+        return true;
+    }
+
+    @ConfigItem(
+            keyName = "personalPortfolioEnabled",
+            name = "Enable personal portfolio",
+            description = "Enable the personal portfolio feature.",
+            section = appearanceSection,
+            position = 8
+    )
+    default boolean personalPortfolioEnabled()
+    {
+        return false;
+    }
+
     @ConfigSection(
             name = "Slot Price Coloring",
             description = "Configure GE slot price colors based on profitability",
@@ -308,6 +344,5 @@ public interface FlippingCopilotConfig extends Config
             position = 5
     )
     String webhook();
-
 
 }

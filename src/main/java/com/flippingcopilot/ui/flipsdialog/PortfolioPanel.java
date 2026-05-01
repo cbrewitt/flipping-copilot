@@ -78,6 +78,7 @@ public class PortfolioPanel extends JPanel {
     private final DefaultTableModel tableModel;
     private final JTable table;
     private final JLabel autoSyncInfoLabel;
+    private final JButton clearPortfolioButton;
     private final Map<Integer, ImageIcon> itemIconCache = new ConcurrentHashMap<>();
 
     private List<PortfolioItemCardData> currentItems = new ArrayList<>();
@@ -125,6 +126,11 @@ public class PortfolioPanel extends JPanel {
         summaryTablePanel.setOpaque(false);
         summaryTablePanel.setBorder(new EmptyBorder(4, 0, 4, 0));
         summarySection.add(summaryTablePanel, BorderLayout.WEST);
+
+        clearPortfolioButton = new JButton("Remove everything from portfolio");
+        clearPortfolioButton.setFont(FontManager.getRunescapeFont());
+        clearPortfolioButton.setFocusable(false);
+        clearPortfolioButton.addActionListener(e -> onClearPortfolioClicked());
 
         JPanel rightControlsPanel = new JPanel();
         rightControlsPanel.setOpaque(false);
@@ -276,7 +282,15 @@ public class PortfolioPanel extends JPanel {
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         scrollPane.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
         scrollPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        contentPanel.add(scrollPane, BorderLayout.CENTER);
+
+        JPanel tableSection = new JPanel(new BorderLayout(0, 6));
+        tableSection.setOpaque(false);
+        JPanel tableButtonRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        tableButtonRow.setOpaque(false);
+        tableButtonRow.add(clearPortfolioButton);
+        tableSection.add(tableButtonRow, BorderLayout.NORTH);
+        tableSection.add(scrollPane, BorderLayout.CENTER);
+        contentPanel.add(tableSection, BorderLayout.CENTER);
 
         cardPanel.add(contentPanel, CONTENT_CARD);
         cardPanel.add(buildLoginPromptPanel(), LOGIN_PROMPT_CARD);
@@ -300,13 +314,53 @@ public class PortfolioPanel extends JPanel {
     private void refresh() {
         if (!osrsLoginRS.get().loggedIn) {
             cardLayout.show(cardPanel, LOGIN_PROMPT_CARD);
+            clearPortfolioButton.setEnabled(false);
             revalidate();
             repaint();
             return;
         }
         cardLayout.show(cardPanel, CONTENT_CARD);
+        Integer accountId = copilotLoginRS.get().getAccountId(osrsLoginRS.get().displayName);
+        clearPortfolioButton.setEnabled(accountId != null && accountId != -1);
         refreshAutoSyncLabel();
         renderFromState(portfolioStateRS.get());
+    }
+
+    private void onClearPortfolioClicked() {
+        Integer accountId = copilotLoginRS.get().getAccountId(osrsLoginRS.get().displayName);
+        if (accountId == null || accountId == -1) {
+            return;
+        }
+        int choice = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to remove all items from your portfolio?",
+                "Confirm",
+                JOptionPane.YES_NO_OPTION);
+        if (choice != JOptionPane.YES_OPTION) {
+            return;
+        }
+        clearPortfolioButton.setEnabled(false);
+        apiRequestHandler.asyncClearAccountPortfolio(
+                accountId,
+                (userId, result) -> SwingUtilities.invokeLater(() -> {
+                    Suggestion suggestion = suggestionManager.getSuggestion();
+                    portfolioStateRS.updatePortfolioState(
+                            suggestion == null ? null : suggestion.getBankItems(),
+                            result == null ? null : result.getPortfolioItems(),
+                            result == null ? null : result.getTime()
+                    );
+                    suggestionManager.setSuggestionNeeded(true);
+                    clearPortfolioButton.setEnabled(true);
+                }),
+                error -> SwingUtilities.invokeLater(() -> {
+                    clearPortfolioButton.setEnabled(true);
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Failed to clear portfolio. Please try again.",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                })
+        );
     }
 
     private void refreshAutoSyncLabel() {
