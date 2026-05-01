@@ -48,6 +48,9 @@ public class FlipManager {
     final Map<Integer, Map<Integer, FlipV2>> lastOpenFlipByItemId = new HashMap<>();
     final Map<UUID, Integer> existingCloseTimes = new HashMap<>();
     final List<WeekAggregate> weeks = new ArrayList<>(365*5);
+    // Non-deleted flips with portfolio_id in {-2, -3, -4}, kept separately from week aggregates
+    // because mergeFlip_ excludes them (FlipManager.isTrackedFlip / isInPortfolio).
+    final Map<Integer, Map<UUID, FlipV2>> disappearedFlipsByAccount = new HashMap<>();
 
 
     public synchronized Integer getIntervalAccount() {
@@ -231,6 +234,22 @@ public class FlipManager {
         lastOpenFlipByItemId.clear();
         existingCloseTimes.clear();
         weeks.clear();
+        disappearedFlipsByAccount.clear();
+    }
+
+    public synchronized List<FlipV2> getDisappearedFlipsForAccount(Integer accountId) {
+        if (accountId == null) {
+            return Collections.emptyList();
+        }
+        Map<UUID, FlipV2> byId = disappearedFlipsByAccount.get(accountId);
+        if (byId == null || byId.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<FlipV2> result = new ArrayList<>(byId.values());
+        if (itemController != null) {
+            result.forEach(f -> f.setCachedItemName(itemController.getItemName(f.getItemId())));
+        }
+        return result;
     }
 
     private void mergeFlip_(FlipV2 flip) {
@@ -256,6 +275,7 @@ public class FlipManager {
                     openByItem.remove(flip.getItemId());
                 }
             }
+            updateDisappearedFlip(flip);
             return;
         }
         WeekAggregate wa = getOrInitWeek(flip.getClosedTime());
@@ -271,6 +291,24 @@ public class FlipManager {
         }
 
         existingCloseTimes.put(flip.getId(), flip.getClosedTime());
+        updateDisappearedFlip(flip);
+    }
+
+    private void updateDisappearedFlip(FlipV2 flip) {
+        boolean isDisappeared = !flip.isDeleted() && PortfolioId.isDisappeared(flip.getPortfolioId());
+        Map<UUID, FlipV2> byId = disappearedFlipsByAccount.get(flip.getAccountId());
+        if (isDisappeared) {
+            if (byId == null) {
+                byId = new HashMap<>();
+                disappearedFlipsByAccount.put(flip.getAccountId(), byId);
+            }
+            FlipV2 existing = byId.get(flip.getId());
+            if (existing == null || flip.isNewer(existing)) {
+                byId.put(flip.getId(), flip);
+            }
+        } else if (byId != null) {
+            byId.remove(flip.getId());
+        }
     }
 
     private boolean isInInterval(FlipV2 flip) {
@@ -305,6 +343,7 @@ public class FlipManager {
             recalculateIntervalStats();
         }
         lastOpenFlipByItemId.remove(accountId);
+        disappearedFlipsByAccount.remove(accountId);
         SwingUtilities.invokeLater(flipsChangedCallback);
     }
 

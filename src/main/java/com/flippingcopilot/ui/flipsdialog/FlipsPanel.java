@@ -5,7 +5,6 @@ import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
-import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.ui.Paginator;
 import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.components.AccountDropdown;
@@ -26,11 +25,9 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.NumberFormat;
-import java.time.Instant;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static com.flippingcopilot.util.DateUtil.formatEpoch;
@@ -50,7 +47,6 @@ public class FlipsPanel extends JPanel {
     private final FlipManager flipsManager;
     private final CopilotLoginRS copilotLoginRS;
     private final ApiRequestHandler apiRequestHandler;
-    private final OsrsLoginRS osrsLoginRS;
 
     // ui components
     private final DefaultTableModel tableModel;
@@ -73,14 +69,13 @@ public class FlipsPanel extends JPanel {
     public FlipFilterAndSort sortAndFilter;
 
 
-    public FlipsPanel(OsrsLoginRS osrsLoginRS, FlipManager flipsManager,
+    public FlipsPanel(FlipManager flipsManager,
                       ItemController itemController,
                       CopilotLoginRS copilotLoginRS,
                       @Named("copilotExecutor") ExecutorService executorService,
                       FlippingCopilotConfig config,
                       ApiRequestHandler apiRequestHandler,
                       Consumer<FlipV2> onVisualizeFlip) {
-        this.osrsLoginRS = osrsLoginRS;
         this.onVisualizeFlip = onVisualizeFlip;
         this.copilotLoginRS = copilotLoginRS;
         this.apiRequestHandler = apiRequestHandler;
@@ -381,121 +376,7 @@ public class FlipsPanel extends JPanel {
             }
         });
         menu.add(deleteItem);
-
-        String flipOsrsDisplayName = copilotLoginRS.get().getDisplayName(flip.getAccountId());
-        if (shouldShowAddMissedSellOption(flipOsrsDisplayName, flip)) {
-            JMenuItem missedSellTransaction = new JMenuItem("Add missed sell transaction");
-            missedSellTransaction.addActionListener(evt -> {
-                int qty = flip.getOpenedQuantity() - flip.getClosedQuantity();
-                int suggestedPrice = (int) (flip.getAvgBuyPrice() * 1.02);
-
-                JPanel dialogPanel = new JPanel(new GridBagLayout());
-                GridBagConstraints gbc = new GridBagConstraints();
-                gbc.insets = new Insets(5, 5, 5, 5);
-                gbc.anchor = GridBagConstraints.WEST;
-                gbc.gridx = 0; gbc.gridy = 0;
-                dialogPanel.add(new JLabel("Item:"), gbc);
-                gbc.gridx = 1;
-                dialogPanel.add(new JLabel(flip.getCachedItemName()), gbc);
-                gbc.gridx = 0; gbc.gridy = 1;
-                dialogPanel.add(new JLabel("Quantity:"), gbc);
-                gbc.gridx = 1;
-                dialogPanel.add(new JLabel(String.valueOf(qty)), gbc);
-                gbc.gridx = 0; gbc.gridy = 2;
-                dialogPanel.add(new JLabel("Sell Price:"), gbc);
-                gbc.gridx = 1;
-                JTextField priceField = new JTextField(String.valueOf(suggestedPrice), 10);
-                dialogPanel.add(priceField, gbc);
-
-                int result = JOptionPane.showConfirmDialog(this,
-                        dialogPanel,
-                        "Add Missed Sell Transaction",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.PLAIN_MESSAGE);
-
-                if (result == JOptionPane.YES_OPTION) {
-                    try {
-                        int price = Integer.parseInt(priceField.getText().trim());
-                        if (price <= 0) {
-                            JOptionPane.showMessageDialog(this,
-                                    "Price must be a positive number.",
-                                    "Invalid Price",
-                                    JOptionPane.ERROR_MESSAGE);
-                            return;
-                        }
-
-                        setSpinnerVisible(true);
-                        log.info("Adding missed sell transaction for flip with ID: {}", flip.getId());
-
-                        Transaction t = new Transaction();
-                        t.setId(UUID.randomUUID());
-                        t.setType(OfferStatus.SELL);
-                        t.setItemId(flip.getItemId());
-                        t.setPrice(price);
-                        t.setQuantity(qty);
-                        t.setBoxId(0);
-                        t.setAmountSpent((long) price * qty);
-                        t.setTimestamp(Instant.now());
-                        t.setCopilotPriceUsed(true);
-                        t.setWasCopilotSuggestion(true);
-                        t.setOfferTotalQuantity(qty);
-
-                        Long profit = flipsManager.estimateTransactionProfit(flip.getAccountId(), t);
- 
-                        if (profit == null || !validateProfit(profit, flip, price)) {
-                            setSpinnerVisible(false);
-                            return;
-                        }
- 
-                        BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
-                            flipsManager.mergeFlips(flips, userId);
-                            setSpinnerVisible(false);
-                            sortAndFilter.reloadFlips(true, true);
-                        };
-                        Consumer<HttpResponseException> onFailure = (r) -> {
-                            setSpinnerVisible(false);
-                            JOptionPane.showMessageDialog(this,
-                                    "Failed to add sell transaction. Please try again.",
-                                    "Transaction Error",
-                                    JOptionPane.ERROR_MESSAGE);
-                        };
-                        apiRequestHandler.sendTransactionsAsync(List.of(t), flipOsrsDisplayName, onSuccess, onFailure);
-
-                    } catch (NumberFormatException ex) {
-                        JOptionPane.showMessageDialog(this,
-                                "Please enter a valid number for the price.",
-                                "Invalid Price",
-                                JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            });
-            menu.add(missedSellTransaction);
-        }
         menu.show(e.getComponent(), e.getX(), e.getY());
-    }
-
-    private boolean shouldShowAddMissedSellOption(String flipOsrsDisplayName, FlipV2 flip) {
-        if (flipOsrsDisplayName == null) {
-            return false;
-        }
-        if (FlipStatus.FINISHED.equals(flip.getStatus())) {
-            return false;
-        }
-        return osrsLoginRS.get().loggedIn && Objects.equals(flipOsrsDisplayName, osrsLoginRS.get().displayName);
-    }
-
-    private boolean validateProfit(long profit, FlipV2 flip, int price) {
-        long absProfit = Math.abs(profit);
-        long avgBuyPrice = flip.getAvgBuyPrice();
-        if (absProfit > 10_000_000L || (avgBuyPrice > 0 && price > avgBuyPrice * 5L)) {
-            JOptionPane.showMessageDialog(this,
-                    "The estimated profit/loss (" + GP_FORMAT.format(absProfit) + " gp) is too large. " +
-                            "Please double-check the sell price.",
-                    "Profit Too Large",
-                    JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        return true;
     }
 
     private void downloadAsCSV() {

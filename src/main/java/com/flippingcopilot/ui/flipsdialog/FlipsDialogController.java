@@ -45,6 +45,7 @@ public class FlipsDialogController {
     private JTabbedPane tabbedPane;
     private JDialog dialog;
     private FlipsPanel flipsPanel;
+    private MissedFlipsPanel missedFlipsPanel;
     private VisualizeFlipPanel visualizeFlipPanel;
 
     @Inject
@@ -90,10 +91,12 @@ public class FlipsDialogController {
                     config,
                     apiRequestHandler
             );
-            flipsPanel = new FlipsPanel(osrsLoginRS, flipsManager, itemController, copilotLoginRS,
+            flipsPanel = new FlipsPanel(flipsManager, itemController, copilotLoginRS,
                     executorService, config, apiRequestHandler, (f) -> {
                 showVisualizeFlip(f);
             });
+            missedFlipsPanel = new MissedFlipsPanel(osrsLoginRS, flipsManager, itemController, copilotLoginRS,
+                    executorService, config, apiRequestHandler, this::showVisualizeFlip);
             ItemAggregatePanel itemsPanel = new ItemAggregatePanel(flipsManager, itemController,
                     copilotLoginRS, executorService, config);
             AccountsAggregatePanel accountsPanel = new AccountsAggregatePanel(flipsManager, copilotLoginRS,
@@ -125,6 +128,7 @@ public class FlipsDialogController {
             );
             tabbedPane.addTab("Portfolio", portfolioPanel);
             tabbedPane.addTab("Flips", flipsPanel);
+            tabbedPane.addTab("Missed flips", missedFlipsPanel);
             tabbedPane.addTab("Items", itemsPanel);
             tabbedPane.addTab("Accounts", accountsPanel);
             tabbedPane.addTab("Profit graph", profitPanel);
@@ -149,18 +153,21 @@ public class FlipsDialogController {
                         flipsPanel.onTabShown();
                         break;
                     case 2:
-                        itemsPanel.onTabShown();
+                        missedFlipsPanel.onTabShown();
                         break;
                     case 3:
-                        accountsPanel.onTabShown();
+                        itemsPanel.onTabShown();
                         break;
                     case 4:
-                        profitPanel.refreshGraph(true);
+                        accountsPanel.onTabShown();
                         break;
                     case 5:
-                        transactionsPanel.loadTransactionsIfNeeded();
+                        profitPanel.refreshGraph(true);
                         break;
                     case 6:
+                        transactionsPanel.loadTransactionsIfNeeded();
+                        break;
+                    case 7:
                         priceGraphPanel.onTabShown();
                         break;
                 }
@@ -180,7 +187,7 @@ public class FlipsDialogController {
     }
 
     public void showPriceGraphTab(Integer openOnPriceGraphItemId, boolean suggestionPriceGraph, PriceLine priceLine) {
-        tabbedPane.setSelectedIndex(6);
+        tabbedPane.setSelectedIndex(7);
         if(openOnPriceGraphItemId != null) {
             priceGraphPanel.isShowingSuggestionPriceData = false;
             priceGraphPanel.searchBox.setItem(new ItemIdName(openOnPriceGraphItemId, itemController.getItemName(openOnPriceGraphItemId)));
@@ -210,7 +217,7 @@ public class FlipsDialogController {
             return;
         }
         visualizeFlipPanel.showFlipVisualization(flip);
-        tabbedPane.setSelectedIndex(7);
+        tabbedPane.setSelectedIndex(8);
         dialog.setVisible(true);
     }
 }
