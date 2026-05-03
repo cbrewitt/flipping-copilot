@@ -74,10 +74,6 @@ public class ItemController {
                         cachedItems.forEach(i -> cachedItemNames.put(i.itemId, i.name));
                         initScheduled.set(false);
                         log.debug("initialised {} items", items.size());
-                        log.debug("Tradeable items = {}", IntStream.range(0, client.getItemCount())
-                                .mapToObj(itemManager::getItemComposition)
-                                .filter(ItemController::IsTradeable).map(ItemComposition::getId)
-                                .collect(Collectors.toList()));
                         return true;
                     }
                     // if no items are found try again
