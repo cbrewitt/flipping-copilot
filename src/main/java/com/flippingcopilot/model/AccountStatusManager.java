@@ -79,10 +79,7 @@ public class AccountStatusManager {
         status.setBankInventory(bankStateRS.get().getItems());
         status.setBagInventory(extractBagInventory());
         status.setSyncExcluded(computeSyncExcludedItems(status.getDisplayName(), u));
-        status.setAllowedSync(
-                grandExchange.isOpen()
-                        && client.getTickCount() > heldItemSyncStateRS.get().getDelayUntilTick()
-        );
+        status.setAllowedSync(client.getTickCount() > heldItemSyncStateRS.get().getDelayUntilTick());
 
         Map<Integer, Long> inLimboItems = geUncollected.getLastClearedUncollected();
         List<Integer> clearedSlots = geUncollected.getLastClearedSlots();

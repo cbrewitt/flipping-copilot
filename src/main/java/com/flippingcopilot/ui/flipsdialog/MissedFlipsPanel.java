@@ -7,17 +7,21 @@ import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.FlipStatus;
 import com.flippingcopilot.model.FlipV2;
 import com.flippingcopilot.model.HttpResponseException;
-import com.flippingcopilot.model.OfferStatus;
+import com.flippingcopilot.model.PortfolioId;
 import com.flippingcopilot.model.SortDirection;
-import com.flippingcopilot.model.Transaction;
+import com.flippingcopilot.model.GeHistoryRow;
+import com.flippingcopilot.model.GeHistoryState;
 import com.flippingcopilot.rs.CopilotLoginRS;
+import com.flippingcopilot.rs.GeHistoryStateRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
+import com.flippingcopilot.util.ProfitCalculator;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
@@ -36,7 +40,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -67,25 +70,31 @@ public class MissedFlipsPanel extends JPanel {
         SORT_COMPARATORS.put("Profit ea.", Comparator.comparing(f -> f.getClosedQuantity() > 0 ? f.getProfit() / f.getClosedQuantity() : 0L));
     }
 
+    private static final String SECTIONS_CARD = "sections";
+    private static final String LOGIN_PROMPT_CARD = "login";
+
+    private static final long MAX_AGE_SECONDS = 30L * 24 * 60 * 60;
+
     private final FlipManager flipsManager;
     private final ItemController itemController;
     private final CopilotLoginRS copilotLoginRS;
     private final OsrsLoginRS osrsLoginRS;
     private final ApiRequestHandler apiRequestHandler;
     private final ExecutorService executorService;
-    private final Consumer<FlipV2> onVisualizeFlip;
+    private final FlippingCopilotConfig config;
+    private final GeHistoryStateRS geHistoryStateRS;
 
-    private final DefaultTableModel tableModel;
-    private final JTable table;
     private final Spinner spinner;
     private final JPanel spinnerOverlay;
     private final ItemSearchMultiSelect searchField;
-    private final JLabel emptyStateLabel;
+    private final JLabel geHistoryStatusLabel;
+    private final CardLayout cardLayout;
+    private final JPanel cardPanel;
 
-    private List<FlipV2> currentFlips = new ArrayList<>();
+    private final Section disappearedSection;
+    private final Section ghostSection;
+
     private Set<Integer> filteredItems = new HashSet<>();
-    private String sortColumn = "Last sell time";
-    private SortDirection sortDirection = SortDirection.DESC;
 
     public MissedFlipsPanel(OsrsLoginRS osrsLoginRS,
                             FlipManager flipsManager,
@@ -94,14 +103,15 @@ public class MissedFlipsPanel extends JPanel {
                             ExecutorService executorService,
                             FlippingCopilotConfig config,
                             ApiRequestHandler apiRequestHandler,
-                            Consumer<FlipV2> onVisualizeFlip) {
+                            GeHistoryStateRS geHistoryStateRS) {
         this.osrsLoginRS = osrsLoginRS;
         this.flipsManager = flipsManager;
         this.itemController = itemController;
         this.copilotLoginRS = copilotLoginRS;
         this.executorService = executorService;
+        this.config = config;
         this.apiRequestHandler = apiRequestHandler;
-        this.onVisualizeFlip = onVisualizeFlip;
+        this.geHistoryStateRS = geHistoryStateRS;
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -124,125 +134,31 @@ public class MissedFlipsPanel extends JPanel {
         searchField.setToolTipText("Search by item name");
 
         leftPanel.add(searchField);
-
         topPanel.add(leftPanel, BorderLayout.WEST);
+
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        rightPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        geHistoryStatusLabel = new JLabel();
+        geHistoryStatusLabel.setForeground(ColorScheme.BRAND_ORANGE);
+        geHistoryStatusLabel.setVisible(false);
+        rightPanel.add(geHistoryStatusLabel);
+        topPanel.add(rightPanel, BorderLayout.EAST);
+
         add(topPanel, BorderLayout.NORTH);
 
-        tableModel = new DefaultTableModel(COLUMN_NAMES, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
+        disappearedSection = new Section("Flips with potential missed transactions", true);
+        ghostSection = new Section("Full missed flips", false);
 
-        table = new JTable(tableModel);
-        table.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        table.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        table.setSelectionBackground(ColorScheme.BRAND_ORANGE);
-        table.setSelectionForeground(Color.WHITE);
-        table.setGridColor(ColorScheme.MEDIUM_GRAY_COLOR);
-        table.setRowHeight(25);
-        table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
-        table.setRowSorter(null);
-        table.getTableHeader().setReorderingAllowed(false);
-        table.setFocusable(false);
+        JPanel sectionsPanel = new JPanel(new GridLayout(2, 1, 0, 10));
+        sectionsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        sectionsPanel.add(disappearedSection.container);
+        sectionsPanel.add(ghostSection.container);
 
-        table.getTableHeader().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                int columnIndex = table.getTableHeader().columnAtPoint(e.getPoint());
-                if (columnIndex >= 0 && columnIndex < COLUMN_NAMES.length) {
-                    String clickedColumn = COLUMN_NAMES[columnIndex];
-                    SortDirection newDirection = SortDirection.DESC;
-                    if (clickedColumn.equals(sortColumn)) {
-                        newDirection = sortDirection == SortDirection.DESC ? SortDirection.ASC : SortDirection.DESC;
-                    }
-                    sortColumn = clickedColumn;
-                    sortDirection = newDirection;
-                    refresh();
-                }
-            }
-        });
-
-        table.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (e.isPopupTrigger()) {
-                    showPopup(e);
-                }
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                if (e.isPopupTrigger()) {
-                    showPopup(e);
-                }
-            }
-
-            private void showPopup(MouseEvent e) {
-                int row = table.rowAtPoint(e.getPoint());
-                if (row >= 0 && row < table.getRowCount()) {
-                    table.setRowSelectionInterval(row, row);
-                    showFlipMenu(e, row);
-                }
-            }
-        });
-
-        DefaultTableCellRenderer moneyRenderer = new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                                                           boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (value instanceof Long) {
-                    setText(GP_FORMAT.format((long) (Long) value));
-                    setHorizontalAlignment(RIGHT);
-                } else if (value instanceof String) {
-                    setHorizontalAlignment(CENTER);
-                }
-                return c;
-            }
-        };
-
-        DefaultTableCellRenderer profitRenderer = new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                                                           boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (value instanceof Long) {
-                    long amount = (Long) value;
-                    setText(GP_FORMAT.format(amount));
-                    setHorizontalAlignment(RIGHT);
-                    if (!isSelected) {
-                        if (amount > 0) {
-                            setForeground(config.profitAmountColor());
-                        } else if (amount < 0) {
-                            setForeground(config.lossAmountColor());
-                        } else {
-                            setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-                        }
-                    }
-                }
-                return c;
-            }
-        };
-
-        // Column indices: 0 First buy, 1 Last sell, 2 Item, 3 Status, 4 Bought, 5 Sold,
-        //                 6 Avg buy, 7 Avg sell, 8 Tax, 9 Profit, 10 Profit ea.
-        table.getColumnModel().getColumn(6).setCellRenderer(moneyRenderer);
-        table.getColumnModel().getColumn(7).setCellRenderer(moneyRenderer);
-        table.getColumnModel().getColumn(8).setCellRenderer(moneyRenderer);
-        table.getColumnModel().getColumn(9).setCellRenderer(profitRenderer);
-        table.getColumnModel().getColumn(10).setCellRenderer(moneyRenderer);
-
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-        table.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
-        table.getColumnModel().getColumn(4).setCellRenderer(centerRenderer);
-        table.getColumnModel().getColumn(5).setCellRenderer(centerRenderer);
-
-        JLayeredPane layeredPane = new JLayeredPane();
-        layeredPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        layeredPane.setOpaque(true);
+        cardLayout = new CardLayout();
+        cardPanel = new JPanel(cardLayout);
+        cardPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        cardPanel.add(sectionsPanel, SECTIONS_CARD);
+        cardPanel.add(buildLoginPromptPanel(), LOGIN_PROMPT_CARD);
 
         spinner = new Spinner();
         spinner.show();
@@ -252,20 +168,43 @@ public class MissedFlipsPanel extends JPanel {
         spinnerOverlay.add(spinner);
         spinnerOverlay.setVisible(false);
 
-        emptyStateLabel = new JLabel("Log in to a copilot account to view missed flips.", JLabel.CENTER);
-        emptyStateLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        emptyStateLabel.setVisible(false);
-
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        scrollPane.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
-
+        JLayeredPane layeredPane = new JLayeredPane();
+        layeredPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        layeredPane.setOpaque(true);
         layeredPane.setLayout(new OverlayLayout(layeredPane));
         layeredPane.add(spinnerOverlay, JLayeredPane.MODAL_LAYER);
-        layeredPane.add(emptyStateLabel, JLayeredPane.PALETTE_LAYER);
-        layeredPane.add(scrollPane, JLayeredPane.DEFAULT_LAYER);
+        layeredPane.add(cardPanel, JLayeredPane.DEFAULT_LAYER);
 
         add(layeredPane, BorderLayout.CENTER);
+
+        osrsLoginRS.registerListener(state -> SwingUtilities.invokeLater(this::refresh));
+        geHistoryStateRS.registerListener(state -> SwingUtilities.invokeLater(this::updateGeHistoryStatusLabel));
+        updateGeHistoryStatusLabel();
+    }
+
+    private void updateGeHistoryStatusLabel() {
+        GeHistoryState state = geHistoryStateRS.get();
+        if (state == null || !state.isLoaded() || state.getCapturedAt() <= 0) {
+            geHistoryStatusLabel.setVisible(false);
+            return;
+        }
+        geHistoryStatusLabel.setText("GE history known since " + formatEpoch(state.getCapturedAt()));
+        geHistoryStatusLabel.setVisible(true);
+    }
+
+    private JPanel buildLoginPromptPanel() {
+        JPanel loginPromptPanel = new JPanel(new GridBagLayout());
+        loginPromptPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        JLabel messageLabel = new JLabel("Log into the game to view missed flips");
+        messageLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        messageLabel.setFont(messageLabel.getFont().deriveFont(18f));
+        messageLabel.setHorizontalAlignment(JLabel.CENTER);
+        messageLabel.setMinimumSize(messageLabel.getPreferredSize());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        loginPromptPanel.add(messageLabel, gbc);
+        return loginPromptPanel;
     }
 
     private void setFilteredItems(Set<Integer> items) {
@@ -295,32 +234,437 @@ public class MissedFlipsPanel extends JPanel {
     private void refresh() {
         executorService.submit(() -> {
             Integer accountId = resolveAccountId();
-            List<FlipV2> flips;
+            List<FlipV2> disappearedFlips;
+            List<FlipV2> ghostFlips;
             if (accountId == null) {
-                flips = Collections.emptyList();
+                disappearedFlips = Collections.emptyList();
+                ghostFlips = Collections.emptyList();
             } else {
-                flips = new ArrayList<>(flipsManager.getDisappearedFlipsForAccount(accountId));
+                List<FlipV2> all = new ArrayList<>(flipsManager.getMissedFlipsForAccount(accountId));
+                int cutoff = (int) (Instant.now().getEpochSecond() - MAX_AGE_SECONDS);
+                all.removeIf(f -> f.getUpdatedTime() < cutoff);
                 if (!filteredItems.isEmpty()) {
-                    flips.removeIf(f -> !filteredItems.contains(f.getItemId()));
+                    all.removeIf(f -> !filteredItems.contains(f.getItemId()));
                 }
-                Comparator<FlipV2> comparator = SORT_COMPARATORS.get(sortColumn);
-                if (comparator != null) {
-                    if (sortDirection == SortDirection.ASC) {
-                        comparator = comparator.reversed();
+                disappearedFlips = new ArrayList<>();
+                ghostFlips = new ArrayList<>();
+                for (FlipV2 f : all) {
+                    if (PortfolioId.isDisappeared(f.getPortfolioId())) {
+                        disappearedFlips.add(f);
+                    } else if (f.getPortfolioId() == PortfolioId.GHOST && f.getClosedQuantity() > 0) {
+                        ghostFlips.add(f);
                     }
-                    flips.sort(comparator);
                 }
             }
-            boolean showEmptyState = accountId == null;
-            showFlips(flips, showEmptyState);
+            boolean showLoginPrompt = accountId == null;
+            SwingUtilities.invokeLater(() -> {
+                cardLayout.show(cardPanel, showLoginPrompt ? LOGIN_PROMPT_CARD : SECTIONS_CARD);
+                disappearedSection.update(disappearedFlips);
+                ghostSection.update(ghostFlips);
+            });
         });
     }
 
-    private void showFlips(List<FlipV2> flips, boolean showEmptyState) {
+    private void setSpinnerVisible(boolean visible) {
         SwingUtilities.invokeLater(() -> {
-            currentFlips = flips;
+            spinnerOverlay.setVisible(visible);
+            disappearedSection.table.setEnabled(!visible);
+            ghostSection.table.setEnabled(!visible);
+        });
+    }
+
+    private String formatTimestamp(int epochSeconds) {
+        if (epochSeconds == 0) {
+            return "N/A";
+        }
+        return formatEpoch(epochSeconds);
+    }
+
+    private void resizeColumnWidth(JTable table, int column) {
+        TableColumn tableColumn = table.getColumnModel().getColumn(column);
+        int preferredWidth = tableColumn.getMinWidth();
+        int maxWidth = tableColumn.getMaxWidth();
+        Component comp = table.getTableHeader().getDefaultRenderer()
+                .getTableCellRendererComponent(table, tableColumn.getHeaderValue(), false, false, 0, column);
+        preferredWidth = Math.max(comp.getPreferredSize().width + 10, preferredWidth);
+        for (int row = 0; row < table.getRowCount(); row++) {
+            comp = table.getCellRenderer(row, column)
+                    .getTableCellRendererComponent(table, table.getValueAt(row, column), false, false, row, column);
+            preferredWidth = Math.max(comp.getPreferredSize().width + 10, preferredWidth);
+        }
+        preferredWidth = Math.min(preferredWidth, maxWidth);
+        tableColumn.setPreferredWidth(preferredWidth);
+    }
+
+    private void showFlipMenu(MouseEvent e, JTable table, List<FlipV2> currentFlips, boolean isDisappearedSection, int row) {
+        FlipV2 flip = currentFlips.get(row);
+        JPopupMenu menu = new JPopupMenu();
+        if (isDisappearedSection) {
+            String flipOsrsDisplayName = copilotLoginRS.get().getDisplayName(flip.getAccountId());
+            if (!canAddMissedSell(flipOsrsDisplayName, flip)) {
+                return;
+            }
+            JMenuItem missedSellTransaction = new JMenuItem("Add missed sell transaction");
+            missedSellTransaction.addActionListener(evt -> promptAndSubmitMissedSell(flip));
+            menu.add(missedSellTransaction);
+        } else {
+            JMenuItem reviveFlip = new JMenuItem("Revive this flip");
+            reviveFlip.addActionListener(evt -> promptAndSubmitReviveGhost(flip));
+            menu.add(reviveFlip);
+        }
+        menu.show(e.getComponent(), e.getX(), e.getY());
+    }
+
+    private boolean canAddMissedSell(String flipOsrsDisplayName, FlipV2 flip) {
+        if (flipOsrsDisplayName == null) {
+            return false;
+        }
+        if (FlipStatus.FINISHED.equals(flip.getStatus())) {
+            return false;
+        }
+        if (flip.getOpenedQuantity() - flip.getClosedQuantity() <= 0) {
+            return false;
+        }
+        return osrsLoginRS.get().loggedIn && Objects.equals(flipOsrsDisplayName, osrsLoginRS.get().displayName);
+    }
+
+    private void promptAndSubmitMissedSell(FlipV2 flip) {
+        int qty = flip.getOpenedQuantity() - flip.getClosedQuantity();
+        int suggestedPrice = (int) (flip.getAvgBuyPrice() * 1.02);
+
+        List<GeHistoryRow> sellMatches = findGeHistorySellMatches(flip);
+
+        JPanel dialogPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 0; gbc.gridy = 0;
+        dialogPanel.add(new JLabel("Item:"), gbc);
+        gbc.gridx = 1;
+        dialogPanel.add(new JLabel(flip.getCachedItemName()), gbc);
+        gbc.gridx = 0; gbc.gridy = 1;
+        dialogPanel.add(new JLabel("Quantity:"), gbc);
+        gbc.gridx = 1;
+        dialogPanel.add(new JLabel(String.valueOf(qty)), gbc);
+        gbc.gridx = 0; gbc.gridy = 2;
+        dialogPanel.add(new JLabel("Sell Price:"), gbc);
+
+        JTextField priceField = new JTextField(String.valueOf(suggestedPrice), 10);
+        JComboBox<PriceOption> priceCombo = null;
+        if (!sellMatches.isEmpty()) {
+            priceCombo = new JComboBox<>();
+            for (GeHistoryRow row : sellMatches) {
+                priceCombo.addItem(new PriceOption(row.getPrice(), row.getQuantity(), false));
+            }
+            priceCombo.addItem(new PriceOption(0, 0, true));
+            gbc.gridx = 1;
+            dialogPanel.add(priceCombo, gbc);
+            gbc.gridx = 1; gbc.gridy = 3;
+            dialogPanel.add(priceField, gbc);
+
+            JComboBox<PriceOption> comboRef = priceCombo;
+            applyPriceOption((PriceOption) priceCombo.getSelectedItem(), priceField);
+            priceCombo.addActionListener(e -> applyPriceOption((PriceOption) comboRef.getSelectedItem(), priceField));
+        } else {
+            gbc.gridx = 1;
+            dialogPanel.add(priceField, gbc);
+        }
+
+        int result = JOptionPane.showConfirmDialog(this,
+                dialogPanel,
+                "Add Missed Sell Transaction",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.PLAIN_MESSAGE);
+
+        if (result != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        int price;
+        PriceOption selected = priceCombo == null ? null : (PriceOption) priceCombo.getSelectedItem();
+        if (selected != null && !selected.manual) {
+            price = selected.price;
+        } else {
+            try {
+                price = Integer.parseInt(priceField.getText().trim());
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Please enter a valid number for the price.",
+                        "Invalid Price",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
+        if (price <= 0) {
+            JOptionPane.showMessageDialog(this,
+                    "Price must be a positive number.",
+                    "Invalid Price",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        long avgBuy = flip.getAvgBuyPrice();
+        long estimatedProfit = (long) qty * (ProfitCalculator.getPostTaxPrice(flip.getItemId(), price) - avgBuy);
+        if (!validateProfit(estimatedProfit, flip, price)) {
+            return;
+        }
+
+        setSpinnerVisible(true);
+        log.info("Adding missed sale for flip {} qty={} price={}", flip.getId(), qty, price);
+
+        BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
+            flipsManager.mergeFlips(flips, userId);
+            setSpinnerVisible(false);
+            refresh();
+        };
+        Consumer<HttpResponseException> onFailure = (r) -> {
+            setSpinnerVisible(false);
+            JOptionPane.showMessageDialog(this,
+                    "Failed to add sell transaction. Please try again.",
+                    "Transaction Error",
+                    JOptionPane.ERROR_MESSAGE);
+        };
+        apiRequestHandler.asyncAddMissedSale(flip.getId(), price, qty, onSuccess, onFailure);
+    }
+
+    private List<GeHistoryRow> findGeHistorySellMatches(FlipV2 flip) {
+        GeHistoryState state = geHistoryStateRS.get();
+        if (state == null || !state.isLoaded() || state.getCapturedAt() <= flip.getUpdatedTime()) {
+            return Collections.emptyList();
+        }
+        List<GeHistoryRow> matches = new ArrayList<>();
+        for (GeHistoryRow row : state.getRows()) {
+            if (!row.isBuy() && row.getItemId() == flip.getItemId()) {
+                matches.add(row);
+            }
+        }
+        return matches;
+    }
+
+    private static void applyPriceOption(PriceOption option, JTextField priceField) {
+        if (option == null) {
+            return;
+        }
+        if (option.manual) {
+            priceField.setEnabled(true);
+        } else {
+            priceField.setText(String.valueOf(option.price));
+            priceField.setEnabled(false);
+        }
+    }
+
+    private static class PriceOption {
+        final int price;
+        final int quantity;
+        final boolean manual;
+
+        PriceOption(int price, int quantity, boolean manual) {
+            this.price = price;
+            this.quantity = quantity;
+            this.manual = manual;
+        }
+
+        @Override
+        public String toString() {
+            if (manual) {
+                return "Manual...";
+            }
+            return String.format(Locale.US, "%,d gp (qty %d)", price, quantity);
+        }
+    }
+
+    private void promptAndSubmitReviveGhost(FlipV2 flip) {
+        int result = JOptionPane.showConfirmDialog(this,
+                "Revive this ghost flip into your copilot portfolio?\n"
+                        + "Item: " + flip.getCachedItemName(),
+                "Confirm Revive",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        if (result != JOptionPane.YES_OPTION) {
+            return;
+        }
+        setSpinnerVisible(true);
+        log.info("reviving ghost flip {}", flip.getId());
+        BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
+            flipsManager.mergeFlips(flips, userId);
+            setSpinnerVisible(false);
+            refresh();
+        };
+        Consumer<HttpResponseException> onFailure = (r) -> {
+            setSpinnerVisible(false);
+            JOptionPane.showMessageDialog(this,
+                    "Failed to revive flip. Please try again.",
+                    "Revive Error",
+                    JOptionPane.ERROR_MESSAGE);
+        };
+        apiRequestHandler.asyncReviveGhostFlip(flip.getId(), onSuccess, onFailure);
+    }
+
+    private boolean validateProfit(long profit, FlipV2 flip, int price) {
+        long absProfit = Math.abs(profit);
+        long avgBuyPrice = flip.getAvgBuyPrice();
+        if (absProfit > 10_000_000L || (avgBuyPrice > 0 && price > avgBuyPrice * 5L)) {
+            JOptionPane.showMessageDialog(this,
+                    "The estimated profit/loss (" + GP_FORMAT.format(absProfit) + " gp) is too large. " +
+                            "Please double-check the sell price.",
+                    "Profit Too Large",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        return true;
+    }
+
+    private class Section {
+        final JPanel container;
+        final JTable table;
+        final DefaultTableModel tableModel;
+        final boolean isDisappearedSection;
+        List<FlipV2> currentFlips = new ArrayList<>();
+        String sortColumn = "Last sell time";
+        SortDirection sortDirection = SortDirection.DESC;
+
+        Section(String title, boolean isDisappearedSection) {
+            this.isDisappearedSection = isDisappearedSection;
+
+            tableModel = new DefaultTableModel(COLUMN_NAMES, 0) {
+                @Override
+                public boolean isCellEditable(int row, int column) {
+                    return false;
+                }
+            };
+
+            table = new JTable(tableModel);
+            table.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            table.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            table.setSelectionBackground(ColorScheme.BRAND_ORANGE);
+            table.setSelectionForeground(Color.WHITE);
+            table.setGridColor(ColorScheme.MEDIUM_GRAY_COLOR);
+            table.setRowHeight(25);
+            table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+            table.setRowSorter(null);
+            table.getTableHeader().setReorderingAllowed(false);
+            table.setFocusable(false);
+
+            table.getTableHeader().addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    int columnIndex = table.getTableHeader().columnAtPoint(e.getPoint());
+                    if (columnIndex >= 0 && columnIndex < COLUMN_NAMES.length) {
+                        String clickedColumn = COLUMN_NAMES[columnIndex];
+                        SortDirection newDirection = SortDirection.DESC;
+                        if (clickedColumn.equals(sortColumn)) {
+                            newDirection = sortDirection == SortDirection.DESC ? SortDirection.ASC : SortDirection.DESC;
+                        }
+                        sortColumn = clickedColumn;
+                        sortDirection = newDirection;
+                        rerender();
+                    }
+                }
+            });
+
+            table.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    if (e.isPopupTrigger()) {
+                        showPopup(e);
+                    }
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    if (e.isPopupTrigger()) {
+                        showPopup(e);
+                    }
+                }
+
+                private void showPopup(MouseEvent e) {
+                    int row = table.rowAtPoint(e.getPoint());
+                    if (row >= 0 && row < table.getRowCount()) {
+                        table.setRowSelectionInterval(row, row);
+                        showFlipMenu(e, table, currentFlips, Section.this.isDisappearedSection, row);
+                    }
+                }
+            });
+
+            DefaultTableCellRenderer moneyRenderer = new DefaultTableCellRenderer() {
+                @Override
+                public Component getTableCellRendererComponent(JTable table, Object value,
+                                                               boolean isSelected, boolean hasFocus, int row, int column) {
+                    Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                    if (value instanceof Long) {
+                        setText(GP_FORMAT.format((long) (Long) value));
+                        setHorizontalAlignment(RIGHT);
+                    } else if (value instanceof String) {
+                        setHorizontalAlignment(CENTER);
+                    }
+                    return c;
+                }
+            };
+
+            DefaultTableCellRenderer profitRenderer = new DefaultTableCellRenderer() {
+                @Override
+                public Component getTableCellRendererComponent(JTable table, Object value,
+                                                               boolean isSelected, boolean hasFocus, int row, int column) {
+                    Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                    if (value instanceof Long) {
+                        long amount = (Long) value;
+                        setText(GP_FORMAT.format(amount));
+                        setHorizontalAlignment(RIGHT);
+                        if (!isSelected) {
+                            if (amount > 0) {
+                                setForeground(config.profitAmountColor());
+                            } else if (amount < 0) {
+                                setForeground(config.lossAmountColor());
+                            } else {
+                                setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+                            }
+                        }
+                    }
+                    return c;
+                }
+            };
+
+            table.getColumnModel().getColumn(6).setCellRenderer(moneyRenderer);
+            table.getColumnModel().getColumn(7).setCellRenderer(moneyRenderer);
+            table.getColumnModel().getColumn(8).setCellRenderer(moneyRenderer);
+            table.getColumnModel().getColumn(9).setCellRenderer(profitRenderer);
+            table.getColumnModel().getColumn(10).setCellRenderer(moneyRenderer);
+
+            DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+            centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+            table.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
+            table.getColumnModel().getColumn(4).setCellRenderer(centerRenderer);
+            table.getColumnModel().getColumn(5).setCellRenderer(centerRenderer);
+
+            JLabel titleLabel = new JLabel(title);
+            titleLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            titleLabel.setBorder(new EmptyBorder(10, 8, 10, 8));
+
+            JScrollPane scrollPane = new JScrollPane(table);
+            scrollPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            scrollPane.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+            container = new JPanel(new BorderLayout());
+            container.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            container.add(titleLabel, BorderLayout.NORTH);
+            container.add(scrollPane, BorderLayout.CENTER);
+        }
+
+        void update(List<FlipV2> flips) {
+            currentFlips = new ArrayList<>(flips);
+            rerender();
+        }
+
+        private void rerender() {
+            Comparator<FlipV2> comparator = SORT_COMPARATORS.get(sortColumn);
+            if (comparator != null) {
+                if (sortDirection == SortDirection.ASC) {
+                    comparator = comparator.reversed();
+                }
+                currentFlips.sort(comparator);
+            }
             tableModel.setRowCount(0);
-            for (FlipV2 flip : flips) {
+            for (FlipV2 flip : currentFlips) {
                 long profitPerItem = flip.getClosedQuantity() > 0 ? flip.getProfit() / flip.getClosedQuantity() : 0L;
                 long avgBuy = flip.getOpenedQuantity() > 0 ? flip.getSpent() / flip.getOpenedQuantity() : 0L;
                 long avgSell = flip.getClosedQuantity() == 0 ? 0L : (flip.getReceivedPostTax() + flip.getTaxPaid()) / flip.getClosedQuantity();
@@ -342,185 +686,6 @@ public class MissedFlipsPanel extends JPanel {
             for (int i = 0; i < table.getColumnCount(); i++) {
                 resizeColumnWidth(table, i);
             }
-            emptyStateLabel.setVisible(showEmptyState);
-            table.setVisible(!showEmptyState);
-        });
-    }
-
-    private void resizeColumnWidth(JTable table, int column) {
-        TableColumn tableColumn = table.getColumnModel().getColumn(column);
-        int preferredWidth = tableColumn.getMinWidth();
-        int maxWidth = tableColumn.getMaxWidth();
-        Component comp = table.getTableHeader().getDefaultRenderer()
-                .getTableCellRendererComponent(table, tableColumn.getHeaderValue(), false, false, 0, column);
-        preferredWidth = Math.max(comp.getPreferredSize().width + 10, preferredWidth);
-        for (int row = 0; row < table.getRowCount(); row++) {
-            comp = table.getCellRenderer(row, column)
-                    .getTableCellRendererComponent(table, table.getValueAt(row, column), false, false, row, column);
-            preferredWidth = Math.max(comp.getPreferredSize().width + 10, preferredWidth);
         }
-        preferredWidth = Math.min(preferredWidth, maxWidth);
-        tableColumn.setPreferredWidth(preferredWidth);
-    }
-
-    private String formatTimestamp(int epochSeconds) {
-        if (epochSeconds == 0) {
-            return "N/A";
-        }
-        return formatEpoch(epochSeconds);
-    }
-
-    private void setSpinnerVisible(boolean visible) {
-        SwingUtilities.invokeLater(() -> {
-            spinnerOverlay.setVisible(visible);
-            table.setEnabled(!visible);
-        });
-    }
-
-    private void showFlipMenu(MouseEvent e, int row) {
-        FlipV2 flip = currentFlips.get(row);
-
-        JPopupMenu menu = new JPopupMenu();
-        JMenuItem visualizeFlip = new JMenuItem("Visualize flip");
-        visualizeFlip.addActionListener(evt -> onVisualizeFlip.accept(flip));
-        menu.add(visualizeFlip);
-
-        JMenuItem deleteItem = new JMenuItem("Delete flip");
-        deleteItem.addActionListener(evt -> {
-            int result = JOptionPane.showConfirmDialog(this,
-                    "Are you sure you want to delete this flip?",
-                    "Confirm Delete",
-                    JOptionPane.YES_NO_OPTION);
-            if (result == JOptionPane.YES_OPTION) {
-                setSpinnerVisible(true);
-                log.info("deleting flip with ID: {}", flip.getId());
-                Consumer<FlipV2> onSuccess = (f) -> {
-                    flipsManager.mergeFlips(Collections.singletonList(f), copilotLoginRS.get().getUserId());
-                    setSpinnerVisible(false);
-                    refresh();
-                };
-                apiRequestHandler.asyncDeleteFlip(flip, onSuccess, () -> setSpinnerVisible(false));
-            }
-        });
-        menu.add(deleteItem);
-
-        String flipOsrsDisplayName = copilotLoginRS.get().getDisplayName(flip.getAccountId());
-        if (canAddMissedSell(flipOsrsDisplayName, flip)) {
-            JMenuItem missedSellTransaction = new JMenuItem("Add missed sell transaction");
-            missedSellTransaction.addActionListener(evt -> promptAndSubmitMissedSell(flip, flipOsrsDisplayName));
-            menu.add(missedSellTransaction);
-        }
-        menu.show(e.getComponent(), e.getX(), e.getY());
-    }
-
-    private boolean canAddMissedSell(String flipOsrsDisplayName, FlipV2 flip) {
-        if (flipOsrsDisplayName == null) {
-            return false;
-        }
-        if (FlipStatus.FINISHED.equals(flip.getStatus())) {
-            return false;
-        }
-        if (flip.getOpenedQuantity() - flip.getClosedQuantity() <= 0) {
-            return false;
-        }
-        return osrsLoginRS.get().loggedIn && Objects.equals(flipOsrsDisplayName, osrsLoginRS.get().displayName);
-    }
-
-    private void promptAndSubmitMissedSell(FlipV2 flip, String flipOsrsDisplayName) {
-        int qty = flip.getOpenedQuantity() - flip.getClosedQuantity();
-        int suggestedPrice = (int) (flip.getAvgBuyPrice() * 1.02);
-
-        JPanel dialogPanel = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.gridx = 0; gbc.gridy = 0;
-        dialogPanel.add(new JLabel("Item:"), gbc);
-        gbc.gridx = 1;
-        dialogPanel.add(new JLabel(flip.getCachedItemName()), gbc);
-        gbc.gridx = 0; gbc.gridy = 1;
-        dialogPanel.add(new JLabel("Quantity:"), gbc);
-        gbc.gridx = 1;
-        dialogPanel.add(new JLabel(String.valueOf(qty)), gbc);
-        gbc.gridx = 0; gbc.gridy = 2;
-        dialogPanel.add(new JLabel("Sell Price:"), gbc);
-        gbc.gridx = 1;
-        JTextField priceField = new JTextField(String.valueOf(suggestedPrice), 10);
-        dialogPanel.add(priceField, gbc);
-
-        int result = JOptionPane.showConfirmDialog(this,
-                dialogPanel,
-                "Add Missed Sell Transaction",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.PLAIN_MESSAGE);
-
-        if (result != JOptionPane.YES_OPTION) {
-            return;
-        }
-        try {
-            int price = Integer.parseInt(priceField.getText().trim());
-            if (price <= 0) {
-                JOptionPane.showMessageDialog(this,
-                        "Price must be a positive number.",
-                        "Invalid Price",
-                        JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            setSpinnerVisible(true);
-            log.info("Adding missed sell transaction for flip with ID: {}", flip.getId());
-
-            Transaction t = new Transaction();
-            t.setId(UUID.randomUUID());
-            t.setType(OfferStatus.SELL);
-            t.setItemId(flip.getItemId());
-            t.setPrice(price);
-            t.setQuantity(qty);
-            t.setBoxId(0);
-            t.setAmountSpent((long) price * qty);
-            t.setTimestamp(Instant.now());
-            t.setCopilotPriceUsed(true);
-            t.setWasCopilotSuggestion(true);
-            t.setOfferTotalQuantity(qty);
-
-            Long profit = flipsManager.estimateTransactionProfit(flip.getAccountId(), t);
-            if (profit == null || !validateProfit(profit, flip, price)) {
-                setSpinnerVisible(false);
-                return;
-            }
-
-            BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
-                flipsManager.mergeFlips(flips, userId);
-                setSpinnerVisible(false);
-                refresh();
-            };
-            Consumer<HttpResponseException> onFailure = (r) -> {
-                setSpinnerVisible(false);
-                JOptionPane.showMessageDialog(this,
-                        "Failed to add sell transaction. Please try again.",
-                        "Transaction Error",
-                        JOptionPane.ERROR_MESSAGE);
-            };
-            apiRequestHandler.sendTransactionsAsync(List.of(t), flipOsrsDisplayName, onSuccess, onFailure);
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this,
-                    "Please enter a valid number for the price.",
-                    "Invalid Price",
-                    JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private boolean validateProfit(long profit, FlipV2 flip, int price) {
-        long absProfit = Math.abs(profit);
-        long avgBuyPrice = flip.getAvgBuyPrice();
-        if (absProfit > 10_000_000L || (avgBuyPrice > 0 && price > avgBuyPrice * 5L)) {
-            JOptionPane.showMessageDialog(this,
-                    "The estimated profit/loss (" + GP_FORMAT.format(absProfit) + " gp) is too large. " +
-                            "Please double-check the sell price.",
-                    "Profit Too Large",
-                    JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        return true;
     }
 }

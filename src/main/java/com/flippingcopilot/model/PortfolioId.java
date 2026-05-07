@@ -26,4 +26,8 @@ public final class PortfolioId {
                 || portfolioId == DISAPPEARED_GHOST
                 || portfolioId == DISAPPEARED_PERSONAL;
     }
+
+    public static boolean isMissed(int portfolioId) {
+        return portfolioId == GHOST || isDisappeared(portfolioId);
+    }
 }

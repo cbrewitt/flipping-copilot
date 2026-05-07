@@ -8,6 +8,7 @@ import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.rs.BankStateRS;
+import com.flippingcopilot.rs.GeHistoryStateRS;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import com.flippingcopilot.ui.graph.model.PriceLine;
 import com.google.inject.name.Named;
@@ -39,6 +40,7 @@ public class FlipsDialogController {
     private final OsrsLoginRS osrsLoginRS;
     private final PortfolioStateRS portfolioStateRS;
     private final BankStateRS bankStateRS;
+    private final GeHistoryStateRS geHistoryStateRS;
     private final ClientThread clientThread;
 
     public PriceGraphPanel priceGraphPanel;
@@ -63,6 +65,7 @@ public class FlipsDialogController {
             OsrsLoginRS osrsLoginRS,
             PortfolioStateRS portfolioStateRS,
             BankStateRS bankStateRS,
+            GeHistoryStateRS geHistoryStateRS,
             ClientThread clientThread) {
         this.itemController = itemController;
         this.flipsManager = flipsManager;
@@ -77,6 +80,7 @@ public class FlipsDialogController {
         this.osrsLoginRS = osrsLoginRS;
         this.portfolioStateRS = portfolioStateRS;
         this.bankStateRS = bankStateRS;
+        this.geHistoryStateRS = geHistoryStateRS;
         this.clientThread = clientThread;
     }
 
@@ -96,7 +100,7 @@ public class FlipsDialogController {
                 showVisualizeFlip(f);
             });
             missedFlipsPanel = new MissedFlipsPanel(osrsLoginRS, flipsManager, itemController, copilotLoginRS,
-                    executorService, config, apiRequestHandler, this::showVisualizeFlip);
+                    executorService, config, apiRequestHandler, geHistoryStateRS);
             ItemAggregatePanel itemsPanel = new ItemAggregatePanel(flipsManager, itemController,
                     copilotLoginRS, executorService, config);
             AccountsAggregatePanel accountsPanel = new AccountsAggregatePanel(flipsManager, copilotLoginRS,
@@ -128,13 +132,13 @@ public class FlipsDialogController {
             );
             tabbedPane.addTab("Portfolio", portfolioPanel);
             tabbedPane.addTab("Flips", flipsPanel);
-            tabbedPane.addTab("Missed flips", missedFlipsPanel);
             tabbedPane.addTab("Items", itemsPanel);
             tabbedPane.addTab("Accounts", accountsPanel);
             tabbedPane.addTab("Profit graph", profitPanel);
             tabbedPane.addTab("Transactions", transactionsPanel);
             tabbedPane.addTab("Price graph", priceGraphPanel);
             tabbedPane.addTab("Visualize flip", visualizeFlipPanel);
+            tabbedPane.addTab("Missed flips", missedFlipsPanel);
 
 
             JDialog dialog = new JDialog(windowAncestor);
@@ -153,22 +157,22 @@ public class FlipsDialogController {
                         flipsPanel.onTabShown();
                         break;
                     case 2:
-                        missedFlipsPanel.onTabShown();
-                        break;
-                    case 3:
                         itemsPanel.onTabShown();
                         break;
-                    case 4:
+                    case 3:
                         accountsPanel.onTabShown();
                         break;
-                    case 5:
+                    case 4:
                         profitPanel.refreshGraph(true);
                         break;
-                    case 6:
+                    case 5:
                         transactionsPanel.loadTransactionsIfNeeded();
                         break;
-                    case 7:
+                    case 6:
                         priceGraphPanel.onTabShown();
+                        break;
+                    case 8:
+                        missedFlipsPanel.onTabShown();
                         break;
                 }
             });
@@ -187,7 +191,7 @@ public class FlipsDialogController {
     }
 
     public void showPriceGraphTab(Integer openOnPriceGraphItemId, boolean suggestionPriceGraph, PriceLine priceLine) {
-        tabbedPane.setSelectedIndex(7);
+        tabbedPane.setSelectedIndex(6);
         if(openOnPriceGraphItemId != null) {
             priceGraphPanel.isShowingSuggestionPriceData = false;
             priceGraphPanel.searchBox.setItem(new ItemIdName(openOnPriceGraphItemId, itemController.getItemName(openOnPriceGraphItemId)));
@@ -217,7 +221,7 @@ public class FlipsDialogController {
             return;
         }
         visualizeFlipPanel.showFlipVisualization(flip);
-        tabbedPane.setSelectedIndex(8);
+        tabbedPane.setSelectedIndex(7);
         dialog.setVisible(true);
     }
 }

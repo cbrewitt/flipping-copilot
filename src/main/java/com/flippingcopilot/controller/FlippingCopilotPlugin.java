@@ -5,6 +5,7 @@ import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.FlippingCopilotConfigRS;
+import com.flippingcopilot.rs.GeHistoryStateRS;
 import com.flippingcopilot.rs.GrandExchangeOpenRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.ui.*;
@@ -106,8 +107,6 @@ public class FlippingCopilotPlugin extends Plugin {
 	private TooltipController tooltipController;
   	@Inject
 	private MenuHandler menuHandler;
-    @Inject
-	private GeHistoryTabController geHistoryTabController;
 	@Inject
 	private FlipsDialogController flipsDialogController;
 	@Inject
@@ -128,6 +127,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	private InventoryPortfolioBadgeOverlay inventoryPortfolioBadgeOverlay;
 	@Inject
 	private BankStateRS bankStateRS;
+	@Inject
+	private GeHistoryStateRS geHistoryStateRS;
 	@Inject
 	private PatchNotesController patchNotesController;
 	@Inject
@@ -257,6 +258,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Subscribe
 	public void onGameTick(GameTick event) {
 		bankStateRS.onGameTick();
+		geHistoryStateRS.onGameTick(client);
 		grandExchangeOpenRS.set(grandExchange.isOpen());
 
 		suggestionController.onGameTick();
@@ -292,19 +294,11 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onWidgetLoaded(WidgetLoaded event) {
-		if (event.getGroupId() == 383) {
-			clientThread.invokeLater(() -> {
-				geHistoryTabController.onGeHistoryTabOpened();
-			});
-		}
 		gameUiChangesHandler.onWidgetLoaded(event);
 	}
 
 	@Subscribe
 	public void onWidgetClosed(WidgetClosed event) {
-		if (event.getGroupId() == 383) {
-			geHistoryTabController.onGeHistoryTabClosed();
-		}
 		gameUiChangesHandler.onWidgetClosed(event);
 	}
 
@@ -326,7 +320,6 @@ public class FlippingCopilotPlugin extends Plugin {
 				sessionManager.reset();
 				suggestionManager.reset();
 				osrsLoginManager.reset();
-				geHistoryTabController.onGeHistoryTabClosed();
 				accountStatusManager.reset();
 				grandExchangeUncollectedManager.reset();
 				statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());

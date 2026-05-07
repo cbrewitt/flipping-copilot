@@ -326,14 +326,14 @@ public class MenuHandler {
 
     private boolean isGeTradableItem(int itemId) {
         ItemComposition item = client.getItemDefinition(itemId);
-        if (ItemController.IsTradeable(item)) {
+        if (item.isGeTradeable()) {
             return true;
         }
         if (item.getNote() != -1) {
             int unnotedItemId = item.getLinkedNoteId();
             if (unnotedItemId > 0) {
                 ItemComposition unnoted = client.getItemDefinition(unnotedItemId);
-                return ItemController.IsTradeable(unnoted);
+                return unnoted.isGeTradeable();
             }
         }
         return false;

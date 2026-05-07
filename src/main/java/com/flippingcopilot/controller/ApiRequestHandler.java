@@ -3,6 +3,7 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.graph.model.Data;
+import com.flippingcopilot.util.ProtoUtils;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Singleton;
@@ -565,6 +566,69 @@ public class ApiRequestHandler {
                     log.error("deleting flip {}", flip.getId(), e);
                     onFailure.run();
                }
+            }
+        });
+    }
+
+    public void asyncAddMissedSale(UUID flipId, int price, int quantity,
+                                   BiConsumer<Integer, List<FlipV2>> onSuccess,
+                                   Consumer<HttpResponseException> onFailure) {
+        byte[] body = ProtoUtils.encodeMessage(out -> {
+            out.writeByteArray(1, ProtoUtils.uuidToBytes(flipId));
+            out.writeInt32(2, price);
+            out.writeInt32(3, quantity);
+        });
+        postProtoExpectingFlips("/profit-tracking/add-missed-sale", body,
+                "add missed sale flip=" + flipId, onSuccess, onFailure);
+    }
+
+    public void asyncReviveGhostFlip(UUID flipId,
+                                     BiConsumer<Integer, List<FlipV2>> onSuccess,
+                                     Consumer<HttpResponseException> onFailure) {
+        byte[] body = ProtoUtils.encodeMessage(out -> {
+            out.writeByteArray(1, ProtoUtils.uuidToBytes(flipId));
+        });
+        postProtoExpectingFlips("/profit-tracking/revive-ghost-flip", body,
+                "revive ghost flip=" + flipId, onSuccess, onFailure);
+    }
+
+    private void postProtoExpectingFlips(String path, byte[] body, String logLabel,
+                                         BiConsumer<Integer, List<FlipV2>> onSuccess,
+                                         Consumer<HttpResponseException> onFailure) {
+        Integer userId = copilotLoginRS.get().getUserId();
+        String jwtToken = copilotLoginRS.get().getJwtToken();
+        Request request = new Request.Builder()
+                .url(serverUrl + path)
+                .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Accept", "application/protobuf")
+                .post(RequestBody.create(MediaType.get("application/protobuf"), body))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                log.warn("{} failed", logLabel, e);
+                onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                try {
+                    if (!response.isSuccessful()) {
+                        if (response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
+                            copilotLoginRS.clear();
+                        }
+                        String errorMessage = extractErrorMessage(response);
+                        log.warn("{} failed status={} error={}", logLabel, response.code(), errorMessage);
+                        onFailure.accept(new HttpResponseException(response.code(), errorMessage));
+                        return;
+                    }
+                    List<FlipV2> flips = FlipV2.listDecodeProto(response.body().bytes());
+                    onSuccess.accept(userId, flips);
+                } catch (Exception e) {
+                    log.warn("error parsing {} response", logLabel, e);
+                    onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
+                }
             }
         });
     }

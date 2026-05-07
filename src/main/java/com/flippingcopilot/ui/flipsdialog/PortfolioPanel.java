@@ -564,7 +564,12 @@ public class PortfolioPanel extends JPanel {
         JLabel messageLabel = new JLabel("Log into the game to see account portfolio");
         messageLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
         messageLabel.setFont(messageLabel.getFont().deriveFont(18f));
-        loginPromptPanel.add(messageLabel);
+        messageLabel.setHorizontalAlignment(JLabel.CENTER);
+        messageLabel.setMinimumSize(messageLabel.getPreferredSize());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        loginPromptPanel.add(messageLabel, gbc);
         return loginPromptPanel;
     }
 

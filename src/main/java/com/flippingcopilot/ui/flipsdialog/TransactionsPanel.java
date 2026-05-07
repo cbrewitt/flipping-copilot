@@ -452,10 +452,17 @@ public class TransactionsPanel extends JPanel {
                     paidReceived,
                     calculateTax(tx),
                     priceEa,
-                    !ZERO_UUID.equals(tx.getClientFlipId()),
+                    isPartOfFlip(tx),
             };
             tableModel.addRow(row);
         }
+    }
+
+    private boolean isPartOfFlip(AckedTransaction tx) {
+        if (ZERO_UUID.equals(tx.getClientFlipId())) {
+            return false;
+        }
+        return !flipManager.isGhostFlip(tx.getAccountId(), tx.getClientFlipId());
     }
 
     private long calculateTax(AckedTransaction tx) {
@@ -474,7 +481,7 @@ public class TransactionsPanel extends JPanel {
         AckedTransaction transaction = currentTransactions.get(row);
         JPopupMenu menu = new JPopupMenu();
 
-        if (!ZERO_UUID.equals(transaction.getClientFlipId())) {
+        if (isPartOfFlip(transaction)) {
             JMenuItem orphanItem = new JMenuItem("Remove from flip");
             orphanItem.addActionListener(evt -> {
                 int result = JOptionPane.showConfirmDialog(this,
@@ -579,7 +586,7 @@ public class TransactionsPanel extends JPanel {
                                             String.valueOf(paidReceived),
                                             String.valueOf(tax),
                                             String.valueOf(priceEa),
-                                            !ZERO_UUID.equals(tx.getClientFlipId()) ? "YES" : "NO"
+                                            isPartOfFlip(tx) ? "YES" : "NO"
                                     );
                                     writer.write( "\n"+ row);
                                 } catch (IOException e) {

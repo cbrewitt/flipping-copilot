@@ -7,9 +7,12 @@ import com.google.protobuf.WireFormat;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
+import java.util.UUID;
 
 public final class ProtoUtils {
 
@@ -29,6 +32,13 @@ public final class ProtoUtils {
     @FunctionalInterface
     public interface MessageWriter {
         void write(CodedOutputStream out) throws IOException;
+    }
+
+    public static byte[] uuidToBytes(UUID uuid) {
+        ByteBuffer b = ByteBuffer.allocate(16).order(ByteOrder.BIG_ENDIAN);
+        b.putLong(uuid.getMostSignificantBits());
+        b.putLong(uuid.getLeastSignificantBits());
+        return b.array();
     }
 
     public static byte[] encodeMessage(MessageWriter messageWriter) {
