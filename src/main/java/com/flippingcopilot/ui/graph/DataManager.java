@@ -91,10 +91,11 @@ public class DataManager {
         int xMin = flipEntryDatapoints.isEmpty() ? maxBounds.xMax - 4*Constants.DAY_SECONDS : minEntryTime;
         int range = xMax - xMin;
         if(!flipEntryDatapoints.isEmpty()) {
-            xMin -= Math.max(range / 10, Constants.FIVE_MIN_SECONDS);
+            xMin -= Math.max(range / 10, Constants.DAY_SECONDS);
         }
         if(!flipCloseDatapoints.isEmpty()) {
-            xMax += Math.max(range / 10, Constants.FIVE_MIN_SECONDS);
+            xMax += Math.max(range / 10, Constants.DAY_SECONDS);
+            xMax = Math.min(xMax, maxBounds.xMax);
         }
         int finalXMax = xMax;
         int finalXMin = xMin;
