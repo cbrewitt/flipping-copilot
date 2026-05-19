@@ -308,7 +308,7 @@ public class FlipManager {
 
     private void updateMissedFlip(FlipV2 flip) {
         if (flip.getPortfolioId() < 0) {
-            log.info("missed-flip candidate: account={} item={} id={} portfolio_id={} deleted={} status={}",
+            log.debug("missed-flip candidate: account={} item={} id={} portfolio_id={} deleted={} status={}",
                     flip.getAccountId(), flip.getItemId(), flip.getId(),
                     flip.getPortfolioId(), flip.isDeleted(), flip.getStatus());
         }
