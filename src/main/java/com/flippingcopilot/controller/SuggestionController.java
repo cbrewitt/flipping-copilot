@@ -62,6 +62,14 @@ public class SuggestionController {
     private CopilotPanel copilotPanel;
     private SuggestionPanel suggestionPanel;
 
+    public void skipSuggestion() {
+        if (accountStatusManager.skipCurrentSuggestion()) {
+            if (suggestionPanel != null) {
+                suggestionPanel.refresh();
+            }
+        }
+    }
+
     public void togglePause() {
         if (pausedManager.isPaused()) {
             pausedManager.setPaused(false);
@@ -136,6 +144,7 @@ public class SuggestionController {
     public void getSuggestionAsync() {
         suggestionManager.setSuggestionNeeded(false);
         if (!copilotLoginRS.get().isLoggedIn() || !osrsLoginManager.isValidLoginState()) {
+            suggestionManager.setSuggestionRefreshPending(false);
             return;
         }
         if (suggestionManager.isSuggestionRequestInProgress()) {
@@ -143,13 +152,16 @@ public class SuggestionController {
         }
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (accountStatus == null) {
+            suggestionManager.setSuggestionRefreshPending(false);
             return;
         }
         Suggestion oldSuggestion = suggestionManager.getSuggestion();
         if (oldSuggestion != null && oldSuggestion.isRecentUnActionedDumpAlert()) {
+            suggestionManager.setSuggestionRefreshPending(false);
             return;
         }
         suggestionManager.setSuggestionRequestInProgress(true);
+        suggestionManager.setSuggestionRefreshPending(false);
         boolean skipGraphData = config.lowDataMode();
         suggestionManager.setGraphDataReadingInProgress(!skipGraphData);
         Consumer<Suggestion> suggestionConsumer = (newSuggestion) -> handleSuggestionReceived(oldSuggestion, newSuggestion, accountStatus);

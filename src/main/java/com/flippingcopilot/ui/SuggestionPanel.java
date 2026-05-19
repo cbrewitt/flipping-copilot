@@ -248,7 +248,7 @@ public class SuggestionPanel extends JPanel {
         BufferedImage skipIcon = ImageUtil.loadImageResource(getClass(), "/skip.png");
         skipButton = buildButton(skipIcon, "Skip suggestion", () -> {
             if (accountStatusManager.skipCurrentSuggestion()) {
-                showLoading();
+                refresh();
             }
         });
         centerPanel.add(skipButton);
@@ -317,7 +317,7 @@ public class SuggestionPanel extends JPanel {
         }
         String additionalInfoMessage = Strings.isNullOrEmpty(suggestion.getMessage()) ? "" : "<br>" + suggestion.getMessage();
 
-        suggestionString += "</center><html>";
+        suggestionString += "</center></html>";
         innerSuggestionMessage = "";
         if (!suggestion.isWaitSuggestion()) {
             setButtonsVisible(true);
@@ -506,7 +506,7 @@ public class SuggestionPanel extends JPanel {
             return;
         }
 
-        if(suggestionManager.isSuggestionRequestInProgress()) {
+        if(suggestionManager.isSuggestionRequestInProgress() || suggestionManager.isSuggestionRefreshPending()) {
             showLoading();
             return;
         }

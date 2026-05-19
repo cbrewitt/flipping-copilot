@@ -1,7 +1,6 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.model.AccountStatusManager;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import net.runelite.api.Client;
@@ -27,13 +26,13 @@ public class KeybindHandler {
     private final Client client;
     private final GrandExchange grandExchange;
     private final OfferHandler offerHandler;
-    private final AccountStatusManager accountStatusManager;
+    private final SuggestionController suggestionController;
     private final FlipsDialogController flipsDialogController;
     private final KeyListener keyListener;
 
 
     @Inject
-    public KeybindHandler(KeyManager keyManager, FlippingCopilotConfig config, ClientThread clientThread, SuggestionManager suggestionManager, Client client, GrandExchange grandExchange, OfferHandler offerHandler, AccountStatusManager accountStatusManager, FlipsDialogController flipsDialogController) {
+    public KeybindHandler(KeyManager keyManager, FlippingCopilotConfig config, ClientThread clientThread, SuggestionManager suggestionManager, Client client, GrandExchange grandExchange, OfferHandler offerHandler, SuggestionController suggestionController, FlipsDialogController flipsDialogController) {
         this.keyManager = keyManager;
         this.config = config;
         this.clientThread = clientThread;
@@ -41,7 +40,7 @@ public class KeybindHandler {
         this.client = client;
         this.grandExchange = grandExchange;
         this.offerHandler = offerHandler;
-        this.accountStatusManager = accountStatusManager;
+        this.suggestionController = suggestionController;
         this.flipsDialogController = flipsDialogController;
         this.keyListener = createKeyListener();
         keyManager.registerKeyListener(keyListener);
@@ -95,7 +94,7 @@ public class KeybindHandler {
                 }
 
                 if (skipSuggestionPressed && !isPriceOrQuantityBoxOpen) {
-                    accountStatusManager.skipCurrentSuggestion();
+                    suggestionController.skipSuggestion();
                     return;
                 }
 

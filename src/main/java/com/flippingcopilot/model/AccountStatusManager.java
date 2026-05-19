@@ -162,6 +162,7 @@ public class AccountStatusManager {
         suggestion.actionedTick = client.getTickCount();
         skipSuggestion = suggestion.getId();
         log.info("skipping suggestion {}", skipSuggestion);
+        suggestionManager.setSuggestionRefreshPending(true);
         suggestionManager.setSuggestionNeeded(true);
         return true;
     }
