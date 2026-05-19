@@ -17,7 +17,6 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.LinkBrowser;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -236,22 +235,7 @@ public class SuggestionPanel extends JPanel {
         centerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
-        graphButton = buildButton(graphIcon, "Price graph", () -> {
-            if(config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT)) {
-                Suggestion suggestion = suggestionManager.getSuggestion();
-                if(isSuggestionWithoutGraphData(suggestion)) {
-                    flipsDialogController.showPriceGraphTab(suggestion.getItemId(), false, null);
-                } else if(suggestion != null && !suggestion.isWaitSuggestion()) {
-                    flipsDialogController.showPriceGraphTab(null, true, null);
-                } else {
-                    flipsDialogController.showPriceGraphTab(null, false, null);
-                }
-            } else {
-                Suggestion suggestion = suggestionManager.getSuggestion();
-                String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());
-                LinkBrowser.browse(url);
-            }
-        });
+        graphButton = buildButton(graphIcon, "Price graph", flipsDialogController::openSuggestionPriceGraph);
         centerPanel.add(graphButton);
 
         BufferedImage portfolioIcon = ImageUtil.loadImageResource(getClass(), "/pie-chart.png");
@@ -263,15 +247,9 @@ public class SuggestionPanel extends JPanel {
 
         BufferedImage skipIcon = ImageUtil.loadImageResource(getClass(), "/skip.png");
         skipButton = buildButton(skipIcon, "Skip suggestion", () -> {
-            showLoading();
-            Suggestion s = suggestionManager.getSuggestion();
-            if(s != null) {
-                s.actionedTick = client.getTickCount();
+            if (accountStatusManager.skipCurrentSuggestion()) {
+                showLoading();
             }
-            int idToSkip = s != null ? s.getId() : -1;
-            log.info("skipping suggestion {}", idToSkip);
-            accountStatusManager.setSkipSuggestion(idToSkip);
-            suggestionManager.setSuggestionNeeded(true);
         });
         centerPanel.add(skipButton);
 
@@ -289,10 +267,6 @@ public class SuggestionPanel extends JPanel {
 
     public void setAdditionalInfoText(String text) {
         additionalInfoText.setText("<html><center>" + text + "</center></html>");
-    }
-
-    private boolean isSuggestionWithoutGraphData(Suggestion suggestion) {
-        return suggestion != null && !suggestion.isWaitSuggestion() && suggestion.isDumpAlert;
     }
 
     public void updateSuggestion(Suggestion suggestion) {

@@ -36,6 +36,7 @@ public class AccountStatusManager {
     private final TransactionManager transactionManager;
     private final HeldItemSyncStateRS heldItemSyncStateRS;
     private final ItemController itemController;
+    private final SuggestionManager suggestionManager;
 
     // state
     @Setter
@@ -150,6 +151,19 @@ public class AccountStatusManager {
 
     public void resetSkipSuggestion() {
         skipSuggestion = -1;
+    }
+
+    public synchronized boolean skipCurrentSuggestion() {
+        Suggestion suggestion = suggestionManager.getSuggestion();
+        if (suggestion == null) {
+            return false;
+        }
+
+        suggestion.actionedTick = client.getTickCount();
+        skipSuggestion = suggestion.getId();
+        log.info("skipping suggestion {}", skipSuggestion);
+        suggestionManager.setSuggestionNeeded(true);
+        return true;
     }
 
     public void reset() {
