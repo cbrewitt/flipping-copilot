@@ -63,7 +63,7 @@ public class StatsPanelV2 extends JPanel {
     private JPanel subInfoPanel;
     private final JPanel flipsPanel = new JPanel();
     private final JLabel totalProfitVal = new JLabel("0 gp");
-    private final JLabel roiVal = new JLabel("-0.00%");
+    private final JLabel winRateVal = new JLabel("0.0%");
     private final JLabel flipsMadeVal = new JLabel("0");
     private final JLabel unrealizedProfitVal = new JLabel("0 gp");
     private final JLabel sessionTimeVal = new JLabel("00:00:00");
@@ -264,7 +264,7 @@ public class StatsPanelV2 extends JPanel {
         JPanel subInfoPanel = UIUtilities.newVerticalBoxLayoutJPanel();
         subInfoPanel.add(buildSubInfoPanelItem("Unrealized profit:", unrealizedProfitVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
         subInfoPanel.add(buildSubInfoPanelItem("Flips made:", flipsMadeVal, ColorScheme.LIGHT_GRAY_COLOR));
-        subInfoPanel.add(buildSubInfoPanelItem("ROI:", roiVal, UIUtilities.TOMATO));
+        subInfoPanel.add(buildSubInfoPanelItem("Win rate:", winRateVal, ColorScheme.LIGHT_GRAY_COLOR));
         subInfoPanel.add(buildSubInfoPanelItem("Session time:", sessionTimeVal, ColorScheme.GRAND_EXCHANGE_ALCH));
         subInfoPanel.add(buildSubInfoPanelItem("Hourly profit:", hourlyProfitVal, Color.WHITE));
         subInfoPanel.add(buildSubInfoPanelItem("Portfolio value:", portfolioValueVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
@@ -370,7 +370,7 @@ public class StatsPanelV2 extends JPanel {
         lastValidState = validLoginState;
         if (!validLoginState) {
             totalProfitVal.setText("0 gp");
-            roiVal.setText("-0.00%");
+            winRateVal.setText("0.0%");
             flipsMadeVal.setText("0");
             unrealizedProfitVal.setText("0 gp");
             sessionTimeVal.setText("00:00:00");
@@ -397,8 +397,9 @@ public class StatsPanelV2 extends JPanel {
             flipManager.getPageFlips(paginator.getPageNumber(), 50)
                     .forEach(f -> flipsPanel.add(new FlipPanel(f, config, () -> flipsDialogController.showVisualizeFlip(f))));
             // labels displayed to the user
-            roiVal.setText(String.format("%.3f%%", stats.calculateRoi() * 100));
-            roiVal.setForeground(UIUtilities.getProfitColor(stats.profit, config));
+            float winRate = stats.calculateWinRate();
+            winRateVal.setText(String.format("%.1f%%", winRate * 100));
+            winRateVal.setForeground(winRate >= 0.5f ? config.profitAmountColor() : config.lossAmountColor());
             flipsMadeVal.setText(String.format("%d", stats.flipsMade));
             totalProfitVal.setText(UIUtilities.formatProfit(stats.profit));
             totalProfitVal.setForeground(UIUtilities.getProfitColor(stats.profit, config));

@@ -162,12 +162,10 @@ public class FlipPriceGraphControllerTest {
     }
 
     private Stats expectedStats(List<FlipV2> flips, int time, Integer accountId) {
-        Stats stats = new Stats(0,0,0,0);
+        Stats stats = new Stats();
         for(FlipV2 f : flips) {
             if(f.getClosedTime() > time && (accountId == null || accountId == f.getAccountId())) {
-                stats.flipsMade += 1;
-                stats.gross += f.getSpent();
-                stats.profit += f.getProfit();
+                stats.addFlip(f);
             }
         }
         return stats;
