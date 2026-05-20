@@ -100,6 +100,45 @@ public class ProfitCalculator {
     }
 
     /**
+     * Calculates ROI for a suggestion using the provided profit and the suggestion cost basis.
+     *
+     * @param suggestion The suggestion being shown
+     * @param suggestionProfit The profit shown for the suggestion
+     * @return ROI as a fraction, or null if it cannot be calculated
+     */
+    public Double calculateSuggestionRoi(Suggestion suggestion, double suggestionProfit) {
+        Long costBasis = calculateSuggestionCostBasis(suggestion);
+        if (costBasis == null || costBasis <= 0) {
+            return null;
+        }
+        return suggestionProfit / (double) costBasis;
+    }
+
+    /**
+     * Calculates the cost basis used for suggestion ROI.
+     * Buy suggestions use the suggested buy price. Sell suggestions use the portfolio unit buy price.
+     *
+     * @param suggestion The suggestion being shown
+     * @return The total cost basis in GP, or null if it cannot be calculated
+     */
+    public Long calculateSuggestionCostBasis(Suggestion suggestion) {
+        if (suggestion == null || suggestion.getPrice() <= 0 || suggestion.getQuantity() <= 0) {
+            return null;
+        }
+        if (suggestion.isBuySuggestion()) {
+            return (long) suggestion.getPrice() * suggestion.getQuantity();
+        }
+        if (suggestion.isSellSuggestion()) {
+            Long avgBuyPrice = portfolioUnitBuyPrice(suggestion.getItemId());
+            if (avgBuyPrice == null) {
+                return null;
+            }
+            return avgBuyPrice * suggestion.getQuantity();
+        }
+        return null;
+    }
+
+    /**
      * Calculates the profit per item for a given item and price for the current player.
      * This is useful for determining profitability before placing an offer.
      * Cost basis comes from portfolio card data (unit buy price).
