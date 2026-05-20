@@ -13,7 +13,6 @@ public class Stats {
     public long gross;
     public long taxPaid;
     public int flipsMade;
-    public int winningFlips;
 
     public float calculateRoi() {
         if (gross == 0){
@@ -22,15 +21,8 @@ public class Stats {
         return (float) (((double) profit) / ((double) gross));
     }
 
-    public float calculateWinRate() {
-        if (flipsMade == 0) {
-            return 0;
-        }
-        return (float) (((double) winningFlips) / ((double) flipsMade));
-    }
-
     public Stats copy() {
-        return new Stats(profit, gross, taxPaid, flipsMade, winningFlips);
+        return new Stats(profit, gross, taxPaid, flipsMade);
     }
 
     public void add(Stats s) {
@@ -39,7 +31,6 @@ public class Stats {
             gross += s.gross;
             taxPaid += s.taxPaid;
             flipsMade += s.flipsMade;
-            winningFlips += s.winningFlips;
         }
     }
 
@@ -51,9 +42,6 @@ public class Stats {
         gross += f.getSpent();
         taxPaid += f.getTaxPaid();
         flipsMade += 1;
-        if (f.getProfit() > 0) {
-            winningFlips += 1;
-        }
     }
 
     public void subtractFlip(FlipV2 f) {
@@ -64,9 +52,6 @@ public class Stats {
         gross -= f.getSpent();
         taxPaid -= f.getTaxPaid();
         flipsMade -= 1;
-        if (f.getProfit() > 0) {
-            winningFlips -= 1;
-        }
     }
 
     private boolean isTrackedFlip(FlipV2 f) {
