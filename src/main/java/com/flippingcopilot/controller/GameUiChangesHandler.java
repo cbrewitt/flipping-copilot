@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.OfferStatus;
 import com.flippingcopilot.model.Suggestion;
@@ -45,6 +46,7 @@ public class GameUiChangesHandler {
     private final OfferHandler offerHandler;
     private final SlotProfitColorizer slotProfitColorizer;
     private final HeldItemSyncStateRS heldItemSyncStateRS;
+    private final FlippingCopilotConfig config;
     // state
     boolean quantityOrPriceChatboxOpen;
     boolean itemSearchChatboxOpen = false;
@@ -93,7 +95,7 @@ public class GameUiChangesHandler {
 
         clientThread.invokeLater(() ->
         {
-            flippingWidget = new OfferEditor(offerManager, client.getWidget(ComponentID.CHATBOX_CONTAINER), offerHandler, client);
+            flippingWidget = new OfferEditor(offerManager, client.getWidget(ComponentID.CHATBOX_CONTAINER), offerHandler, client, config);
             Suggestion suggestion = suggestionManager.getSuggestion();
             if (suggestion != null) {
                 flippingWidget.showSuggestion(suggestion);

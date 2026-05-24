@@ -138,6 +138,30 @@ public interface FlippingCopilotConfig extends Config
         return new Keybind(KeyEvent.VK_E, 0);
     }
 
+    @ConfigItem(
+            keyName = "skipSuggestionKeybind",
+            name = "Skip suggestion keybind",
+            description = "Keybind to skip the current suggestion and request a new one",
+            section = offerSetupSection,
+            position = 5
+    )
+    default Keybind skipSuggestionKeybind()
+    {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+            keyName = "openGraphKeybind",
+            name = "Open graph keybind",
+            description = "Keybind to open the price graph for the current suggestion",
+            section = offerSetupSection,
+            position = 6
+    )
+    default Keybind openGraphKeybind()
+    {
+        return Keybind.NOT_SET;
+    }
+
     @ConfigSection(
             name = "Appearance",
             description = "Configure visual appearance and colors",

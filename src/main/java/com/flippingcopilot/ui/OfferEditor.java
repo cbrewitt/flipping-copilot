@@ -2,12 +2,14 @@ package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.GrandExchange;
 import com.flippingcopilot.controller.OfferHandler;
+import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.OfferManager;
 import com.flippingcopilot.model.Suggestion;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.FontID;
 import net.runelite.api.widgets.*;
+import net.runelite.client.config.Keybind;
 
 import java.util.Objects;
 
@@ -18,16 +20,18 @@ public class OfferEditor {
     private final OfferManager offerManager;
     private final OfferHandler offerHandler;
     private final Client client;
+    private final FlippingCopilotConfig config;
 
     private Widget text;
     private Widget priceGraphText;
     private static final int MOUSE_OFF_TEXT_COLOR = 0x0040FF;
     private static final int MOUSE_OFF_ERROR_TEXT_COLOR = 0xAA2222;
 
-    public OfferEditor(OfferManager offerManager, Widget parent, OfferHandler offerHandler, Client client) {
+    public OfferEditor(OfferManager offerManager, Widget parent, OfferHandler offerHandler, Client client, FlippingCopilotConfig config) {
         this.offerManager = offerManager;
         this.offerHandler = offerHandler;
         this.client = client;
+        this.config = config;
         if (parent == null) {
             return;
         }
@@ -86,7 +90,7 @@ public class OfferEditor {
     }
 
     private void showQuantity(int quantity) {
-        text.setText("set to Copilot quantity: " + quantity);
+        text.setText(setActionText("Copilot quantity: " + quantity));
         text.setAction(1, "Set quantity");
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
@@ -96,7 +100,7 @@ public class OfferEditor {
     }
 
     public void showPrice(int price) {
-        text.setText("set to Copilot price: " + String.format("%,d", price) + " gp");
+        text.setText(setActionText("Copilot price: " + String.format("%,d", price) + " gp"));
         text.setAction(0, "Set price");
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
@@ -106,13 +110,21 @@ public class OfferEditor {
     }
 
     private void showPriceWithWarning(int price, String warning) {
-        text.setText("set to Copilot price: " + String.format("%,d", price) + " gp. " + warning);
+        text.setText(setActionText("Copilot price: " + String.format("%,d", price) + " gp") + ". " + warning);
         text.setAction(0, "Set price");
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->
         {
             offerHandler.setChatboxValue(price);
         });
+    }
+
+    private String setActionText(String target) {
+        Keybind keybind = config.quickSetKeybind();
+        if (keybind == null || Keybind.NOT_SET.equals(keybind)) {
+            return "set to " + target;
+        }
+        return "Press [" + keybind + "] to set to " + target;
     }
 
     private void setHoverListeners(Widget widget) {

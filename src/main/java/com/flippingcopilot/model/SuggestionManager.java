@@ -14,6 +14,7 @@ public class SuggestionManager {
     private volatile boolean suggestionNeeded;
     private volatile boolean suggestionRequestInProgress;
     private volatile boolean graphDataReadingInProgress;
+    private volatile boolean suggestionRefreshPending;
     private Instant lastFailureAt;
     private HttpResponseException suggestionError;
     private Suggestion suggestion;
@@ -43,6 +44,7 @@ public class SuggestionManager {
 
     public void reset() {
         suggestionNeeded = false;
+        suggestionRefreshPending = false;
         suggestion = null;
         suggestionReceivedAt = null;
         lastFailureAt = null;

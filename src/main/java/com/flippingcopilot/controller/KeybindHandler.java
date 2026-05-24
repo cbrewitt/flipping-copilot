@@ -2,10 +2,12 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import net.runelite.api.Client;
 import net.runelite.api.VarClientInt;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.config.Keybind;
 import net.runelite.client.input.KeyListener;
 import net.runelite.client.input.KeyManager;
 
@@ -24,10 +26,13 @@ public class KeybindHandler {
     private final Client client;
     private final GrandExchange grandExchange;
     private final OfferHandler offerHandler;
+    private final SuggestionController suggestionController;
+    private final FlipsDialogController flipsDialogController;
+    private final KeyListener keyListener;
 
 
     @Inject
-    public KeybindHandler(KeyManager keyManager, FlippingCopilotConfig config, ClientThread clientThread, SuggestionManager suggestionManager, Client client, GrandExchange grandExchange, OfferHandler offerHandler) {
+    public KeybindHandler(KeyManager keyManager, FlippingCopilotConfig config, ClientThread clientThread, SuggestionManager suggestionManager, Client client, GrandExchange grandExchange, OfferHandler offerHandler, SuggestionController suggestionController, FlipsDialogController flipsDialogController) {
         this.keyManager = keyManager;
         this.config = config;
         this.clientThread = clientThread;
@@ -35,15 +40,18 @@ public class KeybindHandler {
         this.client = client;
         this.grandExchange = grandExchange;
         this.offerHandler = offerHandler;
-        keyManager.registerKeyListener(offerEditorKeyListener());
+        this.suggestionController = suggestionController;
+        this.flipsDialogController = flipsDialogController;
+        this.keyListener = createKeyListener();
+        keyManager.registerKeyListener(keyListener);
     }
 
     public void unregister() {
-        keyManager.unregisterKeyListener(offerEditorKeyListener());
+        keyManager.unregisterKeyListener(keyListener);
     }
 
 
-    private KeyListener offerEditorKeyListener() {
+    private KeyListener createKeyListener() {
         return new KeyListener() {
             @Override
             public void keyTyped(KeyEvent e) {
@@ -54,9 +62,15 @@ public class KeybindHandler {
             public void keyPressed(KeyEvent e) {
                 // Prevent enter as a keybind as that will also submit the value
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) return;
-                if (e.getKeyCode() !=config.quickSetKeybind().getKeyCode()) return;
 
-               clientThread.invokeLater(this::handleKeybind);
+                boolean quickSetPressed = keybindMatches(config.quickSetKeybind(), e);
+                boolean skipSuggestionPressed = keybindMatches(config.skipSuggestionKeybind(), e);
+                boolean openGraphPressed = keybindMatches(config.openGraphKeybind(), e);
+                if (!quickSetPressed && !skipSuggestionPressed && !openGraphPressed) {
+                    return;
+                }
+
+                clientThread.invokeLater(() -> handleKeybind(quickSetPressed, skipSuggestionPressed, openGraphPressed));
             }
 
             @Override
@@ -64,20 +78,34 @@ public class KeybindHandler {
 
             }
 
-            private void handleKeybind() {
+            private void handleKeybind(boolean quickSetPressed, boolean skipSuggestionPressed, boolean openGraphPressed) {
                 var suggestion = suggestionManager.getSuggestion();
 
                 var inputType = client.getVarcIntValue(VarClientInt.INPUT_TYPE);
 
-                var isPriceOrQuantityBoxOpen =client.getWidget(ComponentID.CHATBOX_TITLE) != null
+                var isPriceOrQuantityBoxOpen = client.getWidget(ComponentID.CHATBOX_TITLE) != null
                         && inputType == 7
-                        &&client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER) != null
-                        &&grandExchange.isSlotOpen();
+                        && client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER) != null
+                        && grandExchange.isSlotOpen();
 
-                if (isPriceOrQuantityBoxOpen) {
-                   offerHandler.setSuggestedAction(suggestion);
+                if (quickSetPressed && isPriceOrQuantityBoxOpen) {
+                    offerHandler.setSuggestedAction(suggestion);
+                    return;
+                }
+
+                if (skipSuggestionPressed && !isPriceOrQuantityBoxOpen) {
+                    suggestionController.skipSuggestion();
+                    return;
+                }
+
+                if (openGraphPressed && !isPriceOrQuantityBoxOpen) {
+                    flipsDialogController.openSuggestionPriceGraph();
                 }
             }
         };
+    }
+
+    private boolean keybindMatches(Keybind keybind, KeyEvent e) {
+        return keybind != null && keybind.matches(e);
     }
 }

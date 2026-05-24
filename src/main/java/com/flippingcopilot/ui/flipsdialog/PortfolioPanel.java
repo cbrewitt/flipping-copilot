@@ -488,8 +488,7 @@ public class PortfolioPanel extends JPanel {
         menu.add(showGraph);
 
         if (portfolioQty > 0) {
-            String removeAllLabel = portfolioQty > 1 ? "Remove all from portfolio" : "Remove from portfolio";
-            JMenuItem removeAll = new JMenuItem(removeAllLabel);
+            JMenuItem removeAll = new JMenuItem("Remove from portfolio");
             removeAll.addActionListener(e -> togglePortfolio(item.getItemId(), ToggleItemPortfolioRequest.REMOVE, 0));
             menu.add(removeAll);
         }

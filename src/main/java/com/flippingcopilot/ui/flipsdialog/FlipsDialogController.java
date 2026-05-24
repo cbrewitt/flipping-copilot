@@ -15,6 +15,7 @@ import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.LinkBrowser;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -202,6 +203,30 @@ public class FlipsDialogController {
             priceGraphPanel.showLandingCard();
         }
         dialog.setVisible(true);
+    }
+
+    public void openSuggestionPriceGraph() {
+        Suggestion suggestion = suggestionManager.getSuggestion();
+        if (config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT)) {
+            if (isSuggestionWithoutGraphData(suggestion)) {
+                showPriceGraphTab(suggestion.getItemId(), false, null);
+            } else if (suggestion != null && !suggestion.isWaitSuggestion()) {
+                showPriceGraphTab(null, true, null);
+            } else {
+                showPriceGraphTab(null, false, null);
+            }
+            return;
+        }
+
+        if (suggestion == null || suggestion.isWaitSuggestion()) {
+            return;
+        }
+        String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());
+        LinkBrowser.browse(url);
+    }
+
+    private boolean isSuggestionWithoutGraphData(Suggestion suggestion) {
+        return suggestion != null && !suggestion.isWaitSuggestion() && suggestion.isDumpAlert;
     }
 
 

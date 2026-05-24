@@ -17,7 +17,6 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.LinkBrowser;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -26,6 +25,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.text.NumberFormat;
+import java.util.Locale;
 
 import static com.flippingcopilot.ui.UIUtilities.*;
 import static com.flippingcopilot.util.Constants.MIN_GP_NEEDED_TO_FLIP;
@@ -236,22 +236,7 @@ public class SuggestionPanel extends JPanel {
         centerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
-        graphButton = buildButton(graphIcon, "Price graph", () -> {
-            if(config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT)) {
-                Suggestion suggestion = suggestionManager.getSuggestion();
-                if(isSuggestionWithoutGraphData(suggestion)) {
-                    flipsDialogController.showPriceGraphTab(suggestion.getItemId(), false, null);
-                } else if(suggestion != null && !suggestion.isWaitSuggestion()) {
-                    flipsDialogController.showPriceGraphTab(null, true, null);
-                } else {
-                    flipsDialogController.showPriceGraphTab(null, false, null);
-                }
-            } else {
-                Suggestion suggestion = suggestionManager.getSuggestion();
-                String url = config.priceGraphWebsite().getUrl(suggestion.getName(), suggestion.getItemId());
-                LinkBrowser.browse(url);
-            }
-        });
+        graphButton = buildButton(graphIcon, "Price graph", flipsDialogController::openSuggestionPriceGraph);
         centerPanel.add(graphButton);
 
         BufferedImage portfolioIcon = ImageUtil.loadImageResource(getClass(), "/pie-chart.png");
@@ -263,15 +248,9 @@ public class SuggestionPanel extends JPanel {
 
         BufferedImage skipIcon = ImageUtil.loadImageResource(getClass(), "/skip.png");
         skipButton = buildButton(skipIcon, "Skip suggestion", () -> {
-            showLoading();
-            Suggestion s = suggestionManager.getSuggestion();
-            if(s != null) {
-                s.actionedTick = client.getTickCount();
+            if (accountStatusManager.skipCurrentSuggestion()) {
+                refresh();
             }
-            int idToSkip = s != null ? s.getId() : -1;
-            log.info("skipping suggestion {}", idToSkip);
-            accountStatusManager.setSkipSuggestion(idToSkip);
-            suggestionManager.setSuggestionNeeded(true);
         });
         centerPanel.add(skipButton);
 
@@ -289,10 +268,14 @@ public class SuggestionPanel extends JPanel {
 
     public void setAdditionalInfoText(String text) {
         additionalInfoText.setText("<html><center>" + text + "</center></html>");
+        additionalInfoText.setToolTipText(null);
+        suggestionText.setToolTipText(null);
     }
 
-    private boolean isSuggestionWithoutGraphData(Suggestion suggestion) {
-        return suggestion != null && !suggestion.isWaitSuggestion() && suggestion.isDumpAlert;
+    private void setAdditionalInfoText(String text, String tooltip) {
+        additionalInfoText.setText("<html><center>" + text + "</center></html>");
+        additionalInfoText.setToolTipText(tooltip);
+        suggestionText.setToolTipText(tooltip);
     }
 
     public void updateSuggestion(Suggestion suggestion) {
@@ -300,6 +283,8 @@ public class SuggestionPanel extends JPanel {
         String suggestionString = "<html><center>";
         suggestionTextContainer.setVisible(false);
         additionalInfoText.setText("");
+        additionalInfoText.setToolTipText(null);
+        suggestionText.setToolTipText(null);
         SuggestionType suggestionType = suggestion.getType();
         if (suggestionType == null) {
             suggestionString += "Error processing suggestion<br>";
@@ -343,7 +328,7 @@ public class SuggestionPanel extends JPanel {
         }
         String additionalInfoMessage = Strings.isNullOrEmpty(suggestion.getMessage()) ? "" : "<br>" + suggestion.getMessage();
 
-        suggestionString += "</center><html>";
+        suggestionString += "</center></html>";
         innerSuggestionMessage = "";
         if (!suggestion.isWaitSuggestion()) {
             setButtonsVisible(true);
@@ -351,14 +336,20 @@ public class SuggestionPanel extends JPanel {
         suggestionText.setText(suggestionString);
         suggestionText.setMaximumSize(new Dimension(suggestionText.getPreferredSize().width, Integer.MAX_VALUE));
         if (suggestion.isBuySuggestion()) {
-            setAdditionalInfoText(formatExpectedProfitAndDuration(suggestion.getExpectedProfit(), suggestion.getExpectedDuration()) + additionalInfoMessage);
+            setAdditionalInfoText(
+                    formatExpectedProfitAndDuration(suggestion.getExpectedProfit(), suggestion.getExpectedDuration()) + additionalInfoMessage,
+                    formatSuggestionTooltip(suggestion, suggestion.getExpectedProfit())
+            );
         } else if (suggestion.isSellSuggestion()) {
             String text = "";
             Long profit = profitCalculator.calculateSuggestionProfit(suggestion);
             if (profit != null) {
                 text = formatSellProfitLossAndDuration((double) profit, suggestion.getExpectedDuration());
             }
-            setAdditionalInfoText(text + additionalInfoMessage);
+            setAdditionalInfoText(
+                    text + additionalInfoMessage,
+                    formatSuggestionTooltip(suggestion, profit == null ? null : (double) profit)
+            );
         } else {
             setAdditionalInfoText(additionalInfoMessage);
         }
@@ -405,6 +396,8 @@ public class SuggestionPanel extends JPanel {
 
     public void setMessage(String message) {
         additionalInfoText.setVisible(false);
+        additionalInfoText.setToolTipText(null);
+        suggestionText.setToolTipText(null);
         innerSuggestionMessage = message;
         setButtonsVisible(false);
 
@@ -459,6 +452,8 @@ public class SuggestionPanel extends JPanel {
         setButtonsVisible(false);
         suggestionIcon.setVisible(false);
         additionalInfoText.setText("");
+        additionalInfoText.setToolTipText(null);
+        suggestionText.setToolTipText(null);
         additionalInfoText.setVisible(false);
         suggestionText.setText("");
     }
@@ -532,7 +527,7 @@ public class SuggestionPanel extends JPanel {
             return;
         }
 
-        if(suggestionManager.isSuggestionRequestInProgress()) {
+        if(suggestionManager.isSuggestionRequestInProgress() || suggestionManager.isSuggestionRefreshPending()) {
             showLoading();
             return;
         }
@@ -577,6 +572,53 @@ public class SuggestionPanel extends JPanel {
 
         String colorHex = String.format("#%06X", (0xFFFFFF & profitColor.getRGB()));
         return "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit in <b>" + formattedDuration + "</b>";
+    }
+
+    private String formatSuggestionTooltip(Suggestion suggestion, Double suggestionProfit) {
+        String roiLine = formatRoiTooltipLine(suggestion, suggestionProfit);
+        String costLine = formatCostTooltipLine(suggestion);
+        if (roiLine == null && costLine == null) {
+            return null;
+        }
+        StringBuilder tooltip = new StringBuilder("<html>");
+        appendTooltipLine(tooltip, roiLine);
+        appendTooltipLine(tooltip, costLine);
+        return tooltip.append("</html>").toString();
+    }
+
+    private void appendTooltipLine(StringBuilder tooltip, String line) {
+        if (line == null) {
+            return;
+        }
+        if (tooltip.length() > "<html>".length()) {
+            tooltip.append("<br>");
+        }
+        tooltip.append(line);
+    }
+
+    private String formatCostTooltipLine(Suggestion suggestion) {
+        Long cost = profitCalculator.calculateSuggestionCostBasis(suggestion);
+        if (cost == null) {
+            return null;
+        }
+        return "Cost: <font color='#FFFFFF'>" + UIUtilities.quantityToRSDecimalStack(cost, false) + " gp</font>";
+    }
+
+    private String formatRoiTooltipLine(Suggestion suggestion, Double suggestionProfit) {
+        if (suggestionProfit == null) {
+            return null;
+        }
+        Double roi = profitCalculator.calculateSuggestionRoi(suggestion, suggestionProfit);
+        if (roi == null) {
+            return null;
+        }
+        Color roiColor = UIUtilities.getProfitColor(roi, config);
+        String colorHex = String.format("#%06X", (0xFFFFFF & roiColor.getRGB()));
+        return "ROI: <font color='" + colorHex + "'>" + formatRoi(roi) + "</font>";
+    }
+
+    private String formatRoi(double roi) {
+        return String.format(Locale.ENGLISH, "%.2f%%", roi * 100.0d);
     }
 
     private String formatProfit(double profit) {
