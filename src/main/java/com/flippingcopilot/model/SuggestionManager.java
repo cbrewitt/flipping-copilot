@@ -5,6 +5,8 @@ import lombok.Setter;
 
 import javax.inject.Singleton;
 import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Singleton
 @Getter
@@ -28,13 +30,24 @@ public class SuggestionManager {
     private int suggestionItemIdOnOfferSubmitted = -1;
     private OfferStatus suggestionOfferStatusOnOfferSubmitted = null;
 
+    // Most recent expected duration (seconds) Copilot predicted for each item, captured from each
+    // suggestion as it arrives. expectedDuration only lives on the live suggestion, so caching it by
+    // item lets the GE offer tooltip show an expected time for any item that has been suggested.
+    private final Map<String, Double> itemNameToExpectedDuration = new ConcurrentHashMap<>();
+
 
     public volatile int suggestionsDelayedUntil = 0;
 
     public void setSuggestion(Suggestion suggestion) {
         this.suggestion = suggestion;
         suggestionReceivedAt = Instant.now();
+        if (suggestion != null && suggestion.getExpectedDuration() != null && suggestion.getName() != null) {
+            itemNameToExpectedDuration.put(suggestion.getName(), suggestion.getExpectedDuration());
+        }
+    }
 
+    public Double getExpectedDurationForItem(String itemName) {
+        return itemNameToExpectedDuration.get(itemName);
     }
 
     public void setSuggestionError(HttpResponseException error) {
@@ -52,6 +65,7 @@ public class SuggestionManager {
         suggestionError = null;
         suggestionItemIdOnOfferSubmitted = -1;
         suggestionOfferStatusOnOfferSubmitted = null;
+        itemNameToExpectedDuration.clear();
     }
 
     public boolean suggestionOutOfDate() {
