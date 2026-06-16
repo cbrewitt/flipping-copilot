@@ -31,8 +31,6 @@ public class ItemController {
 
     public static final int COINS_ITEM_ID = 995;
     public static final int PLATINUM_TOKENS_ITEM_ID = 13204;
-    private static final int NAME_CHAR_LIMIT = 25;
-
     // dependencies
     private final FuzzySearchScorer fuzzySearchScorer;
     private final Client client;
@@ -97,13 +95,6 @@ public class ItemController {
                 .collect(Collectors.toList());
     }
 
-
-    private String trimName(String name) {
-        if(name.length() > NAME_CHAR_LIMIT) {
-            return name.substring(0, NAME_CHAR_LIMIT - 1) + "..";
-        }
-        return name;
-    }
 
     public Set<Integer> allItemIds() {
         return cachedItemNames.keySet();

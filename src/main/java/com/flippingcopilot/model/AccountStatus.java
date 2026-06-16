@@ -2,9 +2,6 @@ package com.flippingcopilot.model;
 import com.flippingcopilot.util.Constants;
 import com.flippingcopilot.util.ProtoUtils;
 import com.google.protobuf.CodedOutputStream;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,7 +26,6 @@ public class AccountStatus {
     private boolean isAccountMember = false;
     private int skipSuggestion = -1;
     private String displayName;
-    private Long rsAccountHash;
     private Boolean suggestionsPaused;
     private boolean sellOnlyMode = false;
     private boolean buyAndHold = true;
@@ -143,67 +139,6 @@ public class AccountStatus {
         return getOffers().findEmptySlot(isWorldMember || isAccountMember);
     }
 
-    public synchronized JsonObject toJson(Gson gson, boolean geOpen, boolean sendGraphData) {
-        JsonObject statusJson = new JsonObject();
-        statusJson.addProperty("version", version);
-        statusJson.addProperty("display_name", displayName);
-        statusJson.addProperty("sell_only", sellOnlyMode);
-        statusJson.addProperty("buy_and_hold", buyAndHold);
-        statusJson.addProperty("f2p_only", f2pOnlyMode);
-        statusJson.addProperty("is_member", isWorldMember);
-        statusJson.addProperty("is_account_member", isAccountMember);
-        statusJson.addProperty("skip_suggestion", skipSuggestion);
-        statusJson.addProperty("send_graph_data", sendGraphData);
-        statusJson.addProperty("timeframe", timeframe);
-        RiskLevel effectiveRiskLevel = riskLevel != null ? riskLevel : RiskLevel.MEDIUM;
-        statusJson.addProperty("risk_level", effectiveRiskLevel.toApiValue());
-        if (minPredictedProfit != null) {
-            statusJson.addProperty("min_predicted_profit", minPredictedProfit);
-        }
-        if (dumpMinPredictedProfit != null) {
-            statusJson.addProperty("min_dump_profit", dumpMinPredictedProfit);
-        }
-        if (suggestionsPaused != null) {
-            statusJson.addProperty("suggestions_paused", suggestionsPaused);
-        }
-        JsonArray offersJsonArray = offers.toJson(gson);
-        JsonArray itemsJsonArray = getItemsJson();
-        statusJson.add("offers", offersJsonArray);
-        statusJson.add("items", itemsJsonArray);
-        if (bankInventory != null) {
-            JsonObject bankInventoryJson = new JsonObject();
-            bankInventory.forEach((itemId, amount) -> bankInventoryJson.addProperty(itemId.toString(), amount));
-            statusJson.add("bank_inventory", bankInventoryJson);
-            statusJson.addProperty("bank_loaded", bankAvailable);
-        }
-        JsonArray blockItemsArray = new JsonArray();
-        if(blockedItems != null) {
-            blockedItems.forEach(blockItemsArray::add);
-        }
-        statusJson.add("blocked_items", blockItemsArray);
-
-        Set<SuggestionType> requestedSuggestionTypes = resolveRequestedSuggestionTypes(geOpen);
-        JsonArray rstArray = new JsonArray();
-        requestedSuggestionTypes.forEach(type -> rstArray.add(type.apiValue()));
-        statusJson.add("requested_suggestion_types", rstArray);
-        if (reservedSlots != null && reservedSlots > 0) {
-            statusJson.addProperty("reserved_slots", reservedSlots);
-        }
-        return statusJson;
-    }
-
-    private JsonArray getItemsJson() {
-        Map<Integer, Long> itemAmounts = computeInventory();
-        JsonArray itemsJsonArray = new JsonArray();
-        for (Map.Entry<Integer, Long> entry : itemAmounts.entrySet()) {
-            JsonObject itemJson = new JsonObject();
-            itemJson.addProperty("item_id", entry.getKey());
-            itemJson.addProperty("amount", entry.getValue());
-            itemsJsonArray.add(itemJson);
-        }
-        return itemsJsonArray;
-    }
-
     private Map<Integer, Long> computeInventory() {
         Map<Integer, Long> itemAmounts = inventory.getItemAmounts();
         uncollected.forEach((key, value) -> itemAmounts.merge(key, value, Long::sum));
@@ -220,7 +155,7 @@ public class AccountStatus {
     }
 
     private long getTotalGp() {
-        return inventory.getTotalGp() + offers.getTotalGpToCollect();
+        return inventory.getTotalGp();
     }
 
     public synchronized boolean currentlyFlipping() {

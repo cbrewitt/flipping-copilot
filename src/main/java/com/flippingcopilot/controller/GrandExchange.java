@@ -1,8 +1,6 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.model.GEOfferScreenExistingOfferState;
 import com.flippingcopilot.model.GEOfferScreenSetupOfferState;
-import com.flippingcopilot.model.OfferManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
@@ -77,14 +75,6 @@ public class GrandExchange {
         return client.getWidget(InterfaceID.GE_OFFERS, 26);
     }
 
-    Widget getOfferTypeWidget() {
-        Widget offerContainer = getOfferContainerWidget();
-        if (offerContainer == null) {
-            return null;
-        }
-        return offerContainer.getChild(20);
-    }
-
     Widget getConfirmButton() {
         Widget offerContainer = getOfferContainerWidget();
         if (offerContainer == null) {
@@ -153,33 +143,8 @@ public class GrandExchange {
                 isSearchOpen());
     }
 
-    public GEOfferScreenExistingOfferState getOfferScreenExistingOfferState(OfferManager offerManager) {
-        if (!isSlotOpen() || offerManager == null) {
-            return null;
-        }
-        return new GEOfferScreenExistingOfferState(
-                getOfferType(),
-                client.getVarpValue(CURRENT_GE_ITEM),
-                getOfferPrice(),
-                isSearchOpen(),
-                offerManager.getViewedSlotItemId(),
-                offerManager.getViewedSlotItemPrice());
-    }
-
     Widget getBackButton() {
         return client.getWidget(InterfaceID.GE_OFFERS, 4);
-    }
-
-    String getOfferScreenTitle() {
-        Widget frame = client.getWidget(InterfaceID.GE_OFFERS, 2);
-        if (frame == null) {
-            return null;
-        }
-        Widget titleWidget = frame.getChild(1);
-        if (titleWidget == null) {
-            return null;
-        }
-        return titleWidget.getText();
     }
 
     public boolean isSetupOfferOpen() {

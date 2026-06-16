@@ -23,7 +23,6 @@ public class OfferEditor {
     private final FlippingCopilotConfig config;
 
     private Widget text;
-    private Widget priceGraphText;
     private static final int MOUSE_OFF_TEXT_COLOR = 0x0040FF;
     private static final int MOUSE_OFF_ERROR_TEXT_COLOR = 0xAA2222;
 

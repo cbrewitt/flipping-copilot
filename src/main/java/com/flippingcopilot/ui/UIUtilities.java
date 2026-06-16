@@ -9,7 +9,6 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-import java.net.URI;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
@@ -18,15 +17,12 @@ import java.util.Locale;
 public class UIUtilities {
     public static final String redditIcon = "/reddit-icon.png";
     public static final String discordIcon = "/discord.png";
-    public static final String githubIcon = "/github.png";
     public static final String logoutIcon = "/logout.png";
     public static final String internetIcon = "/internet.png";
     public static final String graphIcon = "/graph.png";
 
     public static final float BUTTON_HOVER_LUMINANCE = 0.65f;
     public static final Color OUTDATED_COLOR = new Color(250, 74, 75);
-    public static final Color BLUE_HIGHLIGHT_COLOR =  new Color(27, 173, 255, 79);
-    public static final Color RED_HIGHLIGHT_COLOR = new Color(255, 20, 20, 79);
     public static final Color TOMATO = new Color(255,99,71);
     public static final Color DARK_GRAY = new Color(27, 27, 27);
 
@@ -147,16 +143,6 @@ public class UIUtilities {
         });
         label.setIcon(iconOff);
         return label;
-    }
-
-    static JLabel buildUriButton(BufferedImage icon, String tooltip, String uriString) {
-        return buildButton(icon, tooltip, () -> {
-            try {
-                Desktop desktop = Desktop.getDesktop();
-                URI uri = new URI(uriString);
-                desktop.browse(uri);
-            } catch (Exception error) {}
-        });
     }
 
     public static JPanel newVerticalBoxLayoutJPanel() {

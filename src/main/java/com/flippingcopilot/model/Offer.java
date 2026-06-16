@@ -1,9 +1,6 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.ProtoUtils;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -37,12 +34,6 @@ public class Offer {
     @SerializedName("amount_traded")
     private int amountTraded;
 
-    @SerializedName("items_to_collect")
-    private int itemsToCollect;
-
-    @SerializedName("gp_to_collect")
-    private int gpToCollect;
-
     @SerializedName("box_id")
     private int boxId;
 
@@ -53,13 +44,13 @@ public class Offer {
     private boolean copilotPriceUsed;
 
     public static Offer getEmptyOffer(int slotId) {
-        return new Offer(OfferStatus.EMPTY, 0, 0, 0, 0, 0, 0, 0, slotId, false, false);
+        return new Offer(OfferStatus.EMPTY, 0, 0, 0, 0, 0, slotId, false, false);
     }
 
 
     public long cashStackGpValue() {
         if (status == OfferStatus.SELL) {
-            return (long) (amountTotal - amountTraded) * price + gpToCollect;
+            return (long) (amountTotal - amountTraded) * price;
         } else if (status == OfferStatus.BUY){
             // for a buy just take the full amount even if they have collected
             // we assume they won't start selling any collected items until their buy offer is finished
@@ -80,18 +71,11 @@ public class Offer {
                 runeliteOffer.getTotalQuantity(),
                 runeliteOffer.getSpent(),
                 runeliteOffer.getQuantitySold(),
-                0,
-                0,
                 slotId,
                 active,
                 false);
     }
 
-
-    JsonObject toJson(Gson gson) {
-        JsonParser jsonParser = new JsonParser();
-        return jsonParser.parse(gson.toJson(this)).getAsJsonObject();
-    }
 
     byte[] encodeProto() {
         try {

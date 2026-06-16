@@ -33,7 +33,6 @@ public class StatsPanelV2 extends JPanel {
     private static final int SUB_INFO_ROW_VERTICAL_PADDING = 3;
     private static final int SUB_INFO_ROW_HEIGHT = 18;
 
-    public final BufferedImage TRASH_ICON = ImageUtil.loadImageResource(getClass(), "/trash.png");
     public final BufferedImage ARROW_ICON = ImageUtil.loadImageResource(getClass(),"/small_open_arrow.png");
     public final Icon OPEN_ICON = new ImageIcon(ARROW_ICON);
     public final Icon CLOSE_ICON = new ImageIcon(ImageUtil.rotateImage(ARROW_ICON, Math.toRadians(90)));

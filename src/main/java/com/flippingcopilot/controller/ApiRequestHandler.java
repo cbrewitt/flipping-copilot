@@ -468,31 +468,7 @@ public class ApiRequestHandler {
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), payload.toString()))
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                log.error("error updating premium instance assignments", e);
-                clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
-            }
-            @Override
-            public void onResponse(Call call, Response response) {
-                try {
-                    if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
-                        }
-                        log.error("update premium instances failed with http status code {}", response.code());
-                        clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
-                    } else {
-                        PremiumInstanceStatus ip = gson.fromJson(response.body().string(), PremiumInstanceStatus.class);
-                        clientThread.invoke(() -> consumer.accept(ip));
-                    }
-                } catch (Exception e) {
-                    log.error("error updating premium instance assignments", e);
-                    clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
-                }
-            }
-        });
+        enqueuePremiumStatusRequest(request, jwtToken, "update premium instances", consumer);
     }
 
     public void asyncGetPremiumInstanceStatus(Consumer<PremiumInstanceStatus> consumer) {
@@ -503,12 +479,20 @@ public class ApiRequestHandler {
                 .get()
                 .build();
 
+        enqueuePremiumStatusRequest(request, jwtToken, "get premium instance status", consumer);
+    }
+
+    private void enqueuePremiumStatusRequest(Request request,
+                                             String jwtToken,
+                                             String label,
+                                             Consumer<PremiumInstanceStatus> consumer) {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                log.error("error fetching premium instance status", e);
-                clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
+                log.error("{} failed", label, e);
+                emitPremiumInstanceError(consumer);
             }
+
             @Override
             public void onResponse(Call call, Response response) {
                 try {
@@ -516,19 +500,22 @@ public class ApiRequestHandler {
                         if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
                             copilotLoginRS.clear();
                         }
-                        log.error("get premium instance status failed with http status code {}", response.code());
-                        clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
+                        log.error("{} failed with http status code {}", label, response.code());
+                        emitPremiumInstanceError(consumer);
                     } else {
                         PremiumInstanceStatus ip = gson.fromJson(response.body().string(), PremiumInstanceStatus.class);
                         clientThread.invoke(() -> consumer.accept(ip));
                     }
                 } catch (Exception e) {
-                    log.error("error fetching premium instance status", e);
-                    clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
+                    log.error("{} failed", label, e);
+                    emitPremiumInstanceError(consumer);
                 }
             }
         });
+    }
 
+    private void emitPremiumInstanceError(Consumer<PremiumInstanceStatus> consumer) {
+        clientThread.invoke(() -> consumer.accept(PremiumInstanceStatus.ErrorInstance(DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE)));
     }
 
     public void asyncDeleteFlip(FlipV2 flip, Consumer<FlipV2> onSuccess, Runnable onFailure) {
@@ -884,53 +871,25 @@ public class ApiRequestHandler {
 
 
     public void asyncOrphanTransaction(AckedTransaction transaction, BiConsumer<Integer, List<FlipV2>> onSuccess, Runnable onFailure) {
-        JsonObject body = new JsonObject();
-        body.addProperty("transaction_id", transaction.getId().toString());
-        body.addProperty("account_id", transaction.getAccountId());
-        Integer userId = copilotLoginRS.get().getUserId();
-        String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = new Request.Builder()
-                .url(serverUrl + "/profit-tracking/orphan-transaction")
-                .addHeader("Authorization", "Bearer " + jwtToken)
-                .header("Accept", "application/protobuf")
-                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
-                .build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                log.error("orphaning transaction {}", transaction.getId(), e);
-                onFailure.run();
-            }
-            @Override
-            public void onResponse(Call call, Response response) {
-                try {
-                    if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
-                        }
-                        log.error("orphaning transaction {}, bad response code {}", transaction.getId(), response.code());
-                        onFailure.run();
-                    } else {
-                        List<FlipV2> flips = FlipV2.listDecodeProto(response.body().bytes());
-                        onSuccess.accept(userId, flips);
-                    }
-                } catch (Exception e) {
-                    log.error("orphaning transaction {}", transaction.getId(), e);
-                    onFailure.run();
-                }
-            }
-        });
+        asyncModifyTransaction("/profit-tracking/orphan-transaction", "orphaning transaction", transaction, onSuccess, onFailure);
     }
 
     public void asyncDeleteTransaction(AckedTransaction transaction, BiConsumer<Integer, List<FlipV2>> onSuccess, Runnable onFailure) {
+        asyncModifyTransaction("/profit-tracking/delete-transaction", "delete transaction", transaction, onSuccess, onFailure);
+    }
+
+    private void asyncModifyTransaction(String path,
+                                        String label,
+                                        AckedTransaction transaction,
+                                        BiConsumer<Integer, List<FlipV2>> onSuccess,
+                                        Runnable onFailure) {
         JsonObject body = new JsonObject();
         body.addProperty("transaction_id", transaction.getId().toString());
         body.addProperty("account_id", transaction.getAccountId());
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = new Request.Builder()
-                .url(serverUrl + "/profit-tracking/delete-transaction")
+                .url(serverUrl + path)
                 .addHeader("Authorization", "Bearer " + jwtToken)
                 .header("Accept", "application/protobuf")
                 .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
@@ -939,7 +898,7 @@ public class ApiRequestHandler {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                log.error("delete transaction {}", transaction.getId(), e);
+                log.error("{} {}", label, transaction.getId(), e);
                 onFailure.run();
             }
             @Override
@@ -949,57 +908,18 @@ public class ApiRequestHandler {
                         if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
                             copilotLoginRS.clear();
                         }
-                        log.error("delete transaction {}, bad response code {}", transaction.getId(), response.code());
+                        log.error("{} {}, bad response code {}", label, transaction.getId(), response.code());
                         onFailure.run();
                     } else {
                         List<FlipV2> flips = FlipV2.listDecodeProto(response.body().bytes());
                         onSuccess.accept(userId, flips);
                     }
                 } catch (Exception e) {
-                    log.error("delete transaction {}", transaction.getId(), e);
+                    log.error("{} {}", label, transaction.getId(), e);
                     onFailure.run();
                 }
             }
         });
     }
 
-    public void asyncLoadRecentAccountTransactions(String displayName, int endTime, Consumer<List<AckedTransaction>> onSuccess, Consumer<String> onFailure) {
-        JsonObject body = new JsonObject();
-        body.addProperty("limit", 30);
-        body.addProperty("end", endTime);
-        String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = new Request.Builder()
-                .url(serverUrl + "/profit-tracking/account-client-transactions?display_name=" + displayName)
-                .addHeader("Authorization", "Bearer " + jwtToken)
-                .header("Accept", "application/x-bytes")
-                .post(RequestBody.create(MediaType.get("application/json; charset=utf-8"), body.toString()))
-                .build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                log.error("error loading transactions", e);
-                onFailure.accept(UNKNOWN_ERROR);
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) {
-                try {
-                    if (!response.isSuccessful()) {
-                        if(response.code() == UNAUTHORIZED_CODE && Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
-                            copilotLoginRS.clear();
-                        }
-                        String errorMessage = extractErrorMessage(response);
-                        log.error("load transactions failed with http status code {}, error message {}", response.code(), errorMessage);
-                        onFailure.accept(errorMessage);
-                        return;
-                    }
-                    onSuccess.accept(AckedTransaction.listFromRaw(response.body().bytes()));
-                } catch (Exception e) {
-                    log.error("error reading/parsing transactions response body", e);
-                    onFailure.accept(UNKNOWN_ERROR);
-                }
-            }
-        });
-    }
 }

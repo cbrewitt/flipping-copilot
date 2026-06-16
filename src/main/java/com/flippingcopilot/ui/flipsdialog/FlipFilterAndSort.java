@@ -92,14 +92,6 @@ public class FlipFilterAndSort {
         this.itemController = itemController;
     }
 
-    public synchronized void setIncludeBuyingFlips(boolean b) {
-        if (b) {
-            setIncludedStatuses(EnumSet.allOf(FlipStatus.class));
-            return;
-        }
-        setIncludedStatuses(EnumSet.of(FlipStatus.FINISHED, FlipStatus.SELLING));
-    }
-
     public synchronized void setIncludedStatuses(Set<FlipStatus> statuses) {
         EnumSet<FlipStatus> resolved = statuses == null || statuses.isEmpty()
                 ? EnumSet.noneOf(FlipStatus.class)
@@ -108,10 +100,6 @@ public class FlipFilterAndSort {
             includedStatuses = resolved;
             reloadFlips(true, false);
         }
-    }
-
-    public synchronized Set<FlipStatus> getIncludedStatuses() {
-        return EnumSet.copyOf(includedStatuses);
     }
 
     public synchronized void setInterval(IntervalTimeUnit timeUnit, Integer value) {

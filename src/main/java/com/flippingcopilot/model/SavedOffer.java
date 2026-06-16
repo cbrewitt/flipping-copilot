@@ -45,19 +45,6 @@ public class SavedOffer
 		}
 	}
 
-	public boolean isFreeSlot() {
-		switch (state) {
-			case CANCELLED_SELL:
-			case CANCELLED_BUY:
-			case EMPTY:
-			case BOUGHT:
-			case SOLD:
-				return true;
-			default:
-				return false;
-		}
-	}
-
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;

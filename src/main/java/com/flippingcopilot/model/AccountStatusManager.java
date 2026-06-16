@@ -62,7 +62,6 @@ public class AccountStatusManager {
         status.setInventory(inventory);
         status.setUncollected(u);
         status.setDisplayName(osrsLoginManager.getPlayerDisplayName());
-        status.setRsAccountHash(accountHash);
         status.setSkipSuggestion(skipSuggestion);
         status.setSellOnlyMode(suggestionPreferencesManager.isSellOnlyMode());
         status.setBuyAndHold(suggestionPreferencesManager.isBuyAndHold());
@@ -143,10 +142,6 @@ public class AccountStatusManager {
             }
         }
         return new java.util.ArrayList<>(excluded);
-    }
-
-    public boolean isSuggestionSkipped() {
-        return skipSuggestion != -1;
     }
 
     public void resetSkipSuggestion() {

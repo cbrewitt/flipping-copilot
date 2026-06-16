@@ -171,7 +171,6 @@ public class GrandExchangeOfferEventHandler {
             t.setTimestamp(Instant.now());
             t.setCopilotPriceUsed(offer.isCopilotPriceUsed());
             t.setWasCopilotSuggestion(offer.isWasCopilotSuggestion());
-            t.setOfferTotalQuantity(offer.getTotalQuantity());
             t.setLogin(login);
             t.setConsistent(consistent);
             return t;
