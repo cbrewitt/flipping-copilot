@@ -101,80 +101,15 @@ public class AxisCalculator {
     }
 
     public static YAxis calculatePriceAxis(Bounds bounds) {
-        int maxAllowableTicks = 18;
-        int maxAllowableGridLines = 28;
-
-        int priceRange = (int) bounds.yDelta();
-        int priceMin = (int) bounds.yMin;
-        int priceMax = (int) bounds.yMax;
-
-        int magnitude = (int) Math.floor(Math.log10(priceRange));
-        int[] possibleSteps = {1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500};
-
-        int stepSize = 0;
-        int numTicks = Integer.MAX_VALUE;
-
-        for (int baseStep : possibleSteps) {
-            int candidateStep = baseStep * (int) Math.pow(10, magnitude - 1);
-            candidateStep = Math.max(1, candidateStep);
-
-            int candidateTicks = priceRange / candidateStep + 1;
-
-            if (candidateTicks <= maxAllowableTicks && candidateStep > 0) {
-                stepSize = candidateStep;
-                numTicks = candidateTicks;
-                break;
-            }
-        }
-
-        if (stepSize == 0) {
-            stepSize = 500 * (int) Math.pow(10, magnitude - 1);
-            numTicks = priceRange / stepSize + 1;
-        }
-
-        int startTick = (priceMin / stepSize) * stepSize;
-        if (startTick < priceMin) {
-            startTick += stepSize;
-        }
-
-        long[] tickPrices = new long[numTicks];
-        int tickIndex = 0;
-
-        for (int price = startTick; price <= priceMax && tickIndex < numTicks; price += stepSize) {
-            tickPrices[tickIndex++] = price;
-        }
-
-        if (tickIndex < numTicks) {
-            long[] resizedTicks = new long[tickIndex];
-            System.arraycopy(tickPrices, 0, resizedTicks, 0, tickIndex);
-            tickPrices = resizedTicks;
-        }
-
-        long[] gridOnlyPrices = new long[0];
-
-        if (tickPrices.length > 1) {
-            int gridStep = stepSize / 2;
-            if (gridStep > 0 && (tickPrices.length * 2 - 1) <= maxAllowableGridLines) {
-                gridOnlyPrices = new long[tickPrices.length - 1];
-
-                for (int i = 0; i < tickPrices.length - 1; i++) {
-                    gridOnlyPrices[i] = tickPrices[i] + gridStep;
-                }
-            }
-        }
-
-        return new YAxis(tickPrices, gridOnlyPrices);
+        return calculateNumericAxis((int) bounds.yMin, (int) bounds.yMax, (int) bounds.yDelta(), 18, 28);
     }
 
     public static YAxis calculateVolumeAxis(Bounds bounds) {
-        int maxAllowableTicks = 8;
-        int maxAllowableGridLines = 16;
+        return calculateNumericAxis((int) bounds.y2Min, (int) bounds.y2Max, (int) bounds.y2Delta(), 8, 16);
+    }
 
-        int volumeRange = (int) bounds.y2Delta();
-        int volumeMin = (int) bounds.y2Min;
-        int volumeMax = (int) bounds.y2Max;
-
-        int magnitude = (int) Math.floor(Math.log10(volumeRange));
+    private static YAxis calculateNumericAxis(int min, int max, int range, int maxAllowableTicks, int maxAllowableGridLines) {
+        int magnitude = (int) Math.floor(Math.log10(range));
         int[] possibleSteps = {1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500};
 
         int stepSize = 0;
@@ -184,7 +119,7 @@ public class AxisCalculator {
             int candidateStep = baseStep * (int) Math.pow(10, magnitude - 1);
             candidateStep = Math.max(1, candidateStep);
 
-            int candidateTicks = volumeRange / candidateStep + 1;
+            int candidateTicks = range / candidateStep + 1;
 
             if (candidateTicks <= maxAllowableTicks && candidateStep > 0) {
                 stepSize = candidateStep;
@@ -195,41 +130,41 @@ public class AxisCalculator {
 
         if (stepSize == 0) {
             stepSize = 500 * (int) Math.pow(10, magnitude - 1);
-            numTicks = volumeRange / stepSize + 1;
+            numTicks = range / stepSize + 1;
         }
 
-        int startTick = (volumeMin / stepSize) * stepSize;
-        if (startTick < volumeMin) {
+        int startTick = (min / stepSize) * stepSize;
+        if (startTick < min) {
             startTick += stepSize;
         }
 
-        long[] tickvolumes = new long[numTicks];
+        long[] ticks = new long[numTicks];
         int tickIndex = 0;
 
-        for (int volume = startTick; volume <= volumeMax && tickIndex < numTicks; volume += stepSize) {
-            tickvolumes[tickIndex++] = volume;
+        for (int value = startTick; value <= max && tickIndex < numTicks; value += stepSize) {
+            ticks[tickIndex++] = value;
         }
 
         if (tickIndex < numTicks) {
             long[] resizedTicks = new long[tickIndex];
-            System.arraycopy(tickvolumes, 0, resizedTicks, 0, tickIndex);
-            tickvolumes = resizedTicks;
+            System.arraycopy(ticks, 0, resizedTicks, 0, tickIndex);
+            ticks = resizedTicks;
         }
 
-        long[] gridOnlyvolumes = new long[0];
+        long[] gridOnlyTicks = new long[0];
 
-        if (tickvolumes.length > 1) {
+        if (ticks.length > 1) {
             int gridStep = stepSize / 2;
-            if (gridStep > 0 && (tickvolumes.length * 2 - 1) <= maxAllowableGridLines) {
-                gridOnlyvolumes = new long[tickvolumes.length - 1];
+            if (gridStep > 0 && (ticks.length * 2 - 1) <= maxAllowableGridLines) {
+                gridOnlyTicks = new long[ticks.length - 1];
 
-                for (int i = 0; i < tickvolumes.length - 1; i++) {
-                    gridOnlyvolumes[i] = tickvolumes[i] + gridStep;
+                for (int i = 0; i < ticks.length - 1; i++) {
+                    gridOnlyTicks[i] = ticks[i] + gridStep;
                 }
             }
         }
 
-        return new YAxis(tickvolumes, gridOnlyvolumes);
+        return new YAxis(ticks, gridOnlyTicks);
     }
 
 

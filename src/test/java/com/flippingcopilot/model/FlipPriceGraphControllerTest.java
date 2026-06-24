@@ -1,7 +1,5 @@
 package com.flippingcopilot.model;
 
-import com.flippingcopilot.controller.DoesNothingExecutorService;
-import okhttp3.OkHttpClient;
 import org.junit.Assert;
 import org.junit.Test;
 

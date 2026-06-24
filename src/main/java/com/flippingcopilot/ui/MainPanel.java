@@ -1,6 +1,5 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.CopilotLoginController;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;

@@ -6,23 +6,15 @@ import java.awt.*;
 @Singleton
 public class HighlightColorController {
 
-    /*
-    For the highlighted colors we oscillate the actual colors through different shades
-     */
-
-    // Color ranges for red highlight (R,G,B values)
     private static final int[] RED_START = {205, 0, 50};
     private static final int[] RED_END = {255, 50, 0};
 
-    // Color ranges for blue highlight (R,G,B values)
     private static final int[] BLUE_START = {5, 153, 255};
     private static final int[] BLUE_END = {55, 205, 205};
 
-    // Color ranges for amber highlight (R,G,B values)
     private static final int[] AMBER_START = {210, 108, 0};
     private static final int[] AMBER_END = {236, 134, 10};
 
-    // Constants for controlling the drift
     private static final long CYCLE_DURATION = 600000; // 10 minutes for one complete cycle
     private static final int BASE_ALPHA = 79;
     private static final int MIN_ALPHA = 31;

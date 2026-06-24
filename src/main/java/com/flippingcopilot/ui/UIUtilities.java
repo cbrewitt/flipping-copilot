@@ -102,7 +102,7 @@ public class UIUtilities {
         int remainingMinutes = safeMinutes % 60;
 
         if (days > 0) {
-            return days + "d " + hours + "h";
+            return hours == 0 ? days + "d" : days + "d " + hours + "h";
         }
         if (hours > 0) {
             return hours + "h " + remainingMinutes + "m";

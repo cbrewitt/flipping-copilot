@@ -133,14 +133,6 @@ public class StatsPanel extends JPanel {
         model.setValueAt(dataManager.lastHighPrice > 0 ? formatNumber(dataManager.lastHighPrice) : "n/a",4,1);
         model.setValueAt(formatPercentage((float) dataManager.priceChange24H), 5,1);
         model.setValueAt(formatPercentage((float) dataManager.priceChangeWeek), 6,1);
-
-//        // Copilot price and margin
-//        model.addRow(new Object[]{"Copilot buy price", formatNumber(dataManager.data.buyPrice)});
-//        model.addRow(new Object[]{"Copilot sell price", formatNumber(dataManager.data.sellPrice)});
-//
-//        model.addRow(new Object[]{"Margin", formatNumber(dataManager.margin)});
-//        model.addRow(new Object[]{"Tax", formatNumber(dataManager.tax)});
-//        model.addRow(new Object[]{"Profit", formatNumber(dataManager.profit)});
     }
 
 

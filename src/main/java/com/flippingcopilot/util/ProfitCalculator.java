@@ -26,16 +26,10 @@ public class ProfitCalculator {
     private final OfferManager offerManager;
     private final PortfolioStateRS portfolioStateRS;
 
-    /**
-     * Calculates the post-tax price for an item.
-     */
     public static int getPostTaxPrice(int itemId, int price) {
         return price - getTaxAmount(itemId, price);
     }
 
-    /**
-     * Calculates the GE tax amount for an item.
-     */
     public static int getTaxAmount(int itemId, int price) {
         if (GE_TAX_EXEMPT_ITEMS.contains(itemId)) {
             return 0;
@@ -48,26 +42,10 @@ public class ProfitCalculator {
         return (int)Math.floor(price * GE_TAX);
     }
 
-    /**
-     * Calculates the profit per item for a sell at the given price.
-     *
-     * @param itemId The item ID
-     * @param sellPrice The price to sell at
-     * @param avgBuyPrice The average buy price
-     * @return The profit per item in GP (post-tax)
-     */
     public static long calculateProfitPerItem(int itemId, int sellPrice, long avgBuyPrice) {
         return getPostTaxPrice(itemId, sellPrice) - avgBuyPrice;
     }
 
-    /**
-     * Calculates the profit for a sell offer in a specific GE slot.
-     * Only calculates profit for SELL offers.
-     * Cost basis comes from portfolio card data (unit buy price).
-     *
-     * @param slotIndex The GE slot index (0-7)
-     * @return The profit in GP, or null if cannot be calculated
-     */
     public Long calculateSlotProfit(int slotIndex) {
         long accountHash = client.getAccountHash();
         SavedOffer offer = offerManager.loadOffer(accountHash, slotIndex);
@@ -81,13 +59,6 @@ public class ProfitCalculator {
         return calculateProfitPerItem(offer.getItemId(), offer.getPrice(), avgBuyPrice) * offer.getTotalQuantity();
     }
 
-    /**
-     * Calculates the profit for a suggested sell offer.
-     * Used for sell suggestions before the offer is actually placed.
-     *
-     * @param suggestion The sell suggestion
-     * @return The profit in GP, or null if cannot be calculated
-     */
     public Long calculateSuggestionProfit(Suggestion suggestion) {
         if (!suggestion.isSellSuggestion() || suggestion.getPrice() <= 0) {
             return null;
@@ -99,13 +70,6 @@ public class ProfitCalculator {
         return calculateProfitPerItem(suggestion.getItemId(), suggestion.getPrice(), avgBuyPrice) * suggestion.getQuantity();
     }
 
-    /**
-     * Calculates ROI for a suggestion using the provided profit and the suggestion cost basis.
-     *
-     * @param suggestion The suggestion being shown
-     * @param suggestionProfit The profit shown for the suggestion
-     * @return ROI as a fraction, or null if it cannot be calculated
-     */
     public Double calculateSuggestionRoi(Suggestion suggestion, double suggestionProfit) {
         Long costBasis = calculateSuggestionCostBasis(suggestion);
         if (costBasis == null || costBasis <= 0) {
@@ -114,13 +78,6 @@ public class ProfitCalculator {
         return suggestionProfit / (double) costBasis;
     }
 
-    /**
-     * Calculates the cost basis used for suggestion ROI.
-     * Buy suggestions use the suggested buy price. Sell suggestions use the portfolio unit buy price.
-     *
-     * @param suggestion The suggestion being shown
-     * @return The total cost basis in GP, or null if it cannot be calculated
-     */
     public Long calculateSuggestionCostBasis(Suggestion suggestion) {
         if (suggestion == null || suggestion.getPrice() <= 0 || suggestion.getQuantity() <= 0) {
             return null;
@@ -138,15 +95,6 @@ public class ProfitCalculator {
         return null;
     }
 
-    /**
-     * Calculates the profit per item for a given item and price for the current player.
-     * This is useful for determining profitability before placing an offer.
-     * Cost basis comes from portfolio card data (unit buy price).
-     *
-     * @param itemId The item ID
-     * @param sellPrice The price to sell at
-     * @return Profit per item in GP (post-tax revenue minus buy price), or null if cannot be calculated
-     */
     public Long calculateProfitPerItem(int itemId, int sellPrice) {
         if (sellPrice <= 0) {
             return null;
@@ -158,14 +106,6 @@ public class ProfitCalculator {
         return calculateProfitPerItem(itemId, sellPrice, avgBuyPrice);
     }
 
-    /**
-     * Finds the profit for a sell offer by item name.
-     * Searches through all GE slots to find a matching sell offer.
-     * Cost basis comes from portfolio card data (unit buy price).
-     *
-     * @param itemName The item name to search for
-     * @return The profit in GP, or 0 if not found
-     */
     public long getProfitByItemName(String itemName) {
         if (itemName == null || !portfolioStateRS.get().isLoaded()) {
             return 0;

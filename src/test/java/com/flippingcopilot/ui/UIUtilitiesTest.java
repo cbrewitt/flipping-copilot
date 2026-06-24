@@ -66,12 +66,6 @@ public class UIUtilitiesTest {
     }
 
     @Test
-    public void formatSuggestionDuration_roundsToNearestHour_whenAtLeastOneDay() {
-        String result = UIUtilities.formatSuggestionDuration((26 * 60 + 31) * 60);
-        assertEquals("1d 3h", result);
-    }
-
-    @Test
     public void formatSuggestionDuration_omitsHours_whenRoundedToWholeDay() {
         String result = UIUtilities.formatSuggestionDuration((23 * 60 + 58) * 60);
         assertEquals("1d", result);

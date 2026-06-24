@@ -241,7 +241,6 @@ public class FlippingCopilotPlugin extends Plugin {
 
 		if (event.getContainerId() == InventoryID.INV && grandExchange.isOpen()) {
 			suggestionManager.setSuggestionNeeded(true);
-//			log.debug("inventory change item {} qty {}", lastItems, event.getItemContainer().getItems());
 			clientThread.invokeLater(() -> highlightController.redraw());
 		}
 	}

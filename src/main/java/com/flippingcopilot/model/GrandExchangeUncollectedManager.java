@@ -1,9 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.MutableReference;
-import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;

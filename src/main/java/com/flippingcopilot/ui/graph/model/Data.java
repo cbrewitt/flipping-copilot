@@ -3,7 +3,6 @@ package com.flippingcopilot.ui.graph.model;
 import com.flippingcopilot.util.MsgPackUtil;
 import lombok.Getter;
 import java.nio.ByteBuffer;
-import java.util.Random;
 
 public class Data {
 

@@ -223,8 +223,6 @@ public class ProfitGraphPanel extends JPanel {
         }
         g2.setColor(AXIS_COLOR);
         g2.setStroke(AXIS_STROKE);
-//        int y = bounds.toY(pa, 0);
-//        g2.drawLine(pa.x, y, pa.x + pa.width, y);
         g2.drawLine(pa.x, pa.y, pa.x, pa.y + pa.height);
     }
 
