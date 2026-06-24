@@ -81,13 +81,9 @@ public class ItemAggregatePanel extends JPanel {
             sortAndFilter.setSortDirection(direction);
         });
 
-        tablePanel.table().getColumnModel().getColumn(1).setCellRenderer(PaginatedTablePanel.centerRenderer());
-        tablePanel.table().getColumnModel().getColumn(2).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT));
-        tablePanel.table().getColumnModel().getColumn(3).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT));
-        tablePanel.table().getColumnModel().getColumn(4).setCellRenderer(PaginatedTablePanel.profitRenderer(GP_FORMAT, config));
-        tablePanel.table().getColumnModel().getColumn(5).setCellRenderer(PaginatedTablePanel.profitRenderer(GP_FORMAT, config));
-        tablePanel.table().getColumnModel().getColumn(6).setCellRenderer(PaginatedTablePanel.profitRenderer(GP_FORMAT, config));
-        tablePanel.table().getColumnModel().getColumn(7).setCellRenderer(PaginatedTablePanel.profitRenderer(GP_FORMAT, config));
+        tablePanel.centerColumns(1);
+        tablePanel.moneyColumns(GP_FORMAT, 2, 3);
+        tablePanel.profitColumns(GP_FORMAT, config, 4, 5, 6, 7);
 
         JComboBox<Integer> pageSizeComboBox = new JComboBox<>(PAGE_SIZE_OPTIONS);
         pageSizeComboBox.setSelectedItem(sortAndFilter.getPageSize());

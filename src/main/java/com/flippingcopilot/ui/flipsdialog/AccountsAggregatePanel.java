@@ -56,10 +56,9 @@ public class AccountsAggregatePanel extends JPanel {
         tablePanel.leftControls().add(timeIntervalDropdown);
 
         tablePanel.enableBuiltInSorting();
-        tablePanel.table().getColumnModel().getColumn(1).setCellRenderer(PaginatedTablePanel.centerRenderer());
-        tablePanel.table().getColumnModel().getColumn(2).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT));
-        tablePanel.table().getColumnModel().getColumn(3).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT));
-        tablePanel.table().getColumnModel().getColumn(4).setCellRenderer(PaginatedTablePanel.profitRenderer(GP_FORMAT, config));
+        tablePanel.centerColumns(1);
+        tablePanel.moneyColumns(GP_FORMAT, 2, 3);
+        tablePanel.profitColumns(GP_FORMAT, config, 4);
         tablePanel.installPopupHandler(this::showAccountMenu);
 
         add(tablePanel, BorderLayout.CENTER);

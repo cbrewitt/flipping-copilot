@@ -536,15 +536,9 @@ public class MissedFlipsPanel extends JPanel {
             tablePanel.installPopupHandler((e, row) ->
                     showFlipMenu(e, tablePanel.row(row), Section.this.isDisappearedSection));
 
-            tablePanel.table().getColumnModel().getColumn(6).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
-            tablePanel.table().getColumnModel().getColumn(7).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
-            tablePanel.table().getColumnModel().getColumn(8).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
-            tablePanel.table().getColumnModel().getColumn(9).setCellRenderer(PaginatedTablePanel.profitRenderer(GP_FORMAT, config));
-            tablePanel.table().getColumnModel().getColumn(10).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
-
-            tablePanel.table().getColumnModel().getColumn(3).setCellRenderer(PaginatedTablePanel.centerRenderer());
-            tablePanel.table().getColumnModel().getColumn(4).setCellRenderer(PaginatedTablePanel.centerRenderer());
-            tablePanel.table().getColumnModel().getColumn(5).setCellRenderer(PaginatedTablePanel.centerRenderer());
+            tablePanel.moneyColumns(GP_FORMAT, true, 6, 7, 8, 10);
+            tablePanel.profitColumns(GP_FORMAT, config, 9);
+            tablePanel.centerColumns(3, 4, 5);
 
             JLabel titleLabel = new JLabel(title);
             titleLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);

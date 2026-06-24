@@ -148,16 +148,9 @@ public class FlipsPanel extends JPanel {
     }
 
     private void applyRenderers(FlippingCopilotConfig config) {
-        tablePanel.table().getColumnModel().getColumn(7).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
-        tablePanel.table().getColumnModel().getColumn(8).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
-        tablePanel.table().getColumnModel().getColumn(9).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
-        tablePanel.table().getColumnModel().getColumn(10).setCellRenderer(PaginatedTablePanel.profitRenderer(GP_FORMAT, config));
-        tablePanel.table().getColumnModel().getColumn(11).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
-
-        tablePanel.table().getColumnModel().getColumn(2).setCellRenderer(PaginatedTablePanel.centerRenderer());
-        tablePanel.table().getColumnModel().getColumn(4).setCellRenderer(PaginatedTablePanel.centerRenderer());
-        tablePanel.table().getColumnModel().getColumn(5).setCellRenderer(PaginatedTablePanel.centerRenderer());
-        tablePanel.table().getColumnModel().getColumn(6).setCellRenderer(PaginatedTablePanel.centerRenderer());
+        tablePanel.moneyColumns(GP_FORMAT, true, 7, 8, 9, 11);
+        tablePanel.profitColumns(GP_FORMAT, config, 10);
+        tablePanel.centerColumns(2, 4, 5, 6);
     }
 
     private JButton createDownloadButton() {

@@ -114,22 +114,15 @@ public class SuggestionPanel extends JPanel {
 
         layeredPane.setLayout(null);
         setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, DEFAULT_PANEL_HEIGHT));
-        suggestedActionPanel = new JPanel(new BorderLayout());
-        suggestedActionPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        suggestedActionPanel = darkPanel(new BorderLayout(), ColorScheme.DARKER_GRAY_COLOR);
         suggestedActionPanel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
         suggestedActionPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, DEFAULT_PANEL_HEIGHT);
 
-        JPanel suggestionContainer = new JPanel(new BorderLayout());
-        suggestionContainer.setOpaque(true);
-        suggestionContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel suggestionContainer = darkPanel(new BorderLayout(), ColorScheme.DARKER_GRAY_COLOR);
         suggestionContainer.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH - 10, 85));
         suggestedActionPanel.add(suggestionContainer, BorderLayout.CENTER);
 
-        // Center panel for main suggestion content (icon and text)
-        JPanel suggestionMainPanel = new JPanel();
-        suggestionMainPanel.setLayout(new CardLayout());
-        suggestionMainPanel.setOpaque(true);
-        suggestionMainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel suggestionMainPanel = darkPanel(new CardLayout(), ColorScheme.DARKER_GRAY_COLOR);
         suggestionContainer.add(suggestionMainPanel, BorderLayout.CENTER);
 
         suggestionTextContainer.setLayout(new BoxLayout(suggestionTextContainer, BoxLayout.X_AXIS));
@@ -150,11 +143,10 @@ public class SuggestionPanel extends JPanel {
 
         suggestionMainPanel.add(spinner);
 
-        // Add expected profit text to SOUTH of suggestionContainer
         additionalInfoText.setHorizontalAlignment(SwingConstants.CENTER);
         additionalInfoText.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
         additionalInfoText.setText("");
-        additionalInfoText.setBorder(BorderFactory.createEmptyBorder(0, 6, 8, 6)); // top, left, bottom, right
+        additionalInfoText.setBorder(BorderFactory.createEmptyBorder(0, 6, 8, 6));
         suggestionContainer.add(additionalInfoText, BorderLayout.SOUTH);
 
         setupButtonContainer();
@@ -165,31 +157,13 @@ public class SuggestionPanel extends JPanel {
 
         layeredPane.add(this.preferencesPanel, JLayeredPane.PALETTE_LAYER);
 
-        // Create and add the gear button
         BufferedImage gearIcon = ImageUtil.loadImageResource(getClass(), "/preferences-icon.png");
         gearIcon = ImageUtil.resizeImage(gearIcon, 20, 20);
         BufferedImage recoloredIcon = ImageUtil.recolorImage(gearIcon, ColorScheme.LIGHT_GRAY_COLOR);
-        gearButton = buildButton(recoloredIcon, "Settings", () -> {});
+        gearButton = buildButton(recoloredIcon, "Settings", this::handleGearClick);
         gearButton.setEnabled(true);
         gearButton.setFocusable(true);
         gearButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        gearButton.setOpaque(true);
-        ImageIcon iconOff = new ImageIcon(recoloredIcon);
-        ImageIcon iconOn = new ImageIcon(ImageUtil.luminanceScale(recoloredIcon, BUTTON_HOVER_LUMINANCE));
-        gearButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                handleGearClick();
-            }
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                gearButton.setIcon(iconOn);
-            }
-            @Override
-            public void mouseExited(MouseEvent e) {
-                gearButton.setIcon(iconOff);
-            }
-        });
         gearButton.setOpaque(true);
         gearButton.setBounds(5, 5, 20, 20);
 
@@ -230,8 +204,7 @@ public class SuggestionPanel extends JPanel {
         buttonContainer.setLayout(new BorderLayout());
         buttonContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-        JPanel centerPanel = new JPanel(new GridLayout(1, 5, 15, 0));
-        centerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel centerPanel = darkPanel(new GridLayout(1, 5, 15, 0), ColorScheme.DARKER_GRAY_COLOR);
 
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
         graphButton = buildButton(graphIcon, "Price graph", flipsDialogController::openSuggestionPriceGraph);

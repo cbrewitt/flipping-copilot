@@ -150,4 +150,60 @@ public class UIUtilities {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         return panel;
     }
+
+    public static JPanel darkPanel(LayoutManager layout, Color background) {
+        JPanel panel = new JPanel(layout);
+        panel.setBackground(background);
+        return panel;
+    }
+
+    public static JPanel transparentPanel(LayoutManager layout) {
+        JPanel panel = new JPanel(layout);
+        panel.setOpaque(false);
+        return panel;
+    }
+
+    public static JPanel transparentXAxisPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+        panel.setOpaque(false);
+        return panel;
+    }
+
+    public static JPanel verticalPanel(Color background) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(background);
+        return panel;
+    }
+
+    public static void setFixedSize(JComponent component, int width, int height) {
+        Dimension size = new Dimension(width, height);
+        component.setMinimumSize(size);
+        component.setPreferredSize(size);
+        component.setMaximumSize(size);
+    }
+
+    public static void addVerticalGap(JPanel panel, int height) {
+        panel.add(Box.createRigidArea(new Dimension(0, height)));
+    }
+
+    public static void addHorizontalGap(JPanel panel, int width) {
+        panel.add(Box.createRigidArea(new Dimension(width, 0)));
+    }
+
+    public static JPanel formRow(String label, Component control) {
+        JPanel panel = transparentPanel(new BorderLayout());
+        panel.add(new JLabel(label), BorderLayout.LINE_START);
+        panel.add(control, BorderLayout.LINE_END);
+        return panel;
+    }
+
+    public static JPanel messagePanel(String html, Color background, Color foreground) {
+        JPanel panel = darkPanel(new GridBagLayout(), background);
+        JLabel label = new JLabel(html);
+        label.setForeground(foreground);
+        panel.add(label);
+        return panel;
+    }
 }

@@ -198,13 +198,9 @@ public class TransactionsPanel extends JPanel {
             }
         };
 
-        tablePanel.table().getColumnModel().getColumn(1).setCellRenderer(PaginatedTablePanel.centerRenderer());
-        tablePanel.table().getColumnModel().getColumn(2).setCellRenderer(PaginatedTablePanel.centerRenderer());
-        tablePanel.table().getColumnModel().getColumn(4).setCellRenderer(PaginatedTablePanel.centerRenderer());
-        tablePanel.table().getColumnModel().getColumn(5).setCellRenderer(PaginatedTablePanel.moneyRenderer(FlipsPanel.GP_FORMAT));
-        tablePanel.table().getColumnModel().getColumn(6).setCellRenderer(PaginatedTablePanel.moneyRenderer(FlipsPanel.GP_FORMAT));
-        tablePanel.table().getColumnModel().getColumn(7).setCellRenderer(PaginatedTablePanel.moneyRenderer(FlipsPanel.GP_FORMAT));
-        tablePanel.table().getColumnModel().getColumn(8).setCellRenderer(booleanRenderer);
+        tablePanel.centerColumns(1, 2, 4);
+        tablePanel.moneyColumns(FlipsPanel.GP_FORMAT, 5, 6, 7);
+        tablePanel.setRenderer(booleanRenderer, 8);
     }
 
     private void setupErrorOverlay() {

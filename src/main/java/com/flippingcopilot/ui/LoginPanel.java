@@ -139,20 +139,17 @@ public class LoginPanel extends JPanel {
     }
 
     public JPanel buildEmailInput(JTextField textField) {
-        JPanel container = new JPanel(new GridLayout(2, 1));
-        container.setBorder(new EmptyBorder(0, 0, 10, 0));
-        JLabel emailLabel = new JLabel("Email address");
-        container.add(emailLabel, BorderLayout.WEST);
-        container.add(textField);
-        container.setAlignmentX(Component.LEFT_ALIGNMENT);
-        return container;
+        return buildInput("Email address", textField);
     }
 
     public JPanel buildPasswordInput(JTextField textField) {
+        return buildInput("Password", textField);
+    }
+
+    private JPanel buildInput(String label, JTextField textField) {
         JPanel container = new JPanel(new GridLayout(2, 1));
         container.setBorder(new EmptyBorder(0, 0, 10, 0));
-        JLabel passwordLabel = new JLabel("Password");
-        container.add(passwordLabel);
+        container.add(new JLabel(label), BorderLayout.WEST);
         container.add(textField);
         container.setAlignmentX(Component.LEFT_ALIGNMENT);
         return container;

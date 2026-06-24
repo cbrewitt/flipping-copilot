@@ -10,6 +10,7 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -112,6 +113,32 @@ public class PaginatedTablePanel<T> extends JPanel {
 
     public JTable table() {
         return table;
+    }
+
+    public void setRenderer(TableCellRenderer renderer, int... columns) {
+        for (int column : columns) {
+            table.getColumnModel().getColumn(column).setCellRenderer(renderer);
+        }
+    }
+
+    public void centerColumns(int... columns) {
+        setRenderer(centerRenderer(), columns);
+    }
+
+    public void rightColumns(int... columns) {
+        setRenderer(rightTextRenderer(value -> value == null ? "" : value.toString()), columns);
+    }
+
+    public void moneyColumns(NumberFormat format, int... columns) {
+        moneyColumns(format, false, columns);
+    }
+
+    public void moneyColumns(NumberFormat format, boolean centerStrings, int... columns) {
+        setRenderer(moneyRenderer(format, centerStrings), columns);
+    }
+
+    public void profitColumns(NumberFormat format, FlippingCopilotConfig config, int... columns) {
+        setRenderer(profitRenderer(format, config), columns);
     }
 
     public void setTopControlsVisible(boolean visible) {
@@ -285,6 +312,23 @@ public class PaginatedTablePanel<T> extends JPanel {
                 } else if (centerStrings && value instanceof String) {
                     setHorizontalAlignment(CENTER);
                 }
+                return c;
+            }
+        };
+    }
+
+    public static DefaultTableCellRenderer rightTextRenderer(Function<Object, String> formatter) {
+        return textRenderer(formatter, JLabel.RIGHT);
+    }
+
+    public static DefaultTableCellRenderer textRenderer(Function<Object, String> formatter, int alignment) {
+        return new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                                                           boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setText(formatter.apply(value));
+                setHorizontalAlignment(alignment);
                 return c;
             }
         };

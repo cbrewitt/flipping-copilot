@@ -22,8 +22,8 @@ import net.runelite.client.ui.FontManager;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,8 +33,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 
 public class PortfolioPanel extends JPanel {
     private static final NumberFormat GP_FORMAT = NumberFormat.getNumberInstance(Locale.US);
@@ -74,8 +72,7 @@ public class PortfolioPanel extends JPanel {
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
     private final JPanel summaryTablePanel;
-    private final DefaultTableModel tableModel;
-    private final JTable table;
+    private final PaginatedTablePanel<PortfolioItemCardData> tablePanel;
     private final JLabel autoSyncInfoLabel;
     private final JButton clearPortfolioButton;
     private final Map<Integer, ImageIcon> itemIconCache = new ConcurrentHashMap<>();
@@ -149,46 +146,16 @@ public class PortfolioPanel extends JPanel {
 
         contentPanel.add(summarySection, BorderLayout.NORTH);
 
-        tableModel = new DefaultTableModel(COLUMN_NAMES, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-        table = new JTable(tableModel);
-        table.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        table.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        table.setSelectionBackground(ColorScheme.BRAND_ORANGE);
-        table.setSelectionForeground(Color.WHITE);
-        table.setGridColor(ColorScheme.MEDIUM_GRAY_COLOR);
-        table.setRowHeight(40);
-        table.setRowSorter(null);
-        table.getTableHeader().setReorderingAllowed(false);
-        table.setFocusable(false);
-
-        table.getTableHeader().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                int columnIndex = table.getTableHeader().columnAtPoint(e.getPoint());
-                if (columnIndex < 0 || columnIndex >= COLUMN_NAMES.length) {
-                    return;
-                }
-                String clickedColumn = COLUMN_NAMES[columnIndex];
-                SortDirection newDirection = SortDirection.DESC;
-                if (clickedColumn.equals(sortColumn)) {
-                    newDirection = sortDirection == SortDirection.DESC ? SortDirection.ASC : SortDirection.DESC;
-                }
-                sortColumn = clickedColumn;
-                sortDirection = newDirection;
-                renderTable();
-            }
+        tablePanel = new PaginatedTablePanel<>(COLUMN_NAMES, this::toRow, 40);
+        tablePanel.rightControls().add(clearPortfolioButton);
+        tablePanel.installHeaderSort(() -> sortColumn, () -> sortDirection, (clickedColumn, newDirection) -> {
+            sortColumn = clickedColumn;
+            sortDirection = newDirection;
+            renderTable();
         });
-
-        DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
-        rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
-        table.getColumnModel().getColumn(2).setCellRenderer(rightRenderer); // Quantity
-        table.getColumnModel().getColumn(6).setCellRenderer(rightRenderer); // Time held
-        table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
+        tablePanel.installPopupHandler((e, row) -> showPortfolioMenu(e, tablePanel.row(row)));
+        tablePanel.rightColumns(2, 6);
+        tablePanel.setRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -198,8 +165,8 @@ public class PortfolioPanel extends JPanel {
                 setHorizontalAlignment(RIGHT);
                 return c;
             }
-        });
-        table.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
+        }, 1);
+        tablePanel.setRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -211,8 +178,8 @@ public class PortfolioPanel extends JPanel {
                 setHorizontalAlignment(RIGHT);
                 return c;
             }
-        });
-        table.getColumnModel().getColumn(0).setCellRenderer(new DefaultTableCellRenderer() {
+        }, 5);
+        tablePanel.setRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -236,7 +203,7 @@ public class PortfolioPanel extends JPanel {
                 }
                 return label;
             }
-        });
+        }, 0);
 
         DefaultTableCellRenderer profitRenderer = new DefaultTableCellRenderer() {
             @Override
@@ -253,7 +220,7 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         };
-        table.getColumnModel().getColumn(3).setCellRenderer(profitRenderer);
+        tablePanel.setRenderer(profitRenderer, 3);
 
         DefaultTableCellRenderer roiRenderer = new DefaultTableCellRenderer() {
             @Override
@@ -272,24 +239,8 @@ public class PortfolioPanel extends JPanel {
                 return c;
             }
         };
-        table.getColumnModel().getColumn(4).setCellRenderer(roiRenderer);
-        installRowContextMenu();
-
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(null);
-        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
-        scrollPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
-
-        JPanel tableSection = new JPanel(new BorderLayout(0, 6));
-        tableSection.setOpaque(false);
-        JPanel tableButtonRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        tableButtonRow.setOpaque(false);
-        tableButtonRow.add(clearPortfolioButton);
-        tableSection.add(tableButtonRow, BorderLayout.NORTH);
-        tableSection.add(scrollPane, BorderLayout.CENTER);
-        contentPanel.add(tableSection, BorderLayout.CENTER);
+        tablePanel.setRenderer(roiRenderer, 4);
+        contentPanel.add(tablePanel, BorderLayout.CENTER);
 
         cardPanel.add(contentPanel, CONTENT_CARD);
         cardPanel.add(buildLoginPromptPanel(), LOGIN_PROMPT_CARD);
@@ -420,7 +371,6 @@ public class PortfolioPanel extends JPanel {
     }
 
     private void renderTable() {
-        tableModel.setRowCount(0);
         List<PortfolioItemCardData> sortedItems = new ArrayList<>(currentItems);
         Comparator<PortfolioItemCardData> comparator = SORT_COMPARATORS.get(sortColumn);
         if (comparator != null) {
@@ -430,53 +380,27 @@ public class PortfolioPanel extends JPanel {
             sortedItems.sort(comparator);
         }
 
-        NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
-        for (PortfolioItemCardData item : sortedItems) {
-            long avgBuyPrice = item.getUnitBuyPrice();
-            tableModel.addRow(new Object[]{
-                    new ItemCell(item.getItemId(), item.getItemName()),
-                    item.getPostTaxSellUnitPrice() * item.getPortfolioQuantity(),
-                    nf.format(item.getPortfolioQuantity()),
-                    item.portfolioUnrealizedProfit(),
-                    calculateUnrealizedRoi(item),
-                    avgBuyPrice > 0 ? avgBuyPrice : null,
-                    UIUtilities.formatDurationMinutes(item.getHeldMinutes())
-            });
-        }
+        tablePanel.setRows(sortedItems);
     }
 
-    private void installRowContextMenu() {
+    private Object[] toRow(PortfolioItemCardData item) {
+        NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
+        long avgBuyPrice = item.getUnitBuyPrice();
+        return new Object[]{
+                new ItemCell(item.getItemId(), item.getItemName()),
+                item.getPostTaxSellUnitPrice() * item.getPortfolioQuantity(),
+                nf.format(item.getPortfolioQuantity()),
+                item.portfolioUnrealizedProfit(),
+                calculateUnrealizedRoi(item),
+                avgBuyPrice > 0 ? avgBuyPrice : null,
+                UIUtilities.formatDurationMinutes(item.getHeldMinutes())
+        };
+    }
+
+    private void showPortfolioMenu(MouseEvent e, PortfolioItemCardData item) {
         JPopupMenu popupMenu = new JPopupMenu();
-
-        table.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                showPopupIfNeeded(e);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                showPopupIfNeeded(e);
-            }
-
-            private void showPopupIfNeeded(MouseEvent e) {
-                if (!e.isPopupTrigger()) {
-                    return;
-                }
-                int row = table.rowAtPoint(e.getPoint());
-                if (row < 0) {
-                    return;
-                }
-                table.setRowSelectionInterval(row, row);
-                PortfolioItemCardData item = getSelectedItemCardData();
-                if (item == null) {
-                    return;
-                }
-                popupMenu.removeAll();
-                buildContextMenu(popupMenu, item);
-                popupMenu.show(e.getComponent(), e.getX(), e.getY());
-            }
-        });
+        buildContextMenu(popupMenu, item);
+        popupMenu.show(e.getComponent(), e.getX(), e.getY());
     }
 
     private void buildContextMenu(JPopupMenu menu, PortfolioItemCardData item) {
@@ -508,20 +432,6 @@ public class PortfolioPanel extends JPanel {
             });
             menu.add(removeX);
         }
-    }
-
-    private PortfolioItemCardData getSelectedItemCardData() {
-        int viewRow = table.getSelectedRow();
-        if (viewRow < 0) {
-            return null;
-        }
-        int modelRow = table.convertRowIndexToModel(viewRow);
-        Object itemCellObj = tableModel.getValueAt(modelRow, 0);
-        if (!(itemCellObj instanceof ItemCell)) {
-            return null;
-        }
-        ItemCell itemCell = (ItemCell) itemCellObj;
-        return portfolioStateRS.get().getItemCardDataByItemId().get(itemCell.itemId);
     }
 
     private void togglePortfolio(int itemId, int portfolioId, int quantity) {
