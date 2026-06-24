@@ -20,11 +20,8 @@ import java.util.regex.Pattern;
 public class ControlPanel extends JPanel
 {
     private static final int MIN_MINUTES = 1;
-    private static final int MAX_MINUTES = 24 * 60;     // 1440
-
-    private static final int STEPS = 1000;              // internal slider resolution
-
-    // Presets
+    private static final int MAX_MINUTES = 24 * 60;
+    private static final int STEPS = 1000;
     private static final int PRESET_5M  = 5;
     private static final int PRESET_30M = 30;
     private static final int PRESET_2H  = 2 * 60;
@@ -37,7 +34,7 @@ public class ControlPanel extends JPanel
     private final JToggleButton btn30m;
     private final JToggleButton btn2h;
     private final JToggleButton btn8h;
-    private final JToggleButton btnCustom; // "..." button
+    private final JToggleButton btnCustom;
     private final JToggleButton btnRiskLow;
     private final JToggleButton btnRiskMedium;
     private final JToggleButton btnRiskHigh;
@@ -52,14 +49,13 @@ public class ControlPanel extends JPanel
     private static final String RISK_HIGH_LABEL = "High";
 
     private final JSlider timeframeSlider;
-    private final JLabel valueLabel; // fixed-size text showing selected time
-    private final JTextField valueEditor; // temporary editor shown during inline edits
-    private final JPanel customPanel; // contains only the slider row (no label)
+    private final JLabel valueLabel;
+    private final JTextField valueEditor;
+    private final JPanel customPanel;
     private final JPanel sliderRow;
     private boolean editingCustomValue;
     private int editingOriginalMinutes;
 
-    // Sqrt domain precomputed
     private static final double SQRT_MIN = Math.sqrt(MIN_MINUTES);
     private static final double SQRT_MAX = Math.sqrt(MAX_MINUTES);
     private static final double SQRT_RANGE = SQRT_MAX - SQRT_MIN;
@@ -79,7 +75,6 @@ public class ControlPanel extends JPanel
         setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
         setBounds(0, 0, MainPanel.CONTENT_WIDTH, 200);
 
-        // --- Timeframe buttons ---
         timeframePanel = new JPanel();
         timeframePanel.setLayout(new BoxLayout(timeframePanel, BoxLayout.Y_AXIS));
         timeframePanel.setOpaque(false);
@@ -120,23 +115,20 @@ public class ControlPanel extends JPanel
         timeframePanel.add(Box.createRigidArea(new Dimension(0, 3)));
         timeframePanel.add(buttonPanel);
 
-        // --- Custom slider panel (hidden unless "..." selected) ---
         customPanel = new JPanel();
         customPanel.setLayout(new BoxLayout(customPanel, BoxLayout.Y_AXIS));
         customPanel.setOpaque(false);
 
-        // small spacing above the slider row
         customPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
         int initMinutes = clampMinutes(preferencesManager.getTimeframe());
         customExplicitlySelected = !isPreset(initMinutes);
         timeframeSlider = new JSlider(JSlider.HORIZONTAL, 0, STEPS, minutesToPos(initMinutes));
         timeframeSlider.setOpaque(false);
-        timeframeSlider.setPaintTicks(false);   // NO TICKS
-        timeframeSlider.setPaintLabels(false);  // NO LABELS
+        timeframeSlider.setPaintTicks(false);
+        timeframeSlider.setPaintLabels(false);
         timeframeSlider.setSnapToTicks(false);
 
-        // Stable slider height/width
         timeframeSlider.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH - 100, 24));
         timeframeSlider.setMinimumSize(new Dimension(100, 24));
         timeframeSlider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
@@ -146,7 +138,6 @@ public class ControlPanel extends JPanel
         valueLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         valueLabel.setToolTipText("Click to enter a custom time interval");
 
-        // Fixed label size based on widest expected text
         String widest = "24h 00m";
         FontMetrics fm = valueLabel.getFontMetrics(valueLabel.getFont());
         int labelWidth = fm.stringWidth(widest);
@@ -279,14 +270,12 @@ public class ControlPanel extends JPanel
         updateRiskButtons(initialRiskLevel);
         add(timeframePanel);
 
-        // Initial sync & visibility
         refresh();
         updateCustomVisibility();
 
         accountSuggestionPreferencesRS.registerListener(ignored -> refresh());
     }
 
-    // ---------- Mapping between slider position (0..STEPS) and minutes (1..1440) using √t ----------
     private static int minutesToPos(int minutes)
     {
         int m = clampMinutes(minutes);
@@ -565,7 +554,6 @@ public class ControlPanel extends JPanel
         return String.format("#%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue());
     }
 
-    // ---------- UI wiring ----------
     private void applyRiskLevel(RiskLevel level, SuggestionManager suggestionManager, boolean updateButtons)
     {
         RiskLevel effective = level != null ? level : RiskLevel.MEDIUM;
@@ -629,40 +617,16 @@ public class ControlPanel extends JPanel
 
     private JToggleButton createPresetButton(String label, int value, SuggestionManager suggestionManager)
     {
-        JToggleButton button = new JToggleButton();
-        button.addActionListener(e -> {
+        return createTimeframeButton(label, () -> {
             customExplicitlySelected = false;
             applyTimeframe(value, suggestionManager, /*updateSlider*/ true, /*updateButtons*/ true);
             updateCustomVisibility(); // hides slider
         });
-        button.setMargin(new Insets(2, 4, 2, 4));
-        button.setFocusPainted(false);
-        button.setOpaque(true);
-        button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        button.setForeground(ColorScheme.TEXT_COLOR);
-
-        button.setText("<html><font color='rgb(198, 198, 198)'>" + label + "</font></html>");
-
-        button.addChangeListener(e2 -> {
-            if (button.isSelected())
-            {
-                button.setBackground(ColorScheme.BRAND_ORANGE);
-                button.setText("<html><font color='black'>" + label + "</font></html>");
-            }
-            else
-            {
-                button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-                button.setText("<html><font color='rgb(198, 198, 198)'>" + label + "</font></html>");
-            }
-        });
-
-        return button;
     }
 
     private JToggleButton createCustomButton(String label, SuggestionManager suggestionManager)
     {
-        JToggleButton button = new JToggleButton();
-        button.addActionListener(e -> {
+        return createTimeframeButton(label, () -> {
             customExplicitlySelected = true;
             // Selecting "..." reveals the slider and shows current value
             int current = clampMinutes(preferencesManager.getTimeframe());
@@ -672,42 +636,41 @@ public class ControlPanel extends JPanel
             updateValueLabel(current);
             updateCustomVisibility(); // shows slider
         });
+    }
+
+    private JToggleButton createTimeframeButton(String label, Runnable action)
+    {
+        JToggleButton button = createToggleButton();
+        button.addActionListener(e -> action.run());
+        button.addChangeListener(e -> applyTimeframeButtonStyle(button, label));
+        applyTimeframeButtonStyle(button, label);
+        return button;
+    }
+
+    private JToggleButton createToggleButton()
+    {
+        JToggleButton button = new JToggleButton();
         button.setMargin(new Insets(2, 4, 2, 4));
         button.setFocusPainted(false);
         button.setOpaque(true);
         button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         button.setForeground(ColorScheme.TEXT_COLOR);
-
-        button.setText("<html><font color='rgb(198, 198, 198)'>" + label + "</font></html>");
-
-        button.addChangeListener(e2 -> {
-            if (button.isSelected())
-            {
-                button.setBackground(ColorScheme.BRAND_ORANGE);
-                button.setText("<html><font color='black'>" + label + "</font></html>");
-            }
-            else
-            {
-                button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-                button.setText("<html><font color='rgb(198, 198, 198)'>" + label + "</font></html>");
-            }
-        });
-
         return button;
+    }
+
+    private void applyTimeframeButtonStyle(JToggleButton button, String label)
+    {
+        boolean selected = button.isSelected();
+        button.setBackground(selected ? ColorScheme.BRAND_ORANGE : ColorScheme.DARKER_GRAY_COLOR);
+        button.setText(String.format("<html><font color='%s'>%s</font></html>", selected ? "black" : "rgb(198, 198, 198)", label));
     }
 
     private JToggleButton createRiskButton(String label, RiskLevel level, SuggestionManager suggestionManager)
     {
-        JToggleButton button = new JToggleButton();
+        JToggleButton button = createToggleButton();
         button.addActionListener(e -> applyRiskLevel(level, suggestionManager, true));
-        button.setMargin(new Insets(2, 4, 2, 4));
-        button.setFocusPainted(false);
-        button.setOpaque(true);
-        button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-
         button.addChangeListener(e2 -> applyRiskButtonStyle(button, label, level, button.isSelected()));
         applyRiskButtonStyle(button, label, level, false);
-
         return button;
     }
 

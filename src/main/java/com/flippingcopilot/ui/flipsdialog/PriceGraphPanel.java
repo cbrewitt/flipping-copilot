@@ -7,7 +7,6 @@ import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.ItemPrice;
 import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.model.SuggestionManager;
-import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.UIUtilities;
 import com.flippingcopilot.ui.components.ItemSearchBox;
 import com.flippingcopilot.ui.components.TrackingCardLayout;
@@ -199,41 +198,15 @@ public class PriceGraphPanel extends JPanel {
     }
 
     private JPanel buildLogIntoGameCard() {
-        JPanel landingCard = new JPanel(new GridBagLayout());
-        landingCard.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        JLabel emptyLabel = new JLabel("Log into game to use price graphs.");
-        emptyLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        emptyLabel.setFont(emptyLabel.getFont().deriveFont(16f));
-        landingCard.add(emptyLabel);
-        return landingCard;
+        return DialogUi.centeredMessage("Log into game to use price graphs.", ColorScheme.DARK_GRAY_COLOR, true, 16f);
     }
 
     private JPanel buildLandingCard() {
-        JPanel landingCard = new JPanel(new GridBagLayout());
-        landingCard.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        JLabel emptyLabel = new JLabel("Search for an item to view its price graph");
-        emptyLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        emptyLabel.setFont(emptyLabel.getFont().deriveFont(16f));
-        landingCard.add(emptyLabel);
-        return landingCard;
+        return DialogUi.centeredMessage("Search for an item to view its price graph", ColorScheme.DARK_GRAY_COLOR, true, 16f);
     }
 
     private JPanel buildLoadingCard() {
-        JLabel loadingLabel = new JLabel("Loading price data...");
-        Spinner spinner = new Spinner();
-        loadingLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        loadingLabel.setFont(loadingLabel.getFont().deriveFont(14f));
-        JPanel loadingPanel = new JPanel(new GridBagLayout());
-        loadingPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.insets = new Insets(10, 10, 10, 10);
-        spinner.show();
-        loadingPanel.add(spinner, gbc);
-        gbc.gridy = 1;
-        loadingPanel.add(loadingLabel, gbc);
-        return loadingPanel;
+        return DialogUi.loadingCard("Loading price data...", ColorScheme.DARK_GRAY_COLOR);
     }
 
     private JPanel buildErrorCard() {

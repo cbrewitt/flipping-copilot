@@ -23,6 +23,7 @@ import net.runelite.api.widgets.Widget;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Map;
+import java.util.function.Consumer;
 
 @Slf4j
 @Singleton
@@ -136,43 +137,33 @@ public class MenuHandler {
         boolean showAdd = locationQty > 0 && (cardData == null || !cardData.isInPortfolio() || notInPortfolio > 0);
         boolean showRemove = locationQty > 0 && portfolioQty > 0;
 
-        // Menu entries are added in reverse display order (last added = top of menu)
-
-        // Remove X — cross-location custom amount, when portfolioQuantity > 1
         if (portfolioQty > 1) {
-            client.getMenu()
-                    .createMenuEntry(-1)
-                    .setOption(MENU_REMOVE_X)
-                    .setTarget(menuItem.menuTarget)
-                    .onClick((MenuEntry e) -> promptQuantityAndToggle(menuItem, accountId, ToggleItemPortfolioRequest.REMOVE, "Enter quantity to remove:"));
+            addPortfolioMenuEntry(MENU_REMOVE_X, menuItem,
+                    e -> promptQuantityAndToggle(menuItem, accountId, ToggleItemPortfolioRequest.REMOVE, "Enter quantity to remove:"));
         }
 
-        // Remove (location-scoped) — removes only the qty present at the clicked location
         if (showRemove) {
-            client.getMenu()
-                    .createMenuEntry(-1)
-                    .setOption(MENU_REMOVE)
-                    .setTarget(menuItem.menuTarget)
-                    .onClick((MenuEntry e) -> onTogglePortfolioClicked(menuItem, accountId, ToggleItemPortfolioRequest.REMOVE, locationQty));
+            addPortfolioMenuEntry(MENU_REMOVE, menuItem,
+                    e -> onTogglePortfolioClicked(menuItem, accountId, ToggleItemPortfolioRequest.REMOVE, locationQty));
         }
 
-        // Add X — cross-location custom amount, when notInPortfolio > 1
         if (notInPortfolio > 1) {
-            client.getMenu()
-                    .createMenuEntry(-1)
-                    .setOption(MENU_ADD_X)
-                    .setTarget(menuItem.menuTarget)
-                    .onClick((MenuEntry e) -> promptQuantityAndToggle(menuItem, accountId, PortfolioId.COFLIP_PORTFOLIO, "Enter quantity to add:"));
+            addPortfolioMenuEntry(MENU_ADD_X, menuItem,
+                    e -> promptQuantityAndToggle(menuItem, accountId, PortfolioId.COFLIP_PORTFOLIO, "Enter quantity to add:"));
         }
 
-        // Add (location-scoped) — adds only the qty present at the clicked location
         if (showAdd) {
-            client.getMenu()
-                    .createMenuEntry(-1)
-                    .setOption(MENU_ADD)
-                    .setTarget(menuItem.menuTarget)
-                    .onClick((MenuEntry e) -> onTogglePortfolioClicked(menuItem, accountId, PortfolioId.COFLIP_PORTFOLIO, locationQty));
+            addPortfolioMenuEntry(MENU_ADD, menuItem,
+                    e -> onTogglePortfolioClicked(menuItem, accountId, PortfolioId.COFLIP_PORTFOLIO, locationQty));
         }
+    }
+
+    private void addPortfolioMenuEntry(String option, InventoryMenuItem menuItem, Consumer<MenuEntry> onClick) {
+        client.getMenu()
+                .createMenuEntry(-1)
+                .setOption(option)
+                .setTarget(menuItem.menuTarget)
+                .onClick(onClick);
     }
 
     private int getLocationQuantity(int itemId, MenuLocation location) {

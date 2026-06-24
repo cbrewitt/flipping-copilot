@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import static com.flippingcopilot.ui.flipsdialog.FlipFilterAndSort.escapeCSV;
 import static com.flippingcopilot.ui.flipsdialog.FlipFilterAndSort.formatTimestampISO;
@@ -310,71 +311,66 @@ public class TransactionsPanel extends JPanel {
         JPopupMenu menu = new JPopupMenu();
 
         if (isPartOfFlip(transaction)) {
-            JMenuItem orphanItem = new JMenuItem("Remove from flip");
-            orphanItem.addActionListener(evt -> {
-                int result = JOptionPane.showConfirmDialog(this,
-                        "Are you sure you want to remove the transaction from its flip? The flip and any profit will also be updated. This operation cannot be undone.",
-                        "Confirm Action",
-                        JOptionPane.YES_NO_OPTION);
-                if (result == JOptionPane.YES_OPTION) {
-                    loadingText.setText("");
-                    setSpinnerVisible(true);
-                    log.info("orphaning transaction with ID: {}", transaction.getId());
-
-                    BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
-                        flipManager.mergeFlips(flips, userId);
-                        setSpinnerVisible(false);
-                        transaction.setClientFlipId(ZERO_UUID);
-                        transactionDataWrapper.update(transaction);
-                        applyFilters(false);
-                    };
-
-                    Runnable onFailure = () -> {
-                        setSpinnerVisible(false);
-                        JOptionPane.showMessageDialog(this,
-                                "Failed to update transaction. Please try again.",
-                                "Error",
-                                JOptionPane.ERROR_MESSAGE);
-                    };
-
-                    apiRequestHandler.asyncOrphanTransaction(transaction, onSuccess, onFailure);
-                }
-            });
-            menu.add(orphanItem);
+            menu.add(transactionMenuItem(
+                    transaction,
+                    "Remove from flip",
+                    "Are you sure you want to remove the transaction from its flip? The flip and any profit will also be updated. This operation cannot be undone.",
+                    "Failed to update transaction. Please try again.",
+                    "orphaning",
+                    apiRequestHandler::asyncOrphanTransaction,
+                    transactionDataWrapper::update));
         }
 
-        JMenuItem deleteItem = new JMenuItem("Delete transaction");
-        deleteItem.addActionListener(evt -> {
+        menu.add(transactionMenuItem(
+                transaction,
+                "Delete transaction",
+                "Are you sure you want to delete this transaction? Any flip it is part of will also be updated.",
+                "Failed to delete transaction. Please try again.",
+                "deleting",
+                apiRequestHandler::asyncDeleteTransaction,
+                tx -> transactionDataWrapper.deleteOne(i -> tx.getId().equals(i.getId()))));
+        menu.show(e.getComponent(), e.getX(), e.getY());
+    }
+
+    private JMenuItem transactionMenuItem(AckedTransaction transaction, String label, String confirmMessage,
+                                          String errorMessage, String logAction,
+                                          TransactionRequest request, Consumer<AckedTransaction> localUpdate) {
+        JMenuItem item = new JMenuItem(label);
+        item.addActionListener(evt -> {
             int result = JOptionPane.showConfirmDialog(this,
-                    "Are you sure you want to delete this transaction? Any flip it is part of will also be updated.",
+                    confirmMessage,
                     "Confirm Action",
                     JOptionPane.YES_NO_OPTION);
             if (result == JOptionPane.YES_OPTION) {
                 loadingText.setText("");
                 setSpinnerVisible(true);
-                log.info("deleting transaction with ID: {}", transaction.getId());
+                log.info("{} transaction with ID: {}", logAction, transaction.getId());
 
                 BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
                     flipManager.mergeFlips(flips, userId);
                     setSpinnerVisible(false);
                     transaction.setClientFlipId(ZERO_UUID);
-                    transactionDataWrapper.deleteOne(i -> transaction.getId().equals(i.getId()));
+                    localUpdate.accept(transaction);
                     applyFilters(false);
                 };
 
                 Runnable onFailure = () -> {
                     setSpinnerVisible(false);
                     JOptionPane.showMessageDialog(this,
-                            "Failed to delete transaction. Please try again.",
+                            errorMessage,
                             "Error",
                             JOptionPane.ERROR_MESSAGE);
                 };
 
-                apiRequestHandler.asyncDeleteTransaction(transaction, onSuccess, onFailure);
+                request.send(transaction, onSuccess, onFailure);
             }
         });
-        menu.add(deleteItem);
-        menu.show(e.getComponent(), e.getX(), e.getY());
+        return item;
+    }
+
+    @FunctionalInterface
+    private interface TransactionRequest {
+        void send(AckedTransaction transaction, BiConsumer<Integer, List<FlipV2>> onSuccess, Runnable onFailure);
     }
 
     private void downloadTransactionsCSV() {

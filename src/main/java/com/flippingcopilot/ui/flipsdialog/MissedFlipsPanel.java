@@ -28,8 +28,6 @@ import java.text.NumberFormat;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -50,21 +48,6 @@ public class MissedFlipsPanel extends JPanel {
             "First buy time", "Last sell time", "Item", "Status", "Bought", "Sold",
             "Avg. buy price", "Avg. sell price", "Tax", "Profit", "Profit ea."
     };
-
-    private static final Map<String, Comparator<FlipV2>> SORT_COMPARATORS = new HashMap<>();
-    static {
-        SORT_COMPARATORS.put("First buy time", Comparator.comparing(FlipV2::getOpenedTime));
-        SORT_COMPARATORS.put("Last sell time", Comparator.comparing(FlipV2::lastTransactionTime).reversed());
-        SORT_COMPARATORS.put("Item", Comparator.comparing(f -> f.getCachedItemName() != null ? f.getCachedItemName() : ""));
-        SORT_COMPARATORS.put("Status", Comparator.comparing(FlipV2::getStatus));
-        SORT_COMPARATORS.put("Bought", Comparator.comparing(FlipV2::getOpenedQuantity));
-        SORT_COMPARATORS.put("Sold", Comparator.comparing(FlipV2::getClosedQuantity));
-        SORT_COMPARATORS.put("Avg. buy price", Comparator.comparing(FlipV2::getSpent));
-        SORT_COMPARATORS.put("Avg. sell price", Comparator.comparing(FlipV2::getReceivedPostTax));
-        SORT_COMPARATORS.put("Tax", Comparator.comparing(FlipV2::getTaxPaid));
-        SORT_COMPARATORS.put("Profit", Comparator.comparing(FlipV2::getProfit));
-        SORT_COMPARATORS.put("Profit ea.", Comparator.comparing(f -> f.getClosedQuantity() > 0 ? f.getProfit() / f.getClosedQuantity() : 0L));
-    }
 
     private static final String SECTIONS_CARD = "sections";
     private static final String LOGIN_PROMPT_CARD = "login";
@@ -189,18 +172,7 @@ public class MissedFlipsPanel extends JPanel {
     }
 
     private JPanel buildLoginPromptPanel() {
-        JPanel loginPromptPanel = new JPanel(new GridBagLayout());
-        loginPromptPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        JLabel messageLabel = new JLabel("Log into the game to view missed flips");
-        messageLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        messageLabel.setFont(messageLabel.getFont().deriveFont(18f));
-        messageLabel.setHorizontalAlignment(JLabel.CENTER);
-        messageLabel.setMinimumSize(messageLabel.getPreferredSize());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        loginPromptPanel.add(messageLabel, gbc);
-        return loginPromptPanel;
+        return DialogUi.loginPrompt("Log into the game to view missed flips", ColorScheme.DARK_GRAY_COLOR, true);
     }
 
     private void setFilteredItems(Set<Integer> items) {
@@ -494,9 +466,6 @@ public class MissedFlipsPanel extends JPanel {
     }
 
     private Object[] toRow(FlipV2 flip) {
-        long profitPerItem = flip.getClosedQuantity() > 0 ? flip.getProfit() / flip.getClosedQuantity() : 0L;
-        long avgBuy = flip.getOpenedQuantity() > 0 ? flip.getSpent() / flip.getOpenedQuantity() : 0L;
-        long avgSell = flip.getClosedQuantity() == 0 ? 0L : (flip.getReceivedPostTax() + flip.getTaxPaid()) / flip.getClosedQuantity();
         return new Object[]{
                 formatTimestamp(flip.getOpenedTime()),
                 formatTimestamp(flip.getClosedTime()),
@@ -504,11 +473,11 @@ public class MissedFlipsPanel extends JPanel {
                 flip.getStatus().name(),
                 flip.getOpenedQuantity(),
                 flip.getClosedQuantity(),
-                avgBuy,
-                avgSell,
+                FlipTableUtil.averageBuy(flip),
+                FlipTableUtil.averageSell(flip),
                 flip.getTaxPaid(),
                 flip.getProfit(),
-                profitPerItem
+                FlipTableUtil.profitEach(flip)
         };
     }
 
@@ -560,13 +529,7 @@ public class MissedFlipsPanel extends JPanel {
         }
 
         private void rerender() {
-            Comparator<FlipV2> comparator = SORT_COMPARATORS.get(sortColumn);
-            if (comparator != null) {
-                if (sortDirection == SortDirection.ASC) {
-                    comparator = comparator.reversed();
-                }
-                currentFlips.sort(comparator);
-            }
+            FilterSortUtil.sort(currentFlips, FlipTableUtil.COMPARATORS, sortColumn, sortDirection);
             tablePanel.setRows(new ArrayList<>(currentFlips));
         }
     }

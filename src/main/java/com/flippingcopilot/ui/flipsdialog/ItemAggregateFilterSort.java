@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.inject.Named;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
@@ -72,17 +71,7 @@ public class ItemAggregateFilterSort {
     }
 
     public synchronized void setInterval(IntervalTimeUnit timeUnit, Integer value) {
-        switch (timeUnit) {
-            case ALL:
-                intervalStartTime = 1;
-                break;
-            case SESSION:
-                // TODO: Get session start time from SessionManager
-                intervalStartTime = (int) Instant.now().getEpochSecond() - 3600; // Default to 1 hour ago
-                break;
-            default:
-                intervalStartTime = (int) (Instant.now().getEpochSecond() - (long) value * timeUnit.getSeconds());
-        }
+        intervalStartTime = FilterSortUtil.intervalStart(timeUnit, value);
         reloadAggregates(true);
     }
 
@@ -166,7 +155,7 @@ public class ItemAggregateFilterSort {
 
             if (totalPagesMaybeChanged) {
                 log.debug("updating total pages");
-                int totalPages = 1 + cachedAggregates.size() / pageSize;
+                int totalPages = FilterSortUtil.totalPages(cachedAggregates.size(), pageSize);
                 totalPagesChangedCallback.accept(totalPages);
                 log.debug("updated total pages to {}", totalPages);
             }
@@ -175,22 +164,12 @@ public class ItemAggregateFilterSort {
                 log.debug("re-sorting cached item aggregates");
                 cachedSortColumn = sortColumn;
                 cachedSortDirection = sortDirection;
-
-                // Apply sorting
-                Comparator<ItemAggregate> comparator = SORT_COMPARATORS.get(sortColumn);
-                if (comparator != null) {
-                    if (sortDirection == SortDirection.ASC) {
-                        comparator = comparator.reversed();
-                    }
-                    cachedAggregates.sort(comparator);
-                }
+                FilterSortUtil.sort(cachedAggregates, SORT_COMPARATORS, sortColumn, sortDirection);
                 log.debug("re-sorted item aggregates");
             }
 
-            int startIndex = (page - 1) * pageSize;
-            int endIndex = Math.min(startIndex + pageSize, cachedAggregates.size());
             slowLoadingCallback.accept(false);
-            aggregatesCallback.accept(cachedAggregates.subList(startIndex, endIndex));
+            aggregatesCallback.accept(FilterSortUtil.page(cachedAggregates, page, pageSize));
             log.debug("_reloadAggregates end");
 
         } catch (Exception e) {

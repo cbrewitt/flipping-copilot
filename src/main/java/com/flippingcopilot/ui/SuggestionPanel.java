@@ -34,7 +34,6 @@ import static com.flippingcopilot.util.Constants.MIN_GP_NEEDED_TO_FLIP;
 public class SuggestionPanel extends JPanel {
     private static final int DEFAULT_PANEL_HEIGHT = 150;
 
-    // dependencies
     private final FlippingCopilotConfig config;
     private final SuggestionManager suggestionManager;
     private final SuggestionPreferencesManager suggestionPreferencesManager;
@@ -238,9 +237,7 @@ public class SuggestionPanel extends JPanel {
     }
 
     public void setAdditionalInfoText(String text) {
-        additionalInfoText.setText("<html><center>" + text + "</center></html>");
-        additionalInfoText.setToolTipText(null);
-        suggestionText.setToolTipText(null);
+        setAdditionalInfoText(text, null);
     }
 
     private void setAdditionalInfoText(String text, String tooltip) {
@@ -254,8 +251,7 @@ public class SuggestionPanel extends JPanel {
         String suggestionString = "<html><center>";
         suggestionTextContainer.setVisible(false);
         additionalInfoText.setText("");
-        additionalInfoText.setToolTipText(null);
-        suggestionText.setToolTipText(null);
+        clearSuggestionTooltips();
         SuggestionType suggestionType = suggestion.getType();
         if (suggestionType == null) {
             suggestionString += "Error processing suggestion<br>";
@@ -367,19 +363,15 @@ public class SuggestionPanel extends JPanel {
 
     public void setMessage(String message) {
         additionalInfoText.setVisible(false);
-        additionalInfoText.setToolTipText(null);
-        suggestionText.setToolTipText(null);
+        clearSuggestionTooltips();
         innerSuggestionMessage = message;
         setButtonsVisible(false);
 
-        // Check if message contains "<manage>"
         String displayMessage = message;
         if (message != null && message.contains("<manage>")) {
-            // Replace <manage> with a styled link
             displayMessage = message.replace("<manage>",
                     "<a href='#' style='text-decoration:underline'>manage</a>");
 
-            // Add mouse listener if not already present
             boolean hasListener = false;
             for (MouseListener listener : suggestionText.getMouseListeners()) {
                 if (listener instanceof ManageClickListener) {
@@ -390,7 +382,6 @@ public class SuggestionPanel extends JPanel {
 
             if (!hasListener) {
                 suggestionText.addMouseListener(new ManageClickListener());
-                // Make the label show a hand cursor when hovering over it
                 suggestionText.setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
         } else {
@@ -423,8 +414,7 @@ public class SuggestionPanel extends JPanel {
         setButtonsVisible(false);
         suggestionIcon.setVisible(false);
         additionalInfoText.setText("");
-        additionalInfoText.setToolTipText(null);
-        suggestionText.setToolTipText(null);
+        clearSuggestionTooltips();
         additionalInfoText.setVisible(false);
         suggestionText.setText("");
     }
@@ -524,8 +514,7 @@ public class SuggestionPanel extends JPanel {
         if(expectedProfit < 0) {
             color = config.lossAmountColor();
         }
-        String colorHex = String.format("#%06X", (0xFFFFFF & color.getRGB()));
-        String text = "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit";
+        String text = boldColor(formattedProfit, color) + " profit";
         if (expectedDuration != null) {
             String formattedDuration = formatSuggestionDuration(expectedDuration);
             text += " in <b>" + formattedDuration + "</b>";
@@ -539,10 +528,7 @@ public class SuggestionPanel extends JPanel {
         }
         String formattedProfit = formatProfit(expectedProfit);
         String formattedDuration = formatSuggestionDuration(expectedDuration);
-        Color profitColor = config.profitAmountColor();
-
-        String colorHex = String.format("#%06X", (0xFFFFFF & profitColor.getRGB()));
-        return "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit in <b>" + formattedDuration + "</b>";
+        return boldColor(formattedProfit, config.profitAmountColor()) + " profit in <b>" + formattedDuration + "</b>";
     }
 
     private String formatSuggestionTooltip(Suggestion suggestion, Double suggestionProfit) {
@@ -584,8 +570,20 @@ public class SuggestionPanel extends JPanel {
             return null;
         }
         Color roiColor = UIUtilities.getProfitColor(roi, config);
-        String colorHex = String.format("#%06X", (0xFFFFFF & roiColor.getRGB()));
-        return "ROI: <font color='" + colorHex + "'>" + formatRoi(roi) + "</font>";
+        return "ROI: <font color='" + colorHex(roiColor) + "'>" + formatRoi(roi) + "</font>";
+    }
+
+    private void clearSuggestionTooltips() {
+        additionalInfoText.setToolTipText(null);
+        suggestionText.setToolTipText(null);
+    }
+
+    private String boldColor(String text, Color color) {
+        return "<b><font color='" + colorHex(color) + "'>" + text + "</font></b>";
+    }
+
+    private String colorHex(Color color) {
+        return String.format("#%06X", (0xFFFFFF & color.getRGB()));
     }
 
     private String formatRoi(double roi) {

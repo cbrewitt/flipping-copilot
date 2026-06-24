@@ -14,14 +14,6 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * This class is essentially a cache of user flips that facilitates efficient access to the flips and statistics for
- * any time range and rs account(s) combination. Since after several years a (very) active user could have hundreds of
- * thousands of flips, it would be too slow to filter and re-calculate flips/statistics from scratch every time.
- * A bucketed aggregation strategy is used where we keep pre-computed weekly buckets of statistics and flips. For any
- * time range we can efficiently combine the weekly buckets and only have to re-calculate statistics for the partial
- * weeks on the boundaries of the time range. Have tested the UI experience with >100k flips.
- */
 @Slf4j
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
@@ -32,13 +24,11 @@ public class FlipManager {
     public static final Comparator<FlipV2> FLIP_STATUS_TIME_COMPARATOR =
                 Comparator.comparing(FlipV2::isClosed).reversed().thenComparing(f -> f.getClosedTime() > 0 ? f.getClosedTime() : f.getOpenedTime());
 
-    // dependencies
     private final ItemController itemController;
 
     @Setter
     private Runnable flipsChangedCallback = () -> {};
 
-    // state
     @Setter
     private volatile int copilotUserId;
     private Integer intervalAccount;
@@ -48,8 +38,7 @@ public class FlipManager {
     final Map<Integer, Map<Integer, FlipV2>> lastOpenFlipByItemId = new HashMap<>();
     final Map<UUID, Integer> existingCloseTimes = new HashMap<>();
     final List<WeekAggregate> weeks = new ArrayList<>(365*5);
-    // Non-deleted flips with portfolio_id in {-1, -2, -3, -4} (ghost + disappeared buckets),
-    // kept separately from week aggregates because mergeFlip_ excludes them via isInPortfolio.
+    // Ghost/disappeared flips excluded from week aggregates.
     final Map<Integer, Map<UUID, FlipV2>> missedFlipsByAccount = new HashMap<>();
 
 
@@ -168,7 +157,6 @@ public class FlipManager {
             WeekAggregate w = weeks.get(i);
             List<FlipV2> weekFlips = accountId == null ? w.flipsAfter(intervalStartTime, true) : w.flipsAfterForAccount(intervalStartTime, accountId);
             int n = weekFlips.size();
-            // note: weekFlips are ascending order but we consume in descending order
             for(int ii=n-1; ii >= 0; ii--) {
                 FlipV2 f = weekFlips.get(ii);
                 if (isTrackedFlip(f)) {
@@ -256,7 +244,6 @@ public class FlipManager {
             WeekAggregate wa = getOrInitWeek(existingCloseTime);
             FlipV2 removed = wa.removeFlipIfUpdatedBefore(existingCloseTime, flip);
             if (removed == null) {
-                // the flip we are merging is an out of date instance of the same flip
                 return;
             }
             if(isInInterval(removed)) {
@@ -338,7 +325,6 @@ public class FlipManager {
             week.deleteAccountFlips(accountId);
         }
         if (intervalAccount != null && intervalAccount == accountId) {
-            // change the intervalAccount if it is the one being deleted
             intervalAccount = null;
             recalculateIntervalStats();
         } else if (intervalAccount == null) {
@@ -351,7 +337,7 @@ public class FlipManager {
 
     class WeekAggregate {
 
-        int pos; // note: only correct when returned by getOrInitWeek
+        int pos;
         int weekStart;
         int weekEnd;
 
@@ -372,7 +358,6 @@ public class FlipManager {
             List<FlipV2> flips = accountIdToFlips.computeIfAbsent(updatedFlip.getAccountId(), (k) -> new ArrayList<>());
             int i = bisect(flips.size(), closedTimeCmp(flips, updatedFlip.getId(), existingCloseTime));
             FlipV2 flip = flips.get(i);
-            // if the existing instance of the flip is updated more recently return null
             if (flip.isNewer(updatedFlip)) {
                 return null;
             }
@@ -423,7 +408,6 @@ public class FlipManager {
 
     private Function<Integer, Integer> closedTimeCmp(List<FlipV2> flips, UUID id, int time) {
         return (a) -> {
-            // sorts time ascending with id as tie-breaker
             int c = Integer.compare(flips.get(a).getClosedTime(), time);
             return c != 0 ? c : id.compareTo(flips.get(a).getId());
         };
@@ -440,9 +424,9 @@ public class FlipManager {
             else if (cmp > 0)
                 high = mid - 1;
             else
-                return mid; // key found
+                return mid;
         }
-        return -(low + 1);  // key not found (low = insertion point)
+        return -(low + 1);
     }
 
     private boolean isTrackedFlip(FlipV2 flip) {

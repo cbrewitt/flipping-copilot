@@ -26,25 +26,6 @@ public class FlipFilterAndSort {
 
     public static final int DEFAULT_PAGE_SIZE = 50;
 
-    // Sort comparators map
-    private static final Map<String, Comparator<FlipV2>> SORT_COMPARATORS = new HashMap<>();
-
-    static {
-        // Last sell time - special handling for non-closed trades
-        SORT_COMPARATORS.put("Last sell time", Comparator.comparing(FlipV2::lastTransactionTime).reversed());
-        SORT_COMPARATORS.put("First buy time", Comparator.comparing(FlipV2::getOpenedTime));
-        SORT_COMPARATORS.put("Account", Comparator.comparing(FlipV2::getAccountId));
-        SORT_COMPARATORS.put("Item", Comparator.comparing(f -> f.getCachedItemName() != null ? f.getCachedItemName() : ""));
-        SORT_COMPARATORS.put("Status", Comparator.comparing(FlipV2::getStatus));
-        SORT_COMPARATORS.put("Bought", Comparator.comparing(FlipV2::getOpenedQuantity));
-        SORT_COMPARATORS.put("Sold", Comparator.comparing(FlipV2::getClosedQuantity));
-        SORT_COMPARATORS.put("Avg. buy price", Comparator.comparing(FlipV2::getSpent));
-        SORT_COMPARATORS.put("Avg. sell price", Comparator.comparing(FlipV2::getReceivedPostTax));
-        SORT_COMPARATORS.put("Tax", Comparator.comparing(FlipV2::getTaxPaid));
-        SORT_COMPARATORS.put("Profit", Comparator.comparing(FlipV2::getProfit));
-        SORT_COMPARATORS.put("Profit ea.", Comparator.comparing(f -> f.getClosedQuantity() > 0 ? f.getProfit() / f.getClosedQuantity() : 0L));
-    }
-
     // dependencies
     private final FlipManager flipManager;
     private final Consumer<List<FlipV2>> flipsCallback;
@@ -103,17 +84,7 @@ public class FlipFilterAndSort {
     }
 
     public synchronized void setInterval(IntervalTimeUnit timeUnit, Integer value) {
-        switch (timeUnit) {
-            case ALL:
-                intervalStartTime = 1;
-                break;
-            case SESSION:
-                // TODO: Get session start time from SessionManager
-                intervalStartTime = (int) Instant.now().getEpochSecond() - 3600; // Default to 1 hour ago
-                break;
-            default:
-                intervalStartTime = (int) (Instant.now().getEpochSecond() - (long) value * timeUnit.getSeconds());
-        }
+        intervalStartTime = FilterSortUtil.intervalStart(timeUnit, value);
         reloadFlips(true, false);
     }
 
@@ -171,7 +142,7 @@ public class FlipFilterAndSort {
             if (canUseFlipsManager()) {
                 if (totalPagesMaybeChanged || forceReload) {
                     totalFlips = flipManager.calculateStats(intervalStartTime, accountId).flipsMade;
-                    totalPagesChangedCallback.accept(1 + totalFlips / pageSize);
+                    totalPagesChangedCallback.accept(FilterSortUtil.totalPages(totalFlips, pageSize));
                 }
                 flipsCallback.accept(flipManager.getPageFlips(page, pageSize, intervalStartTime, accountId));
             } else {
@@ -205,7 +176,7 @@ public class FlipFilterAndSort {
 
                 if (totalPagesMaybeChanged || forceReload) {
                     log.debug("updating total pages");
-                    int totalPages = 1 + cachedFlips.size() / pageSize;
+                    int totalPages = FilterSortUtil.totalPages(cachedFlips.size(), pageSize);
                     totalPagesChangedCallback.accept(totalPages);
                     log.debug("updated total pages to {} cached flips", totalPages);
                 }
@@ -214,21 +185,11 @@ public class FlipFilterAndSort {
                     log.debug("re-sorting cached flips");
                     cachedSortColumn = sortColumn;
                     cachedSortDirection = sortDirection;
-
-                    // Apply sorting
-                    Comparator<FlipV2> comparator = SORT_COMPARATORS.get(sortColumn);
-                    if (comparator != null) {
-                        if (sortDirection == SortDirection.ASC) {
-                            comparator = comparator.reversed();
-                        }
-                        cachedFlips.sort(comparator);
-                    }
+                    FilterSortUtil.sort(cachedFlips, FlipTableUtil.COMPARATORS, sortColumn, sortDirection);
                     log.debug("re-sorted flips");
                 }
-                int startIndex = (page - 1) * pageSize;
-                int endIndex = Math.min(startIndex + pageSize, cachedFlips.size());
                 slowLoadingCallback.accept(false);
-                flipsCallback.accept(cachedFlips.subList(startIndex, endIndex));
+                flipsCallback.accept(FilterSortUtil.page(cachedFlips, page, pageSize));
                 log.debug("_reloadFlips end");
             }
         } catch (Exception e) {
@@ -268,8 +229,6 @@ public class FlipFilterAndSort {
 
     private String toCSVRow(FlipV2 f) {
         Map<Integer, String> accountIdToDisplayName = copilotLoginRS.get().accountIdToDisplayName;
-        long profitPerItem = f.getClosedQuantity() > 0 ? f.getProfit() / f.getClosedQuantity() : 0L;
-
         return String.join(",",
                 formatTimestampISO(f.getOpenedTime()),
                 formatTimestampISO(f.getClosedTime()),
@@ -278,11 +237,11 @@ public class FlipFilterAndSort {
                 f.getStatus().name(),
                 String.valueOf(f.getOpenedQuantity()),
                 String.valueOf(f.getClosedQuantity()),
-                String.valueOf(f.getSpent() / f.getOpenedQuantity()),
-                String.valueOf(f.getClosedQuantity() == 0 ? 0 : (f.getReceivedPostTax() + f.getTaxPaid()) / f.getClosedQuantity()),
+                String.valueOf(FlipTableUtil.averageBuy(f)),
+                String.valueOf(FlipTableUtil.averageSell(f)),
                 String.valueOf(f.getTaxPaid()),
                 String.valueOf(f.getProfit()),
-                String.valueOf(profitPerItem)
+                String.valueOf(FlipTableUtil.profitEach(f))
         );
     }
 

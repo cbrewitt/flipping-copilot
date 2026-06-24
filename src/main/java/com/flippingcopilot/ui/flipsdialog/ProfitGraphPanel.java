@@ -7,7 +7,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.Path2D;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.List;
@@ -15,39 +14,25 @@ import java.util.List;
 @Slf4j
 public class ProfitGraphPanel extends JPanel {
 
-    // Layout constants (base values that will be scaled)
-    private static final int BASE_PADDING_LEFT = 65;
-    private static final int BASE_PADDING_RIGHT = 30;
-    private static final int BASE_PADDING_TOP = 40;
-    private static final int BASE_PADDING_BOTTOM = 40;
-
-    // Scaled layout values
-    private final int PADDING_LEFT = BASE_PADDING_LEFT;
-    private final int PADDING_RIGHT = BASE_PADDING_RIGHT;
-    private final int PADDING_TOP = BASE_PADDING_TOP;
-    private final int PADDING_BOTTOM = BASE_PADDING_BOTTOM;
-
-    // Visual constants
+    private static final int PADDING_LEFT = 65;
+    private static final int PADDING_RIGHT = 30;
+    private static final int PADDING_TOP = 40;
+    private static final int PADDING_BOTTOM = 40;
+    private static final int POINT_RADIUS = 3;
     private static final Color BACKGROUND_COLOR = new Color(43, 43, 43);
     private static final Color PLOT_AREA_COLOR = new Color(51, 51, 51);
     private static final Color GRID_COLOR = new Color(85, 85, 85, 90);
     private static final Color AXIS_COLOR = new Color(150, 150, 150);
     private static final Color TEXT_COLOR = new Color(225, 225, 225);
-
-    // Scaled strokes
-    private final Stroke LINE_STROKE = new BasicStroke(2f);
-    private final Stroke GRID_STROKE = new BasicStroke(
+    private static final Stroke LINE_STROKE = new BasicStroke(2f);
+    private static final Stroke GRID_STROKE = new BasicStroke(
             1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{3f}, 0
     );
-    private final Stroke AXIS_STROKE = new BasicStroke(1.0f);
+    private static final Stroke AXIS_STROKE = new BasicStroke(1.0f);
 
     private final Color lossColor;
     private final Color profitColor;
 
-    // Point size for data points
-    private final int POINT_RADIUS = 3;
-
-    // Calculated bounds
     private List<Datapoint> data;
     private long minYValue;
     private long maxYValue;
@@ -107,7 +92,6 @@ public class ProfitGraphPanel extends JPanel {
                 int winnerDist = Integer.MAX_VALUE;
                 boolean rePaintNeeded = false;
                 if(upperPlotBounds != null && upperPa != null && lowerPa != null && (upperPa.contains(p) || lowerPa.contains(p))){
-                    // find the closest by x-axis only (could use binary search but not worth the hassle)
                     for (Datapoint dp : data) {
                         int dist = Math.abs(upperPlotBounds.toX(upperPa, dp.timestamp()) - p.x);
                         dp.isCumulativeProfitHovered = false;
@@ -200,7 +184,6 @@ public class ProfitGraphPanel extends JPanel {
     }
 
     private void drawTitle(Graphics2D g2, Rectangle pa, String text) {
-        // Use a slightly larger font for the title
         g2.setFont(Font.getFont(Font.MONOSPACED));
         g2.setColor(TEXT_COLOR);
         FontMetrics fm = g2.getFontMetrics();
@@ -229,7 +212,6 @@ public class ProfitGraphPanel extends JPanel {
 
     private void drawProfitLine(Graphics2D g2, Rectangle pa, Bounds bounds) {
         if (data.size() < 2) {
-            // Just draw a point if we only have one data point
             if (data.size() == 1) {
                 Datapoint point = data.get(0);
                 int x = bounds.toX(pa, point.timestamp());
@@ -243,53 +225,31 @@ public class ProfitGraphPanel extends JPanel {
 
         g2.setStroke(LINE_STROKE);
 
-        // Create the line path
-        Path2D.Float path = new Path2D.Float();
-        boolean started = false;
-
-        for (int i = 0; i < data.size(); i++) {
+        for (int i = 1; i < data.size(); i++) {
             Datapoint point = data.get(i);
             int x = bounds.toX(pa, point.timestamp());
             int y = bounds.toY(pa, point.cumulativeProfit);
+            Datapoint prevPoint = data.get(i - 1);
+            int prevX = bounds.toX(pa, (int) prevPoint.timestamp());
+            int prevY = bounds.toY(pa, prevPoint.cumulativeProfit);
+            boolean currentPositive = point.cumulativeProfit >= 0;
+            boolean prevPositive = prevPoint.cumulativeProfit >= 0;
 
-            if (!started) {
-                path.moveTo(x, y);
-                started = true;
+            if (currentPositive == prevPositive) {
+                g2.setColor(currentPositive ? profitColor : lossColor);
+                g2.drawLine(prevX, prevY, x, y);
             } else {
-                // Draw segment with appropriate color
-                Datapoint prevPoint = data.get(i - 1);
-                int prevX = bounds.toX(pa, (int) prevPoint.timestamp());
-                int prevY = bounds.toY(pa, prevPoint.cumulativeProfit);
-
-                // Determine color based on whether we're above or below zero
-                boolean currentPositive = point.cumulativeProfit >= 0;
-                boolean prevPositive = prevPoint.cumulativeProfit >= 0;
-
-                if (currentPositive == prevPositive) {
-                    // Same sign, simple line
-                    g2.setColor(currentPositive ? profitColor : lossColor);
-                    g2.drawLine(prevX, prevY, x, y);
-                } else {
-                    // Crossing zero, need to interpolate
-                    double ratio = Math.abs((double)prevPoint.cumulativeProfit) /
-                            (Math.abs(prevPoint.cumulativeProfit) + Math.abs(point.cumulativeProfit));
-                    int crossX = prevX + (int)((x - prevX) * ratio);
-                    int crossY = bounds.toY(pa, 0);
-
-                    // Draw first segment
-                    g2.setColor(prevPositive ? profitColor : lossColor);
-                    g2.drawLine(prevX, prevY, crossX, crossY);
-
-                    // Draw second segment
-                    g2.setColor(currentPositive ? profitColor : lossColor);
-                    g2.drawLine(crossX, crossY, x, y);
-                }
-
-                path.lineTo(x, y);
+                double ratio = Math.abs((double)prevPoint.cumulativeProfit) /
+                        (Math.abs(prevPoint.cumulativeProfit) + Math.abs(point.cumulativeProfit));
+                int crossX = prevX + (int)((x - prevX) * ratio);
+                int crossY = bounds.toY(pa, 0);
+                g2.setColor(prevPositive ? profitColor : lossColor);
+                g2.drawLine(prevX, prevY, crossX, crossY);
+                g2.setColor(currentPositive ? profitColor : lossColor);
+                g2.drawLine(crossX, crossY, x, y);
             }
         }
 
-        // Draw points
         Runnable drawToolTip = () -> {};
         g2.setStroke(AXIS_STROKE);
         for (Datapoint dp : data) {
@@ -307,7 +267,7 @@ public class ProfitGraphPanel extends JPanel {
                 };
             }
         }
-        drawToolTip.run(); // draw tool tip after so it's on top
+        drawToolTip.run();
     }
 
 
@@ -353,7 +313,7 @@ public class ProfitGraphPanel extends JPanel {
                 };
             }
         }
-        drawToolTip.run(); // draw tool tip after so it's on top
+        drawToolTip.run();
     }
 
     private Rectangle profitBarRect(Datapoint dp,  Bounds bounds) {
@@ -369,12 +329,10 @@ public class ProfitGraphPanel extends JPanel {
     }
 
     private void drawToolTip(LocalDate t, long v, Graphics2D g2, Point p) {
-        // Use exact same constants as DatapointTooltip
         final Color TOOLTIP_BACKGROUND = new Color(43, 43, 43);
         final Color TOOLTIP_BORDER = new Color(150, 150, 150);
-        final int TOOLTIP_PADDING = 8; // Don't scale - use exact value from DatapointTooltip
+        final int TOOLTIP_PADDING = 8;
 
-        // Prepare tooltip text
         String dailyProfitStr = String.format("%,d", v);
         String dateStr = t.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"));
 
@@ -383,7 +341,7 @@ public class ProfitGraphPanel extends JPanel {
         int dateWidth = fm.stringWidth(dateStr);
         int profitWidth = fm.stringWidth(dailyProfitStr);
         int textWidth = Math.max(dateWidth, profitWidth);
-        int textHeight = fm.getHeight() * 2; // Two lines of text
+        int textHeight = fm.getHeight() * 2;
 
         int tooltipWidth = textWidth + TOOLTIP_PADDING * 2;
         int tooltipHeight = textHeight + TOOLTIP_PADDING * 2;

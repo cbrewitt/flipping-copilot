@@ -372,14 +372,7 @@ public class PortfolioPanel extends JPanel {
 
     private void renderTable() {
         List<PortfolioItemCardData> sortedItems = new ArrayList<>(currentItems);
-        Comparator<PortfolioItemCardData> comparator = SORT_COMPARATORS.get(sortColumn);
-        if (comparator != null) {
-            if (sortDirection == SortDirection.ASC) {
-                comparator = comparator.reversed();
-            }
-            sortedItems.sort(comparator);
-        }
-
+        FilterSortUtil.sort(sortedItems, SORT_COMPARATORS, sortColumn, sortDirection);
         tablePanel.setRows(sortedItems);
     }
 
@@ -467,18 +460,7 @@ public class PortfolioPanel extends JPanel {
     }
 
     private JPanel buildLoginPromptPanel() {
-        JPanel loginPromptPanel = new JPanel(new GridBagLayout());
-        loginPromptPanel.setOpaque(false);
-        JLabel messageLabel = new JLabel("Log into the game to see account portfolio");
-        messageLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        messageLabel.setFont(messageLabel.getFont().deriveFont(18f));
-        messageLabel.setHorizontalAlignment(JLabel.CENTER);
-        messageLabel.setMinimumSize(messageLabel.getPreferredSize());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        loginPromptPanel.add(messageLabel, gbc);
-        return loginPromptPanel;
+        return DialogUi.loginPrompt("Log into the game to see account portfolio", null, false);
     }
 
     private String formatGp(long amount, boolean signed) {

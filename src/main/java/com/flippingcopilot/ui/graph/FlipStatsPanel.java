@@ -4,148 +4,28 @@ import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.FlipV2;
-import com.flippingcopilot.ui.graph.model.Constants;
-import lombok.extern.slf4j.Slf4j;
-import net.runelite.client.ui.ColorScheme;
 
-import javax.swing.BorderFactory;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.text.NumberFormat;
-import java.util.Date;
 
-@Slf4j
-public class FlipStatsPanel extends JPanel {
-    private final JTable statsTable;
-    private final JLabel itemIcon = new JLabel();
-    private final JLabel itemNameLabel = new JLabel();
-    private final FlippingCopilotConfig copilotConfig;
+public class FlipStatsPanel extends BaseStatsPanel {
+    private static final String[] ROWS = {
+            "First buy time", "Last sell time", "Status", "Bought", "Sold",
+            "Avg. buy price", "Avg. sell price", "Tax", "Profit", "Profit ea.", "ROI"
+    };
 
     public FlipStatsPanel(PriceGraphConfigManager configManager, FlippingCopilotConfig copilotConfig) {
-        this.copilotConfig = copilotConfig;
-        this.setLayout(new BorderLayout());
-
-        JPanel iconPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        iconPanel.setBackground(configManager.getConfig().backgroundColor);
-        iconPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 15, 0));
-        itemIcon.setBorder(null);
-        iconPanel.add(itemIcon);
-        itemNameLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        itemNameLabel.setFont(itemNameLabel.getFont().deriveFont(Font.BOLD, 16f));
-        iconPanel.add(itemNameLabel);
-
-        this.add(iconPanel, BorderLayout.NORTH);
-
-        DefaultTableModel model = new DefaultTableModel() {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        model.addColumn("Statistic");
-        model.addColumn("Value");
-        model.addRow(new Object[]{"First buy time", ""});
-        model.addRow(new Object[]{"Last sell time", ""});
-        model.addRow(new Object[]{"Status", ""});
-        model.addRow(new Object[]{"Bought", ""});
-        model.addRow(new Object[]{"Sold", ""});
-        model.addRow(new Object[]{"Avg. buy price", ""});
-        model.addRow(new Object[]{"Avg. sell price", ""});
-        model.addRow(new Object[]{"Tax", ""});
-        model.addRow(new Object[]{"Profit", ""});
-        model.addRow(new Object[]{"Profit ea.", ""});
-        model.addRow(new Object[]{"ROI", ""});
-
-        statsTable = new JTable(model);
-        statsTable.setRowHeight(26);
-        statsTable.getTableHeader().setReorderingAllowed(false);
-        statsTable.getTableHeader().setResizingAllowed(true);
-        statsTable.setBackground(configManager.getConfig().backgroundColor);
-        statsTable.setShowGrid(false);
-
-        statsTable.getColumnModel().getColumn(0).setPreferredWidth(150);
-        statsTable.getColumnModel().getColumn(1).setPreferredWidth(120);
-
-        statsTable.setTableHeader(null);
-
-        // Set custom cell renderer for value column to color profit/loss
-        statsTable.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-
-                // Apply color to Profit and ROI rows only.
-                if (row == 8 || row == 10) {
-                    String valueStr = value.toString();
-                    if (row == 10) {
-                        if (valueStr.contains("-")) {
-                            c.setForeground(copilotConfig.lossAmountColor());
-                        } else if (!valueStr.equals("0.00%")) {
-                            c.setForeground(copilotConfig.profitAmountColor());
-                        } else {
-                            c.setForeground(table.getForeground());
-                        }
-                    } else {
-                        String numStr = valueStr.replace(",", "");
-                        try {
-                            long profitValue = Long.parseLong(numStr);
-                            if (profitValue < 0) {
-                                c.setForeground(copilotConfig.lossAmountColor());
-                            } else if (profitValue > 0) {
-                                c.setForeground(copilotConfig.profitAmountColor());
-                            } else {
-                                c.setForeground(table.getForeground());
-                            }
-                        } catch (NumberFormatException e) {
-                            c.setForeground(table.getForeground());
-                        }
-                    }
-                } else {
-                    c.setForeground(table.getForeground());
-                }
-
-                return c;
-            }
-        });
-
-        JScrollPane scrollPane = new JScrollPane(statsTable);
-        scrollPane.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(1, 0, 0, 0, Color.GRAY),
-                BorderFactory.createEmptyBorder(10, 0, 0, 0)));
-
-        scrollPane.setColumnHeaderView(null);
-
-        this.add(scrollPane, BorderLayout.CENTER);
-        this.setPreferredSize(new Dimension(280, 450));
+        super(configManager, copilotConfig, ROWS, 450, new ProfitRenderer(copilotConfig));
     }
 
     public void populate(FlipV2 flip, ItemController itemController) {
-        itemIcon.setVisible(false);
+        setItem(itemController, flip.getItemId(), true);
 
-        itemController.loadImage(flip.getItemId(), (image) -> {
-            if (image != null) {
-                image.addTo(itemIcon);
-                itemIcon.setVisible(true);
-            }
-        });
-
-        itemNameLabel.setText(itemController.getItemName(flip.getItemId()));
-
-        DefaultTableModel model = (DefaultTableModel) statsTable.getModel();
-
-        long profitPerItem = flip.getClosedQuantity() > 0 ?
-                flip.getProfit() / flip.getClosedQuantity() : 0L;
+        long profitPerItem = flip.getClosedQuantity() > 0
+                ? flip.getProfit() / flip.getClosedQuantity()
+                : 0L;
         long closedCostBasis = flip.getOpenedQuantity() > 0
                 ? (flip.getSpent() * flip.getClosedQuantity()) / flip.getOpenedQuantity()
                 : 0L;
@@ -153,6 +33,7 @@ public class FlipStatsPanel extends JPanel {
                 ? String.format("%.2f%%", ((double) flip.getProfit() / (double) closedCostBasis) * 100.0d)
                 : "Unknown";
 
+        DefaultTableModel model = model();
         model.setValueAt(formatTimestamp(flip.getOpenedTime()), 0, 1);
         model.setValueAt(formatTimestamp(flip.getClosedTime()), 1, 1);
         model.setValueAt(flip.getStatus().name(), 2, 1);
@@ -166,14 +47,52 @@ public class FlipStatsPanel extends JPanel {
         model.setValueAt(roi, 10, 1);
     }
 
-    private String formatNumber(long number) {
-        return NumberFormat.getNumberInstance().format(number);
-    }
+    private static class ProfitRenderer extends DefaultTableCellRenderer {
+        private final FlippingCopilotConfig config;
 
-    private String formatTimestamp(int timestamp) {
-        if (timestamp == 0) {
-            return "n/a";
+        ProfitRenderer(FlippingCopilotConfig config) {
+            this.config = config;
         }
-        return Constants.SECOND_DATE_FORMAT.format(new Date(timestamp * 1000L));
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            if (row == 8 || row == 10) {
+                String valueStr = value.toString();
+                if (row == 10) {
+                    colorPercent(c, table, valueStr);
+                } else {
+                    colorProfit(c, table, valueStr);
+                }
+            } else {
+                c.setForeground(table.getForeground());
+            }
+            return c;
+        }
+
+        private void colorPercent(Component c, JTable table, String valueStr) {
+            if (valueStr.contains("-")) {
+                c.setForeground(config.lossAmountColor());
+            } else if (!valueStr.equals("0.00%")) {
+                c.setForeground(config.profitAmountColor());
+            } else {
+                c.setForeground(table.getForeground());
+            }
+        }
+
+        private void colorProfit(Component c, JTable table, String valueStr) {
+            try {
+                long profitValue = Long.parseLong(valueStr.replace(",", ""));
+                if (profitValue < 0) {
+                    c.setForeground(config.lossAmountColor());
+                } else if (profitValue > 0) {
+                    c.setForeground(config.profitAmountColor());
+                } else {
+                    c.setForeground(table.getForeground());
+                }
+            } catch (NumberFormatException e) {
+                c.setForeground(table.getForeground());
+            }
+        }
     }
 }

@@ -179,7 +179,6 @@ public class UIUtilities {
 
     public static void setFixedSize(JComponent component, int width, int height) {
         Dimension size = new Dimension(width, height);
-        component.setMinimumSize(size);
         component.setPreferredSize(size);
         component.setMaximumSize(size);
     }

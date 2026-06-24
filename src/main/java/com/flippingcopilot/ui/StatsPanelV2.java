@@ -23,7 +23,6 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-import java.util.Arrays;
 
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
 
@@ -40,10 +39,9 @@ public class StatsPanelV2 extends JPanel {
     public final Icon FLIPS_DIALOG = new ImageIcon(FLIPS_DIALOG_ICON);
     public final Icon HIGHLIGHTED_FLIPS_DIALOG = new ImageIcon(ImageUtil.luminanceScale(FLIPS_DIALOG_ICON, BUTTON_HOVER_LUMINANCE));
 
+    private static final int SESSION_TIME_ROW = 4;
+    private static final int HOURLY_PROFIT_ROW = 5;
 
-    private static final java.util.List<Integer> SESSION_STATS_INDS = Arrays.asList(4,5);
-
-    // dependencies
     private final CopilotLoginRS copilotLoginRS;
     private final OsrsLoginManager osrsLoginManager;
     private final FlippingCopilotConfig config;
@@ -54,7 +52,6 @@ public class StatsPanelV2 extends JPanel {
     private final FlipsDialogController flipsDialogController;
     private final PortfolioStateRS portfolioStateRS;
 
-    // state
     private IntervalDropdown intervalDropdown;
     private final AccountDropdown accountDropdown;
     private final JButton sessionResetButton = new JButton("  Reset session ");
@@ -73,7 +70,6 @@ public class StatsPanelV2 extends JPanel {
 
     private volatile boolean lastValidState = false;
 
-    // Modified constructor
     @Inject
     public StatsPanelV2(CopilotLoginRS copilotLoginRS,
                         OsrsLoginManager osrsLoginManager,
@@ -109,12 +105,11 @@ public class StatsPanelV2 extends JPanel {
         scrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(2, 0));
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
-        // Create a main panel with vertical layout
         JPanel mainPanel = UIUtilities.newVerticalBoxLayoutJPanel();
         mainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         JPanel timeIntervalDropdownWrapper = new JPanel(new BorderLayout(0, 0));
-        timeIntervalDropdownWrapper.setBorder(BorderFactory.createEmptyBorder()); // No border
+        timeIntervalDropdownWrapper.setBorder(BorderFactory.createEmptyBorder());
         timeIntervalDropdownWrapper.add(intervalDropdown, BorderLayout.CENTER);
         timeIntervalDropdownWrapper.add(sessionResetButton, BorderLayout.EAST);
         timeIntervalDropdownWrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, timeIntervalDropdownWrapper.getPreferredSize().height));
@@ -277,7 +272,6 @@ public class StatsPanelV2 extends JPanel {
         profitAndSubInfoPanel = UIUtilities.newVerticalBoxLayoutJPanel();
         profitAndSubInfoPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        // Create the header panel that can be clicked to expand/collapse sub info
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         headerPanel.setBorder(BorderFactory.createCompoundBorder(
@@ -291,33 +285,28 @@ public class StatsPanelV2 extends JPanel {
         totalProfitVal.setFont(FontManager.getRunescapeBoldFont().deriveFont(24f));
         totalProfitVal.setHorizontalAlignment(SwingConstants.CENTER);
 
-        // Use a panel to stack the profitTitle and totalProfitVal vertically
         JPanel profitTextPanel = new JPanel();
         profitTextPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
         profitTextPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         profitTextPanel.add(profitTitle);
-        profitTextPanel.add(Box.createRigidArea(new Dimension(5, 0))); // Spacing between title and value
+        profitTextPanel.add(Box.createRigidArea(new Dimension(5, 0)));
         profitTextPanel.add(totalProfitVal);
         profitTextPanel.setBorder(BorderFactory.createEmptyBorder(1,4,1,4));
 
-        // Arrow label
         JLabel arrowLabel = new JLabel(OPEN_ICON);
         arrowLabel.setHorizontalAlignment(SwingConstants.CENTER);
         arrowLabel.setVerticalAlignment(SwingConstants.CENTER);
-        arrowLabel.setPreferredSize(new Dimension(16, 16)); // Adjust size as needed
+        arrowLabel.setPreferredSize(new Dimension(16, 16));
 
-        // Add components to headerPanel
         headerPanel.add(profitTextPanel, BorderLayout.CENTER);
         headerPanel.add(arrowLabel, BorderLayout.EAST);
 
-        // Create the sub-info panel
         subInfoPanel = buildSubInfoPanel();
 
         headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
         profitAndSubInfoPanel.add(headerPanel);
         profitAndSubInfoPanel.add(subInfoPanel);
 
-        // Mouse listener to handle expand/collapse and hover effects
         MouseAdapter headerMouseListener = new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -342,23 +331,11 @@ public class StatsPanelV2 extends JPanel {
             }
         };
 
-        // Add mouse listener to header components
         headerPanel.addMouseListener(headerMouseListener);
         totalProfitVal.addMouseListener(headerMouseListener);
         profitTitle.addMouseListener(headerMouseListener);
 
     }
-
-    // called when:
-    //
-    // - time interval drop down changed (Swing EDT thread)
-    // - session reset button pressed (Swing EDT thread)
-    // - transaction processing downstream (ScheduledExecutorService)
-    // - FlipTrackerV2 initialisation (ScheduledExecutorService)
-    // - session stats updated (ScheduledExecutorService)
-    // - plugin config changed (Client thread)
-    // - page changed (Swing EDT thread)
-    //
 
     public void refresh(boolean flipsMaybeChanged, boolean validLoginState) {
         if(!SwingUtilities.isEventDispatchThread()) {
@@ -377,8 +354,7 @@ public class StatsPanelV2 extends JPanel {
             portfolioValueVal.setText("0 gp");
             flipsPanel.removeAll();
             paginator.setTotalPages(1);
-            boolean v = IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit());
-            SESSION_STATS_INDS.forEach(i -> subInfoPanel.getComponent(i).setVisible(v));
+            setSessionStatsVisible(IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit()));
             accountDropdown.setVisible(false);
             return;
         }
@@ -395,7 +371,6 @@ public class StatsPanelV2 extends JPanel {
             flipsPanel.removeAll();
             flipManager.getPageFlips(paginator.getPageNumber(), 50)
                     .forEach(f -> flipsPanel.add(new FlipPanel(f, config, () -> flipsDialogController.showVisualizeFlip(f))));
-            // labels displayed to the user
             roiVal.setText(String.format("%.3f%%", stats.calculateRoi() * 100));
             roiVal.setForeground(UIUtilities.getProfitColor(stats.profit, config));
             flipsMadeVal.setText(String.format("%d", stats.flipsMade));
@@ -411,9 +386,8 @@ public class StatsPanelV2 extends JPanel {
         unrealizedProfitVal.setText(UIUtilities.formatProfit(unrealizedProfit));
         unrealizedProfitVal.setForeground(UIUtilities.getProfitColor(unrealizedProfit, config));
 
-        // 'Session time' and 'Hourly profit' should only be set if 'Session' is select in the dropdown
         if (IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit())) {
-            SESSION_STATS_INDS.forEach(i -> subInfoPanel.getComponent(i).setVisible(true));
+            setSessionStatsVisible(true);
             long seconds = sd.durationMillis / 1000;
             float hoursFloat = (((float) seconds) / 3600.0f);
             long hourlyProfit = hoursFloat == 0 ? 0 : (long) (stats.profit / hoursFloat);
@@ -422,7 +396,12 @@ public class StatsPanelV2 extends JPanel {
             hourlyProfitVal.setText(UIUtilities.formatProfitWithoutGp(hourlyProfit) + " gp/hr");
             hourlyProfitVal.setForeground(UIUtilities.getProfitColor(hourlyProfit, config));
         } else {
-            SESSION_STATS_INDS.forEach(i -> subInfoPanel.getComponent(i).setVisible(false));
+            setSessionStatsVisible(false);
         }
+    }
+
+    private void setSessionStatsVisible(boolean visible) {
+        subInfoPanel.getComponent(SESSION_TIME_ROW).setVisible(visible);
+        subInfoPanel.getComponent(HOURLY_PROFIT_ROW).setVisible(visible);
     }
 }
