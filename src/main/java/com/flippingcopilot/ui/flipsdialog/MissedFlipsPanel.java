@@ -22,11 +22,7 @@ import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableColumn;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
 import java.time.Instant;
@@ -268,8 +264,8 @@ public class MissedFlipsPanel extends JPanel {
     private void setSpinnerVisible(boolean visible) {
         SwingUtilities.invokeLater(() -> {
             spinnerOverlay.setVisible(visible);
-            disappearedSection.table.setEnabled(!visible);
-            ghostSection.table.setEnabled(!visible);
+            disappearedSection.setTableEnabled(!visible);
+            ghostSection.setTableEnabled(!visible);
         });
     }
 
@@ -280,24 +276,7 @@ public class MissedFlipsPanel extends JPanel {
         return formatEpoch(epochSeconds);
     }
 
-    private void resizeColumnWidth(JTable table, int column) {
-        TableColumn tableColumn = table.getColumnModel().getColumn(column);
-        int preferredWidth = tableColumn.getMinWidth();
-        int maxWidth = tableColumn.getMaxWidth();
-        Component comp = table.getTableHeader().getDefaultRenderer()
-                .getTableCellRendererComponent(table, tableColumn.getHeaderValue(), false, false, 0, column);
-        preferredWidth = Math.max(comp.getPreferredSize().width + 10, preferredWidth);
-        for (int row = 0; row < table.getRowCount(); row++) {
-            comp = table.getCellRenderer(row, column)
-                    .getTableCellRendererComponent(table, table.getValueAt(row, column), false, false, row, column);
-            preferredWidth = Math.max(comp.getPreferredSize().width + 10, preferredWidth);
-        }
-        preferredWidth = Math.min(preferredWidth, maxWidth);
-        tableColumn.setPreferredWidth(preferredWidth);
-    }
-
-    private void showFlipMenu(MouseEvent e, JTable table, List<FlipV2> currentFlips, boolean isDisappearedSection, int row) {
-        FlipV2 flip = currentFlips.get(row);
+    private void showFlipMenu(MouseEvent e, FlipV2 flip, boolean isDisappearedSection) {
         JPopupMenu menu = new JPopupMenu();
         if (isDisappearedSection) {
             String flipOsrsDisplayName = copilotLoginRS.get().getDisplayName(flip.getAccountId());
@@ -514,10 +493,28 @@ public class MissedFlipsPanel extends JPanel {
         return true;
     }
 
+    private Object[] toRow(FlipV2 flip) {
+        long profitPerItem = flip.getClosedQuantity() > 0 ? flip.getProfit() / flip.getClosedQuantity() : 0L;
+        long avgBuy = flip.getOpenedQuantity() > 0 ? flip.getSpent() / flip.getOpenedQuantity() : 0L;
+        long avgSell = flip.getClosedQuantity() == 0 ? 0L : (flip.getReceivedPostTax() + flip.getTaxPaid()) / flip.getClosedQuantity();
+        return new Object[]{
+                formatTimestamp(flip.getOpenedTime()),
+                formatTimestamp(flip.getClosedTime()),
+                flip.getCachedItemName(),
+                flip.getStatus().name(),
+                flip.getOpenedQuantity(),
+                flip.getClosedQuantity(),
+                avgBuy,
+                avgSell,
+                flip.getTaxPaid(),
+                flip.getProfit(),
+                profitPerItem
+        };
+    }
+
     private class Section {
         final JPanel container;
-        final JTable table;
-        final DefaultTableModel tableModel;
+        final PaginatedTablePanel<FlipV2> tablePanel;
         final boolean isDisappearedSection;
         List<FlipV2> currentFlips = new ArrayList<>();
         String sortColumn = "Last sell time";
@@ -526,133 +523,46 @@ public class MissedFlipsPanel extends JPanel {
         Section(String title, boolean isDisappearedSection) {
             this.isDisappearedSection = isDisappearedSection;
 
-            tableModel = new DefaultTableModel(COLUMN_NAMES, 0) {
-                @Override
-                public boolean isCellEditable(int row, int column) {
-                    return false;
-                }
-            };
-
-            table = new JTable(tableModel);
-            table.setBackground(ColorScheme.DARK_GRAY_COLOR);
-            table.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-            table.setSelectionBackground(ColorScheme.BRAND_ORANGE);
-            table.setSelectionForeground(Color.WHITE);
-            table.setGridColor(ColorScheme.MEDIUM_GRAY_COLOR);
-            table.setRowHeight(25);
-            table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
-            table.setRowSorter(null);
-            table.getTableHeader().setReorderingAllowed(false);
-            table.setFocusable(false);
-
-            table.getTableHeader().addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    int columnIndex = table.getTableHeader().columnAtPoint(e.getPoint());
-                    if (columnIndex >= 0 && columnIndex < COLUMN_NAMES.length) {
-                        String clickedColumn = COLUMN_NAMES[columnIndex];
-                        SortDirection newDirection = SortDirection.DESC;
-                        if (clickedColumn.equals(sortColumn)) {
-                            newDirection = sortDirection == SortDirection.DESC ? SortDirection.ASC : SortDirection.DESC;
-                        }
+            tablePanel = new PaginatedTablePanel<>(COLUMN_NAMES, MissedFlipsPanel.this::toRow);
+            tablePanel.setTopControlsVisible(false);
+            tablePanel.installHeaderSort(
+                    () -> sortColumn,
+                    () -> sortDirection,
+                    (clickedColumn, newDirection) -> {
                         sortColumn = clickedColumn;
                         sortDirection = newDirection;
                         rerender();
-                    }
-                }
-            });
+                    });
+            tablePanel.installPopupHandler((e, row) ->
+                    showFlipMenu(e, tablePanel.row(row), Section.this.isDisappearedSection));
 
-            table.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mousePressed(MouseEvent e) {
-                    if (e.isPopupTrigger()) {
-                        showPopup(e);
-                    }
-                }
+            tablePanel.table().getColumnModel().getColumn(6).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
+            tablePanel.table().getColumnModel().getColumn(7).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
+            tablePanel.table().getColumnModel().getColumn(8).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
+            tablePanel.table().getColumnModel().getColumn(9).setCellRenderer(PaginatedTablePanel.profitRenderer(GP_FORMAT, config));
+            tablePanel.table().getColumnModel().getColumn(10).setCellRenderer(PaginatedTablePanel.moneyRenderer(GP_FORMAT, true));
 
-                @Override
-                public void mouseReleased(MouseEvent e) {
-                    if (e.isPopupTrigger()) {
-                        showPopup(e);
-                    }
-                }
-
-                private void showPopup(MouseEvent e) {
-                    int row = table.rowAtPoint(e.getPoint());
-                    if (row >= 0 && row < table.getRowCount()) {
-                        table.setRowSelectionInterval(row, row);
-                        showFlipMenu(e, table, currentFlips, Section.this.isDisappearedSection, row);
-                    }
-                }
-            });
-
-            DefaultTableCellRenderer moneyRenderer = new DefaultTableCellRenderer() {
-                @Override
-                public Component getTableCellRendererComponent(JTable table, Object value,
-                                                               boolean isSelected, boolean hasFocus, int row, int column) {
-                    Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                    if (value instanceof Long) {
-                        setText(GP_FORMAT.format((long) (Long) value));
-                        setHorizontalAlignment(RIGHT);
-                    } else if (value instanceof String) {
-                        setHorizontalAlignment(CENTER);
-                    }
-                    return c;
-                }
-            };
-
-            DefaultTableCellRenderer profitRenderer = new DefaultTableCellRenderer() {
-                @Override
-                public Component getTableCellRendererComponent(JTable table, Object value,
-                                                               boolean isSelected, boolean hasFocus, int row, int column) {
-                    Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                    if (value instanceof Long) {
-                        long amount = (Long) value;
-                        setText(GP_FORMAT.format(amount));
-                        setHorizontalAlignment(RIGHT);
-                        if (!isSelected) {
-                            if (amount > 0) {
-                                setForeground(config.profitAmountColor());
-                            } else if (amount < 0) {
-                                setForeground(config.lossAmountColor());
-                            } else {
-                                setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-                            }
-                        }
-                    }
-                    return c;
-                }
-            };
-
-            table.getColumnModel().getColumn(6).setCellRenderer(moneyRenderer);
-            table.getColumnModel().getColumn(7).setCellRenderer(moneyRenderer);
-            table.getColumnModel().getColumn(8).setCellRenderer(moneyRenderer);
-            table.getColumnModel().getColumn(9).setCellRenderer(profitRenderer);
-            table.getColumnModel().getColumn(10).setCellRenderer(moneyRenderer);
-
-            DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-            centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-            table.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
-            table.getColumnModel().getColumn(4).setCellRenderer(centerRenderer);
-            table.getColumnModel().getColumn(5).setCellRenderer(centerRenderer);
+            tablePanel.table().getColumnModel().getColumn(3).setCellRenderer(PaginatedTablePanel.centerRenderer());
+            tablePanel.table().getColumnModel().getColumn(4).setCellRenderer(PaginatedTablePanel.centerRenderer());
+            tablePanel.table().getColumnModel().getColumn(5).setCellRenderer(PaginatedTablePanel.centerRenderer());
 
             JLabel titleLabel = new JLabel(title);
             titleLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
             titleLabel.setBorder(new EmptyBorder(10, 8, 10, 8));
 
-            JScrollPane scrollPane = new JScrollPane(table);
-            scrollPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
-            scrollPane.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
-
             container = new JPanel(new BorderLayout());
             container.setBackground(ColorScheme.DARK_GRAY_COLOR);
             container.add(titleLabel, BorderLayout.NORTH);
-            container.add(scrollPane, BorderLayout.CENTER);
+            container.add(tablePanel, BorderLayout.CENTER);
         }
 
         void update(List<FlipV2> flips) {
             currentFlips = new ArrayList<>(flips);
             rerender();
+        }
+
+        void setTableEnabled(boolean enabled) {
+            tablePanel.table().setEnabled(enabled);
         }
 
         private void rerender() {
@@ -663,29 +573,7 @@ public class MissedFlipsPanel extends JPanel {
                 }
                 currentFlips.sort(comparator);
             }
-            tableModel.setRowCount(0);
-            for (FlipV2 flip : currentFlips) {
-                long profitPerItem = flip.getClosedQuantity() > 0 ? flip.getProfit() / flip.getClosedQuantity() : 0L;
-                long avgBuy = flip.getOpenedQuantity() > 0 ? flip.getSpent() / flip.getOpenedQuantity() : 0L;
-                long avgSell = flip.getClosedQuantity() == 0 ? 0L : (flip.getReceivedPostTax() + flip.getTaxPaid()) / flip.getClosedQuantity();
-                Object[] row = {
-                        formatTimestamp(flip.getOpenedTime()),
-                        formatTimestamp(flip.getClosedTime()),
-                        flip.getCachedItemName(),
-                        flip.getStatus().name(),
-                        flip.getOpenedQuantity(),
-                        flip.getClosedQuantity(),
-                        avgBuy,
-                        avgSell,
-                        flip.getTaxPaid(),
-                        flip.getProfit(),
-                        profitPerItem
-                };
-                tableModel.addRow(row);
-            }
-            for (int i = 0; i < table.getColumnCount(); i++) {
-                resizeColumnWidth(table, i);
-            }
+            tablePanel.setRows(new ArrayList<>(currentFlips));
         }
     }
 }
