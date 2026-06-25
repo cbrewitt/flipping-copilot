@@ -25,11 +25,16 @@ public class AccountsAggregatePanel extends JPanel {
             "Account", "Number of flips", "Biggest loss", "Biggest win", "Total profit"
     };
 
+    // dependencies
     private final CopilotLoginRS copilotLoginRS;
     private final ApiRequestHandler apiRequestHandler;
     private final FlipManager flipManager;
     private final ExecutorService executorService;
+
+    // ui components
     private final PaginatedTablePanel<AccountAggregate> tablePanel;
+
+    // state
     private final AccountsAggregateFilterSort sortAndFilter;
 
     public AccountsAggregatePanel(FlipManager flipsManager,
@@ -46,19 +51,29 @@ public class AccountsAggregatePanel extends JPanel {
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
 
+        // Initialize sort and filter
         tablePanel = new PaginatedTablePanel<>(COLUMN_NAMES, this::toRow);
         sortAndFilter = new AccountsAggregateFilterSort(flipsManager, copilotLoginRS,
                 tablePanel::setRows, tablePanel::setSpinnerVisible, executorService);
 
+        // Create top panel with all controls
         IntervalDropdown timeIntervalDropdown = new IntervalDropdown(sortAndFilter::setInterval, IntervalDropdown.ALL_TIME, false);
         timeIntervalDropdown.setPreferredSize(new Dimension(150, timeIntervalDropdown.getPreferredSize().height));
         timeIntervalDropdown.setToolTipText("Select time interval");
         tablePanel.leftControls().add(timeIntervalDropdown);
 
+        // Enable built-in table sorting
         tablePanel.enableBuiltInSorting();
-        tablePanel.centerColumns(1);
-        tablePanel.moneyColumns(GP_FORMAT, 2, 3);
-        tablePanel.profitColumns(GP_FORMAT, config, 4);
+
+        // Apply renderers
+        // Center align for count column
+        tablePanel.centerColumns(1); // Number of flips
+
+        // Custom renderer for money columns
+        tablePanel.moneyColumns(GP_FORMAT, 2, 3); // Biggest loss, Biggest win
+
+        // Custom renderer for profit columns (with color)
+        tablePanel.profitColumns(GP_FORMAT, config, 4); // Total profit (with color)
         tablePanel.installPopupHandler(this::showAccountMenu);
 
         add(tablePanel, BorderLayout.CENTER);

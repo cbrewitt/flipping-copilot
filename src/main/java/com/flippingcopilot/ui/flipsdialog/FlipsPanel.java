@@ -41,16 +41,20 @@ public class FlipsPanel extends JPanel {
             "Avg. buy price", "Avg. sell price", "Tax", "Profit", "Profit ea."
     };
 
+    // dependencies
     private final FlipManager flipsManager;
     private final CopilotLoginRS copilotLoginRS;
     private final ApiRequestHandler apiRequestHandler;
     private final Consumer<FlipV2> onVisualizeFlip;
+
+    // ui components
     private final AccountDropdown accountDropdown;
     private final JCheckBox showFinishedCheckbox;
     private final JCheckBox showBuyingCheckbox;
     private final JCheckBox showSellingCheckbox;
     private final PaginatedTablePanel<FlipV2> tablePanel;
 
+    // state
     public FlipFilterAndSort sortAndFilter;
 
     public FlipsPanel(FlipManager flipsManager,
@@ -68,6 +72,7 @@ public class FlipsPanel extends JPanel {
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
 
+        // Initialize pagination first (before loadFlips is called)
         Paginator paginatorPanel = new Paginator((i) -> sortAndFilter.setPage(i));
         tablePanel = new PaginatedTablePanel<>(COLUMN_NAMES, this::toRow);
         sortAndFilter = new FlipFilterAndSort(flipsManager, tablePanel::setRows, paginatorPanel::setTotalPages,
@@ -120,6 +125,7 @@ public class FlipsPanel extends JPanel {
         JButton downloadButton = createDownloadButton();
         tablePanel.rightControls().add(downloadButton);
 
+        // Disable default table sorting and set up custom header click handling
         tablePanel.installHeaderSort(sortAndFilter::getSortColumn, sortAndFilter::getSortDirection, (column, direction) -> {
             sortAndFilter.setSortColumn(column);
             sortAndFilter.setSortDirection(direction);
@@ -148,9 +154,10 @@ public class FlipsPanel extends JPanel {
     }
 
     private void applyRenderers(FlippingCopilotConfig config) {
-        tablePanel.moneyColumns(GP_FORMAT, true, 7, 8, 9, 11);
-        tablePanel.profitColumns(GP_FORMAT, config, 10);
-        tablePanel.centerColumns(2, 4, 5, 6);
+        // Apply renderers
+        tablePanel.moneyColumns(GP_FORMAT, true, 7, 8, 9, 11); // Avg. buy price, Avg. sell price, Tax, Profit ea.
+        tablePanel.profitColumns(GP_FORMAT, config, 10); // Profit (with color)
+        tablePanel.centerColumns(2, 4, 5, 6); // Account, Status, Bought, Sold
     }
 
     private JButton createDownloadButton() {

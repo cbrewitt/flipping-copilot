@@ -46,12 +46,15 @@ public class TransactionsPanel extends JPanel {
             "Timestamp", "Account", "Side", "Item", "Quantity", "Paid/Received", "Tax", "Price ea.", "Part of Flip"
     };
 
+    // dependencies
     private final CopilotLoginRS copilotLoginRS;
     private final ItemController itemController;
     private final ExecutorService executorService;
     private final ApiRequestHandler apiRequestHandler;
     private final OsrsLoginManager osrsLoginManager;
     private final FlipManager flipManager;
+
+    // ui components
     private final Paginator paginatorPanel;
     private final PaginatedTablePanel<AckedTransaction> tablePanel;
     private final AtomicBoolean loadTransactionsTriggered = new AtomicBoolean(false);
@@ -59,6 +62,8 @@ public class TransactionsPanel extends JPanel {
 
     private AccountDropdown accountDropdown;
     private JLabel errorLabel;
+
+    // state
     private TransactionDataWrapper transactionDataWrapper;
     private volatile Set<Integer> filteredItems = new HashSet<>();
     private volatile int pageSize = DEFAULT_PAGE_SIZE;
@@ -94,6 +99,7 @@ public class TransactionsPanel extends JPanel {
         setupTable(config);
         setupErrorOverlay();
 
+        // Page size combo box
         JComboBox<Integer> pageSizeComboBox = new JComboBox<>(PAGE_SIZE_OPTIONS);
         pageSizeComboBox.setSelectedItem(pageSize);
         pageSizeComboBox.setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -126,6 +132,7 @@ public class TransactionsPanel extends JPanel {
     }
 
     private void setupControls() {
+        // Create left panel with dropdowns
         ItemSearchMultiSelect searchField = new ItemSearchMultiSelect(
                 () -> new HashSet<>(filteredItems),
                 itemController::allItemIds,
@@ -143,6 +150,7 @@ public class TransactionsPanel extends JPanel {
         searchField.setMinimumSize(new Dimension(300, 0));
         searchField.setToolTipText("Search by item name");
 
+        // Account dropdown
         accountDropdown = new AccountDropdown(
                 () -> copilotLoginRS.get().displayNameToAccountId,
                 accountId -> {
@@ -172,6 +180,7 @@ public class TransactionsPanel extends JPanel {
             loadTransactionsIfNeeded();
         });
 
+        // Create right panel with download button
         JButton downloadButton = new JButton("Download");
         downloadButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         downloadButton.setFocusable(false);
@@ -184,8 +193,10 @@ public class TransactionsPanel extends JPanel {
     }
 
     private void setupTable(FlippingCopilotConfig config) {
+        // Create table
         tablePanel.installPopupHandler(this::showTransactionMenu);
 
+        // Setup renderers
         DefaultTableCellRenderer booleanRenderer = new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
@@ -199,12 +210,14 @@ public class TransactionsPanel extends JPanel {
             }
         };
 
-        tablePanel.centerColumns(1, 2, 4);
-        tablePanel.moneyColumns(FlipsPanel.GP_FORMAT, 5, 6, 7);
-        tablePanel.setRenderer(booleanRenderer, 8);
+        // Apply renderers to columns
+        tablePanel.centerColumns(1, 2, 4); // Account, Side, Quantity
+        tablePanel.moneyColumns(FlipsPanel.GP_FORMAT, 5, 6, 7); // Paid/Received, Tax, Price ea.
+        tablePanel.setRenderer(booleanRenderer, 8); // Part of Flip
     }
 
     private void setupErrorOverlay() {
+        // Create error label
         errorLabel = new JLabel("Error loading transactions from server", SwingConstants.CENTER);
         errorLabel.setFont(errorLabel.getFont().deriveFont(14f));
         errorLabel.setVisible(false);
@@ -392,6 +405,7 @@ public class TransactionsPanel extends JPanel {
                 try (FileWriter writer = new FileWriter(file)) {
                     writer.write(Strings.join(COLUMN_NAMES, ","));
 
+                    // Use the stream method to write all matching transactions
                     Map<Integer, String> accountIdToDisplayName = copilotLoginRS.get().accountIdToDisplayName;
                     transactionDataWrapper.stream(filteredItems, selectedAccountId)
                             .forEach(tx -> {

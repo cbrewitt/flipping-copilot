@@ -124,11 +124,14 @@ public class PreferencesPanel extends JPanel {
         add(preferencesContent, "preferences");
         add(loginPromptPanel, "login");
 
+        // Profile selector panel
         JPanel profilePanel = transparentPanel(new BorderLayout());
         profilePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
 
+        // Panel for dropdown and buttons
         JPanel profileControlPanel = transparentXAxisPanel();
 
+        // Initialize profile model with default
         profileSelector = new JComboBox<>();
         setFixedSize(profileSelector, 160, 25);
         profileSelector.addActionListener(e -> {
@@ -139,6 +142,7 @@ public class PreferencesPanel extends JPanel {
             }
         });
 
+        // Add button for creating new profiles
         addProfileButton = new JButton("+");
         setFixedSize(addProfileButton, 15, 25);
         addProfileButton.setToolTipText("Add new profile");
@@ -164,6 +168,7 @@ public class PreferencesPanel extends JPanel {
             }
         });
 
+        // Delete button for removing custom profiles
         deleteProfileButton = new JButton("-");
         setFixedSize(deleteProfileButton, 15, 25);
         deleteProfileButton.setToolTipText("Delete current profile");
@@ -203,11 +208,13 @@ public class PreferencesPanel extends JPanel {
         profilePanel.add(profileControlPanel, BorderLayout.LINE_START);
         preferencesContent.add(profilePanel);
 
+        // Blocklist dropdown panel
         blocklistDropdownPanel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createEmptyBorder(5, 0, 5, 0),
                 blocklistDropdownPanel.getBorder()));
         preferencesContent.add(blocklistDropdownPanel);
 
+        // Buy and hold toggle
         buyAndHoldToggleButton = new PreferencesToggleButton("Disable holds", "Enable holds");
         buyAndHoldButton = formRow("Enable holds", buyAndHoldToggleButton);
         preferencesContent.add(buyAndHoldButton);
@@ -217,6 +224,7 @@ public class PreferencesPanel extends JPanel {
         });
         addVerticalGap(preferencesContent, 3);
 
+        // Sell-only mode toggle
         sellOnlyModeToggleButton = new PreferencesToggleButton("Disable sell-only mode", "Enable sell-only mode");
         sellOnlyButton = formRow("Sell-only mode", sellOnlyModeToggleButton);
         preferencesContent.add(sellOnlyButton);
@@ -226,6 +234,7 @@ public class PreferencesPanel extends JPanel {
         });
         addVerticalGap(preferencesContent, 3);
 
+        // F2P-only mode toggle
         f2pOnlyModeToggleButton = new PreferencesToggleButton("Disable F2P-only mode",  "Enable F2P-only mode");
         f2pOnlyButton = formRow("F2P-only mode", f2pOnlyModeToggleButton);
         preferencesContent.add(f2pOnlyButton);
@@ -234,6 +243,7 @@ public class PreferencesPanel extends JPanel {
             suggestionManager.setSuggestionNeeded(true);
         });
 
+        // Min predicted profit
         minPredictedProfitDropdown = new JComboBox<>(new DefaultComboBoxModel<>(MIN_PREDICTED_PROFIT_OPTIONS));
         setFixedSize(minPredictedProfitDropdown, 75, 25);
         minPredictedProfitDropdown.addActionListener(e -> {
@@ -247,6 +257,7 @@ public class PreferencesPanel extends JPanel {
         preferencesContent.add(formRow("Min. predicted profit", minPredictedProfitDropdown));
         addVerticalGap(preferencesContent, 3);
 
+        // Dump alerts dropdown
         dumpAlertsDropdown = new JComboBox<>(new DefaultComboBoxModel<>(DUMP_ALERT_MIN_PROFIT_OPTIONS));
         setFixedSize(dumpAlertsDropdown, 75, 25);
         dumpAlertsDropdown.addActionListener(e -> {
@@ -266,6 +277,7 @@ public class PreferencesPanel extends JPanel {
         preferencesContent.add(formRow("Dump alerts", dumpAlertsDropdown));
         addVerticalGap(preferencesContent, 6);
 
+        // Reserved slots
         reservedSlotsDropdown = new JComboBox<>(new DefaultComboBoxModel<>(RESERVED_SLOTS_OPTIONS));
         setFixedSize(reservedSlotsDropdown, 75, 25);
         reservedSlotsDropdown.addActionListener(e -> {
@@ -279,6 +291,7 @@ public class PreferencesPanel extends JPanel {
         preferencesContent.add(formRow("Reserved slots", reservedSlotsDropdown));
         addVerticalGap(preferencesContent, 6);
 
+        // Premium instances panel - moved to the bottom
         JButton manageButton = new JButton("manage");
         manageButton.addActionListener(e -> {
             premiumInstanceController.loadAndOpenPremiumInstanceDialog();
@@ -290,6 +303,7 @@ public class PreferencesPanel extends JPanel {
 
     public void refresh() {
         if (!SwingUtilities.isEventDispatchThread()) {
+            // we always execute this in the Swing EDT thread
             SwingUtilities.invokeLater(this::refresh);
             return;
         }

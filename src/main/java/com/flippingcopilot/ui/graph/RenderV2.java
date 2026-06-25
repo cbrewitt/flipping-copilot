@@ -260,18 +260,28 @@ public class RenderV2 {
         int legendStartX = xMid - totalWidth / 2;
         int currentX = legendStartX;
 
+        // Low prices
         currentX = drawLegendLineItem(g2, config, currentX, legendY, lineLength, itemHeight,
                 labels[0], itemWidths[0], itemPadding, config.lowColor, Config.NORMAL_STROKE, config.connectPoints, true);
+
+        // High prices
         currentX = drawLegendLineItem(g2, config, currentX, legendY, lineLength, itemHeight,
                 labels[1], itemWidths[1], itemPadding, config.highColor, Config.NORMAL_STROKE, config.connectPoints, true);
 
         if (addPredictionLabels) {
+            // Low prediction
             currentX = drawLegendLineItem(g2, config, currentX, legendY, lineLength, itemHeight,
                     labels[2], itemWidths[2], itemPadding, config.lowColor, Config.DOTTED_STROKE, true, false);
+
+            // High prediction
             currentX = drawLegendLineItem(g2, config, currentX, legendY, lineLength, itemHeight,
                     labels[3], itemWidths[3], itemPadding, config.highColor, Config.DOTTED_STROKE, true, false);
+
+            // Low IQR
             currentX = drawLegendShadeItem(g2, config, currentX, legendY, lineLength, itemHeight,
                     labels[4], itemWidths[4], itemPadding, config.lowShadeColor);
+
+            // High IQR
             drawLegendShadeItem(g2, config, currentX, legendY, lineLength, itemHeight,
                     labels[5], itemWidths[5], itemPadding, config.highShadeColor);
         }

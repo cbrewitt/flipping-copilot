@@ -16,6 +16,7 @@ public class FlipStatsPanel extends BaseStatsPanel {
             "Avg. buy price", "Avg. sell price", "Tax", "Profit", "Profit ea.", "ROI"
     };
 
+    // Set custom cell renderer for value column to color profit/loss
     public FlipStatsPanel(PriceGraphConfigManager configManager, FlippingCopilotConfig copilotConfig) {
         super(configManager, copilotConfig, ROWS, 450, new ProfitRenderer(copilotConfig));
     }
@@ -57,6 +58,7 @@ public class FlipStatsPanel extends BaseStatsPanel {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            // Apply color to Profit and ROI rows only.
             if (row == 8 || row == 10) {
                 String valueStr = value.toString();
                 if (row == 10) {

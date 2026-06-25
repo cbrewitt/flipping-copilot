@@ -154,7 +154,7 @@ public class PortfolioPanel extends JPanel {
             renderTable();
         });
         tablePanel.installPopupHandler((e, row) -> showPortfolioMenu(e, tablePanel.row(row)));
-        tablePanel.rightColumns(2, 6);
+        tablePanel.rightColumns(2, 6); // Quantity, Time held
         tablePanel.setRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {

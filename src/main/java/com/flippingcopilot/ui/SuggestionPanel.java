@@ -34,6 +34,7 @@ import static com.flippingcopilot.util.Constants.MIN_GP_NEEDED_TO_FLIP;
 public class SuggestionPanel extends JPanel {
     private static final int DEFAULT_PANEL_HEIGHT = 150;
 
+    // dependencies
     private final FlippingCopilotConfig config;
     private final SuggestionManager suggestionManager;
     private final SuggestionPreferencesManager suggestionPreferencesManager;
@@ -121,6 +122,7 @@ public class SuggestionPanel extends JPanel {
         suggestionContainer.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH - 10, 85));
         suggestedActionPanel.add(suggestionContainer, BorderLayout.CENTER);
 
+        // Center panel for main suggestion content (icon and text)
         JPanel suggestionMainPanel = darkPanel(new CardLayout(), ColorScheme.DARKER_GRAY_COLOR);
         suggestionContainer.add(suggestionMainPanel, BorderLayout.CENTER);
 
@@ -142,10 +144,11 @@ public class SuggestionPanel extends JPanel {
 
         suggestionMainPanel.add(spinner);
 
+        // Add expected profit text to SOUTH of suggestionContainer
         additionalInfoText.setHorizontalAlignment(SwingConstants.CENTER);
         additionalInfoText.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
         additionalInfoText.setText("");
-        additionalInfoText.setBorder(BorderFactory.createEmptyBorder(0, 6, 8, 6));
+        additionalInfoText.setBorder(BorderFactory.createEmptyBorder(0, 6, 8, 6)); // top, left, bottom, right
         suggestionContainer.add(additionalInfoText, BorderLayout.SOUTH);
 
         setupButtonContainer();
@@ -156,6 +159,7 @@ public class SuggestionPanel extends JPanel {
 
         layeredPane.add(this.preferencesPanel, JLayeredPane.PALETTE_LAYER);
 
+        // Create and add the gear button
         BufferedImage gearIcon = ImageUtil.loadImageResource(getClass(), "/preferences-icon.png");
         gearIcon = ImageUtil.resizeImage(gearIcon, 20, 20);
         BufferedImage recoloredIcon = ImageUtil.recolorImage(gearIcon, ColorScheme.LIGHT_GRAY_COLOR);
@@ -367,11 +371,14 @@ public class SuggestionPanel extends JPanel {
         innerSuggestionMessage = message;
         setButtonsVisible(false);
 
+        // Check if message contains "<manage>"
         String displayMessage = message;
         if (message != null && message.contains("<manage>")) {
+            // Replace <manage> with a styled link
             displayMessage = message.replace("<manage>",
                     "<a href='#' style='text-decoration:underline'>manage</a>");
 
+            // Add mouse listener if not already present
             boolean hasListener = false;
             for (MouseListener listener : suggestionText.getMouseListeners()) {
                 if (listener instanceof ManageClickListener) {
@@ -382,6 +389,7 @@ public class SuggestionPanel extends JPanel {
 
             if (!hasListener) {
                 suggestionText.addMouseListener(new ManageClickListener());
+                // Make the label show a hand cursor when hovering over it
                 suggestionText.setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
         } else {

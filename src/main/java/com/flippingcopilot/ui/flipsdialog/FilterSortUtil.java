@@ -17,7 +17,8 @@ final class FilterSortUtil {
             case ALL:
                 return 1;
             case SESSION:
-                return (int) Instant.now().getEpochSecond() - 3600;
+                // TODO: Get session start time from SessionManager
+                return (int) Instant.now().getEpochSecond() - 3600; // Default to 1 hour ago
             default:
                 return (int) (Instant.now().getEpochSecond() - (long) value * timeUnit.getSeconds());
         }
@@ -38,6 +39,8 @@ final class FilterSortUtil {
         if (sortDirection == SortDirection.ASC) {
             comparator = comparator.reversed();
         }
+
+        // Apply sorting
         rows.sort(comparator);
     }
 

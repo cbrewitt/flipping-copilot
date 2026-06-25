@@ -29,8 +29,11 @@ public class ItemAggregatePanel extends JPanel {
             "Total profit", "Avg profit", "Avg profit ea."
     };
 
+    // ui components
     private final AccountDropdown accountDropdown;
     private final PaginatedTablePanel<ItemAggregate> tablePanel;
+
+    // state
     private ItemAggregateFilterSort sortAndFilter;
 
     public ItemAggregatePanel(FlipManager flipsManager,
@@ -42,6 +45,7 @@ public class ItemAggregatePanel extends JPanel {
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
 
+        // Initialize pagination first (before loadAggregates is called)
         Paginator paginatorPanel = new Paginator((i) -> sortAndFilter.setPage(i));
         tablePanel = new PaginatedTablePanel<>(COLUMN_NAMES, this::toRow);
         sortAndFilter = new ItemAggregateFilterSort(flipsManager, itemController, tablePanel::setRows,
@@ -81,6 +85,7 @@ public class ItemAggregatePanel extends JPanel {
             sortAndFilter.setSortDirection(direction);
         });
 
+        // Apply renderers
         tablePanel.centerColumns(1);
         tablePanel.moneyColumns(GP_FORMAT, 2, 3);
         tablePanel.profitColumns(GP_FORMAT, config, 4, 5, 6, 7);

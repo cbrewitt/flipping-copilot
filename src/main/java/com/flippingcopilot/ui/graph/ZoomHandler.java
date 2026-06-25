@@ -142,28 +142,41 @@ public class ZoomHandler {
         int x = pa.x + pa.width - size - Config.GRAPH_BUTTON_MARGIN;
         int y = pa.y + Config.GRAPH_BUTTON_MARGIN;
 
+        // Draw home button
         drawButtonBackground(g2d, homeButtonRect, x, y, size, isOverHomeButton(p));
         drawHomeIcon(g2d, homeButtonRect);
 
+        // Draw max button
         x -= size + Config.GRAPH_BUTTON_MARGIN;
         drawButtonBackground(g2d, maxButtonRect, x, y, size, isOverMaxButton(p));
+        // Draw max icon (four outward arrows)
         drawMaxIcon(g2d, maxButtonRect);
 
+        // Draw zoom in (+) button
         x -= size + Config.GRAPH_BUTTON_MARGIN;
         drawButtonBackground(g2d, zoomInButtonRect, x, y, size, isOverZoomInButton(p));
+        // Draw + symbol
         drawPlusMinusIcon(g2d, zoomInButtonRect, true);
 
+        // Draw zoom out (-) button
         x -= size + Config.GRAPH_BUTTON_MARGIN;
         drawButtonBackground(g2d, zoomOutButtonRect, x, y, size, isOverZoomOutButton(p));
+        // Draw - symbol
         drawPlusMinusIcon(g2d, zoomOutButtonRect, false);
 
+        // Width for text buttons (Week and Month)
         int textButtonWidth = size * 2;
+
+        // Draw Week button (wider than the others)
         x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
         drawButtonBackground(g2d, weekButtonRect, x, y, textButtonWidth, isOverWeekButton(p));
+        // Draw Week text
         drawCenteredText(g2d, weekButtonRect, "Week");
 
+        // Draw Month button (wider than the others)
         x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
         drawButtonBackground(g2d, monthButtonRect, x, y, textButtonWidth, isOverMonthButton(p));
+        // Draw Month text
         drawCenteredText(g2d, monthButtonRect, "Month");
     }
 
@@ -181,10 +194,14 @@ public class ZoomHandler {
         int houseHeight = rect.height - 2 * margin;
         g2d.setColor(Color.WHITE);
         g2d.setStroke(new BasicStroke(1.5f));
+
+        // Roof
         g2d.fillPolygon(
                 new int[]{houseX, houseX + houseWidth / 2, houseX + houseWidth},
                 new int[]{houseY + houseHeight / 2, houseY, houseY + houseHeight / 2},
                 3);
+
+        // House body
         g2d.fillRect(houseX + houseWidth / 5, houseY + houseHeight / 2,
                 3 * houseWidth / 5, houseHeight / 2);
     }
@@ -195,6 +212,12 @@ public class ZoomHandler {
         int arrowSize = rect.width / 2 - 7;
         g2d.setColor(Color.WHITE);
         g2d.setStroke(new BasicStroke(1.5f));
+
+        // Draw a simple expand icon (four outward arrows)
+        // Top-left arrow
+        // Top-right arrow
+        // Bottom-left arrow
+        // Bottom-right arrow
         for (int sx : new int[]{-1, 1}) {
             for (int sy : new int[]{-1, 1}) {
                 int endX = centerX + sx * arrowSize;
@@ -213,14 +236,18 @@ public class ZoomHandler {
         int y = rect.y + margin;
         g2d.setColor(Color.WHITE);
         g2d.setStroke(new BasicStroke(2.0f));
+
+        // Horizontal line (minus symbol)
         g2d.drawLine(x + iconSize / 4, y + iconSize / 2, x + 3 * iconSize / 4, y + iconSize / 2);
         if (plus) {
+            // Vertical line
             g2d.drawLine(x + iconSize / 2, y + iconSize / 4, x + iconSize / 2, y + 3 * iconSize / 4);
         }
     }
 
     private void drawCenteredText(Graphics2D g2d, Rectangle rect, String text) {
         g2d.setColor(Color.WHITE);
+        // Use the same font as for the Week button - plain instead of bold
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 12));
         FontMetrics fm = g2d.getFontMetrics();
         g2d.drawString(text,

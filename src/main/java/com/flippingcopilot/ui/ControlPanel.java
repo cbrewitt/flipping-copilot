@@ -20,8 +20,11 @@ import java.util.regex.Pattern;
 public class ControlPanel extends JPanel
 {
     private static final int MIN_MINUTES = 1;
-    private static final int MAX_MINUTES = 24 * 60;
-    private static final int STEPS = 1000;
+    private static final int MAX_MINUTES = 24 * 60;     // 1440
+
+    private static final int STEPS = 1000;              // internal slider resolution
+
+    // Presets
     private static final int PRESET_5M  = 5;
     private static final int PRESET_30M = 30;
     private static final int PRESET_2H  = 2 * 60;
@@ -34,7 +37,7 @@ public class ControlPanel extends JPanel
     private final JToggleButton btn30m;
     private final JToggleButton btn2h;
     private final JToggleButton btn8h;
-    private final JToggleButton btnCustom;
+    private final JToggleButton btnCustom; // "..." button
     private final JToggleButton btnRiskLow;
     private final JToggleButton btnRiskMedium;
     private final JToggleButton btnRiskHigh;
@@ -49,13 +52,14 @@ public class ControlPanel extends JPanel
     private static final String RISK_HIGH_LABEL = "High";
 
     private final JSlider timeframeSlider;
-    private final JLabel valueLabel;
-    private final JTextField valueEditor;
-    private final JPanel customPanel;
+    private final JLabel valueLabel; // fixed-size text showing selected time
+    private final JTextField valueEditor; // temporary editor shown during inline edits
+    private final JPanel customPanel; // contains only the slider row (no label)
     private final JPanel sliderRow;
     private boolean editingCustomValue;
     private int editingOriginalMinutes;
 
+    // Sqrt domain precomputed
     private static final double SQRT_MIN = Math.sqrt(MIN_MINUTES);
     private static final double SQRT_MAX = Math.sqrt(MAX_MINUTES);
     private static final double SQRT_RANGE = SQRT_MAX - SQRT_MIN;
@@ -75,6 +79,7 @@ public class ControlPanel extends JPanel
         setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
         setBounds(0, 0, MainPanel.CONTENT_WIDTH, 200);
 
+        // --- Timeframe buttons ---
         timeframePanel = new JPanel();
         timeframePanel.setLayout(new BoxLayout(timeframePanel, BoxLayout.Y_AXIS));
         timeframePanel.setOpaque(false);
@@ -115,20 +120,23 @@ public class ControlPanel extends JPanel
         timeframePanel.add(Box.createRigidArea(new Dimension(0, 3)));
         timeframePanel.add(buttonPanel);
 
+        // --- Custom slider panel (hidden unless "..." selected) ---
         customPanel = new JPanel();
         customPanel.setLayout(new BoxLayout(customPanel, BoxLayout.Y_AXIS));
         customPanel.setOpaque(false);
 
+        // small spacing above the slider row
         customPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
         int initMinutes = clampMinutes(preferencesManager.getTimeframe());
         customExplicitlySelected = !isPreset(initMinutes);
         timeframeSlider = new JSlider(JSlider.HORIZONTAL, 0, STEPS, minutesToPos(initMinutes));
         timeframeSlider.setOpaque(false);
-        timeframeSlider.setPaintTicks(false);
-        timeframeSlider.setPaintLabels(false);
+        timeframeSlider.setPaintTicks(false);   // NO TICKS
+        timeframeSlider.setPaintLabels(false);  // NO LABELS
         timeframeSlider.setSnapToTicks(false);
 
+        // Stable slider height/width
         timeframeSlider.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH - 100, 24));
         timeframeSlider.setMinimumSize(new Dimension(100, 24));
         timeframeSlider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
@@ -138,6 +146,7 @@ public class ControlPanel extends JPanel
         valueLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         valueLabel.setToolTipText("Click to enter a custom time interval");
 
+        // Fixed label size based on widest expected text
         String widest = "24h 00m";
         FontMetrics fm = valueLabel.getFontMetrics(valueLabel.getFont());
         int labelWidth = fm.stringWidth(widest);
@@ -270,12 +279,14 @@ public class ControlPanel extends JPanel
         updateRiskButtons(initialRiskLevel);
         add(timeframePanel);
 
+        // Initial sync & visibility
         refresh();
         updateCustomVisibility();
 
         accountSuggestionPreferencesRS.registerListener(ignored -> refresh());
     }
 
+    // ---------- Mapping between slider position (0..STEPS) and minutes (1..1440) using √t ----------
     private static int minutesToPos(int minutes)
     {
         int m = clampMinutes(minutes);
@@ -554,6 +565,7 @@ public class ControlPanel extends JPanel
         return String.format("#%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue());
     }
 
+    // ---------- UI wiring ----------
     private void applyRiskLevel(RiskLevel level, SuggestionManager suggestionManager, boolean updateButtons)
     {
         RiskLevel effective = level != null ? level : RiskLevel.MEDIUM;

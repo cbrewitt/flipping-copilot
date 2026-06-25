@@ -137,21 +137,27 @@ public class MenuHandler {
         boolean showAdd = locationQty > 0 && (cardData == null || !cardData.isInPortfolio() || notInPortfolio > 0);
         boolean showRemove = locationQty > 0 && portfolioQty > 0;
 
+        // Menu entries are added in reverse display order (last added = top of menu)
+
+        // Remove X — cross-location custom amount, when portfolioQuantity > 1
         if (portfolioQty > 1) {
             addPortfolioMenuEntry(MENU_REMOVE_X, menuItem,
                     e -> promptQuantityAndToggle(menuItem, accountId, ToggleItemPortfolioRequest.REMOVE, "Enter quantity to remove:"));
         }
 
+        // Remove (location-scoped) — removes only the qty present at the clicked location
         if (showRemove) {
             addPortfolioMenuEntry(MENU_REMOVE, menuItem,
                     e -> onTogglePortfolioClicked(menuItem, accountId, ToggleItemPortfolioRequest.REMOVE, locationQty));
         }
 
+        // Add X — cross-location custom amount, when notInPortfolio > 1
         if (notInPortfolio > 1) {
             addPortfolioMenuEntry(MENU_ADD_X, menuItem,
                     e -> promptQuantityAndToggle(menuItem, accountId, PortfolioId.COFLIP_PORTFOLIO, "Enter quantity to add:"));
         }
 
+        // Add (location-scoped) — adds only the qty present at the clicked location
         if (showAdd) {
             addPortfolioMenuEntry(MENU_ADD, menuItem,
                     e -> onTogglePortfolioClicked(menuItem, accountId, PortfolioId.COFLIP_PORTFOLIO, locationQty));

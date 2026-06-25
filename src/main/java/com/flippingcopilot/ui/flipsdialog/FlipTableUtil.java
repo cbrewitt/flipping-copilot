@@ -7,9 +7,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 final class FlipTableUtil {
+    // Sort comparators map
     static final Map<String, Comparator<FlipV2>> COMPARATORS = new HashMap<>();
 
     static {
+        // Last sell time - special handling for non-closed trades
         COMPARATORS.put("Last sell time", Comparator.comparing(FlipV2::lastTransactionTime).reversed());
         COMPARATORS.put("First buy time", Comparator.comparing(FlipV2::getOpenedTime));
         COMPARATORS.put("Account", Comparator.comparing(FlipV2::getAccountId));

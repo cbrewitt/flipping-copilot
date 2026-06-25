@@ -68,6 +68,7 @@ public class ApiRequestHandler {
 
     private Call timeoutCall(Request request, int seconds) {
         return client.newBuilder()
+                // Overall timeout
                 .callTimeout(seconds, TimeUnit.SECONDS)
                 .build()
                 .newCall(request);

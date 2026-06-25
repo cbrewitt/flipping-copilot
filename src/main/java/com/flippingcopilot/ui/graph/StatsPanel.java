@@ -18,6 +18,7 @@ public class StatsPanel extends BaseStatsPanel {
             "Last high price", "24h change", "Week change"
     };
 
+    // Set custom cell renderer for value column to color the change percentages
     public StatsPanel(PriceGraphConfigManager configManager, FlippingCopilotConfig copilotConfig) {
         super(configManager, copilotConfig, ROWS, 400, new ChangeRenderer(copilotConfig));
     }
@@ -51,8 +52,10 @@ public class StatsPanel extends BaseStatsPanel {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-            if (row == 5 || row == 6) {
+            // Apply color to the price change rows (24h change and week change)
+            if (row == 5 || row == 6) { // Index of 24h change and week change rows
                 String valueStr = value.toString();
+                // Check if the percentage is negative (contains '-' character)
                 if (valueStr.contains("-")) {
                     c.setForeground(config.lossAmountColor());
                 } else if (!valueStr.equals("0%")) {

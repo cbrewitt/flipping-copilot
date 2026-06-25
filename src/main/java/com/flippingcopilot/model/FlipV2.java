@@ -192,6 +192,7 @@ public class FlipV2 {
         if (raw == null || raw.length != 16) {
             return null;
         }
+        // Read UUID (16 bytes)
         ByteBuffer b = ByteBuffer.wrap(raw);
         return new UUID(b.getLong(), b.getLong());
     }

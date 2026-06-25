@@ -14,16 +14,23 @@ import java.util.List;
 @Slf4j
 public class ProfitGraphPanel extends JPanel {
 
+    // Layout constants (base values that will be scaled)
     private static final int PADDING_LEFT = 65;
     private static final int PADDING_RIGHT = 30;
     private static final int PADDING_TOP = 40;
     private static final int PADDING_BOTTOM = 40;
+
+    // Point size for data points
     private static final int POINT_RADIUS = 3;
+
+    // Visual constants
     private static final Color BACKGROUND_COLOR = new Color(43, 43, 43);
     private static final Color PLOT_AREA_COLOR = new Color(51, 51, 51);
     private static final Color GRID_COLOR = new Color(85, 85, 85, 90);
     private static final Color AXIS_COLOR = new Color(150, 150, 150);
     private static final Color TEXT_COLOR = new Color(225, 225, 225);
+
+    // Scaled strokes
     private static final Stroke LINE_STROKE = new BasicStroke(2f);
     private static final Stroke GRID_STROKE = new BasicStroke(
             1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{3f}, 0
@@ -33,6 +40,7 @@ public class ProfitGraphPanel extends JPanel {
     private final Color lossColor;
     private final Color profitColor;
 
+    // Calculated bounds
     private List<Datapoint> data;
     private long minYValue;
     private long maxYValue;
@@ -92,6 +100,7 @@ public class ProfitGraphPanel extends JPanel {
                 int winnerDist = Integer.MAX_VALUE;
                 boolean rePaintNeeded = false;
                 if(upperPlotBounds != null && upperPa != null && lowerPa != null && (upperPa.contains(p) || lowerPa.contains(p))){
+                    // find the closest by x-axis only (could use binary search but not worth the hassle)
                     for (Datapoint dp : data) {
                         int dist = Math.abs(upperPlotBounds.toX(upperPa, dp.timestamp()) - p.x);
                         dp.isCumulativeProfitHovered = false;
@@ -184,6 +193,7 @@ public class ProfitGraphPanel extends JPanel {
     }
 
     private void drawTitle(Graphics2D g2, Rectangle pa, String text) {
+        // Use a slightly larger font for the title
         g2.setFont(Font.getFont(Font.MONOSPACED));
         g2.setColor(TEXT_COLOR);
         FontMetrics fm = g2.getFontMetrics();
@@ -212,6 +222,7 @@ public class ProfitGraphPanel extends JPanel {
 
     private void drawProfitLine(Graphics2D g2, Rectangle pa, Bounds bounds) {
         if (data.size() < 2) {
+            // Just draw a point if we only have one data point
             if (data.size() == 1) {
                 Datapoint point = data.get(0);
                 int x = bounds.toX(pa, point.timestamp());
@@ -225,6 +236,7 @@ public class ProfitGraphPanel extends JPanel {
 
         g2.setStroke(LINE_STROKE);
 
+        // Draw segment with appropriate color
         for (int i = 1; i < data.size(); i++) {
             Datapoint point = data.get(i);
             int x = bounds.toX(pa, point.timestamp());
@@ -232,24 +244,31 @@ public class ProfitGraphPanel extends JPanel {
             Datapoint prevPoint = data.get(i - 1);
             int prevX = bounds.toX(pa, (int) prevPoint.timestamp());
             int prevY = bounds.toY(pa, prevPoint.cumulativeProfit);
+
+            // Determine color based on whether we're above or below zero
             boolean currentPositive = point.cumulativeProfit >= 0;
             boolean prevPositive = prevPoint.cumulativeProfit >= 0;
 
             if (currentPositive == prevPositive) {
+                // Same sign, simple line
                 g2.setColor(currentPositive ? profitColor : lossColor);
                 g2.drawLine(prevX, prevY, x, y);
             } else {
+                // Crossing zero, need to interpolate
                 double ratio = Math.abs((double)prevPoint.cumulativeProfit) /
                         (Math.abs(prevPoint.cumulativeProfit) + Math.abs(point.cumulativeProfit));
                 int crossX = prevX + (int)((x - prevX) * ratio);
                 int crossY = bounds.toY(pa, 0);
+                // Draw first segment
                 g2.setColor(prevPositive ? profitColor : lossColor);
                 g2.drawLine(prevX, prevY, crossX, crossY);
+                // Draw second segment
                 g2.setColor(currentPositive ? profitColor : lossColor);
                 g2.drawLine(crossX, crossY, x, y);
             }
         }
 
+        // Draw points
         Runnable drawToolTip = () -> {};
         g2.setStroke(AXIS_STROKE);
         for (Datapoint dp : data) {
@@ -267,7 +286,7 @@ public class ProfitGraphPanel extends JPanel {
                 };
             }
         }
-        drawToolTip.run();
+        drawToolTip.run(); // draw tool tip after so it's on top
     }
 
 
@@ -313,7 +332,7 @@ public class ProfitGraphPanel extends JPanel {
                 };
             }
         }
-        drawToolTip.run();
+        drawToolTip.run(); // draw tool tip after so it's on top
     }
 
     private Rectangle profitBarRect(Datapoint dp,  Bounds bounds) {
@@ -329,10 +348,12 @@ public class ProfitGraphPanel extends JPanel {
     }
 
     private void drawToolTip(LocalDate t, long v, Graphics2D g2, Point p) {
+        // Use exact same constants as DatapointTooltip
         final Color TOOLTIP_BACKGROUND = new Color(43, 43, 43);
         final Color TOOLTIP_BORDER = new Color(150, 150, 150);
-        final int TOOLTIP_PADDING = 8;
+        final int TOOLTIP_PADDING = 8; // Don't scale - use exact value from DatapointTooltip
 
+        // Prepare tooltip text
         String dailyProfitStr = String.format("%,d", v);
         String dateStr = t.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"));
 
@@ -341,7 +362,7 @@ public class ProfitGraphPanel extends JPanel {
         int dateWidth = fm.stringWidth(dateStr);
         int profitWidth = fm.stringWidth(dailyProfitStr);
         int textWidth = Math.max(dateWidth, profitWidth);
-        int textHeight = fm.getHeight() * 2;
+        int textHeight = fm.getHeight() * 2; // Two lines of text
 
         int tooltipWidth = textWidth + TOOLTIP_PADDING * 2;
         int tooltipHeight = textHeight + TOOLTIP_PADDING * 2;

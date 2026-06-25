@@ -33,12 +33,15 @@ public class AckedTransaction {
         b.order(ByteOrder.BIG_ENDIAN);
         AckedTransaction transaction = new AckedTransaction();
 
+        // Read UUID (16 bytes)
         long idMostSig = b.getLong();
         long idLeastSig = b.getLong();
         transaction.id = new UUID(idMostSig, idLeastSig);
         long clientFlipIdMostSig = b.getLong();
         long clientFlipIdLeastSig = b.getLong();
         transaction.clientFlipId = new UUID(clientFlipIdMostSig, clientFlipIdLeastSig);
+
+        // Read primitive fields
         transaction.accountId = b.getInt();
         transaction.time = b.getInt();
         transaction.itemId = b.getInt();

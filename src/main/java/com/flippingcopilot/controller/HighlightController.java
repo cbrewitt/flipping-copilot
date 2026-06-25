@@ -46,6 +46,7 @@ public class HighlightController {
     private static final String GE_CLERK_NAME = "Grand Exchange Clerk";
     private static final String BANKER_NAME = "Banker";
 
+    // dependencies
     private final FlippingCopilotConfig config;
     private final SuggestionManager suggestionManager;
     private final SuggestionPreferencesManager suggestionPreferencesManager;
@@ -60,6 +61,7 @@ public class HighlightController {
     private final BankTagsService bankTagsService;
     private final ModelOutlineRenderer modelOutlineRenderer;
 
+    // state
     private final ArrayList<Overlay> highlightOverlays = new ArrayList<>();
     private volatile boolean active = true;
     private final AtomicInteger generation = new AtomicInteger(0);
