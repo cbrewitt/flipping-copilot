@@ -629,40 +629,16 @@ public class ControlPanel extends JPanel
 
     private JToggleButton createPresetButton(String label, int value, SuggestionManager suggestionManager)
     {
-        JToggleButton button = new JToggleButton();
-        button.addActionListener(e -> {
+        return createTimeframeButton(label, () -> {
             customExplicitlySelected = false;
             applyTimeframe(value, suggestionManager, /*updateSlider*/ true, /*updateButtons*/ true);
             updateCustomVisibility(); // hides slider
         });
-        button.setMargin(new Insets(2, 4, 2, 4));
-        button.setFocusPainted(false);
-        button.setOpaque(true);
-        button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        button.setForeground(ColorScheme.TEXT_COLOR);
-
-        button.setText("<html><font color='rgb(198, 198, 198)'>" + label + "</font></html>");
-
-        button.addChangeListener(e2 -> {
-            if (button.isSelected())
-            {
-                button.setBackground(ColorScheme.BRAND_ORANGE);
-                button.setText("<html><font color='black'>" + label + "</font></html>");
-            }
-            else
-            {
-                button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-                button.setText("<html><font color='rgb(198, 198, 198)'>" + label + "</font></html>");
-            }
-        });
-
-        return button;
     }
 
     private JToggleButton createCustomButton(String label, SuggestionManager suggestionManager)
     {
-        JToggleButton button = new JToggleButton();
-        button.addActionListener(e -> {
+        return createTimeframeButton(label, () -> {
             customExplicitlySelected = true;
             // Selecting "..." reveals the slider and shows current value
             int current = clampMinutes(preferencesManager.getTimeframe());
@@ -672,42 +648,41 @@ public class ControlPanel extends JPanel
             updateValueLabel(current);
             updateCustomVisibility(); // shows slider
         });
+    }
+
+    private JToggleButton createTimeframeButton(String label, Runnable action)
+    {
+        JToggleButton button = createToggleButton();
+        button.addActionListener(e -> action.run());
+        button.addChangeListener(e -> applyTimeframeButtonStyle(button, label));
+        applyTimeframeButtonStyle(button, label);
+        return button;
+    }
+
+    private JToggleButton createToggleButton()
+    {
+        JToggleButton button = new JToggleButton();
         button.setMargin(new Insets(2, 4, 2, 4));
         button.setFocusPainted(false);
         button.setOpaque(true);
         button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         button.setForeground(ColorScheme.TEXT_COLOR);
-
-        button.setText("<html><font color='rgb(198, 198, 198)'>" + label + "</font></html>");
-
-        button.addChangeListener(e2 -> {
-            if (button.isSelected())
-            {
-                button.setBackground(ColorScheme.BRAND_ORANGE);
-                button.setText("<html><font color='black'>" + label + "</font></html>");
-            }
-            else
-            {
-                button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-                button.setText("<html><font color='rgb(198, 198, 198)'>" + label + "</font></html>");
-            }
-        });
-
         return button;
+    }
+
+    private void applyTimeframeButtonStyle(JToggleButton button, String label)
+    {
+        boolean selected = button.isSelected();
+        button.setBackground(selected ? ColorScheme.BRAND_ORANGE : ColorScheme.DARKER_GRAY_COLOR);
+        button.setText(String.format("<html><font color='%s'>%s</font></html>", selected ? "black" : "rgb(198, 198, 198)", label));
     }
 
     private JToggleButton createRiskButton(String label, RiskLevel level, SuggestionManager suggestionManager)
     {
-        JToggleButton button = new JToggleButton();
+        JToggleButton button = createToggleButton();
         button.addActionListener(e -> applyRiskLevel(level, suggestionManager, true));
-        button.setMargin(new Insets(2, 4, 2, 4));
-        button.setFocusPainted(false);
-        button.setOpaque(true);
-        button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-
         button.addChangeListener(e2 -> applyRiskButtonStyle(button, label, level, button.isSelected()));
         applyRiskButtonStyle(button, label, level, false);
-
         return button;
     }
 

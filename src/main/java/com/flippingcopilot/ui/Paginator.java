@@ -1,7 +1,6 @@
 package com.flippingcopilot.ui;
 
 import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;

@@ -8,7 +8,6 @@ import com.flippingcopilot.ui.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.ui.graph.model.PriceLine;
-import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -24,7 +23,6 @@ import net.runelite.client.chat.ChatMessageBuilder;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.*;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
 
@@ -38,11 +36,9 @@ public class SuggestionController {
     // dependencies
     private final PausedManager pausedManager;
     private final Client client;
-    private final Gson gson;
     private final OsrsLoginManager osrsLoginManager;
     private final HighlightController highlightController;
     private final GrandExchange grandExchange;
-    private final ScheduledExecutorService executorService;
     private final ApiRequestHandler apiRequestHandler;
     private final Notifier notifier;
     private final OfferManager offerManager;
@@ -190,7 +186,6 @@ public class SuggestionController {
         log.debug("tick {} getting suggestion", client.getTickCount());
         boolean sendGraphData = config.priceGraphWebsite() == FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT && !config.lowDataMode();
         boolean geOpen = grandExchange.isOpen();
-        log.debug("sending suggestion {}", accountStatus.toJson(gson, geOpen, sendGraphData));
         apiRequestHandler.getSuggestionAsync(accountStatus.encodeProto(geOpen, sendGraphData), suggestionConsumer, graphDataConsumer, onFailure, skipGraphData);
     }
 

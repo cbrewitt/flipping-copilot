@@ -18,10 +18,6 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.awt.*;
 
-/**
- * Manages text color modifications for GE slot price widgets based on profitability.
- * Changes the price text color to indicate whether an offer is profitable or not.
- */
 @Slf4j
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
@@ -44,12 +40,6 @@ public class SlotProfitColorizer {
     private final GrandExchange grandExchange;
     private final ProfitCalculator profitCalculator;
 
-    /**
-     * Helper method to load an offer for a given slot.
-     *
-     * @param slotIndex The slot index (0-7)
-     * @return The SavedOffer, or null if not found
-     */
     private SavedOffer getOffer(int slotIndex) {
         try {
             long accountHash = client.getAccountHash();
@@ -60,10 +50,6 @@ public class SlotProfitColorizer {
         }
     }
 
-    /**
-     * Updates all GE slot price text colors based on current profitability.
-     * Should be called when GE interface updates (scripts 782, 804).
-     */
     public void updateAllSlots() {
         if (!config.slotPriceColorEnabled()) {
             return;
@@ -84,11 +70,6 @@ public class SlotProfitColorizer {
         }
     }
 
-    /**
-     * Updates a single slot's price text color based on profitability.
-     *
-     * @param slotIndex The slot index (0-7)
-     */
     private void updateOverviewSlot(int slotIndex) {
         try {
             Widget slotWidget = getSlotWidget(slotIndex);
@@ -100,10 +81,6 @@ public class SlotProfitColorizer {
         }
     }
 
-    /**
-     * Updates the detail view price text color when a slot is opened.
-     * Widget path: 465.15[25]
-     */
     private void updateDetailView(int openSlot) {
         if (openSlot == -1) {
             return;
@@ -119,13 +96,6 @@ public class SlotProfitColorizer {
         }
     }
 
-    /**
-     * Updates the price text color for a given widget based on slot profitability.
-     *
-     * @param priceTextWidget The widget containing the price text
-     * @param slotIndex       The slot index (0-7)
-     * @param defaultColor    The default color to use if not profitable/unprofitable
-     */
     private void updatePriceTextColor(Widget priceTextWidget, int slotIndex, Color defaultColor) {
         if (!hasValidText(priceTextWidget)) {
             return;
@@ -142,10 +112,6 @@ public class SlotProfitColorizer {
         priceTextWidget.setText(applyColorTag(priceTextWidget.getText(), targetColor));
     }
 
-    /**
-     * Updates the offer setup screen price text color.
-     * This handles both new offers and existing offer modifications.
-     */
     private void updateOfferSetup() {
         try {
             Widget offerSetupWidget = client.getWidget(InterfaceID.GE_OFFERS, OFFER_SETUP_CHILD_ID);
@@ -167,12 +133,6 @@ public class SlotProfitColorizer {
         }
     }
 
-    /**
-     * Determines the offer setup screen price color.
-     * <p>
-     * For buy offers: shows profitable color if it's a tracked item being bought.
-     * For sell offers: shows profit/loss color based on buy price vs current sell price.
-     */
     private Color determineOfferSetupColor(Color defaultColor) {
         if (!grandExchange.isOfferTypeSell()) {
             // For buy offers, show profitable if we have a tracked price and the price matches it.
@@ -196,9 +156,6 @@ public class SlotProfitColorizer {
         return determineProfitColor(profit, defaultColor);
     }
 
-    /**
-     * Determine the color to apply based on profitability.
-     */
     private Color determineProfitColor(Long profit, Color defaultColor) {
         if (profit == null || profit == 0) {
             return defaultColor;
@@ -211,10 +168,6 @@ public class SlotProfitColorizer {
         }
     }
 
-    /**
-     * Resets all slots to their default color.
-     * Called when the feature is disabled.
-     */
     public void resetAllSlots() {
         for (int slotIndex = 0; slotIndex < GE_SLOT_COUNT; slotIndex++) {
             resetSlot(slotIndex);
@@ -224,11 +177,6 @@ public class SlotProfitColorizer {
         resetOfferSetup();
     }
 
-    /**
-     * Resets a single slot to default color.
-     *
-     * @param slotIndex The slot index (0-7)
-     */
     private void resetSlot(int slotIndex) {
         try {
             Widget slotWidget = getSlotWidget(slotIndex);
@@ -244,9 +192,6 @@ public class SlotProfitColorizer {
         }
     }
 
-    /**
-     * Resets the detail view to default color.
-     */
     private void resetDetailView() {
         try {
             Widget detailViewWidget = client.getWidget(InterfaceID.GE_OFFERS, DETAIL_VIEW_CHILD_ID);
@@ -262,9 +207,6 @@ public class SlotProfitColorizer {
         }
     }
 
-    /**
-     * Resets the offer setup screen to default color.
-     */
     public void resetOfferSetup() {
         try {
             Widget offerSetupWidget = client.getWidget(InterfaceID.GE_OFFERS, OFFER_SETUP_CHILD_ID);
@@ -283,14 +225,6 @@ public class SlotProfitColorizer {
         }
     }
 
-    /**
-     * Calculates the profit for a given slot.
-     * Returns null if profit cannot be determined.
-     * Only calculates profit for SELL offers.
-     *
-     * @param slotIndex The slot index (0-7)
-     * @return Profit in GP, or null if unknown
-     */
     private Long calculateSlotProfit(int slotIndex) {
         try {
             return profitCalculator.calculateSlotProfit(slotIndex);
@@ -300,12 +234,6 @@ public class SlotProfitColorizer {
         }
     }
 
-    /**
-     * Determines if the offer in a slot is a buy offer.
-     *
-     * @param slotIndex The slot index (0-7)
-     * @return true if buy offer, false if sell offer or unknown
-     */
     private boolean isBuyOffer(int slotIndex) {
         try {
             // First try to get it from SavedOffer
@@ -332,33 +260,14 @@ public class SlotProfitColorizer {
         return false; // Default to sell if unknown
     }
 
-    /**
-     * Checks if an offer is being tracked (has a SavedOffer).
-     *
-     * @param slotIndex The slot index (0-7)
-     * @return true if offer is tracked, false otherwise
-     */
     private boolean isOfferTracked(int slotIndex) {
         return getOffer(slotIndex) != null;
     }
 
-    /**
-     * Applies the appropriate color to text based on profit and offer type.
-     *
-     * @param text            The original text
-     * @param determinedColor The color to apply (without <col=>)
-     * @return Text with color tags applied
-     */
     private String applyColorTag(String text, Color determinedColor) {
         return "<col=" + colorToHex(determinedColor) + ">" + stripColorTags(text) + "</col>";
     }
 
-    /**
-     * Strips existing color tags from text.
-     *
-     * @param text Text potentially containing color tags
-     * @return Plain text without color tags
-     */
     private String stripColorTags(String text) {
         if (text == null) {
             return "";
@@ -368,33 +277,14 @@ public class SlotProfitColorizer {
         return text.replaceAll("<col=[0-9a-fA-F]{6}>", "").replaceAll("</col>", "");
     }
 
-    /**
-     * Converts a Color object to hex string (without # prefix).
-     *
-     * @param color The color to convert
-     * @return Hex string (e.g., "32a0fa")
-     */
     private String colorToHex(Color color) {
         return String.format("%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
 
-    /**
-     * Gets the slot widget for a given slot index.
-     *
-     * @param slotIndex The slot index (0-7)
-     * @return The slot widget, or null if not found
-     */
     private Widget getSlotWidget(int slotIndex) {
         return client.getWidget(InterfaceID.GE_OFFERS, FIRST_SLOT_CHILD_ID + slotIndex);
     }
 
-    /**
-     * Gets the price text widget from a slot widget.
-     * This is the widget at child index 25 within the slot.
-     *
-     * @param slotWidget The slot widget
-     * @return The price text widget, or null if not found
-     */
     private Widget getPriceTextWidget(Widget slotWidget) {
         if (slotWidget == null) {
             return null;
@@ -403,12 +293,6 @@ public class SlotProfitColorizer {
         return slotWidget.getChild(PRICE_TEXT_WIDGET_CHILD_INDEX);
     }
 
-    /**
-     * Checks if a widget and its text are valid for modification.
-     *
-     * @param widget The widget to check
-     * @return true if the widget has valid text, false otherwise
-     */
     private boolean hasValidText(Widget widget) {
         if (widget == null) {
             return false;
@@ -418,12 +302,6 @@ public class SlotProfitColorizer {
         return text != null && !text.isEmpty();
     }
 
-    /**
-     * Resets a widget's text color to the specified default.
-     *
-     * @param widget       The widget to reset
-     * @param defaultColor The default color hex string (without # prefix)
-     */
     private void resetWidgetTextColor(Widget widget, String defaultColor) {
         String plainText = stripColorTags(widget.getText());
         widget.setText("<col=" + defaultColor + ">" + plainText + "</col>");

@@ -67,21 +67,6 @@ public class FlipManager {
         return null;
     }
 
-    public synchronized FlipV2 getLastFlipByItemId(Integer accountId, int itemId) {
-        if (accountId != null && lastOpenFlipByItemId.containsKey(accountId)) {
-            Map<Integer, FlipV2> flips = lastOpenFlipByItemId.get(accountId);
-            FlipV2 flip = flips.get(itemId);
-            if (flip != null) {
-                if (itemController != null) {
-                    flip.setCachedItemName(itemController.getItemName(flip.getItemId()));
-                }
-                return flip;
-            }
-        }
-        return null;
-    }
-
-
     public synchronized boolean mergeFlips(List<FlipV2> flips, int copilotUserId) {
         if (copilotUserId != this.copilotUserId) {
             return false;

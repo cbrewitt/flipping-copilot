@@ -7,10 +7,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * Note on synchronization:
- *
- */
 @AllArgsConstructor
 public class ReactiveStateImpl<T> implements ReactiveState<T> {
 

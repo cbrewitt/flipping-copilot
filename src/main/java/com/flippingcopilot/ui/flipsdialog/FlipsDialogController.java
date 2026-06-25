@@ -230,12 +230,6 @@ public class FlipsDialogController {
     }
 
 
-    public void showFlipsTab() {
-        tabbedPane.setSelectedIndex(1);
-        dialog.setVisible(true);
-        flipsPanel.onTabShown();
-    }
-
     public void showPortfolioTab() {
         tabbedPane.setSelectedIndex(0);
         dialog.setVisible(true);

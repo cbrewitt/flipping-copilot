@@ -23,7 +23,6 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-import java.util.Arrays;
 
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
 
@@ -33,7 +32,6 @@ public class StatsPanelV2 extends JPanel {
     private static final int SUB_INFO_ROW_VERTICAL_PADDING = 3;
     private static final int SUB_INFO_ROW_HEIGHT = 18;
 
-    public final BufferedImage TRASH_ICON = ImageUtil.loadImageResource(getClass(), "/trash.png");
     public final BufferedImage ARROW_ICON = ImageUtil.loadImageResource(getClass(),"/small_open_arrow.png");
     public final Icon OPEN_ICON = new ImageIcon(ARROW_ICON);
     public final Icon CLOSE_ICON = new ImageIcon(ImageUtil.rotateImage(ARROW_ICON, Math.toRadians(90)));
@@ -41,8 +39,8 @@ public class StatsPanelV2 extends JPanel {
     public final Icon FLIPS_DIALOG = new ImageIcon(FLIPS_DIALOG_ICON);
     public final Icon HIGHLIGHTED_FLIPS_DIALOG = new ImageIcon(ImageUtil.luminanceScale(FLIPS_DIALOG_ICON, BUTTON_HOVER_LUMINANCE));
 
-
-    private static final java.util.List<Integer> SESSION_STATS_INDS = Arrays.asList(4,5);
+    private static final int SESSION_TIME_ROW = 4;
+    private static final int HOURLY_PROFIT_ROW = 5;
 
     // dependencies
     private final CopilotLoginRS copilotLoginRS;
@@ -360,7 +358,6 @@ public class StatsPanelV2 extends JPanel {
     // - plugin config changed (Client thread)
     // - page changed (Swing EDT thread)
     //
-
     public void refresh(boolean flipsMaybeChanged, boolean validLoginState) {
         if(!SwingUtilities.isEventDispatchThread()) {
             // we always execute this in the Swing EDT thread
@@ -378,8 +375,7 @@ public class StatsPanelV2 extends JPanel {
             portfolioValueVal.setText("0 gp");
             flipsPanel.removeAll();
             paginator.setTotalPages(1);
-            boolean v = IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit());
-            SESSION_STATS_INDS.forEach(i -> subInfoPanel.getComponent(i).setVisible(v));
+            setSessionStatsVisible(IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit()));
             accountDropdown.setVisible(false);
             return;
         }
@@ -414,7 +410,7 @@ public class StatsPanelV2 extends JPanel {
 
         // 'Session time' and 'Hourly profit' should only be set if 'Session' is select in the dropdown
         if (IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit())) {
-            SESSION_STATS_INDS.forEach(i -> subInfoPanel.getComponent(i).setVisible(true));
+            setSessionStatsVisible(true);
             long seconds = sd.durationMillis / 1000;
             float hoursFloat = (((float) seconds) / 3600.0f);
             long hourlyProfit = hoursFloat == 0 ? 0 : (long) (stats.profit / hoursFloat);
@@ -423,7 +419,12 @@ public class StatsPanelV2 extends JPanel {
             hourlyProfitVal.setText(UIUtilities.formatProfitWithoutGp(hourlyProfit) + " gp/hr");
             hourlyProfitVal.setForeground(UIUtilities.getProfitColor(hourlyProfit, config));
         } else {
-            SESSION_STATS_INDS.forEach(i -> subInfoPanel.getComponent(i).setVisible(false));
+            setSessionStatsVisible(false);
         }
+    }
+
+    private void setSessionStatsVisible(boolean visible) {
+        subInfoPanel.getComponent(SESSION_TIME_ROW).setVisible(visible);
+        subInfoPanel.getComponent(HOURLY_PROFIT_ROW).setVisible(visible);
     }
 }

@@ -178,6 +178,46 @@ public class DataManager {
         return b;
     }
 
+    private void addPriceDatapoints(List<Datapoint> target,
+                                    int[] latestTimes,
+                                    int[] latestPrices,
+                                    int[] fiveMinTimes,
+                                    int[] fiveMinPrices,
+                                    int[] hourTimes,
+                                    int[] hourPrices,
+                                    boolean isLow) {
+        for (int i = 0; i < latestTimes.length; i++) {
+            target.add(new Datapoint(latestTimes[i], latestPrices[i], isLow, Datapoint.Type.INSTA_SELL_BUY));
+        }
+        int fiveMinCut = removeBeforeNextBucket(target, Constants.FIVE_MIN_SECONDS);
+        addHistoricalPoints(target, fiveMinTimes, fiveMinPrices, fiveMinCut, isLow, Datapoint.Type.FIVE_MIN_AVERAGE);
+
+        int hourCut = removeBeforeNextBucket(target, Constants.HOUR_SECONDS);
+        addHistoricalPoints(target, hourTimes, hourPrices, hourCut, isLow, Datapoint.Type.HOUR_AVERAGE);
+    }
+
+    private int removeBeforeNextBucket(List<Datapoint> target, int bucketSeconds) {
+        if (target.isEmpty()) {
+            return Integer.MAX_VALUE;
+        }
+        int cut = bucketSeconds * (target.get(0).time / bucketSeconds) + bucketSeconds;
+        target.removeIf(i -> i.time < cut);
+        return cut;
+    }
+
+    private void addHistoricalPoints(List<Datapoint> target,
+                                     int[] times,
+                                     int[] prices,
+                                     int cut,
+                                     boolean isLow,
+                                     Datapoint.Type type) {
+        for (int i = times.length - 1; i >= 0; i--) {
+            if (times[i] < cut) {
+                target.add(0, new Datapoint(times[i], prices[i], isLow, type));
+            }
+        }
+    }
+
     private void processDatapoints() {
         highDatapoints.clear();
         lowDatapoints.clear();
@@ -195,61 +235,10 @@ public class DataManager {
             return;
         }
 
-        for (int i = 0; i < data.lowLatestTimes.length; i++) {
-            lowDatapoints.add(new Datapoint(data.lowLatestTimes[i], data.lowLatestPrices[i], true, Datapoint.Type.INSTA_SELL_BUY));
-        }
-        int fiveMinLowsCut;
-        if (!lowDatapoints.isEmpty()) {
-            fiveMinLowsCut = Constants.FIVE_MIN_SECONDS * (lowDatapoints.get(0).time / Constants.FIVE_MIN_SECONDS)  + Constants.FIVE_MIN_SECONDS;
-            lowDatapoints.removeIf((i) -> i.time < fiveMinLowsCut);
-        } else {
-            fiveMinLowsCut = Integer.MAX_VALUE;
-        }
-        for (int i = data.low5mTimes.length-1; i >= 0; i--) {
-            if (data.low5mTimes[i] < fiveMinLowsCut) {
-                lowDatapoints.add(0, new Datapoint(data.low5mTimes[i], data.low5mPrices[i], true, Datapoint.Type.FIVE_MIN_AVERAGE));
-            }
-        }
-        int oneHourLowsCut;
-        if (!lowDatapoints.isEmpty()) {
-            oneHourLowsCut = Constants.HOUR_SECONDS * (lowDatapoints.get(0).time / Constants.HOUR_SECONDS)  + Constants.HOUR_SECONDS;
-            lowDatapoints.removeIf((i) -> i.time < oneHourLowsCut);
-        } else {
-            oneHourLowsCut = Integer.MAX_VALUE;
-        }
-        for (int i = data.low1hTimes.length-1; i >= 0; i--) {
-            if (data.low1hTimes[i] < oneHourLowsCut) {
-                lowDatapoints.add(0, new Datapoint(data.low1hTimes[i], data.low1hPrices[i], true, Datapoint.Type.HOUR_AVERAGE));
-            }
-        }
-
-        for (int i = 0; i < data.highLatestTimes.length; i++) {
-            highDatapoints.add(new Datapoint(data.highLatestTimes[i], data.highLatestPrices[i], false, Datapoint.Type.INSTA_SELL_BUY));
-        }
-        int fiveMinHighsCut;
-        if (!highDatapoints.isEmpty()) {
-            fiveMinHighsCut = Constants.FIVE_MIN_SECONDS * (highDatapoints.get(0).time / Constants.FIVE_MIN_SECONDS)  + Constants.FIVE_MIN_SECONDS;
-            highDatapoints.removeIf((i) -> i.time < fiveMinHighsCut);
-        } else {
-            fiveMinHighsCut = Integer.MAX_VALUE;
-        }
-        for (int i = data.high5mTimes.length-1; i >= 0; i--) {
-            if (data.high5mTimes[i] < fiveMinHighsCut) {
-                highDatapoints.add(0, new Datapoint(data.high5mTimes[i], data.high5mPrices[i], false, Datapoint.Type.FIVE_MIN_AVERAGE));
-            }
-        }
-        int oneHourHighsCut;
-        if (!highDatapoints.isEmpty()) {
-            oneHourHighsCut = Constants.HOUR_SECONDS * (highDatapoints.get(0).time / Constants.HOUR_SECONDS)  + Constants.HOUR_SECONDS;
-            highDatapoints.removeIf((i) -> i.time < oneHourHighsCut);
-        } else {
-            oneHourHighsCut = Integer.MAX_VALUE;
-        }
-        for (int i = data.high1hTimes.length-1; i >= 0; i--) {
-            if (data.high1hTimes[i] < oneHourHighsCut) {
-                highDatapoints.add(0, new Datapoint(data.high1hTimes[i], data.high1hPrices[i], false, Datapoint.Type.HOUR_AVERAGE));
-            }
-        }
+        addPriceDatapoints(lowDatapoints, data.lowLatestTimes, data.lowLatestPrices,
+                data.low5mTimes, data.low5mPrices, data.low1hTimes, data.low1hPrices, true);
+        addPriceDatapoints(highDatapoints, data.highLatestTimes, data.highLatestPrices,
+                data.high5mTimes, data.high5mPrices, data.high1hTimes, data.high1hPrices, false);
 
 
         if(data.predictionTimes != null) {
@@ -320,18 +309,8 @@ public class DataManager {
         int cutWeek = (int) Instant.now().minus(Duration.ofDays(7)).getEpochSecond();
         if (!lowDatapoints.isEmpty() && !highDatapoints.isEmpty()){
             double priceCurrent = (lowDatapoints.get(lowDatapoints.size()-1).price *0.5 + highDatapoints.get(highDatapoints.size()-1).price *0.5);
-            double lowPrice24hAgo = lowDatapoints.stream().filter(i-> i.time > cut24h).findFirst().map(i -> (double) i.price).orElse(priceCurrent);
-            double highPrice24hAgo = highDatapoints.stream().filter(i-> i.time > cut24h).findFirst().map(i -> (double) i.price).orElse(priceCurrent);
-            double price24hAgo = lowPrice24hAgo*0.5 + highPrice24hAgo*0.5;
-            if (price24hAgo > 0 ) {
-                this.priceChange24H = (priceCurrent - price24hAgo) / price24hAgo;
-            }
-            double lowPriceWeekAgo = lowDatapoints.stream().filter(i-> i.time > cutWeek).findFirst().map(i -> (double) i.price).orElse(priceCurrent);
-            double highPriceWeekAgo = highDatapoints.stream().filter(i-> i.time > cutWeek).findFirst().map(i -> (double) i.price).orElse(priceCurrent);
-            double priceWeekAgo = lowPriceWeekAgo*0.5 + highPriceWeekAgo*0.5;
-            if (priceWeekAgo > 0 ) {
-                this.priceChangeWeek = (priceCurrent - priceWeekAgo) / priceWeekAgo;
-            }
+            this.priceChange24H = priceChangeSince(cut24h, priceCurrent);
+            this.priceChangeWeek = priceChangeSince(cutWeek, priceCurrent);
         }
 
         if(!highDatapoints.isEmpty()) {
@@ -347,6 +326,21 @@ public class DataManager {
         margin = data.sellPrice - data.buyPrice;
         tax = data.sellPrice - ProfitCalculator.getPostTaxPrice(data.itemId, (int) data.sellPrice);
         profit = margin - tax;
+    }
+
+    private double priceChangeSince(int cut, double currentPrice) {
+        double lowPrice = firstPriceAfter(lowDatapoints, cut, currentPrice);
+        double highPrice = firstPriceAfter(highDatapoints, cut, currentPrice);
+        double oldPrice = lowPrice * 0.5 + highPrice * 0.5;
+        return oldPrice > 0 ? (currentPrice - oldPrice) / oldPrice : 0;
+    }
+
+    private double firstPriceAfter(List<Datapoint> datapoints, int cut, double fallback) {
+        return datapoints.stream()
+                .filter(i -> i.time > cut)
+                .findFirst()
+                .map(i -> (double) i.price)
+                .orElse(fallback);
     }
 
     public List<Datapoint> sellPriceDataPoint() {

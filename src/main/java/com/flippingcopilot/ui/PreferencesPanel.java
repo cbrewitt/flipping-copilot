@@ -19,40 +19,42 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 
+import static com.flippingcopilot.ui.UIUtilities.*;
+
 @Slf4j
 @Singleton
 public class PreferencesPanel extends JPanel {
-    private static final MinProfitOption[] MIN_PREDICTED_PROFIT_OPTIONS = new MinProfitOption[]{
-            new MinProfitOption("Auto", null),
-            new MinProfitOption("20K", 20_000),
-            new MinProfitOption("50K", 50_000),
-            new MinProfitOption("100K", 100_000),
-            new MinProfitOption("200K", 200_000),
-            new MinProfitOption("500K", 500_000),
-            new MinProfitOption("1M", 1_000_000)
+    private static final Option[] MIN_PREDICTED_PROFIT_OPTIONS = new Option[]{
+            new Option("Auto", null),
+            new Option("20K", 20_000),
+            new Option("50K", 50_000),
+            new Option("100K", 100_000),
+            new Option("200K", 200_000),
+            new Option("500K", 500_000),
+            new Option("1M", 1_000_000)
     };
 
-    private static final ReservedSlotsOption[] RESERVED_SLOTS_OPTIONS = new ReservedSlotsOption[]{
-            new ReservedSlotsOption("Auto", null),
-            new ReservedSlotsOption("0", 0),
-            new ReservedSlotsOption("1", 1),
-            new ReservedSlotsOption("2", 2),
-            new ReservedSlotsOption("3", 3),
-            new ReservedSlotsOption("4", 4),
-            new ReservedSlotsOption("5", 5),
-            new ReservedSlotsOption("6", 6),
-            new ReservedSlotsOption("7", 7),
-            new ReservedSlotsOption("8", 8)
+    private static final Option[] RESERVED_SLOTS_OPTIONS = new Option[]{
+            new Option("Auto", null),
+            new Option("0", 0),
+            new Option("1", 1),
+            new Option("2", 2),
+            new Option("3", 3),
+            new Option("4", 4),
+            new Option("5", 5),
+            new Option("6", 6),
+            new Option("7", 7),
+            new Option("8", 8)
     };
 
-    private static final DumpAlertMinProfitOption[] DUMP_ALERT_MIN_PROFIT_OPTIONS = new DumpAlertMinProfitOption[]{
-            new DumpAlertMinProfitOption("Off", null),
-            new DumpAlertMinProfitOption("100K+", 100_000),
-            new DumpAlertMinProfitOption("200K+", 200_000),
-            new DumpAlertMinProfitOption("500K+", 500_000),
-            new DumpAlertMinProfitOption("1M+", 1_000_000),
-            new DumpAlertMinProfitOption("2M+", 2_000_000),
-            new DumpAlertMinProfitOption("5M+", 5_000_000)
+    private static final Option[] DUMP_ALERT_MIN_PROFIT_OPTIONS = new Option[]{
+            new Option("Off", null),
+            new Option("100K+", 100_000),
+            new Option("200K+", 200_000),
+            new Option("500K+", 500_000),
+            new Option("1M+", 1_000_000),
+            new Option("2M+", 2_000_000),
+            new Option("5M+", 5_000_000)
     };
 
     private final SuggestionPreferencesManager preferencesManager;
@@ -67,11 +69,11 @@ public class PreferencesPanel extends JPanel {
     private final JComboBox<String> profileSelector;
     private final JButton addProfileButton;
     private final JButton deleteProfileButton;
-    private final JComboBox<ReservedSlotsOption> reservedSlotsDropdown;
-    private final JComboBox<DumpAlertMinProfitOption> dumpAlertsDropdown;
+    private final JComboBox<Option> reservedSlotsDropdown;
+    private final JComboBox<Option> dumpAlertsDropdown;
     private final JPanel preferencesContent;
     private final JPanel loginPromptPanel;
-    private final JComboBox<MinProfitOption> minPredictedProfitDropdown;
+    private final JComboBox<Option> minPredictedProfitDropdown;
     private boolean suppressMinProfitEvents;
     private boolean suppressReservedSlotsEvents;
     private boolean suppressDumpAlertsEvents;
@@ -103,44 +105,35 @@ public class PreferencesPanel extends JPanel {
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
         setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
 
-        preferencesContent = new JPanel();
-        preferencesContent.setLayout(new BoxLayout(preferencesContent, BoxLayout.Y_AXIS));
-        preferencesContent.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        preferencesContent = verticalPanel(ColorScheme.DARKER_GRAY_COLOR);
 
         JLabel preferencesTitle = new JLabel("Suggestion Settings");
         preferencesTitle.setForeground(Color.WHITE);
         preferencesTitle.setFont(preferencesTitle.getFont().deriveFont(Font.BOLD));
         preferencesTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-        preferencesTitle.setMinimumSize(new Dimension(MainPanel.CONTENT_WIDTH - 30, preferencesTitle.getPreferredSize().height));
-        preferencesTitle.setMaximumSize(new Dimension(MainPanel.CONTENT_WIDTH - 30, preferencesTitle.getPreferredSize().height));
+        setFixedSize(preferencesTitle, MainPanel.CONTENT_WIDTH - 30, preferencesTitle.getPreferredSize().height);
         preferencesTitle.setHorizontalAlignment(SwingConstants.CENTER);
         preferencesContent.add(preferencesTitle);
-        preferencesContent.add(Box.createRigidArea(new Dimension(0, 8)));
+        addVerticalGap(preferencesContent, 8);
 
-        loginPromptPanel = new JPanel(new GridBagLayout());
-        loginPromptPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        JLabel loginPrompt = new JLabel("<html><center>Log in to the game<br>to alter suggestion settings.</center></html>");
-        loginPrompt.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        loginPromptPanel.add(loginPrompt);
+        loginPromptPanel = messagePanel(
+                "<html><center>Log in to the game<br>to alter suggestion settings.</center></html>",
+                ColorScheme.DARKER_GRAY_COLOR,
+                ColorScheme.LIGHT_GRAY_COLOR);
 
         add(preferencesContent, "preferences");
         add(loginPromptPanel, "login");
 
         // Profile selector panel
-        JPanel profilePanel = new JPanel();
-        profilePanel.setLayout(new BorderLayout());
-        profilePanel.setOpaque(false);
+        JPanel profilePanel = transparentPanel(new BorderLayout());
         profilePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
 
         // Panel for dropdown and buttons
-        JPanel profileControlPanel = new JPanel();
-        profileControlPanel.setLayout(new BoxLayout(profileControlPanel, BoxLayout.X_AXIS));
-        profileControlPanel.setOpaque(false);
+        JPanel profileControlPanel = transparentXAxisPanel();
 
         // Initialize profile model with default
         profileSelector = new JComboBox<>();
-        profileSelector.setPreferredSize(new Dimension(160, 25));
-        profileSelector.setMaximumSize(new Dimension(160, 25));
+        setFixedSize(profileSelector, 160, 25);
         profileSelector.addActionListener(e -> {
             String selectedProfile = (String) profileSelector.getSelectedItem();
             if (selectedProfile != null && !selectedProfile.equals(preferencesManager.getCurrentProfile())) {
@@ -151,8 +144,7 @@ public class PreferencesPanel extends JPanel {
 
         // Add button for creating new profiles
         addProfileButton = new JButton("+");
-        addProfileButton.setPreferredSize(new Dimension(15, 25));
-        addProfileButton.setMaximumSize(new Dimension(15, 25));
+        setFixedSize(addProfileButton, 15, 25);
         addProfileButton.setToolTipText("Add new profile");
         addProfileButton.addActionListener(e -> {
             String newProfileName = JOptionPane.showInputDialog(
@@ -178,8 +170,7 @@ public class PreferencesPanel extends JPanel {
 
         // Delete button for removing custom profiles
         deleteProfileButton = new JButton("-");
-        deleteProfileButton.setPreferredSize(new Dimension(15, 25));
-        deleteProfileButton.setMaximumSize(new Dimension(15, 25));
+        setFixedSize(deleteProfileButton, 15, 25);
         deleteProfileButton.setToolTipText("Delete current profile");
         deleteProfileButton.addActionListener(e -> {
             String selectedProfile = (String) profileSelector.getSelectedItem();
@@ -209,9 +200,9 @@ public class PreferencesPanel extends JPanel {
         });
 
         profileControlPanel.add(profileSelector);
-        profileControlPanel.add(Box.createRigidArea(new Dimension(5, 0)));
+        addHorizontalGap(profileControlPanel, 5);
         profileControlPanel.add(addProfileButton);
-        profileControlPanel.add(Box.createRigidArea(new Dimension(2, 0)));
+        addHorizontalGap(profileControlPanel, 2);
         profileControlPanel.add(deleteProfileButton);
 
         profilePanel.add(profileControlPanel, BorderLayout.LINE_START);
@@ -225,80 +216,55 @@ public class PreferencesPanel extends JPanel {
 
         // Buy and hold toggle
         buyAndHoldToggleButton = new PreferencesToggleButton("Disable holds", "Enable holds");
-        buyAndHoldButton = new JPanel();
-        buyAndHoldButton.setLayout(new BorderLayout());
-        buyAndHoldButton.setOpaque(false);
+        buyAndHoldButton = formRow("Enable holds", buyAndHoldToggleButton);
         preferencesContent.add(buyAndHoldButton);
-        JLabel buyAndHoldButtonText = new JLabel("Enable holds");
-        buyAndHoldButton.add(buyAndHoldButtonText, BorderLayout.LINE_START);
-        buyAndHoldButton.add(buyAndHoldToggleButton, BorderLayout.LINE_END);
         buyAndHoldToggleButton.addItemListener(i -> {
             preferencesManager.setBuyAndHold(buyAndHoldToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
         });
-        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
+        addVerticalGap(preferencesContent, 3);
 
         // Sell-only mode toggle
         sellOnlyModeToggleButton = new PreferencesToggleButton("Disable sell-only mode", "Enable sell-only mode");
-        sellOnlyButton = new JPanel();
-        sellOnlyButton.setLayout(new BorderLayout());
-        sellOnlyButton.setOpaque(false);
+        sellOnlyButton = formRow("Sell-only mode", sellOnlyModeToggleButton);
         preferencesContent.add(sellOnlyButton);
-        JLabel buttonText = new JLabel("Sell-only mode");
-        sellOnlyButton.add(buttonText, BorderLayout.LINE_START);
-        sellOnlyButton.add(sellOnlyModeToggleButton, BorderLayout.LINE_END);
         sellOnlyModeToggleButton.addItemListener(i -> {
             preferencesManager.setSellOnlyMode(sellOnlyModeToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
         });
-        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
+        addVerticalGap(preferencesContent, 3);
 
         // F2P-only mode toggle
         f2pOnlyModeToggleButton = new PreferencesToggleButton("Disable F2P-only mode",  "Enable F2P-only mode");
-        f2pOnlyButton = new JPanel();
-        f2pOnlyButton.setLayout(new BorderLayout());
-        f2pOnlyButton.setOpaque(false);
+        f2pOnlyButton = formRow("F2P-only mode", f2pOnlyModeToggleButton);
         preferencesContent.add(f2pOnlyButton);
-        JLabel f2pOnlyButtonText = new JLabel("F2P-only mode");
-        f2pOnlyButton.add(f2pOnlyButtonText, BorderLayout.LINE_START);
-        f2pOnlyButton.add(f2pOnlyModeToggleButton, BorderLayout.LINE_END);
         f2pOnlyModeToggleButton.addItemListener(i -> {
             preferencesManager.setF2pOnlyMode(f2pOnlyModeToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
         });
 
         // Min predicted profit
-        JPanel minPredictedProfitPanel = new JPanel(new BorderLayout());
-        minPredictedProfitPanel.setOpaque(false);
-        JLabel minPredictedProfitLabel = new JLabel("Min. predicted profit");
         minPredictedProfitDropdown = new JComboBox<>(new DefaultComboBoxModel<>(MIN_PREDICTED_PROFIT_OPTIONS));
-        minPredictedProfitDropdown.setPreferredSize(new Dimension(75, 25));
-        minPredictedProfitDropdown.setMaximumSize(new Dimension(75, 25));
+        setFixedSize(minPredictedProfitDropdown, 75, 25);
         minPredictedProfitDropdown.addActionListener(e -> {
             if (suppressMinProfitEvents) {
                 return;
             }
-            MinProfitOption option = (MinProfitOption) minPredictedProfitDropdown.getSelectedItem();
+            Option option = (Option) minPredictedProfitDropdown.getSelectedItem();
             preferencesManager.setMinPredictedProfit(option == null ? null : option.value);
             suggestionManager.setSuggestionNeeded(true);
         });
-        minPredictedProfitPanel.add(minPredictedProfitLabel, BorderLayout.LINE_START);
-        minPredictedProfitPanel.add(minPredictedProfitDropdown, BorderLayout.LINE_END);
-        preferencesContent.add(minPredictedProfitPanel);
-        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
+        preferencesContent.add(formRow("Min. predicted profit", minPredictedProfitDropdown));
+        addVerticalGap(preferencesContent, 3);
 
         // Dump alerts dropdown
-        JPanel dumpAlertsPanel = new JPanel(new BorderLayout());
-        dumpAlertsPanel.setOpaque(false);
-        JLabel dumpAlertsLabel = new JLabel("Dump alerts");
         dumpAlertsDropdown = new JComboBox<>(new DefaultComboBoxModel<>(DUMP_ALERT_MIN_PROFIT_OPTIONS));
-        dumpAlertsDropdown.setPreferredSize(new Dimension(75, 25));
-        dumpAlertsDropdown.setMaximumSize(new Dimension(75, 25));
+        setFixedSize(dumpAlertsDropdown, 75, 25);
         dumpAlertsDropdown.addActionListener(e -> {
             if (suppressDumpAlertsEvents) {
                 return;
             }
-            DumpAlertMinProfitOption option = (DumpAlertMinProfitOption) dumpAlertsDropdown.getSelectedItem();
+            Option option = (Option) dumpAlertsDropdown.getSelectedItem();
             if (option == null || option.value == null) {
                 preferencesManager.setReceiveDumpSuggestions(false);
                 preferencesManager.setDumpMinPredictedProfit(null);
@@ -308,44 +274,30 @@ public class PreferencesPanel extends JPanel {
             }
             suggestionManager.setSuggestionNeeded(true);
         });
-        dumpAlertsPanel.add(dumpAlertsLabel, BorderLayout.LINE_START);
-        dumpAlertsPanel.add(dumpAlertsDropdown, BorderLayout.LINE_END);
-        preferencesContent.add(dumpAlertsPanel);
-        preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
+        preferencesContent.add(formRow("Dump alerts", dumpAlertsDropdown));
+        addVerticalGap(preferencesContent, 6);
 
         // Reserved slots
-        JPanel reservedSlotsPanel = new JPanel(new BorderLayout());
-        reservedSlotsPanel.setOpaque(false);
-        JLabel reservedSlotsLabel = new JLabel("Reserved slots");
         reservedSlotsDropdown = new JComboBox<>(new DefaultComboBoxModel<>(RESERVED_SLOTS_OPTIONS));
-        reservedSlotsDropdown.setPreferredSize(new Dimension(75, 25));
-        reservedSlotsDropdown.setMaximumSize(new Dimension(75, 25));
+        setFixedSize(reservedSlotsDropdown, 75, 25);
         reservedSlotsDropdown.addActionListener(e -> {
             if (suppressReservedSlotsEvents) {
                 return;
             }
-            ReservedSlotsOption option = (ReservedSlotsOption) reservedSlotsDropdown.getSelectedItem();
+            Option option = (Option) reservedSlotsDropdown.getSelectedItem();
             preferencesManager.setReservedSlots(option == null ? null : option.value);
             suggestionManager.setSuggestionNeeded(true);
         });
-        reservedSlotsPanel.add(reservedSlotsLabel, BorderLayout.LINE_START);
-        reservedSlotsPanel.add(reservedSlotsDropdown, BorderLayout.LINE_END);
-        preferencesContent.add(reservedSlotsPanel);
-        preferencesContent.add(Box.createRigidArea(new Dimension(0, 6)));
+        preferencesContent.add(formRow("Reserved slots", reservedSlotsDropdown));
+        addVerticalGap(preferencesContent, 6);
 
         // Premium instances panel - moved to the bottom
-        JPanel premiumInstancesPanel = new JPanel();
-        premiumInstancesPanel.setLayout(new BorderLayout());
-        premiumInstancesPanel.setOpaque(false);
-        JLabel premiumInstancesLabel = new JLabel("Premium accounts:");
         JButton manageButton = new JButton("manage");
         manageButton.addActionListener(e -> {
             premiumInstanceController.loadAndOpenPremiumInstanceDialog();
         });
-        premiumInstancesPanel.add(premiumInstancesLabel, BorderLayout.LINE_START);
-        premiumInstancesPanel.add(manageButton, BorderLayout.LINE_END);
-        preferencesContent.add(premiumInstancesPanel);
-        preferencesContent.add(Box.createRigidArea(new Dimension(0, 3)));
+        preferencesContent.add(formRow("Premium accounts:", manageButton));
+        addVerticalGap(preferencesContent, 3);
     }
 
 
@@ -402,9 +354,9 @@ public class PreferencesPanel extends JPanel {
         }
     }
 
-    private MinProfitOption findMinProfitOption(Integer value) {
+    private Option findMinProfitOption(Integer value) {
         for (int i = 0; i < minPredictedProfitDropdown.getItemCount(); i++) {
-            MinProfitOption option = minPredictedProfitDropdown.getItemAt(i);
+            Option option = minPredictedProfitDropdown.getItemAt(i);
             if (Objects.equals(option.value, value)) {
                 return option;
             }
@@ -412,13 +364,13 @@ public class PreferencesPanel extends JPanel {
         return minPredictedProfitDropdown.getItemAt(0);
     }
 
-    private DumpAlertMinProfitOption findDumpAlertOption(boolean enabled, Integer minProfit) {
+    private Option findDumpAlertOption(boolean enabled, Integer minProfit) {
         if (!enabled) {
             return dumpAlertsDropdown.getItemAt(0);
         }
         Integer effective = minProfit != null ? minProfit : 100_000;
         for (int i = 0; i < dumpAlertsDropdown.getItemCount(); i++) {
-            DumpAlertMinProfitOption option = dumpAlertsDropdown.getItemAt(i);
+            Option option = dumpAlertsDropdown.getItemAt(i);
             if (Objects.equals(option.value, effective)) {
                 return option;
             }
@@ -426,9 +378,9 @@ public class PreferencesPanel extends JPanel {
         return dumpAlertsDropdown.getItemAt(1);
     }
 
-    private ReservedSlotsOption findReservedSlotsOption(Integer value) {
+    private Option findReservedSlotsOption(Integer value) {
         for (int i = 0; i < reservedSlotsDropdown.getItemCount(); i++) {
-            ReservedSlotsOption option = reservedSlotsDropdown.getItemAt(i);
+            Option option = reservedSlotsDropdown.getItemAt(i);
             if (Objects.equals(option.value, value)) {
                 return option;
             }
@@ -436,41 +388,11 @@ public class PreferencesPanel extends JPanel {
         return reservedSlotsDropdown.getItemAt(0);
     }
 
-    private static final class MinProfitOption {
+    private static final class Option {
         private final String label;
         private final Integer value;
 
-        private MinProfitOption(String label, Integer value) {
-            this.label = label;
-            this.value = value;
-        }
-
-        @Override
-        public String toString() {
-            return label;
-        }
-    }
-
-    private static final class DumpAlertMinProfitOption {
-        private final String label;
-        private final Integer value;
-
-        private DumpAlertMinProfitOption(String label, Integer value) {
-            this.label = label;
-            this.value = value;
-        }
-
-        @Override
-        public String toString() {
-            return label;
-        }
-    }
-
-    private static final class ReservedSlotsOption {
-        private final String label;
-        private final Integer value;
-
-        private ReservedSlotsOption(String label, Integer value) {
+        private Option(String label, Integer value) {
             this.label = label;
             this.value = value;
         }

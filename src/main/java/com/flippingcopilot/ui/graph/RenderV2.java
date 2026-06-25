@@ -261,57 +261,78 @@ public class RenderV2 {
         int currentX = legendStartX;
 
         // Low prices
-        g2.setColor(config.lowColor);
-        g2.setStroke(Config.NORMAL_STROKE);
-        if (config.connectPoints) {
-            g2.drawLine(currentX, legendY + itemHeight/2, currentX + lineLength, legendY + itemHeight/2);
-        }
-        g2.fillOval(currentX + lineLength / 2 - 2, legendY + itemHeight/2 - 2, 5, 5);
-        g2.setColor(config.textColor);
-        g2.drawString(labels[0], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
-        currentX += itemWidths[0] + itemPadding;
+        currentX = drawLegendLineItem(g2, config, currentX, legendY, lineLength, itemHeight,
+                labels[0], itemWidths[0], itemPadding, config.lowColor, Config.NORMAL_STROKE, config.connectPoints, true);
 
         // High prices
-        g2.setColor(config.highColor);
-        g2.setStroke(Config.NORMAL_STROKE);
-        if (config.connectPoints) {
-            g2.drawLine(currentX, legendY + itemHeight/2, currentX + lineLength, legendY + itemHeight/2);
-        }
-        g2.fillOval(currentX + lineLength / 2 - 2, legendY + itemHeight/2 - 2, 5, 5);
-        g2.setColor(config.textColor);
-        g2.drawString(labels[1], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
-        currentX += itemWidths[1] + itemPadding;
+        currentX = drawLegendLineItem(g2, config, currentX, legendY, lineLength, itemHeight,
+                labels[1], itemWidths[1], itemPadding, config.highColor, Config.NORMAL_STROKE, config.connectPoints, true);
 
         if (addPredictionLabels) {
             // Low prediction
-            g2.setColor(config.lowColor);
-            g2.setStroke(Config.DOTTED_STROKE);
-            g2.drawLine(currentX, legendY + itemHeight/2, currentX + lineLength, legendY + itemHeight/2);
-            g2.setColor(config.textColor);
-            g2.drawString(labels[2], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
-            currentX += itemWidths[2] + itemPadding;
+            currentX = drawLegendLineItem(g2, config, currentX, legendY, lineLength, itemHeight,
+                    labels[2], itemWidths[2], itemPadding, config.lowColor, Config.DOTTED_STROKE, true, false);
 
             // High prediction
-            g2.setColor(config.highColor);
-            g2.setStroke(Config.DOTTED_STROKE);
-            g2.drawLine(currentX, legendY + itemHeight/2, currentX + lineLength, legendY + itemHeight/2);
-            g2.setColor(config.textColor);
-            g2.drawString(labels[3], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
-            currentX += itemWidths[3] + itemPadding;
+            currentX = drawLegendLineItem(g2, config, currentX, legendY, lineLength, itemHeight,
+                    labels[3], itemWidths[3], itemPadding, config.highColor, Config.DOTTED_STROKE, true, false);
 
             // Low IQR
-            g2.setColor(config.lowShadeColor);
-            g2.fillRect(currentX, legendY + itemHeight/2 - 5, lineLength, 10);
-            g2.setColor(config.textColor);
-            g2.drawString(labels[4], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
-            currentX += itemWidths[4] + itemPadding;
+            currentX = drawLegendShadeItem(g2, config, currentX, legendY, lineLength, itemHeight,
+                    labels[4], itemWidths[4], itemPadding, config.lowShadeColor);
 
             // High IQR
-            g2.setColor(config.highShadeColor);
-            g2.fillRect(currentX, legendY + itemHeight/2 - 5, lineLength, 10);
-            g2.setColor(config.textColor);
-            g2.drawString(labels[5], currentX + lineLength + 5, legendY + itemHeight/2 + 4);
+            drawLegendShadeItem(g2, config, currentX, legendY, lineLength, itemHeight,
+                    labels[5], itemWidths[5], itemPadding, config.highShadeColor);
         }
+    }
+
+    private int drawLegendLineItem(Graphics2D g2,
+                                   Config config,
+                                   int x,
+                                   int y,
+                                   int lineLength,
+                                   int itemHeight,
+                                   String label,
+                                   int itemWidth,
+                                   int itemPadding,
+                                   Color color,
+                                   Stroke stroke,
+                                   boolean drawLine,
+                                   boolean drawPoint) {
+        int midY = y + itemHeight / 2;
+        g2.setColor(color);
+        g2.setStroke(stroke);
+        if (drawLine) {
+            g2.drawLine(x, midY, x + lineLength, midY);
+        }
+        if (drawPoint) {
+            g2.fillOval(x + lineLength / 2 - 2, midY - 2, 5, 5);
+        }
+        drawLegendLabel(g2, config, x, midY, lineLength, label);
+        return x + itemWidth + itemPadding;
+    }
+
+    private int drawLegendShadeItem(Graphics2D g2,
+                                    Config config,
+                                    int x,
+                                    int y,
+                                    int lineLength,
+                                    int itemHeight,
+                                    String label,
+                                    int itemWidth,
+                                    int itemPadding,
+                                    Color color) {
+        int midY = y + itemHeight / 2;
+        g2.setColor(color);
+        g2.fillRect(x, midY - 5, lineLength, 10);
+        drawLegendLabel(g2, config, x, midY, lineLength, label);
+        return x + itemWidth + itemPadding;
+    }
+
+    private void drawLegendLabel(Graphics2D g2, Config config, int x, int midY, int lineLength, String label) {
+        g2.setColor(config.textColor);
+        g2.drawString(label, x + lineLength + 5, midY + 4);
     }
 
     public void drawVolumeBars(Graphics2D g2d, Config config, Rectangle pa, Bounds bounds, List<Datapoint> volumes, Datapoint hoveredPoint) {

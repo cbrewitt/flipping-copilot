@@ -1,12 +1,11 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.config.FlippingCopilotConfig;
+import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.Paginator;
-import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.components.AccountDropdown;
 import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
 import com.flippingcopilot.util.ProfitCalculator;
@@ -17,18 +16,21 @@ import net.runelite.client.ui.ColorScheme;
 import javax.inject.Named;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import static com.flippingcopilot.ui.flipsdialog.FlipFilterAndSort.escapeCSV;
 import static com.flippingcopilot.ui.flipsdialog.FlipFilterAndSort.formatTimestampISO;
@@ -40,8 +42,7 @@ public class TransactionsPanel extends JPanel {
     private static final UUID ZERO_UUID = new UUID(0L, 0L);
     private static final Integer[] PAGE_SIZE_OPTIONS = {10, 25, 50, 100, 200, 500, 1000, 2000};
     private static final int DEFAULT_PAGE_SIZE = 200;
-
-    private final String[] columnNames = {
+    private static final String[] COLUMN_NAMES = {
             "Timestamp", "Account", "Side", "Item", "Quantity", "Paid/Received", "Tax", "Price ea.", "Part of Flip"
     };
 
@@ -54,28 +55,20 @@ public class TransactionsPanel extends JPanel {
     private final FlipManager flipManager;
 
     // ui components
-    private final DefaultTableModel tableModel;
-    private final JTable table;
     private final Paginator paginatorPanel;
-    private final Spinner spinner;
-    private final JScrollPane scrollPane;
-    private final JPanel spinnerOverlay;
-    private final ItemSearchMultiSelect searchField;
-    private final JComboBox<Integer> pageSizeComboBox;
+    private final PaginatedTablePanel<AckedTransaction> tablePanel;
+    private final AtomicBoolean loadTransactionsTriggered = new AtomicBoolean(false);
     private final JLabel loadingText;
+
     private AccountDropdown accountDropdown;
     private JLabel errorLabel;
-    private JButton downloadButton;
 
     // state
-    private final AtomicBoolean loadTransactionsTriggered = new AtomicBoolean(false);
     private TransactionDataWrapper transactionDataWrapper;
     private volatile Set<Integer> filteredItems = new HashSet<>();
     private volatile int pageSize = DEFAULT_PAGE_SIZE;
-    private volatile int totalPages = 1;
     private volatile int currentPage = 1;
     private volatile Integer selectedAccountId;
-    private volatile List<AckedTransaction> currentTransactions = new ArrayList<>();
 
     public TransactionsPanel(CopilotLoginRS copilotLoginRS,
                              ItemController itemController,
@@ -93,28 +86,60 @@ public class TransactionsPanel extends JPanel {
 
         setLayout(new BorderLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
+
         paginatorPanel = new Paginator((n) -> {
-            if(n != currentPage) {
+            if (n != currentPage) {
                 currentPage = n;
                 applyFilters(false);
             }
         });
+        tablePanel = new PaginatedTablePanel<>(COLUMN_NAMES, this::toRow);
+        loadingText = tablePanel.setSpinnerText("Downloading transactions..");
+        setupControls();
+        setupTable(config);
+        setupErrorOverlay();
 
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        topPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        // Page size combo box
+        JComboBox<Integer> pageSizeComboBox = new JComboBox<>(PAGE_SIZE_OPTIONS);
+        pageSizeComboBox.setSelectedItem(pageSize);
+        pageSizeComboBox.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        pageSizeComboBox.setFocusable(false);
+        pageSizeComboBox.setToolTipText("Page size");
+        pageSizeComboBox.addActionListener(e -> {
+            int newPageSize = (Integer) pageSizeComboBox.getSelectedItem();
+            if (newPageSize != pageSize) {
+                pageSize = newPageSize;
+                currentPage = 1;
+                paginatorPanel.setPageNumber(1);
+                applyFilters(true);
+            }
+        });
+        tablePanel.installPageFooter(paginatorPanel, pageSizeComboBox);
 
+        add(tablePanel, BorderLayout.CENTER);
+    }
+
+    public void loadTransactionsIfNeeded() {
+        if (!canLoadForCurrentPlayer()) {
+            setSpinnerVisible(false);
+            errorLabel.setText("Log into the game to view account transactions");
+            errorLabel.setVisible(true);
+            return;
+        }
+        if (loadTransactionsTriggered.compareAndSet(false, true)) {
+            loadTransactions();
+        }
+    }
+
+    private void setupControls() {
         // Create left panel with dropdowns
-        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        leftPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-
-        searchField = new ItemSearchMultiSelect(
+        ItemSearchMultiSelect searchField = new ItemSearchMultiSelect(
                 () -> new HashSet<>(filteredItems),
-                this.itemController::allItemIds,
-                this.itemController::search,
+                itemController::allItemIds,
+                itemController::search,
                 items -> {
-                    if (!Objects.equals(items, this.filteredItems)) {
-                        this.filteredItems = new HashSet<>(items);
+                    if (!Objects.equals(items, filteredItems)) {
+                        filteredItems = new HashSet<>(items);
                         currentPage = 1;
                         paginatorPanel.setPageNumber(1);
                         applyFilters(true);
@@ -129,10 +154,10 @@ public class TransactionsPanel extends JPanel {
         accountDropdown = new AccountDropdown(
                 () -> copilotLoginRS.get().displayNameToAccountId,
                 accountId -> {
-                    if (!Objects.equals(accountId, this.selectedAccountId)) {
+                    if (!Objects.equals(accountId, selectedAccountId)) {
                         currentPage = 1;
                         paginatorPanel.setPageNumber(currentPage);
-                        this.selectedAccountId = accountId;
+                        selectedAccountId = accountId;
                         applyFilters(true);
                     }
                 },
@@ -142,35 +167,9 @@ public class TransactionsPanel extends JPanel {
         accountDropdown.setToolTipText("Select account");
         accountDropdown.refresh();
 
-        // Page size combo box
-        pageSizeComboBox = new JComboBox<>(PAGE_SIZE_OPTIONS);
-        pageSizeComboBox.setSelectedItem(pageSize);
-        pageSizeComboBox.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        pageSizeComboBox.setFocusable(false);
-        pageSizeComboBox.setToolTipText("Page size");
-        pageSizeComboBox.addActionListener(e -> {
-            int newPageSize = (Integer) pageSizeComboBox.getSelectedItem();
-            if (newPageSize != this.pageSize) {
-                this.pageSize = newPageSize;
-                currentPage = 1;
-                paginatorPanel.setPageNumber(1);
-                applyFilters(true);
-            }
-        });
-
-        leftPanel.add(searchField);
-        leftPanel.add(Box.createRigidArea(new Dimension(3, 0)));
-        leftPanel.add(accountDropdown);
-
-        // Create right panel with download button
-        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        rightPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-
-        downloadButton = new JButton("Download");
-        downloadButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        downloadButton.setFocusable(false);
-        downloadButton.setToolTipText("Download transactions as CSV");
-        downloadButton.addActionListener(e -> downloadTransactionsCSV());
+        tablePanel.leftControls().add(searchField);
+        tablePanel.leftControls().add(Box.createRigidArea(new Dimension(3, 0)));
+        tablePanel.leftControls().add(accountDropdown);
 
         JButton refreshButton = new JButton("Refresh");
         refreshButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -181,165 +180,23 @@ public class TransactionsPanel extends JPanel {
             loadTransactionsIfNeeded();
         });
 
-        rightPanel.add(refreshButton);
-        rightPanel.add(Box.createRigidArea(new Dimension(5, 0)));
-        rightPanel.add(downloadButton);
+        // Create right panel with download button
+        JButton downloadButton = new JButton("Download");
+        downloadButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        downloadButton.setFocusable(false);
+        downloadButton.setToolTipText("Download transactions as CSV");
+        downloadButton.addActionListener(e -> downloadTransactionsCSV());
 
-        topPanel.add(leftPanel, BorderLayout.WEST);
-        topPanel.add(rightPanel, BorderLayout.EAST);
-        add(topPanel, BorderLayout.NORTH);
-
-        // Create table
-        tableModel = new DefaultTableModel(columnNames, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        table = new JTable(tableModel);
-        setupTable(config);
-
-        // Create layered pane for spinner overlay
-        JLayeredPane layeredPane = new JLayeredPane();
-        layeredPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        layeredPane.setOpaque(true);
-
-        // Create error label
-        errorLabel = new JLabel("Error loading transactions from server", SwingConstants.CENTER);
-        errorLabel.setFont(errorLabel.getFont().deriveFont(14f));
-        errorLabel.setVisible(false);
-
-        spinner = new Spinner();
-        spinner.show();
-
-        // Create spinner overlay with loading text
-        spinnerOverlay = new JPanel(new GridBagLayout());
-        spinnerOverlay.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        spinnerOverlay.setOpaque(true);
-
-        // Create a panel to hold the loading text and spinner horizontally
-        JPanel loadingPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        loadingPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        loadingPanel.setOpaque(false);
-
-        // Create loading text label
-        loadingText = new JLabel("Downloading transactions..");
-        loadingText.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        loadingText.setFont(loadingText.getFont().deriveFont(14f));
-
-        // Add text and spinner to the loading panel
-        loadingPanel.add(loadingText);
-        loadingPanel.add(spinner);
-
-        // Add the loading panel to the spinner overlay
-        spinnerOverlay.add(loadingPanel);
-        spinnerOverlay.setVisible(false); // Initially hidden until first access
-
-        scrollPane = new JScrollPane(table);
-        scrollPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        scrollPane.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
-
-        layeredPane.setLayout(new OverlayLayout(layeredPane));
-        layeredPane.add(spinnerOverlay, JLayeredPane.MODAL_LAYER);
-        layeredPane.add(errorLabel, JLayeredPane.PALETTE_LAYER);
-        layeredPane.add(scrollPane, JLayeredPane.DEFAULT_LAYER);
-
-        add(layeredPane, BorderLayout.CENTER);
-
-        // Create bottom panel with pagination
-        JPanel bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-
-        JPanel pageSizePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        pageSizePanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        pageSizePanel.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
-        JLabel pageSizeLabel = new JLabel("Page size:");
-        pageSizeLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        pageSizePanel.add(pageSizeLabel);
-        pageSizePanel.add(pageSizeComboBox);
-
-        // Adjust paginator border to account for page size panel width
-        paginatorPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createEmptyBorder(0, 0, 0, pageSizePanel.getPreferredSize().width),
-                paginatorPanel.getBorder()));
-
-        bottomPanel.add(pageSizePanel, BorderLayout.WEST);
-        bottomPanel.add(paginatorPanel, BorderLayout.CENTER);
-
-        add(bottomPanel, BorderLayout.SOUTH);
-    }
-
-    /**
-     * Load transactions when the panel is first shown
-     */
-    public void loadTransactionsIfNeeded() {
-        if (!canLoadForCurrentPlayer()) {
-            setSpinnerVisible(false);
-            errorLabel.setText("Log into the game to view account transactions");
-            errorLabel.setVisible(true);
-            return;
-        }
-        if (loadTransactionsTriggered.compareAndSet(false, true)) {
-            loadTransactions();
-        }
+        tablePanel.rightControls().add(refreshButton);
+        tablePanel.rightControls().add(Box.createRigidArea(new Dimension(5, 0)));
+        tablePanel.rightControls().add(downloadButton);
     }
 
     private void setupTable(FlippingCopilotConfig config) {
-        table.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        table.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        table.setSelectionBackground(ColorScheme.BRAND_ORANGE);
-        table.setSelectionForeground(Color.WHITE);
-        table.setGridColor(ColorScheme.MEDIUM_GRAY_COLOR);
-        table.setRowHeight(25);
-        table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
-        table.setFocusable(false);
-
-        // Disable sorting
-        table.setRowSorter(null);
-        table.getTableHeader().setReorderingAllowed(false);
-
-        table.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (e.isPopupTrigger()) {
-                    showPopup(e);
-                }
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                if (e.isPopupTrigger()) {
-                    showPopup(e);
-                }
-            }
-
-            private void showPopup(MouseEvent e) {
-                int row = table.rowAtPoint(e.getPoint());
-                if (row >= 0 && row < table.getRowCount()) {
-                    table.setRowSelectionInterval(row, row);
-                    showTransactionMenu(e, row);
-                }
-            }
-        });
+        // Create table
+        tablePanel.installPopupHandler(this::showTransactionMenu);
 
         // Setup renderers
-        DefaultTableCellRenderer moneyRenderer = new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                                                           boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (value instanceof Long) {
-                    setText(FlipsPanel.GP_FORMAT.format(value));
-                    setHorizontalAlignment(RIGHT);
-                }
-                return c;
-            }
-        };
-
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-
         DefaultTableCellRenderer booleanRenderer = new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
@@ -354,13 +211,17 @@ public class TransactionsPanel extends JPanel {
         };
 
         // Apply renderers to columns
-        table.getColumnModel().getColumn(1).setCellRenderer(centerRenderer); // Account
-        table.getColumnModel().getColumn(2).setCellRenderer(centerRenderer); // Side
-        table.getColumnModel().getColumn(4).setCellRenderer(centerRenderer); // Quantity
-        table.getColumnModel().getColumn(5).setCellRenderer(moneyRenderer); // Paid/Received
-        table.getColumnModel().getColumn(6).setCellRenderer(moneyRenderer); // Tax
-        table.getColumnModel().getColumn(7).setCellRenderer(moneyRenderer); // Price ea.
-        table.getColumnModel().getColumn(8).setCellRenderer(booleanRenderer); // Part of Flip
+        tablePanel.centerColumns(1, 2, 4); // Account, Side, Quantity
+        tablePanel.moneyColumns(FlipsPanel.GP_FORMAT, 5, 6, 7); // Paid/Received, Tax, Price ea.
+        tablePanel.setRenderer(booleanRenderer, 8); // Part of Flip
+    }
+
+    private void setupErrorOverlay() {
+        // Create error label
+        errorLabel = new JLabel("Error loading transactions from server", SwingConstants.CENTER);
+        errorLabel.setFont(errorLabel.getFont().deriveFont(14f));
+        errorLabel.setVisible(false);
+        tablePanel.addOverlay(errorLabel, JLayeredPane.PALETTE_LAYER);
     }
 
     private void loadTransactions() {
@@ -383,20 +244,16 @@ public class TransactionsPanel extends JPanel {
         errorLabel.setVisible(false);
         apiRequestHandler.asyncLoadTransactionsData(
                 displayName,
-                transactionsData -> {
-                    SwingUtilities.invokeLater(() -> {
-                        setSpinnerVisible(false);
-                        transactionDataWrapper = new TransactionDataWrapper(transactionsData);
-                        applyFilters(true);
-                    });
-                },
-                error -> {
-                    SwingUtilities.invokeLater(() -> {
-                        setSpinnerVisible(false);
-                        errorLabel.setVisible(true);
-                        log.error("Failed to load transactions: {}", error);
-                    });
-                }
+                transactionsData -> SwingUtilities.invokeLater(() -> {
+                    setSpinnerVisible(false);
+                    transactionDataWrapper = new TransactionDataWrapper(transactionsData);
+                    applyFilters(true);
+                }),
+                error -> SwingUtilities.invokeLater(() -> {
+                    setSpinnerVisible(false);
+                    errorLabel.setVisible(true);
+                    log.error("Failed to load transactions: {}", error);
+                })
         );
     }
 
@@ -405,13 +262,7 @@ public class TransactionsPanel extends JPanel {
     }
 
     private void setSpinnerVisible(boolean visible) {
-        if (visible) {
-            spinnerOverlay.setVisible(true);
-            table.setEnabled(false);
-        } else {
-            spinnerOverlay.setVisible(false);
-            table.setEnabled(true);
-        }
+        tablePanel.setSpinnerVisible(visible);
     }
 
     private void applyFilters(boolean updateTotalPages) {
@@ -420,11 +271,11 @@ public class TransactionsPanel extends JPanel {
                 try {
                     if (updateTotalPages) {
                         int n = transactionDataWrapper.totalRecords(filteredItems, selectedAccountId);
-                        totalPages = (int) Math.ceil((double) n / (double) pageSize);
+                        int totalPages = (int) Math.ceil((double) n / (double) pageSize);
                         paginatorPanel.setTotalPagesWithoutEffect(totalPages);
                     }
                     List<AckedTransaction> txs = transactionDataWrapper.getPage(filteredItems, selectedAccountId, currentPage, pageSize);
-                    SwingUtilities.invokeLater(() -> updateTable(txs));
+                    tablePanel.setRows(txs);
                 } catch (Exception e) {
                     errorLabel.setText("Error decoding transaction data.");
                     errorLabel.setVisible(true);
@@ -434,28 +285,22 @@ public class TransactionsPanel extends JPanel {
         });
     }
 
-    private void updateTable(List<AckedTransaction> txs) {
-        currentTransactions = txs;
-        tableModel.setRowCount(0);
+    private Object[] toRow(AckedTransaction tx) {
         Map<Integer, String> accountIdToDisplayName = copilotLoginRS.get().accountIdToDisplayName;
-
-        for (AckedTransaction tx : txs) {
-            int absQuantity = Math.abs(tx.getQuantity());
-            long paidReceived = Math.abs(tx.getAmountSpent());
-            long priceEa = tx.getPrice();
-            Object[] row = {
-                    formatEpoch(tx.getTime()),
-                    accountIdToDisplayName.getOrDefault(tx.getAccountId(), "Unknown"),
-                    tx.getQuantity() > 0 ? "BUY" : "SELL",
-                    itemController.getItemName(tx.getItemId()),
-                    absQuantity,
-                    paidReceived,
-                    calculateTax(tx),
-                    priceEa,
-                    isPartOfFlip(tx),
-            };
-            tableModel.addRow(row);
-        }
+        int absQuantity = Math.abs(tx.getQuantity());
+        long paidReceived = Math.abs(tx.getAmountSpent());
+        long priceEa = tx.getPrice();
+        return new Object[]{
+                formatEpoch(tx.getTime()),
+                accountIdToDisplayName.getOrDefault(tx.getAccountId(), "Unknown"),
+                tx.getQuantity() > 0 ? "BUY" : "SELL",
+                itemController.getItemName(tx.getItemId()),
+                absQuantity,
+                paidReceived,
+                calculateTax(tx),
+                priceEa,
+                isPartOfFlip(tx),
+        };
     }
 
     private boolean isPartOfFlip(AckedTransaction tx) {
@@ -469,83 +314,76 @@ public class TransactionsPanel extends JPanel {
         if (tx.getQuantity() < 0) {
             int pricePerItem = tx.getAmountSpent() / tx.getQuantity();
             int pricePostTax = ProfitCalculator.getPostTaxPrice(tx.getItemId(), pricePerItem);
-            return (long)(pricePerItem - pricePostTax) * tx.getQuantity();
+            return (long) (pricePerItem - pricePostTax) * tx.getQuantity();
         }
         return 0;
     }
 
     private void showTransactionMenu(MouseEvent e, int row) {
-        if (row >= currentTransactions.size()) {
-            return;
-        }
-        AckedTransaction transaction = currentTransactions.get(row);
+        AckedTransaction transaction = tablePanel.row(row);
         JPopupMenu menu = new JPopupMenu();
 
         if (isPartOfFlip(transaction)) {
-            JMenuItem orphanItem = new JMenuItem("Remove from flip");
-            orphanItem.addActionListener(evt -> {
-                int result = JOptionPane.showConfirmDialog(this,
-                        "Are you sure you want to remove the transaction from its flip? The flip and any profit will also be updated. This operation cannot be undone.",
-                        "Confirm Action",
-                        JOptionPane.YES_NO_OPTION);
-                if (result == JOptionPane.YES_OPTION) {
-                    loadingText.setText("");
-                    setSpinnerVisible(true);
-                    log.info("orphaning transaction with ID: {}", transaction.getId());
-
-                    BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
-                        flipManager.mergeFlips(flips, userId);
-                        setSpinnerVisible(false);
-                        transaction.setClientFlipId(ZERO_UUID);
-                        transactionDataWrapper.update(transaction);
-                        applyFilters(false);
-                    };
-
-                    Runnable onFailure = () -> {
-                        setSpinnerVisible(false);
-                        JOptionPane.showMessageDialog(this,
-                                "Failed to update transaction. Please try again.",
-                                "Error",
-                                JOptionPane.ERROR_MESSAGE);
-                    };
-
-                    apiRequestHandler.asyncOrphanTransaction(transaction, onSuccess, onFailure);
-                }
-            });
-            menu.add(orphanItem);
+            menu.add(transactionMenuItem(
+                    transaction,
+                    "Remove from flip",
+                    "Are you sure you want to remove the transaction from its flip? The flip and any profit will also be updated. This operation cannot be undone.",
+                    "Failed to update transaction. Please try again.",
+                    "orphaning",
+                    apiRequestHandler::asyncOrphanTransaction,
+                    transactionDataWrapper::update));
         }
-        JMenuItem deleteItem = new JMenuItem("Delete transaction");
-        deleteItem.addActionListener(evt -> {
+
+        menu.add(transactionMenuItem(
+                transaction,
+                "Delete transaction",
+                "Are you sure you want to delete this transaction? Any flip it is part of will also be updated.",
+                "Failed to delete transaction. Please try again.",
+                "deleting",
+                apiRequestHandler::asyncDeleteTransaction,
+                tx -> transactionDataWrapper.deleteOne(i -> tx.getId().equals(i.getId()))));
+        menu.show(e.getComponent(), e.getX(), e.getY());
+    }
+
+    private JMenuItem transactionMenuItem(AckedTransaction transaction, String label, String confirmMessage,
+                                          String errorMessage, String logAction,
+                                          TransactionRequest request, Consumer<AckedTransaction> localUpdate) {
+        JMenuItem item = new JMenuItem(label);
+        item.addActionListener(evt -> {
             int result = JOptionPane.showConfirmDialog(this,
-                    "Are you sure you want to delete this transaction? Any flip it is part of will also be updated.",
+                    confirmMessage,
                     "Confirm Action",
                     JOptionPane.YES_NO_OPTION);
             if (result == JOptionPane.YES_OPTION) {
                 loadingText.setText("");
                 setSpinnerVisible(true);
-                log.info("deleting transaction with ID: {}", transaction.getId());
+                log.info("{} transaction with ID: {}", logAction, transaction.getId());
 
                 BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
                     flipManager.mergeFlips(flips, userId);
                     setSpinnerVisible(false);
                     transaction.setClientFlipId(ZERO_UUID);
-                    transactionDataWrapper.deleteOne(i -> transaction.getId().equals(i.getId()));
+                    localUpdate.accept(transaction);
                     applyFilters(false);
                 };
 
                 Runnable onFailure = () -> {
                     setSpinnerVisible(false);
                     JOptionPane.showMessageDialog(this,
-                            "Failed to delete transaction. Please try again.",
+                            errorMessage,
                             "Error",
                             JOptionPane.ERROR_MESSAGE);
                 };
 
-                apiRequestHandler.asyncDeleteTransaction(transaction, onSuccess, onFailure);
+                request.send(transaction, onSuccess, onFailure);
             }
         });
-        menu.add(deleteItem);
-        menu.show(e.getComponent(), e.getX(), e.getY());
+        return item;
+    }
+
+    @FunctionalInterface
+    private interface TransactionRequest {
+        void send(AckedTransaction transaction, BiConsumer<Integer, List<FlipV2>> onSuccess, Runnable onFailure);
     }
 
     private void downloadTransactionsCSV() {
@@ -565,11 +403,10 @@ public class TransactionsPanel extends JPanel {
             File file = fileChooser.getSelectedFile();
             executorService.submit(() -> {
                 try (FileWriter writer = new FileWriter(file)) {
-                    writer.write(Strings.join(columnNames, ","));
-
-                    Map<Integer, String> accountIdToDisplayName = copilotLoginRS.get().accountIdToDisplayName;
+                    writer.write(Strings.join(COLUMN_NAMES, ","));
 
                     // Use the stream method to write all matching transactions
+                    Map<Integer, String> accountIdToDisplayName = copilotLoginRS.get().accountIdToDisplayName;
                     transactionDataWrapper.stream(filteredItems, selectedAccountId)
                             .forEach(tx -> {
                                 try {
@@ -588,26 +425,21 @@ public class TransactionsPanel extends JPanel {
                                             String.valueOf(priceEa),
                                             isPartOfFlip(tx) ? "YES" : "NO"
                                     );
-                                    writer.write( "\n"+ row);
+                                    writer.write("\n" + row);
                                 } catch (IOException e) {
                                     throw new RuntimeException(e);
                                 }
                             });
 
-                    SwingUtilities.invokeLater(() -> {
-                        JOptionPane.showMessageDialog(this,
-                                "Transactions exported successfully to " + file.getName(),
-                                "Export Complete",
-                                JOptionPane.INFORMATION_MESSAGE);
-                    });
-
+                    SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this,
+                            "Transactions exported successfully to " + file.getName(),
+                            "Export Complete",
+                            JOptionPane.INFORMATION_MESSAGE));
                 } catch (Exception e) {
-                    SwingUtilities.invokeLater(() -> {
-                        JOptionPane.showMessageDialog(this,
-                                "Error exporting transactions: " + e.getMessage(),
-                                "Export Error",
-                                JOptionPane.ERROR_MESSAGE);
-                    });
+                    SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this,
+                            "Error exporting transactions: " + e.getMessage(),
+                            "Export Error",
+                            JOptionPane.ERROR_MESSAGE));
                     log.error("Error exporting transactions to CSV", e);
                 }
             });

@@ -448,25 +448,6 @@ public class HighlightController {
         }
     }
 
-    private Widget getAbortButtonWidget() {
-        Widget statusContainer = client.getWidget(465, 23);
-        if (statusContainer == null) {
-            return null;
-        }
-        Widget[] children = statusContainer.getChildren();
-        if (children != null && children.length > 0) {
-            return children[0];
-        }
-        return null;
-    }
-
-    private void highlightAbortButton(Supplier<Color> colorSupplier) {
-        Widget abortButton = getAbortButtonWidget();
-        if (abortButton != null) {
-            add(abortButton, colorSupplier);
-        }
-    }
-
     private void highlightBackButton(Supplier<Color> colorSupplier) {
         Widget backButton = grandExchange.getBackButton();
         if (backButton != null) {

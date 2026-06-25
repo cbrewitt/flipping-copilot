@@ -2,7 +2,6 @@ package com.flippingcopilot.util;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 public class MsgPackUtil {
 

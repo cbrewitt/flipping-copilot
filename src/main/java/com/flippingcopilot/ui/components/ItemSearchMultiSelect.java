@@ -186,14 +186,6 @@ public class ItemSearchMultiSelect extends JPanel {
                 if (displayField.getText().equals(placeholderText)) {
                     displayField.setText("");
                 }
-
-//                FocusEvent.Cause c = e.getCause();
-//                if(FocusEvent.Cause.MOUSE_EVENT.equals(c)) {
-//                    if (displayField.getText().equals(placeholderText)) {
-//                        displayField.setText("");
-//                        updateDropdown(displayField.getText());
-//                    }
-//                }
             }
 
             @Override

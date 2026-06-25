@@ -3,7 +3,6 @@ package com.flippingcopilot.rs;
 import com.flippingcopilot.controller.Persistance;
 import com.flippingcopilot.model.CopilotLoginState;
 import com.flippingcopilot.model.LoginResponse;
-import com.flippingcopilot.model.OsrsLoginState;
 import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -16,15 +15,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ExecutorService;
 
 @Singleton
 @Slf4j
 public class CopilotLoginRS extends ReactiveStateImpl<CopilotLoginState> {
 
-    public static final String LOGIN_RESPONSE_JSON_FILE = "login-response.json";
-    private final File file = new File(Persistance.COPILOT_DIR, LOGIN_RESPONSE_JSON_FILE);
+    private final File file = new File(Persistance.COPILOT_DIR, Persistance.LOGIN_RESPONSE_JSON_FILE);
 
     private final Gson gson;
     private final ExecutorService executorService;

@@ -9,7 +9,6 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-import java.net.URI;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
@@ -18,15 +17,12 @@ import java.util.Locale;
 public class UIUtilities {
     public static final String redditIcon = "/reddit-icon.png";
     public static final String discordIcon = "/discord.png";
-    public static final String githubIcon = "/github.png";
     public static final String logoutIcon = "/logout.png";
     public static final String internetIcon = "/internet.png";
     public static final String graphIcon = "/graph.png";
 
     public static final float BUTTON_HOVER_LUMINANCE = 0.65f;
     public static final Color OUTDATED_COLOR = new Color(250, 74, 75);
-    public static final Color BLUE_HIGHLIGHT_COLOR =  new Color(27, 173, 255, 79);
-    public static final Color RED_HIGHLIGHT_COLOR = new Color(255, 20, 20, 79);
     public static final Color TOMATO = new Color(255,99,71);
     public static final Color DARK_GRAY = new Color(27, 27, 27);
 
@@ -106,7 +102,7 @@ public class UIUtilities {
         int remainingMinutes = safeMinutes % 60;
 
         if (days > 0) {
-            return days + "d " + hours + "h";
+            return hours == 0 ? days + "d" : days + "d " + hours + "h";
         }
         if (hours > 0) {
             return hours + "h " + remainingMinutes + "m";
@@ -149,19 +145,64 @@ public class UIUtilities {
         return label;
     }
 
-    static JLabel buildUriButton(BufferedImage icon, String tooltip, String uriString) {
-        return buildButton(icon, tooltip, () -> {
-            try {
-                Desktop desktop = Desktop.getDesktop();
-                URI uri = new URI(uriString);
-                desktop.browse(uri);
-            } catch (Exception error) {}
-        });
-    }
-
     public static JPanel newVerticalBoxLayoutJPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        return panel;
+    }
+
+    public static JPanel darkPanel(LayoutManager layout, Color background) {
+        JPanel panel = new JPanel(layout);
+        panel.setBackground(background);
+        return panel;
+    }
+
+    public static JPanel transparentPanel(LayoutManager layout) {
+        JPanel panel = new JPanel(layout);
+        panel.setOpaque(false);
+        return panel;
+    }
+
+    public static JPanel transparentXAxisPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+        panel.setOpaque(false);
+        return panel;
+    }
+
+    public static JPanel verticalPanel(Color background) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(background);
+        return panel;
+    }
+
+    public static void setFixedSize(JComponent component, int width, int height) {
+        Dimension size = new Dimension(width, height);
+        component.setPreferredSize(size);
+        component.setMaximumSize(size);
+    }
+
+    public static void addVerticalGap(JPanel panel, int height) {
+        panel.add(Box.createRigidArea(new Dimension(0, height)));
+    }
+
+    public static void addHorizontalGap(JPanel panel, int width) {
+        panel.add(Box.createRigidArea(new Dimension(width, 0)));
+    }
+
+    public static JPanel formRow(String label, Component control) {
+        JPanel panel = transparentPanel(new BorderLayout());
+        panel.add(new JLabel(label), BorderLayout.LINE_START);
+        panel.add(control, BorderLayout.LINE_END);
+        return panel;
+    }
+
+    public static JPanel messagePanel(String html, Color background, Color foreground) {
+        JPanel panel = darkPanel(new GridBagLayout(), background);
+        JLabel label = new JLabel(html);
+        label.setForeground(foreground);
+        panel.add(label);
         return panel;
     }
 }

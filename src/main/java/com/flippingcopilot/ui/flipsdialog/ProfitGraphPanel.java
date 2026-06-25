@@ -7,7 +7,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.Path2D;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.List;
@@ -16,16 +15,13 @@ import java.util.List;
 public class ProfitGraphPanel extends JPanel {
 
     // Layout constants (base values that will be scaled)
-    private static final int BASE_PADDING_LEFT = 65;
-    private static final int BASE_PADDING_RIGHT = 30;
-    private static final int BASE_PADDING_TOP = 40;
-    private static final int BASE_PADDING_BOTTOM = 40;
+    private static final int PADDING_LEFT = 65;
+    private static final int PADDING_RIGHT = 30;
+    private static final int PADDING_TOP = 40;
+    private static final int PADDING_BOTTOM = 40;
 
-    // Scaled layout values
-    private final int PADDING_LEFT = BASE_PADDING_LEFT;
-    private final int PADDING_RIGHT = BASE_PADDING_RIGHT;
-    private final int PADDING_TOP = BASE_PADDING_TOP;
-    private final int PADDING_BOTTOM = BASE_PADDING_BOTTOM;
+    // Point size for data points
+    private static final int POINT_RADIUS = 3;
 
     // Visual constants
     private static final Color BACKGROUND_COLOR = new Color(43, 43, 43);
@@ -35,17 +31,14 @@ public class ProfitGraphPanel extends JPanel {
     private static final Color TEXT_COLOR = new Color(225, 225, 225);
 
     // Scaled strokes
-    private final Stroke LINE_STROKE = new BasicStroke(2f);
-    private final Stroke GRID_STROKE = new BasicStroke(
+    private static final Stroke LINE_STROKE = new BasicStroke(2f);
+    private static final Stroke GRID_STROKE = new BasicStroke(
             1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{3f}, 0
     );
-    private final Stroke AXIS_STROKE = new BasicStroke(1.0f);
+    private static final Stroke AXIS_STROKE = new BasicStroke(1.0f);
 
     private final Color lossColor;
     private final Color profitColor;
-
-    // Point size for data points
-    private final int POINT_RADIUS = 3;
 
     // Calculated bounds
     private List<Datapoint> data;
@@ -223,8 +216,6 @@ public class ProfitGraphPanel extends JPanel {
         }
         g2.setColor(AXIS_COLOR);
         g2.setStroke(AXIS_STROKE);
-//        int y = bounds.toY(pa, 0);
-//        g2.drawLine(pa.x, y, pa.x + pa.width, y);
         g2.drawLine(pa.x, pa.y, pa.x, pa.y + pa.height);
     }
 
@@ -245,49 +236,35 @@ public class ProfitGraphPanel extends JPanel {
 
         g2.setStroke(LINE_STROKE);
 
-        // Create the line path
-        Path2D.Float path = new Path2D.Float();
-        boolean started = false;
-
-        for (int i = 0; i < data.size(); i++) {
+        // Draw segment with appropriate color
+        for (int i = 1; i < data.size(); i++) {
             Datapoint point = data.get(i);
             int x = bounds.toX(pa, point.timestamp());
             int y = bounds.toY(pa, point.cumulativeProfit);
+            Datapoint prevPoint = data.get(i - 1);
+            int prevX = bounds.toX(pa, (int) prevPoint.timestamp());
+            int prevY = bounds.toY(pa, prevPoint.cumulativeProfit);
 
-            if (!started) {
-                path.moveTo(x, y);
-                started = true;
+            // Determine color based on whether we're above or below zero
+            boolean currentPositive = point.cumulativeProfit >= 0;
+            boolean prevPositive = prevPoint.cumulativeProfit >= 0;
+
+            if (currentPositive == prevPositive) {
+                // Same sign, simple line
+                g2.setColor(currentPositive ? profitColor : lossColor);
+                g2.drawLine(prevX, prevY, x, y);
             } else {
-                // Draw segment with appropriate color
-                Datapoint prevPoint = data.get(i - 1);
-                int prevX = bounds.toX(pa, (int) prevPoint.timestamp());
-                int prevY = bounds.toY(pa, prevPoint.cumulativeProfit);
-
-                // Determine color based on whether we're above or below zero
-                boolean currentPositive = point.cumulativeProfit >= 0;
-                boolean prevPositive = prevPoint.cumulativeProfit >= 0;
-
-                if (currentPositive == prevPositive) {
-                    // Same sign, simple line
-                    g2.setColor(currentPositive ? profitColor : lossColor);
-                    g2.drawLine(prevX, prevY, x, y);
-                } else {
-                    // Crossing zero, need to interpolate
-                    double ratio = Math.abs((double)prevPoint.cumulativeProfit) /
-                            (Math.abs(prevPoint.cumulativeProfit) + Math.abs(point.cumulativeProfit));
-                    int crossX = prevX + (int)((x - prevX) * ratio);
-                    int crossY = bounds.toY(pa, 0);
-
-                    // Draw first segment
-                    g2.setColor(prevPositive ? profitColor : lossColor);
-                    g2.drawLine(prevX, prevY, crossX, crossY);
-
-                    // Draw second segment
-                    g2.setColor(currentPositive ? profitColor : lossColor);
-                    g2.drawLine(crossX, crossY, x, y);
-                }
-
-                path.lineTo(x, y);
+                // Crossing zero, need to interpolate
+                double ratio = Math.abs((double)prevPoint.cumulativeProfit) /
+                        (Math.abs(prevPoint.cumulativeProfit) + Math.abs(point.cumulativeProfit));
+                int crossX = prevX + (int)((x - prevX) * ratio);
+                int crossY = bounds.toY(pa, 0);
+                // Draw first segment
+                g2.setColor(prevPositive ? profitColor : lossColor);
+                g2.drawLine(prevX, prevY, crossX, crossY);
+                // Draw second segment
+                g2.setColor(currentPositive ? profitColor : lossColor);
+                g2.drawLine(crossX, crossY, x, y);
             }
         }
 

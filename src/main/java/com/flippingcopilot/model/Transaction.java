@@ -26,10 +26,8 @@ public class Transaction {
     private Instant timestamp;
     private boolean copilotPriceUsed;
     private boolean wasCopilotSuggestion;
-    private int offerTotalQuantity;
     private boolean login;
     private boolean consistent;
-    private boolean geTransactionAlreadyAdded;
 
     public boolean equals(Transaction other) {
         return this.type == other.type &&
@@ -61,4 +59,3 @@ public class Transaction {
         return String.format("%s %d %d on slot %d", type, quantity, itemId, boxId);
     }
 }
-

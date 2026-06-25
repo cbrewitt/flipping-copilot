@@ -6,10 +6,6 @@ import java.awt.*;
 @Singleton
 public class HighlightColorController {
 
-    /*
-    For the highlighted colors we oscillate the actual colors through different shades
-     */
-
     // Color ranges for red highlight (R,G,B values)
     private static final int[] RED_START = {205, 0, 50};
     private static final int[] RED_END = {255, 50, 0};

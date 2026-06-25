@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import static com.flippingcopilot.ui.UIUtilities.*;
+
 @Slf4j
 public class PremiumInstancePanel extends JPanel {
 
@@ -32,22 +34,16 @@ public class PremiumInstancePanel extends JPanel {
         setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         cardLayout = new CardLayout();
-        cardPanel = new JPanel(cardLayout);
-        cardPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        cardPanel = darkPanel(cardLayout, ColorScheme.DARKER_GRAY_COLOR);
 
         // Create loading panel
-        JPanel loadingPanel = createLoadingPanel();
-        cardPanel.add(loadingPanel, "loading");
+        cardPanel.add(createLoadingPanel(), "loading");
 
         // Create error panel container (will be populated when error occurs)
-        JPanel errorPanel = new JPanel(new BorderLayout());
-        errorPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        cardPanel.add(errorPanel, "error");
+        cardPanel.add(darkPanel(new BorderLayout(), ColorScheme.DARKER_GRAY_COLOR), "error");
 
         // Create management panel container (will be populated when data loads)
-        JPanel managementPanel = new JPanel(new BorderLayout());
-        managementPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        cardPanel.add(managementPanel, "management");
+        cardPanel.add(darkPanel(new BorderLayout(), ColorScheme.DARKER_GRAY_COLOR), "management");
 
         add(cardPanel, BorderLayout.CENTER);
 
@@ -55,8 +51,7 @@ public class PremiumInstancePanel extends JPanel {
     }
 
     private JPanel createLoadingPanel() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel panel = darkPanel(new GridBagLayout(), ColorScheme.DARKER_GRAY_COLOR);
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
@@ -105,9 +100,7 @@ public class PremiumInstancePanel extends JPanel {
         managementPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         // Create header panel for the count label
-        JPanel headerPanel = new JPanel();
-        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
-        headerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel headerPanel = verticalPanel(ColorScheme.DARKER_GRAY_COLOR);
 
         // Add premium instances count
         JLabel countLabel = new JLabel("You have " + status.getPremiumInstancesCount() + " premium accounts");
@@ -115,7 +108,7 @@ public class PremiumInstancePanel extends JPanel {
         countLabel.setForeground(Color.WHITE);
         countLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         headerPanel.add(countLabel);
-        headerPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+        addVerticalGap(headerPanel, 15);
 
         // Add header to the top of the management panel
         managementPanel.add(headerPanel, BorderLayout.NORTH);
@@ -124,15 +117,11 @@ public class PremiumInstancePanel extends JPanel {
         instanceDropdowns.clear();
 
         // Create a panel for the scrollable content
-        JPanel scrollContent = new JPanel();
-        scrollContent.setLayout(new BoxLayout(scrollContent, BoxLayout.Y_AXIS));
-        scrollContent.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel scrollContent = verticalPanel(ColorScheme.DARKER_GRAY_COLOR);
 
         // Add dropdowns for each instance
         for (int i = 0; i < status.getPremiumInstancesCount(); i++) {
-            JPanel instancePanel = new JPanel();
-            instancePanel.setLayout(new FlowLayout(FlowLayout.LEFT));
-            instancePanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+            JPanel instancePanel = darkPanel(new FlowLayout(FlowLayout.LEFT), ColorScheme.DARKER_GRAY_COLOR);
             instancePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
 
             JLabel instanceLabel = new JLabel("Premium account " + (i + 1) + ":");
@@ -143,9 +132,9 @@ public class PremiumInstancePanel extends JPanel {
             JComboBox<String> dropdown = new JComboBox<>();
             dropdown.setPreferredSize(new Dimension(200, 25));
 
-            // Add current assignment if exists
             String currentAssignment = null;
             if (i < status.getCurrentlyAssignedDisplayNames().size()) {
+                // Add current assignment if exists
                 dropdown.addItem("Unassigned");
                 currentAssignment = status.getCurrentlyAssignedDisplayNames().get(i);
                 dropdown.addItem(currentAssignment);
@@ -165,7 +154,7 @@ public class PremiumInstancePanel extends JPanel {
             instanceDropdowns.add(dropdown);
 
             scrollContent.add(instancePanel);
-            scrollContent.add(Box.createRigidArea(new Dimension(0, 5)));
+            addVerticalGap(scrollContent, 5);
         }
 
         // Add vertical glue to push everything to the top
@@ -184,8 +173,7 @@ public class PremiumInstancePanel extends JPanel {
         managementPanel.add(scrollPane, BorderLayout.CENTER);
 
         // Add bottom panel with changes remaining and update button
-        JPanel bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel bottomPanel = darkPanel(new BorderLayout(), ColorScheme.DARKER_GRAY_COLOR);
         bottomPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
 
         JLabel changesLabel = new JLabel("Changes remaining (re-charges 1 per day): " + status.getChangesRemaining());
@@ -194,10 +182,11 @@ public class PremiumInstancePanel extends JPanel {
         bottomPanel.add(changesLabel, BorderLayout.WEST);
 
         JButton updateButton = new JButton("Update");
+
         // Disable the update button if no changes remaining
         updateButton.setEnabled(status.getChangesRemaining() > 0);
-        // Add tooltip to explain why button is disabled when changes = 0
         if (status.getChangesRemaining() <= 0) {
+            // Add tooltip to explain why button is disabled when changes = 0
             updateButton.setToolTipText("No changes remaining. Wait for daily recharge.");
         }
 

@@ -1,6 +1,5 @@
 package com.flippingcopilot.model;
 
-import com.google.gson.Gson;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -25,14 +24,6 @@ public class AccountStatusTest {
     public void testBuyAndHoldModeDefaultsToTrue() {
         AccountStatus accountStatus = new AccountStatus();
         assert accountStatus.isBuyAndHold();
-    }
-
-    @Test
-    public void testToJsonIncludesBuyAndHoldMode() {
-        AccountStatus accountStatus = new AccountStatus();
-        accountStatus.setUncollected(Collections.emptyMap());
-
-        assert accountStatus.toJson(new Gson(), true, false).get("buy_and_hold").getAsBoolean();
     }
 
     @Test

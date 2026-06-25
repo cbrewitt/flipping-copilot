@@ -2,7 +2,6 @@ package com.flippingcopilot.model;
 
 import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.util.MsgPackUtil;
-import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

@@ -91,39 +91,28 @@ public class ZoomHandler {
     }
 
     public void applyHomeView(Bounds bounds) {
-        bounds.xMin = homeViewBounds.xMin;
-        bounds.xMax = homeViewBounds.xMax;
-        bounds.yMin = homeViewBounds.yMin;
-        bounds.yMax = homeViewBounds.yMax;
-        bounds.y2Min = homeViewBounds.y2Min;
-        bounds.y2Max = homeViewBounds.y2Max;;
+        copyBounds(bounds, homeViewBounds);
     }
 
     public void applyMaxView(Bounds bounds) {
-        bounds.xMin = maxViewBounds.xMin;
-        bounds.xMax = maxViewBounds.xMax;
-        bounds.yMin = maxViewBounds.yMin;
-        bounds.yMax = maxViewBounds.yMax;
-        bounds.y2Min = maxViewBounds.y2Min;
-        bounds.y2Max = maxViewBounds.y2Max;;
+        copyBounds(bounds, maxViewBounds);
     }
 
     public void applyWeekView(Bounds bounds) {
-        bounds.xMin = weekViewBounds.xMin;
-        bounds.xMax = weekViewBounds.xMax;
-        bounds.yMin = weekViewBounds.yMin;
-        bounds.yMax = weekViewBounds.yMax;
-        bounds.y2Min = weekViewBounds.y2Min;
-        bounds.y2Max = weekViewBounds.y2Max;
+        copyBounds(bounds, weekViewBounds);
     }
 
     public void applyMonthView(Bounds bounds) {
-        bounds.xMin = monthViewBounds.xMin;
-        bounds.xMax = monthViewBounds.xMax;
-        bounds.yMin = monthViewBounds.yMin;
-        bounds.yMax = monthViewBounds.yMax;
-        bounds.y2Min = monthViewBounds.y2Min;
-        bounds.y2Max = monthViewBounds.y2Max;;
+        copyBounds(bounds, monthViewBounds);
+    }
+
+    private void copyBounds(Bounds target, Bounds source) {
+        target.xMin = source.xMin;
+        target.xMax = source.xMax;
+        target.yMin = source.yMin;
+        target.yMax = source.yMax;
+        target.y2Min = source.y2Min;
+        target.y2Max = source.y2Max;
     }
 
     public void cancelSelection() {
@@ -149,211 +138,148 @@ public class ZoomHandler {
     }
 
     public void drawButtons(Graphics2D g2d, Rectangle pa, Point p) {
-
-        int x = pa.x + pa.width - Config.GRAPH_BUTTON_SIZE - Config.GRAPH_BUTTON_MARGIN;
+        int size = Config.GRAPH_BUTTON_SIZE;
+        int x = pa.x + pa.width - size - Config.GRAPH_BUTTON_MARGIN;
         int y = pa.y + Config.GRAPH_BUTTON_MARGIN;
 
+        // Draw home button
+        drawButtonBackground(g2d, homeButtonRect, x, y, size, isOverHomeButton(p));
+        drawHomeIcon(g2d, homeButtonRect);
+
+        // Draw max button
+        x -= size + Config.GRAPH_BUTTON_MARGIN;
+        drawButtonBackground(g2d, maxButtonRect, x, y, size, isOverMaxButton(p));
+        // Draw max icon (four outward arrows)
+        drawMaxIcon(g2d, maxButtonRect);
+
+        // Draw zoom in (+) button
+        x -= size + Config.GRAPH_BUTTON_MARGIN;
+        drawButtonBackground(g2d, zoomInButtonRect, x, y, size, isOverZoomInButton(p));
+        // Draw + symbol
+        drawPlusMinusIcon(g2d, zoomInButtonRect, true);
+
+        // Draw zoom out (-) button
+        x -= size + Config.GRAPH_BUTTON_MARGIN;
+        drawButtonBackground(g2d, zoomOutButtonRect, x, y, size, isOverZoomOutButton(p));
+        // Draw - symbol
+        drawPlusMinusIcon(g2d, zoomOutButtonRect, false);
+
         // Width for text buttons (Week and Month)
-        int textButtonWidth = Config.GRAPH_BUTTON_SIZE * 2;
+        int textButtonWidth = size * 2;
 
-        homeButtonRect.setBounds(x,  y, Config.GRAPH_BUTTON_SIZE, Config.GRAPH_BUTTON_SIZE);
-        g2d.setColor(isOverHomeButton(p) ? Config.GRAPH_BUTTON_HOVER_COLOR : Config.GRAPH_BUTTON_COLOR);
-        Shape homeButtonShape = new RoundRectangle2D.Float(
-                x, y,
-                Config.GRAPH_BUTTON_SIZE, Config.GRAPH_BUTTON_SIZE,
-                6, 6
-        );
-        g2d.fill(homeButtonShape);
-        g2d.setColor(java.awt.Color.WHITE);
-        g2d.setStroke(new java.awt.BasicStroke(1.5f));
+        // Draw Week button (wider than the others)
+        x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
+        drawButtonBackground(g2d, weekButtonRect, x, y, textButtonWidth, isOverWeekButton(p));
+        // Draw Week text
+        drawCenteredText(g2d, weekButtonRect, "Week");
 
+        // Draw Month button (wider than the others)
+        x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
+        drawButtonBackground(g2d, monthButtonRect, x, y, textButtonWidth, isOverMonthButton(p));
+        // Draw Month text
+        drawCenteredText(g2d, monthButtonRect, "Month");
+    }
+
+    private void drawButtonBackground(Graphics2D g2d, Rectangle rect, int x, int y, int width, boolean hovered) {
+        rect.setBounds(x, y, width, Config.GRAPH_BUTTON_SIZE);
+        g2d.setColor(hovered ? Config.GRAPH_BUTTON_HOVER_COLOR : Config.GRAPH_BUTTON_COLOR);
+        g2d.fill(new RoundRectangle2D.Float(x, y, width, Config.GRAPH_BUTTON_SIZE, 6, 6));
+    }
+
+    private void drawHomeIcon(Graphics2D g2d, Rectangle rect) {
         int margin = 4;
-        int houseX = x + margin;
-        int houseY = y + margin;
-        int houseWidth = Config.GRAPH_BUTTON_SIZE - 2 * margin;
-        int houseHeight = Config.GRAPH_BUTTON_SIZE - 2 * margin;
+        int houseX = rect.x + margin;
+        int houseY = rect.y + margin;
+        int houseWidth = rect.width - 2 * margin;
+        int houseHeight = rect.height - 2 * margin;
+        g2d.setColor(Color.WHITE);
+        g2d.setStroke(new BasicStroke(1.5f));
 
         // Roof
-        int[] xPoints = {houseX, houseX + houseWidth / 2, houseX + houseWidth};
-        int[] yPoints = {houseY + houseHeight / 2, houseY, houseY + houseHeight / 2};
-        g2d.fillPolygon(xPoints, yPoints, 3);
+        g2d.fillPolygon(
+                new int[]{houseX, houseX + houseWidth / 2, houseX + houseWidth},
+                new int[]{houseY + houseHeight / 2, houseY, houseY + houseHeight / 2},
+                3);
 
         // House body
         g2d.fillRect(houseX + houseWidth / 5, houseY + houseHeight / 2,
                 3 * houseWidth / 5, houseHeight / 2);
+    }
 
-        // Draw max button
-        int maxButtonX = x - Config.GRAPH_BUTTON_SIZE - Config.GRAPH_BUTTON_MARGIN;
-        maxButtonRect.setBounds(maxButtonX, y, Config.GRAPH_BUTTON_SIZE, Config.GRAPH_BUTTON_SIZE);
-
-        g2d.setColor(isOverMaxButton(p)  ? Config.GRAPH_BUTTON_HOVER_COLOR : Config.GRAPH_BUTTON_COLOR);
-        Shape maxButtonShape = new RoundRectangle2D.Float(
-                maxButtonX, y,
-                Config.GRAPH_BUTTON_SIZE, Config.GRAPH_BUTTON_SIZE,
-                6, 6
-        );
-        g2d.fill(maxButtonShape);
-
-        // Draw max icon (four outward arrows)
-        g2d.setColor(java.awt.Color.WHITE);
-        g2d.setStroke(new java.awt.BasicStroke(1.5f));
-
-        int maxMargin = 7;
-        int centerX = maxButtonX + Config.GRAPH_BUTTON_SIZE / 2;
-        int centerY = y + Config.GRAPH_BUTTON_SIZE / 2;
-        int arrowSize = Config.GRAPH_BUTTON_SIZE / 2 - maxMargin;
+    private void drawMaxIcon(Graphics2D g2d, Rectangle rect) {
+        int centerX = rect.x + rect.width / 2;
+        int centerY = rect.y + rect.height / 2;
+        int arrowSize = rect.width / 2 - 7;
+        g2d.setColor(Color.WHITE);
+        g2d.setStroke(new BasicStroke(1.5f));
 
         // Draw a simple expand icon (four outward arrows)
         // Top-left arrow
-        g2d.drawLine(centerX - 2, centerY - 2, centerX - arrowSize, centerY - arrowSize);
-        g2d.drawLine(centerX - arrowSize, centerY - 2, centerX - arrowSize, centerY - arrowSize);
-        g2d.drawLine(centerX - 2, centerY - arrowSize, centerX - arrowSize, centerY - arrowSize);
-
         // Top-right arrow
-        g2d.drawLine(centerX + 2, centerY - 2, centerX + arrowSize, centerY - arrowSize);
-        g2d.drawLine(centerX + arrowSize, centerY - 2, centerX + arrowSize, centerY - arrowSize);
-        g2d.drawLine(centerX + 2, centerY - arrowSize, centerX + arrowSize, centerY - arrowSize);
-
         // Bottom-left arrow
-        g2d.drawLine(centerX - 2, centerY + 2, centerX - arrowSize, centerY + arrowSize);
-        g2d.drawLine(centerX - arrowSize, centerY + 2, centerX - arrowSize, centerY + arrowSize);
-        g2d.drawLine(centerX - 2, centerY + arrowSize, centerX - arrowSize, centerY + arrowSize);
-
         // Bottom-right arrow
-        g2d.drawLine(centerX + 2, centerY + 2, centerX + arrowSize, centerY + arrowSize);
-        g2d.drawLine(centerX + arrowSize, centerY + 2, centerX + arrowSize, centerY + arrowSize);
-        g2d.drawLine(centerX + 2, centerY + arrowSize, centerX + arrowSize, centerY + arrowSize);
+        for (int sx : new int[]{-1, 1}) {
+            for (int sy : new int[]{-1, 1}) {
+                int endX = centerX + sx * arrowSize;
+                int endY = centerY + sy * arrowSize;
+                g2d.drawLine(centerX + sx * 2, centerY + sy * 2, endX, endY);
+                g2d.drawLine(endX, centerY + sy * 2, endX, endY);
+                g2d.drawLine(centerX + sx * 2, endY, endX, endY);
+            }
+        }
+    }
 
-        // Draw zoom in (+) button
-        int zoomInButtonX = maxButtonX - Config.GRAPH_BUTTON_SIZE - Config.GRAPH_BUTTON_MARGIN;
-        zoomInButtonRect.setBounds(zoomInButtonX, y, Config.GRAPH_BUTTON_SIZE, Config.GRAPH_BUTTON_SIZE);
-
-        g2d.setColor(isOverZoomInButton(p)  ? Config.GRAPH_BUTTON_HOVER_COLOR : Config.GRAPH_BUTTON_COLOR);
-        Shape zoomInButtonShape = new RoundRectangle2D.Float(
-                zoomInButtonX, y,
-                Config.GRAPH_BUTTON_SIZE, Config.GRAPH_BUTTON_SIZE,
-                6, 6
-        );
-        g2d.fill(zoomInButtonShape);
-
-        // Draw + symbol
-        g2d.setColor(java.awt.Color.WHITE);
-        g2d.setStroke(new java.awt.BasicStroke(2.0f));
-
-        int plusSize = Config.GRAPH_BUTTON_SIZE - 2 * margin;
-        int plusX = zoomInButtonX + margin;
-        int plusY = y + margin;
-
-        // Horizontal line
-        g2d.drawLine(
-                plusX + plusSize / 4,
-                plusY + plusSize / 2,
-                plusX + 3 * plusSize / 4,
-                plusY + plusSize / 2
-        );
-
-        // Vertical line
-        g2d.drawLine(
-                plusX + plusSize / 2,
-                plusY + plusSize / 4,
-                plusX + plusSize / 2,
-                plusY + 3 * plusSize / 4
-        );
-
-        // Draw zoom out (-) button
-        int zoomOutButtonX = zoomInButtonX - Config.GRAPH_BUTTON_SIZE - Config.GRAPH_BUTTON_MARGIN;
-        zoomOutButtonRect.setBounds(zoomOutButtonX, y, Config.GRAPH_BUTTON_SIZE, Config.GRAPH_BUTTON_SIZE);
-
-        g2d.setColor(isOverZoomOutButton(p) ? Config.GRAPH_BUTTON_HOVER_COLOR : Config.GRAPH_BUTTON_COLOR);
-        Shape zoomOutButtonShape = new RoundRectangle2D.Float(
-                zoomOutButtonX, y,
-                Config.GRAPH_BUTTON_SIZE, Config.GRAPH_BUTTON_SIZE,
-                6, 6
-        );
-        g2d.fill(zoomOutButtonShape);
-
-        // Draw - symbol
-        g2d.setColor(java.awt.Color.WHITE);
-        g2d.setStroke(new java.awt.BasicStroke(2.0f));
-
-        int minusSize = Config.GRAPH_BUTTON_SIZE - 2 * margin;
-        int minusX = zoomOutButtonX + margin;
-        int minusY = y + margin;
+    private void drawPlusMinusIcon(Graphics2D g2d, Rectangle rect, boolean plus) {
+        int margin = 4;
+        int iconSize = rect.width - 2 * margin;
+        int x = rect.x + margin;
+        int y = rect.y + margin;
+        g2d.setColor(Color.WHITE);
+        g2d.setStroke(new BasicStroke(2.0f));
 
         // Horizontal line (minus symbol)
-        g2d.drawLine(
-                minusX + minusSize / 4,
-                minusY + minusSize / 2,
-                minusX + 3 * minusSize / 4,
-                minusY + minusSize / 2
-        );
+        g2d.drawLine(x + iconSize / 4, y + iconSize / 2, x + 3 * iconSize / 4, y + iconSize / 2);
+        if (plus) {
+            // Vertical line
+            g2d.drawLine(x + iconSize / 2, y + iconSize / 4, x + iconSize / 2, y + 3 * iconSize / 4);
+        }
+    }
 
-        // Draw Week button (wider than the others)
-        int weekButtonX = zoomOutButtonX - textButtonWidth - Config.GRAPH_BUTTON_MARGIN;
-        weekButtonRect.setBounds(weekButtonX, y, textButtonWidth, Config.GRAPH_BUTTON_SIZE);
-
-        g2d.setColor(isOverWeekButton(p) ? Config.GRAPH_BUTTON_HOVER_COLOR : Config.GRAPH_BUTTON_COLOR);
-        Shape weekButtonShape = new RoundRectangle2D.Float(
-                weekButtonX, y,
-                textButtonWidth, Config.GRAPH_BUTTON_SIZE,
-                6, 6
-        );
-        g2d.fill(weekButtonShape);
-
-        // Draw Week text
-        g2d.setColor(java.awt.Color.WHITE);
+    private void drawCenteredText(Graphics2D g2d, Rectangle rect, String text) {
+        g2d.setColor(Color.WHITE);
+        // Use the same font as for the Week button - plain instead of bold
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 12));
         FontMetrics fm = g2d.getFontMetrics();
-        String weekText = "Week";
-        int textWidth = fm.stringWidth(weekText);
-        int textHeight = fm.getHeight();
-        g2d.drawString(weekText,
-                weekButtonX + (textButtonWidth - textWidth) / 2,
-                y + (Config.GRAPH_BUTTON_SIZE + textHeight) / 2 - 2);
+        g2d.drawString(text,
+                rect.x + (rect.width - fm.stringWidth(text)) / 2,
+                rect.y + (rect.height + fm.getHeight()) / 2 - 2);
+    }
 
-        // Draw Month button (wider than the others)
-        int monthButtonX = weekButtonX - textButtonWidth - Config.GRAPH_BUTTON_MARGIN;
-        monthButtonRect.setBounds(monthButtonX, y, textButtonWidth, Config.GRAPH_BUTTON_SIZE);
-
-        g2d.setColor(isOverMonthButton(p) ? Config.GRAPH_BUTTON_HOVER_COLOR : Config.GRAPH_BUTTON_COLOR);
-        Shape monthButtonShape = new RoundRectangle2D.Float(
-                monthButtonX, y,
-                textButtonWidth, Config.GRAPH_BUTTON_SIZE,
-                6, 6
-        );
-        g2d.fill(monthButtonShape);
-
-        // Draw Month text
-        g2d.setColor(java.awt.Color.WHITE);
-        // Use the same font as for the Week button - plain instead of bold
-        String monthText = "Month";
-        textWidth = fm.stringWidth(monthText);
-        g2d.drawString(monthText,
-                monthButtonX + (textButtonWidth - textWidth) / 2,
-                y + (Config.GRAPH_BUTTON_SIZE + textHeight) / 2 - 2);
+    private boolean isOver(Rectangle rect, Point point) {
+        return point != null && rect.contains(point);
     }
 
     public boolean isOverHomeButton(Point point) {
-        return homeButtonRect.contains(point);
+        return isOver(homeButtonRect, point);
     }
 
     public boolean isOverMaxButton(Point point) {
-        return maxButtonRect.contains(point);
+        return isOver(maxButtonRect, point);
     }
 
     public boolean isOverZoomInButton(Point point) {
-        return zoomInButtonRect.contains(point);
+        return isOver(zoomInButtonRect, point);
     }
 
     public boolean isOverZoomOutButton(Point point) {
-        return zoomOutButtonRect.contains(point);
+        return isOver(zoomOutButtonRect, point);
     }
 
     public boolean isOverWeekButton(Point point) {
-        return weekButtonRect.contains(point);
+        return isOver(weekButtonRect, point);
     }
 
     public boolean isOverMonthButton(Point point) {
-        return monthButtonRect.contains(point);
+        return isOver(monthButtonRect, point);
     }
 }

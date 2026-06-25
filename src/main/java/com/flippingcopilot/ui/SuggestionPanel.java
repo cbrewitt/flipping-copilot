@@ -5,11 +5,9 @@ import com.flippingcopilot.controller.GrandExchange;
 import com.flippingcopilot.controller.HighlightController;
 import com.flippingcopilot.controller.PremiumInstanceController;
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.util.ProfitCalculator;
 import joptsimple.internal.Strings;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.callback.ClientThread;
@@ -116,22 +114,16 @@ public class SuggestionPanel extends JPanel {
 
         layeredPane.setLayout(null);
         setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH, DEFAULT_PANEL_HEIGHT));
-        suggestedActionPanel = new JPanel(new BorderLayout());
-        suggestedActionPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        suggestedActionPanel = darkPanel(new BorderLayout(), ColorScheme.DARKER_GRAY_COLOR);
         suggestedActionPanel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
         suggestedActionPanel.setBounds(0, 0, MainPanel.CONTENT_WIDTH, DEFAULT_PANEL_HEIGHT);
 
-        JPanel suggestionContainer = new JPanel(new BorderLayout());
-        suggestionContainer.setOpaque(true);
-        suggestionContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel suggestionContainer = darkPanel(new BorderLayout(), ColorScheme.DARKER_GRAY_COLOR);
         suggestionContainer.setPreferredSize(new Dimension(MainPanel.CONTENT_WIDTH - 10, 85));
         suggestedActionPanel.add(suggestionContainer, BorderLayout.CENTER);
 
         // Center panel for main suggestion content (icon and text)
-        JPanel suggestionMainPanel = new JPanel();
-        suggestionMainPanel.setLayout(new CardLayout());
-        suggestionMainPanel.setOpaque(true);
-        suggestionMainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel suggestionMainPanel = darkPanel(new CardLayout(), ColorScheme.DARKER_GRAY_COLOR);
         suggestionContainer.add(suggestionMainPanel, BorderLayout.CENTER);
 
         suggestionTextContainer.setLayout(new BoxLayout(suggestionTextContainer, BoxLayout.X_AXIS));
@@ -171,27 +163,10 @@ public class SuggestionPanel extends JPanel {
         BufferedImage gearIcon = ImageUtil.loadImageResource(getClass(), "/preferences-icon.png");
         gearIcon = ImageUtil.resizeImage(gearIcon, 20, 20);
         BufferedImage recoloredIcon = ImageUtil.recolorImage(gearIcon, ColorScheme.LIGHT_GRAY_COLOR);
-        gearButton = buildButton(recoloredIcon, "Settings", () -> {});
+        gearButton = buildButton(recoloredIcon, "Settings", this::handleGearClick);
         gearButton.setEnabled(true);
         gearButton.setFocusable(true);
         gearButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        gearButton.setOpaque(true);
-        ImageIcon iconOff = new ImageIcon(recoloredIcon);
-        ImageIcon iconOn = new ImageIcon(ImageUtil.luminanceScale(recoloredIcon, BUTTON_HOVER_LUMINANCE));
-        gearButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                handleGearClick();
-            }
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                gearButton.setIcon(iconOn);
-            }
-            @Override
-            public void mouseExited(MouseEvent e) {
-                gearButton.setIcon(iconOff);
-            }
-        });
         gearButton.setOpaque(true);
         gearButton.setBounds(5, 5, 20, 20);
 
@@ -232,8 +207,7 @@ public class SuggestionPanel extends JPanel {
         buttonContainer.setLayout(new BorderLayout());
         buttonContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-        JPanel centerPanel = new JPanel(new GridLayout(1, 5, 15, 0));
-        centerPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel centerPanel = darkPanel(new GridLayout(1, 5, 15, 0), ColorScheme.DARKER_GRAY_COLOR);
 
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
         graphButton = buildButton(graphIcon, "Price graph", flipsDialogController::openSuggestionPriceGraph);
@@ -267,9 +241,7 @@ public class SuggestionPanel extends JPanel {
     }
 
     public void setAdditionalInfoText(String text) {
-        additionalInfoText.setText("<html><center>" + text + "</center></html>");
-        additionalInfoText.setToolTipText(null);
-        suggestionText.setToolTipText(null);
+        setAdditionalInfoText(text, null);
     }
 
     private void setAdditionalInfoText(String text, String tooltip) {
@@ -283,8 +255,7 @@ public class SuggestionPanel extends JPanel {
         String suggestionString = "<html><center>";
         suggestionTextContainer.setVisible(false);
         additionalInfoText.setText("");
-        additionalInfoText.setToolTipText(null);
-        suggestionText.setToolTipText(null);
+        clearSuggestionTooltips();
         SuggestionType suggestionType = suggestion.getType();
         if (suggestionType == null) {
             suggestionString += "Error processing suggestion<br>";
@@ -396,8 +367,7 @@ public class SuggestionPanel extends JPanel {
 
     public void setMessage(String message) {
         additionalInfoText.setVisible(false);
-        additionalInfoText.setToolTipText(null);
-        suggestionText.setToolTipText(null);
+        clearSuggestionTooltips();
         innerSuggestionMessage = message;
         setButtonsVisible(false);
 
@@ -452,8 +422,7 @@ public class SuggestionPanel extends JPanel {
         setButtonsVisible(false);
         suggestionIcon.setVisible(false);
         additionalInfoText.setText("");
-        additionalInfoText.setToolTipText(null);
-        suggestionText.setToolTipText(null);
+        clearSuggestionTooltips();
         additionalInfoText.setVisible(false);
         suggestionText.setText("");
     }
@@ -553,8 +522,7 @@ public class SuggestionPanel extends JPanel {
         if(expectedProfit < 0) {
             color = config.lossAmountColor();
         }
-        String colorHex = String.format("#%06X", (0xFFFFFF & color.getRGB()));
-        String text = "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit";
+        String text = boldColor(formattedProfit, color) + " profit";
         if (expectedDuration != null) {
             String formattedDuration = formatSuggestionDuration(expectedDuration);
             text += " in <b>" + formattedDuration + "</b>";
@@ -568,10 +536,7 @@ public class SuggestionPanel extends JPanel {
         }
         String formattedProfit = formatProfit(expectedProfit);
         String formattedDuration = formatSuggestionDuration(expectedDuration);
-        Color profitColor = config.profitAmountColor();
-
-        String colorHex = String.format("#%06X", (0xFFFFFF & profitColor.getRGB()));
-        return "<b><font color='" + colorHex + "'>" + formattedProfit + "</font></b> profit in <b>" + formattedDuration + "</b>";
+        return boldColor(formattedProfit, config.profitAmountColor()) + " profit in <b>" + formattedDuration + "</b>";
     }
 
     private String formatSuggestionTooltip(Suggestion suggestion, Double suggestionProfit) {
@@ -613,8 +578,20 @@ public class SuggestionPanel extends JPanel {
             return null;
         }
         Color roiColor = UIUtilities.getProfitColor(roi, config);
-        String colorHex = String.format("#%06X", (0xFFFFFF & roiColor.getRGB()));
-        return "ROI: <font color='" + colorHex + "'>" + formatRoi(roi) + "</font>";
+        return "ROI: <font color='" + colorHex(roiColor) + "'>" + formatRoi(roi) + "</font>";
+    }
+
+    private void clearSuggestionTooltips() {
+        additionalInfoText.setToolTipText(null);
+        suggestionText.setToolTipText(null);
+    }
+
+    private String boldColor(String text, Color color) {
+        return "<b><font color='" + colorHex(color) + "'>" + text + "</font></b>";
+    }
+
+    private String colorHex(Color color) {
+        return String.format("#%06X", (0xFFFFFF & color.getRGB()));
     }
 
     private String formatRoi(double roi) {

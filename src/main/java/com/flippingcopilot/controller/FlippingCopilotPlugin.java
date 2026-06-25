@@ -70,8 +70,6 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private GrandExchangeOfferEventHandler offerEventHandler;
 	@Inject
-	private ApiRequestHandler apiRequestHandler;
-	@Inject
 	private AccountStatusManager accountStatusManager;
 	@Inject
 	private SuggestionController suggestionController;
@@ -109,8 +107,6 @@ public class FlippingCopilotPlugin extends Plugin {
 	private MenuHandler menuHandler;
 	@Inject
 	private FlipsDialogController flipsDialogController;
-	@Inject
-	private SuggestionPreferencesManager preferencesManager;
 	@Inject
 	private SlotProfitColorizer slotProfitColorizer;
 	@Inject
@@ -245,7 +241,6 @@ public class FlippingCopilotPlugin extends Plugin {
 
 		if (event.getContainerId() == InventoryID.INV && grandExchange.isOpen()) {
 			suggestionManager.setSuggestionNeeded(true);
-//			log.debug("inventory change item {} qty {}", lastItems, event.getItemContainer().getItems());
 			clientThread.invokeLater(() -> highlightController.redraw());
 		}
 	}

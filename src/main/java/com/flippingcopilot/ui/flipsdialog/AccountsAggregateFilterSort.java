@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.inject.Named;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
@@ -39,17 +38,7 @@ public class AccountsAggregateFilterSort {
     }
 
     public synchronized void setInterval(IntervalTimeUnit timeUnit, Integer value) {
-        switch (timeUnit) {
-            case ALL:
-                intervalStartTime = 1;
-                break;
-            case SESSION:
-                // TODO: Get session start time from SessionManager
-                intervalStartTime = (int) Instant.now().getEpochSecond() - 3600; // Default to 1 hour ago
-                break;
-            default:
-                intervalStartTime = (int) (Instant.now().getEpochSecond() - (long) value * timeUnit.getSeconds());
-        }
+        intervalStartTime = FilterSortUtil.intervalStart(timeUnit, value);
         reloadAggregates(false);
     }
 

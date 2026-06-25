@@ -41,10 +41,6 @@ public class Bounds {
         return new Bounds(xMin, xMax, yMin, yMax, y2Min, y2Max);
     }
 
-    public Point toPoint(Rectangle pa, int xValue, long yValue) {
-        return new Point(toX(pa, xValue), toY(pa, yValue));
-    }
-
     public int toX(Rectangle pa, long xValue) {
         if (xDelta() == 0) return pa.width / 2 + pa.x;
         return pa.x + (int) (((xValue - xMin) * pa.width) / xDelta());
