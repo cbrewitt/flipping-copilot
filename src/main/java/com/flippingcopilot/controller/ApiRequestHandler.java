@@ -32,7 +32,7 @@ import java.util.function.Consumer;
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class ApiRequestHandler {
 
-    private static final String serverUrl = System.getenv("FLIPPING_COPILOT_HOST") != null ? System.getenv("FLIPPING_COPILOT_HOST")  : "https://api.flippingcopilot.com";
+    private static final String serverUrl = System.getProperty("flippingcopilot.api.host", "https://api.flippingcopilot.com");
     private static final String serverFeUrl = serverUrl.replace("api.", "");
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
     private static final MediaType PROTO_MEDIA_TYPE = MediaType.get("application/protobuf");
