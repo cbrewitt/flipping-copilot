@@ -41,7 +41,7 @@ public class Config {
     public static Color GRAPH_BUTTON_HOVER_COLOR = new Color(100,100,100);
 
     // configurable properties
-    public boolean connectPoints = false;
+    public boolean connectPoints = true;
     public boolean showSuggestedPriceLines = true;
     public Color lowColor = new Color(0, 153, 255);
     public Color highColor = new Color(255, 102, 0);
