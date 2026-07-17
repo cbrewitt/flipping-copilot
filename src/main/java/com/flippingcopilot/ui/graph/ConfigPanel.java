@@ -49,12 +49,17 @@ public class ConfigPanel extends JPanel {
         // boolean
         addBooleanSetting(settingsPanel, c, "connectPoints", configInstance.isConnectPoints());
         addBooleanSetting(settingsPanel, c, "showSuggestedPriceLines", configInstance.isShowSuggestedPriceLines());
+        addBooleanSetting(settingsPanel, c, "showEma", configInstance.isShowEma());
+        addBooleanSetting(settingsPanel, c, "showBollinger", configInstance.isShowBollinger());
 
         // colours
         addColorSetting(settingsPanel, c, "lowColor", configInstance.getLowColor());
         addColorSetting(settingsPanel, c, "highColor", configInstance.getHighColor());
         addColorSetting(settingsPanel, c, "lowShadeColor", configInstance.getLowShadeColor());
         addColorSetting(settingsPanel, c, "highShadeColor", configInstance.getHighShadeColor());
+        addColorSetting(settingsPanel, c, "emaUpColor", configInstance.getEmaUpColor());
+        addColorSetting(settingsPanel, c, "emaDownColor", configInstance.getEmaDownColor());
+        addColorSetting(settingsPanel, c, "bollingerCloudColor", configInstance.getBollingerCloudColor());
         addColorSetting(settingsPanel, c, "backgroundColor", configInstance.getBackgroundColor());
         addColorSetting(settingsPanel, c, "plotAreaColor", configInstance.getPlotAreaColor());
         addColorSetting(settingsPanel, c, "textColor", configInstance.getTextColor());
@@ -175,12 +180,19 @@ public class ConfigPanel extends JPanel {
             configInstance.setConnectPoints(connectPointsBox.isSelected());
             JCheckBox showSuggestedPriceLinesBox = (JCheckBox) configComponents.get("showSuggestedPriceLines");
             configInstance.setShowSuggestedPriceLines(showSuggestedPriceLinesBox.isSelected());
+            JCheckBox showEmaBox = (JCheckBox) configComponents.get("showEma");
+            configInstance.setShowEma(showEmaBox.isSelected());
+            JCheckBox showBollingerBox = (JCheckBox) configComponents.get("showBollinger");
+            configInstance.setShowBollinger(showBollingerBox.isSelected());
 
             // colours
             configInstance.setLowColor(extractColor("lowColor"));
             configInstance.setHighColor(extractColor("highColor"));
             configInstance.setLowShadeColor(extractColor("lowShadeColor"));
             configInstance.setHighShadeColor(extractColor("highShadeColor"));
+            configInstance.setEmaUpColor(extractColor("emaUpColor"));
+            configInstance.setEmaDownColor(extractColor("emaDownColor"));
+            configInstance.setBollingerCloudColor(extractColor("bollingerCloudColor"));
             configInstance.setBackgroundColor(extractColor("backgroundColor"));
             configInstance.setPlotAreaColor(extractColor("plotAreaColor"));
             configInstance.setTextColor(extractColor("textColor"));

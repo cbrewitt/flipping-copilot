@@ -29,6 +29,8 @@ public class DataManager {
     public int minEntryTime;
     public int maxCloseTime;
     public Bounds maxBounds = new Bounds();
+    public Indicators indicators1h;
+    public Indicators indicators5m;
 
     public final Data data;
     private final VisualizeFlipResponse fpr;
@@ -46,7 +48,15 @@ public class DataManager {
         this.data = data;
         this.fpr = fpr;
         processDatapoints();
+        computeIndicators();
         calculateStats();
+    }
+
+    private void computeIndicators() {
+        indicators1h = Indicators.compute(data.low1hTimes, data.low1hPrices,
+                data.high1hTimes, data.high1hPrices, 3600);
+        indicators5m = Indicators.compute(data.low5mTimes, data.low5mPrices,
+                data.high5mTimes, data.high5mPrices, 300);
     }
 
     public Datapoint findClosestPoint(Point mousePos, int hoverRadius, Rectangle pa, Bounds bounds) {
@@ -102,6 +112,28 @@ public class DataManager {
         Bounds b = calculateBounds((p) -> p.time > finalXMin && p.time < finalXMax);
         b.xMax = xMax;
         b.xMin = xMin;
+        return b;
+    }
+
+    public Bounds calculateDayBounds() {
+        // Anchor on the most recent real price point ("now"), not maxBounds.xMax (the prediction horizon)
+        // otherwise a 24h window is dominated by future prediction data.
+        int now = Math.max(lastLowTime, lastHighTime);
+        int start = now - 24 * Constants.HOUR_SECONDS;
+        Bounds b = calculateBounds((p) -> p.time > start && p.time <= now);
+        b.xMin = (start / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS;
+        b.xMax = (now / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS + Constants.HOUR_SECONDS;
+        return b;
+    }
+
+    public Bounds calculateEightHourBounds() {
+        // Anchor on the most recent real price point ("now"), not maxBounds.xMax (the prediction horizon)
+        // otherwise an 8h window is dominated by future prediction data.
+        int now = Math.max(lastLowTime, lastHighTime);
+        int start = now - 8 * Constants.HOUR_SECONDS;
+        Bounds b = calculateBounds((p) -> p.time > start && p.time <= now);
+        b.xMin = (start / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS;
+        b.xMax = (now / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS + Constants.HOUR_SECONDS;
         return b;
     }
 

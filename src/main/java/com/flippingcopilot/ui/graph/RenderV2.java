@@ -407,4 +407,92 @@ public class RenderV2 {
 
         g2d.setClip(originalClip);
     }
+
+    public void drawEmaCloud(Graphics2D g2d, Rectangle pa, Bounds bounds, IndicatorSeries fast, IndicatorSeries slow, Color upColor, Color downColor) {
+        if (fast == null || slow == null || fast.times.length == 0 || slow.times.length == 0) return;
+
+        // align fast and slow by timestamp (two-pointer walk; slow.times is a
+        // later-starting subset of fast.times with matching timestamps where they overlap)
+        int n = Math.min(fast.times.length, slow.times.length);
+        int[] alignedTimes = new int[n];
+        double[] fastVals = new double[n];
+        double[] slowVals = new double[n];
+        int count = 0;
+        int i = 0;
+        int j = 0;
+        while (i < fast.times.length && j < slow.times.length) {
+            if (fast.times[i] == slow.times[j]) {
+                alignedTimes[count] = fast.times[i];
+                fastVals[count] = fast.values[i];
+                slowVals[count] = slow.values[j];
+                count++;
+                i++;
+                j++;
+            } else if (fast.times[i] < slow.times[j]) {
+                i++;
+            } else {
+                j++;
+            }
+        }
+
+        if (count < 2) return;
+
+        java.awt.Shape originalClip = g2d.getClip();
+        g2d.setClip(pa.x, pa.y, pa.width, pa.height);
+
+        for (int k = 0; k < count - 1; k++) {
+            int x1 = bounds.toX(pa, alignedTimes[k]);
+            int x2 = bounds.toX(pa, alignedTimes[k + 1]);
+            int fastY1 = bounds.toY(pa, Math.round(fastVals[k]));
+            int slowY1 = bounds.toY(pa, Math.round(slowVals[k]));
+            int fastY2 = bounds.toY(pa, Math.round(fastVals[k + 1]));
+            int slowY2 = bounds.toY(pa, Math.round(slowVals[k + 1]));
+
+            Path2D.Float quad = new Path2D.Float();
+            quad.moveTo(x1, fastY1);
+            quad.lineTo(x1, slowY1);
+            quad.lineTo(x2, slowY2);
+            quad.lineTo(x2, fastY2);
+            quad.closePath();
+
+            g2d.setColor(fastVals[k] >= slowVals[k] ? upColor : downColor);
+            g2d.fill(quad);
+        }
+
+        g2d.setClip(originalClip);
+    }
+
+    public void drawIndicatorBand(Graphics2D g2d, Rectangle pa, Bounds bounds, IndicatorBand band, Color shadeColor) {
+        if (band == null || band.times.length < 2) return;
+
+        java.awt.Shape originalClip = g2d.getClip();
+        g2d.setClip(pa.x, pa.y, pa.width, pa.height);
+
+        // shaded fill: lower edge forward, upper edge backward
+        Path2D.Float fill = new Path2D.Float();
+        fill.moveTo(bounds.toX(pa, band.times[0]), bounds.toY(pa, Math.round(band.lower[0])));
+        for (int i = 1; i < band.times.length; i++) {
+            fill.lineTo(bounds.toX(pa, band.times[i]), bounds.toY(pa, Math.round(band.lower[i])));
+        }
+        for (int i = band.times.length - 1; i >= 0; i--) {
+            fill.lineTo(bounds.toX(pa, band.times[i]), bounds.toY(pa, Math.round(band.upper[i])));
+        }
+        fill.closePath();
+        g2d.setColor(shadeColor);
+        g2d.fill(fill);
+
+        // thin upper/middle/lower lines, opaque version of the shade color
+        Color lineColor = new Color(shadeColor.getRed(), shadeColor.getGreen(), shadeColor.getBlue());
+        g2d.setColor(lineColor);
+        g2d.setStroke(Config.THIN_STROKE);
+        for (double[] edge : new double[][]{band.lower, band.upper, band.middle}) {
+            Path2D.Float path = new Path2D.Float();
+            path.moveTo(bounds.toX(pa, band.times[0]), bounds.toY(pa, Math.round(edge[0])));
+            for (int i = 1; i < band.times.length; i++) {
+                path.lineTo(bounds.toX(pa, band.times[i]), bounds.toY(pa, Math.round(edge[i])));
+            }
+            g2d.draw(path);
+        }
+        g2d.setClip(originalClip);
+    }
 }
