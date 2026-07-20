@@ -131,6 +131,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	private PatchNotesController patchNotesController;
 	@Inject
 	private PortfolioBankTagController portfolioBankTagController;
+	@Inject
+	private PlayerLocationController playerLocationController;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -242,6 +244,9 @@ public class FlippingCopilotPlugin extends Plugin {
 		if (bankChanged || (inventoryChanged && isBankOpen())) {
 			bankStateRS.onGameTick();
 			clientThread.invokeLater(() -> highlightController.redraw());
+		}
+		if (bankChanged && playerLocationController.isNearGE()) {
+			suggestionManager.setSuggestionNeeded(true);
 		}
 
 		if (event.getContainerId() == InventoryID.INV && grandExchange.isOpen()) {

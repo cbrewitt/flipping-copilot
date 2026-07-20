@@ -6,8 +6,10 @@ import com.flippingcopilot.controller.PlayerLocationController;
 import com.flippingcopilot.model.PortfolioItemCardData;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import lombok.RequiredArgsConstructor;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetItem;
+import net.runelite.api.widgets.WidgetUtil;
 import net.runelite.client.ui.overlay.WidgetItemOverlay;
 import net.runelite.client.util.ImageUtil;
 
@@ -71,12 +73,26 @@ public class InventoryPortfolioBadgeOverlay extends WidgetItemOverlay {
         }
 
         Widget widget = widgetItem.getWidget();
+        if (isBankItemWidget(widget) && !itemData.hasPortfolioQuantityInBank()) {
+            return;
+        }
+
         Rectangle bounds = widget == null ? widgetItem.getCanvasBounds() : widget.getBounds();
         if (bounds == null) {
             return;
         }
 
         drawPortfolioBadge(graphics, bounds);
+    }
+
+    private boolean isBankItemWidget(Widget widget) {
+        if (widget == null) {
+            return false;
+        }
+
+        Widget parent = widget.getParent();
+        int parentId = parent == null ? widget.getParentId() : parent.getId();
+        return WidgetUtil.componentToInterface(parentId) == InterfaceID.BANKMAIN;
     }
 
     private void drawPortfolioBadge(Graphics2D graphics, Rectangle slotBounds) {
