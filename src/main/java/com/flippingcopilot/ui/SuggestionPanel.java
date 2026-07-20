@@ -350,7 +350,7 @@ public class SuggestionPanel extends JPanel {
     }
 
     public void suggestScanningForDumps() {
-        setMessage("Scanning for dumps...");
+        setMessage("Waiting for dumps...");
         setButtonsVisible(false);
     }
 
