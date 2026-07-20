@@ -43,6 +43,9 @@ public class KeybindHandler {
         this.suggestionController = suggestionController;
         this.flipsDialogController = flipsDialogController;
         this.keyListener = createKeyListener();
+    }
+
+    public void register() {
         keyManager.registerKeyListener(keyListener);
     }
 

@@ -151,6 +151,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Override
 	protected void startUp() throws Exception {
 		boolean hadExistingInstallation = Persistance.hasExistingInstallation();
+		keybindHandler.register();
 		overlayManager.add(inventorySlotTooltipOverlay);
 		overlayManager.add(inventoryPortfolioBadgeOverlay);
 		portfolioBankTagController.startUp();
