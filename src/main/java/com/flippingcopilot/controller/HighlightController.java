@@ -157,9 +157,9 @@ public class HighlightController {
         if (target == null) {
             return;
         }
-        boolean isDumpSuggestion = suggestion.isDumpSuggestion();
+        boolean flashHighlight = suggestion.isBuyDumpSuggestion();
         addNpcHighlight(target, () -> {
-            Color base = highlightColorController.getBlueColor(isDumpSuggestion);
+            Color base = highlightColorController.getBlueColor(flashHighlight);
             if (base == null) {
                 return null;
             }
@@ -212,10 +212,10 @@ public class HighlightController {
     }
 
     private boolean drawHomeScreenHighLights(Suggestion suggestion) {
-        boolean isDumpSuggestion = suggestion.isDumpSuggestion();
-        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
-        Supplier<Color> redHighlight = () -> highlightColorController.getRedColor(isDumpSuggestion);
-        Supplier<Color> amberHighlight = () -> highlightColorController.getAmberColor(isDumpSuggestion);
+        boolean flashHighlight = suggestion.isBuyDumpSuggestion();
+        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(flashHighlight);
+        Supplier<Color> redHighlight = () -> highlightColorController.getRedColor(flashHighlight);
+        Supplier<Color> amberHighlight = () -> highlightColorController.getAmberColor(flashHighlight);
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if (accountStatus.isCollectNeeded(suggestion, grandExchange.isSetupOfferOpen())) {
             Widget collectButton = grandExchange.getCollectButton();
@@ -255,8 +255,8 @@ public class HighlightController {
     }
 
     private boolean drawSellFromBankHighlight(Suggestion suggestion, AccountStatus accountStatus) {
-        boolean isDumpSuggestion = suggestion.isDumpSuggestion();
-        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
+        boolean flashHighlight = suggestion.isBuyDumpSuggestion();
+        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(flashHighlight);
 
         Widget bankItemWidget = getBankItemWidget(suggestion.getItemId());
         if (bankItemWidget != null && !bankItemWidget.isHidden()) {
@@ -286,8 +286,8 @@ public class HighlightController {
             return false;
         }
 
-        boolean isDumpSuggestion = suggestion.isDumpSuggestion();
-        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
+        boolean flashHighlight = suggestion.isBuyDumpSuggestion();
+        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(flashHighlight);
         add(closeButton, blueHighlight, new Rectangle(CLOSE_BUTTON_HIGHLIGHT_BOUNDS));
         return true;
     }
@@ -311,8 +311,8 @@ public class HighlightController {
     }
 
     private void drawOfferScreenHighlights(Suggestion suggestion) {
-        boolean isDumpSuggestion = suggestion.isDumpSuggestion();
-        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(isDumpSuggestion);
+        boolean flashHighlight = suggestion.isBuyDumpSuggestion();
+        Supplier<Color> blueHighlight = () -> highlightColorController.getBlueColor(flashHighlight);
         GEOfferScreenSetupOfferState s = grandExchange.getOfferScreenSetupOfferState();
         if (s == null) {
             return;
@@ -326,8 +326,8 @@ public class HighlightController {
         boolean offerTypeMatches = Objects.equals(s.offerType, suggestion.offerType());
         boolean itemMatches = s.currentItemId == suggestion.getItemId();
 
-        // Prioritise certain dump alert cases
-        if (suggestion.isDumpSuggestion()) {
+        // Prioritise certain buy dump alert cases
+        if (suggestion.isBuyDumpSuggestion()) {
             if (!offerTypeMatches || accountStatusManager.getAccountStatus().isCollectNeeded(suggestion, grandExchange.isSetupOfferOpen())) {
                 highlightBackButton(blueHighlight);
             } else if (!s.searchOpen && s.currentItemId != -1 && !itemMatches) {
