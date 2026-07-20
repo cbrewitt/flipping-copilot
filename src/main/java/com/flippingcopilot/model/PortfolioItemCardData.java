@@ -20,6 +20,17 @@ public class PortfolioItemCardData {
         return portfolioQuantity > 0;
     }
 
+    public int getPortfolioBankQuantity() {
+        long quantityOutsideBank = Math.max(0L, runeliteGeQuantity)
+                + Math.max(0L, runeliteInventoryQuantity);
+        long bankPortfolioQuantity = Math.max(0L, (long) portfolioQuantity - quantityOutsideBank);
+        return (int) Math.min(Math.max(0L, suggestionBankQuantity), bankPortfolioQuantity);
+    }
+
+    public boolean hasPortfolioQuantityInBank() {
+        return getPortfolioBankQuantity() > 0;
+    }
+
     public long inventoryTooltipUnrealizedProfit() {
         return ((long) runeliteInventoryQuantity + suggestionBankQuantity) * safeUnrealizedUnitProfit();
     }

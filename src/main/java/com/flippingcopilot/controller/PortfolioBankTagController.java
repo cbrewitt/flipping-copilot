@@ -175,7 +175,7 @@ public class PortfolioBankTagController {
 
         Set<Integer> itemIds = new HashSet<>();
         for (PortfolioItemCardData item : portfolioState.getItemCardDataByItemId().values()) {
-            if (item != null && item.isInPortfolio()) {
+            if (item != null && item.hasPortfolioQuantityInBank()) {
                 int itemId = canonicalize(item.getItemId());
                 if (bankItems.contains(itemId)) {
                     itemIds.add(itemId);
