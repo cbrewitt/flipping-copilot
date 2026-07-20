@@ -207,8 +207,8 @@ public class Suggestion {
         return isDumpAlert && actionedTick == -1 && dumpAlertReceived.isAfter(Instant.now().minusSeconds(10));
     }
 
-    public boolean isDumpSuggestion() {
-        return isDumpAlert && !isAbortSuggestion();
+    public boolean isBuyDumpSuggestion() {
+        return isDumpAlert && type == SuggestionType.BUY;
     }
 
     public String toMessage() {

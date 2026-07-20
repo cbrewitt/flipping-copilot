@@ -88,7 +88,7 @@ public class GePreviousSearch {
             if (text == null) {
                 continue;
             }
-            if(text.startsWith("Copilot item:") || text.startsWith("Scanning for dumps...")) {
+            if(text.startsWith("Copilot item:") || text.startsWith("Waiting for dumps...")) {
                 return true;
             }
         }
@@ -136,7 +136,7 @@ public class GePreviousSearch {
 
         Widget previousSearchText = searchResults.getChild(1);
         if (previousSearchText != null) {
-            previousSearchText.setText("Scanning for dumps...");
+            previousSearchText.setText("Waiting for dumps...");
             previousSearchText.setOriginalWidth(256);
             previousSearchText.setXTextAlignment(WidgetTextAlignment.CENTER);
             previousSearchText.revalidate();
