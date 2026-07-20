@@ -122,6 +122,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private InventoryPortfolioBadgeOverlay inventoryPortfolioBadgeOverlay;
 	@Inject
+	private PortfolioBankTabBadgeOverlay portfolioBankTabBadgeOverlay;
+	@Inject
 	private BankStateRS bankStateRS;
 	@Inject
 	private GeHistoryStateRS geHistoryStateRS;
@@ -154,6 +156,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		keybindHandler.register();
 		overlayManager.add(inventorySlotTooltipOverlay);
 		overlayManager.add(inventoryPortfolioBadgeOverlay);
+		overlayManager.add(portfolioBankTabBadgeOverlay);
 		portfolioBankTagController.startUp();
 		highlightController.activate();
 		Persistance.setUp(gson);
@@ -203,6 +206,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	protected void shutDown() throws Exception {
 		overlayManager.remove(inventorySlotTooltipOverlay);
 		overlayManager.remove(inventoryPortfolioBadgeOverlay);
+		overlayManager.remove(portfolioBankTabBadgeOverlay);
 		portfolioBankTagController.shutDown();
 		offerManager.saveAll();
 		highlightController.deactivateAndRemoveAll();
