@@ -10,6 +10,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.gameval.ItemID;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.PluginManager;
@@ -38,6 +39,7 @@ public class PortfolioBankTagController {
     private static final String LEGACY_TAB_ICON_ITEM_ID = String.valueOf(ItemController.PLATINUM_TOKENS_ITEM_ID);
 
     private final FlippingCopilotConfig config;
+    private final ClientThread clientThread;
     private final ConfigManager configManager;
     private final PluginManager pluginManager;
     private final BankTagsPlugin bankTagsPlugin;
@@ -48,12 +50,15 @@ public class PortfolioBankTagController {
     private final BankStateRS bankStateRS;
 
     private final AtomicBoolean registered = new AtomicBoolean(false);
+    private final AtomicBoolean active = new AtomicBoolean(false);
+    private final AtomicBoolean syncQueued = new AtomicBoolean(false);
     private volatile Set<Integer> bankedPortfolioItemIds = Collections.emptySet();
     private Runnable removePortfolioListener;
     private Runnable removeBankListener;
 
     @Inject
     public PortfolioBankTagController(FlippingCopilotConfig config,
+                                      ClientThread clientThread,
                                       ConfigManager configManager,
                                       PluginManager pluginManager,
                                       BankTagsPlugin bankTagsPlugin,
@@ -63,6 +68,7 @@ public class PortfolioBankTagController {
                                       PortfolioStateRS portfolioStateRS,
                                       BankStateRS bankStateRS) {
         this.config = config;
+        this.clientThread = clientThread;
         this.configManager = configManager;
         this.pluginManager = pluginManager;
         this.bankTagsPlugin = bankTagsPlugin;
@@ -74,12 +80,14 @@ public class PortfolioBankTagController {
     }
 
     public void startUp() {
-        removePortfolioListener = portfolioStateRS.registerListener(state -> sync());
-        removeBankListener = bankStateRS.registerListener(state -> sync());
-        sync();
+        active.set(true);
+        removePortfolioListener = portfolioStateRS.registerListener(state -> requestSync());
+        removeBankListener = bankStateRS.registerListener(state -> requestSync());
+        requestSync();
     }
 
     public void shutDown() {
+        active.set(false);
         if (removePortfolioListener != null) {
             removePortfolioListener.run();
             removePortfolioListener = null;
@@ -92,7 +100,22 @@ public class PortfolioBankTagController {
     }
 
     public void onConfigChanged() {
-        sync();
+        requestSync();
+    }
+
+    private void requestSync() {
+        if (!active.get() || !syncQueued.compareAndSet(false, true)) {
+            return;
+        }
+
+        // Plugin start-up runs on the AWT event thread when toggled from the plugin
+        // panel. ItemManager.canonicalize(), used by sync(), requires the client thread.
+        clientThread.invokeLater(() -> {
+            syncQueued.set(false);
+            if (active.get()) {
+                sync();
+            }
+        });
     }
 
     private void sync() {
