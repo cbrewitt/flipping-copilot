@@ -361,13 +361,14 @@ public class HighlightController {
             highlightQuantity(suggestion, s.offerQuantity, blueHighlight);
             return;
         }
+        if (suggestion.isAbortSuggestion()
+                || ((suggestion.isSellSuggestion() || suggestion.isModifySuggestion()) && s.isEmptyBuyState())) {
+            highlightBackButton(blueHighlight);
+            return;
+        }
         if(offerTypeMatches && s.currentItemId == -1 && s.searchOpen) {
             highlightItemInSearch(suggestion,blueHighlight);
             return;
-        }
-
-        if (suggestion.isAbortSuggestion() || (suggestion.isSellSuggestion() && s.isEmptyBuyState())) {
-            highlightBackButton(blueHighlight);
         }
 
     }
