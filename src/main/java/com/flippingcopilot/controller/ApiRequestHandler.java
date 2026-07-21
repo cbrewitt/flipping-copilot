@@ -36,6 +36,7 @@ public class ApiRequestHandler {
     private static final String serverFeUrl = serverUrl.replace("api.", "");
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
     private static final MediaType PROTO_MEDIA_TYPE = MediaType.get("application/protobuf");
+    private static final String GRAPH_DATA_PRICE_BITS_HEADER = "X-Graph-Data-Price-Bits";
     public static final String DEFAULT_COPILOT_PRICE_ERROR_MESSAGE = "Unable to fetch price copilot price (possible server update)";
     public static final String DEFAULT_PREMIUM_INSTANCE_ERROR_MESSAGE = "Error loading premium instance data (possible server update)";
     public static final String UNKNOWN_ERROR = "Unknown error";
@@ -225,6 +226,7 @@ public class ApiRequestHandler {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request.Builder rb = authed(jwtToken, "/suggestion")
                 .addHeader("Accept", "application/protobuf")
+                .addHeader(GRAPH_DATA_PRICE_BITS_HEADER, "64")
                 .addHeader("X-VERSION", "1")
                 .post(protoBody(status));
 
@@ -369,6 +371,7 @@ public class ApiRequestHandler {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = authed(jwtToken, "/profit-tracking/visualize-flip")
                 .addHeader("Accept", "application/x-msgpack")
+                .addHeader(GRAPH_DATA_PRICE_BITS_HEADER, "64")
                 .addHeader("X-VERSION", "1")
                 .post(jsonBody(body.toString()))
                 .build();
@@ -392,6 +395,7 @@ public class ApiRequestHandler {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = authed(jwtToken, "/prices")
                 .addHeader("Accept", "application/x-msgpack")
+                .addHeader(GRAPH_DATA_PRICE_BITS_HEADER, "64")
                 .addHeader("X-VERSION", "1")
                 .post(jsonBody(body.toString()))
                 .build();
@@ -465,13 +469,13 @@ public class ApiRequestHandler {
                 response -> onSuccess.accept(FlipV2.decodeProto(response.body().bytes())));
     }
 
-    public void asyncAddMissedSale(UUID flipId, int price, int quantity,
+    public void asyncAddMissedSale(UUID flipId, long price, int quantity,
                                    BiConsumer<Integer, List<FlipV2>> onSuccess,
                                    Consumer<HttpResponseException> onFailure) {
         byte[] body = ProtoUtils.encodeMessage(out -> {
             out.writeByteArray(1, ProtoUtils.uuidToBytes(flipId));
-            out.writeInt32(2, price);
             out.writeInt32(3, quantity);
+            out.writeInt64(4, price);
         });
         postProtoExpectingFlips("/profit-tracking/add-missed-sale", body,
                 "add missed sale flip=" + flipId, onSuccess, onFailure);
@@ -567,13 +571,12 @@ public class ApiRequestHandler {
         AccountClientTransactionsRequest body = new AccountClientTransactionsRequest(0, 0);
 
         Request request = authed(jwtToken, "/profit-tracking/account-client-transactions?display_name=" + encodedDisplayName)
-                .header("Accept", "application/x-bytes")
+                .header("Accept", "application/protobuf")
                 .post(protoBody(body.encodeProto()))
                 .build();
 
         enqueue(request, jwtToken, "load transactions", stringFailure(onFailure), response -> {
-            byte[] data = response.body().bytes();
-            onSuccess.accept(Arrays.copyOfRange(data, 4, data.length-4));
+            onSuccess.accept(AckedTransaction.listDecodeProto(response.body().bytes()));
         });
     }
 

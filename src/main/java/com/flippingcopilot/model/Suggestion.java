@@ -28,7 +28,7 @@ public class Suggestion {
     private SuggestionType type;
     private int boxId;
     private int itemId;
-    private int price;
+    private long price;
     private int quantity;
     private String name;
     private int id;
@@ -268,7 +268,7 @@ public class Suggestion {
                     s.itemId = (int) (long) MsgPackUtil.decodePrimitive(b);
                     break;
                 case "p":
-                    s.price = (int) (long) MsgPackUtil.decodePrimitive(b);
+                    s.price = (long) MsgPackUtil.decodePrimitive(b);
                     break;
                 case "q":
                     s.quantity = (int) (long) MsgPackUtil.decodePrimitive(b);
@@ -338,7 +338,7 @@ public class Suggestion {
                         suggestion.quantity = clampToInt(input.readInt64());
                         break;
                     case 6:
-                        suggestion.price = clampToInt(input.readInt64());
+                        suggestion.price = input.readInt64();
                         break;
                     case 7:
                         suggestion.id = input.readInt32();

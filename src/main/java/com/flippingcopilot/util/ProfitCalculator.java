@@ -14,8 +14,8 @@ import java.util.HashSet;
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class ProfitCalculator {
     private static final int GE_SLOT_COUNT = 8;
-    private final static int MAX_PRICE_FOR_GE_TAX = 250000000;
-    private final static int GE_TAX_CAP = 5000000;
+    private final static long MAX_PRICE_FOR_GE_TAX = 250000000;
+    private final static long GE_TAX_CAP = 5000000;
     private final static double GE_TAX = 0.02;
     private final static HashSet<Integer> GE_TAX_EXEMPT_ITEMS = new HashSet<>(
             Arrays.asList(8011, 365, 2309, 882, 806, 1891, 8010, 1755, 28824, 2140, 2142, 8009, 5325, 1785, 2347, 347,
@@ -26,11 +26,11 @@ public class ProfitCalculator {
     private final OfferManager offerManager;
     private final PortfolioStateRS portfolioStateRS;
 
-    public static int getPostTaxPrice(int itemId, int price) {
+    public static long getPostTaxPrice(int itemId, long price) {
         return price - getTaxAmount(itemId, price);
     }
 
-    public static int getTaxAmount(int itemId, int price) {
+    public static long getTaxAmount(int itemId, long price) {
         if (GE_TAX_EXEMPT_ITEMS.contains(itemId)) {
             return 0;
         }
@@ -39,10 +39,10 @@ public class ProfitCalculator {
             return GE_TAX_CAP;
         }
 
-        return (int)Math.floor(price * GE_TAX);
+        return (long) Math.floor(price * GE_TAX);
     }
 
-    public static long calculateProfitPerItem(int itemId, int sellPrice, long avgBuyPrice) {
+    public static long calculateProfitPerItem(int itemId, long sellPrice, long avgBuyPrice) {
         return getPostTaxPrice(itemId, sellPrice) - avgBuyPrice;
     }
 
@@ -95,7 +95,7 @@ public class ProfitCalculator {
         return null;
     }
 
-    public Long calculateProfitPerItem(int itemId, int sellPrice) {
+    public Long calculateProfitPerItem(int itemId, long sellPrice) {
         if (sellPrice <= 0) {
             return null;
         }

@@ -35,9 +35,9 @@ public class DataManager {
     public double priceChange24H = 0;
     public double priceChangeWeek = 0;
     public int lastLowTime = 0;
-    public int lastLowPrice = 0;
+    public long lastLowPrice = 0;
     public int lastHighTime = 0;
-    public int lastHighPrice = 0;
+    public long lastHighPrice = 0;
     public long margin;
     public long tax;
     public long profit;
@@ -125,8 +125,8 @@ public class DataManager {
 
         b.xMin = Integer.MAX_VALUE;
         b.xMax = Integer.MIN_VALUE;
-        b.yMax =  Integer.MIN_VALUE;
-        b.yMin = Integer.MAX_VALUE;
+        b.yMax = Long.MIN_VALUE;
+        b.yMin = Long.MAX_VALUE;
         b.y2Min = 0;
         b.y2Max = 10;
 
@@ -136,8 +136,8 @@ public class DataManager {
         for(List<Datapoint> datapoints : Arrays.asList(highDatapoints, lowDatapoints, predictionLowDatapoints, predictionHighDatapoints, flipEntryDatapoints, flipCloseDatapoints)) {
             for (Datapoint d : datapoints) {
                 if (p.test(d)) {
-                    yMean = (n * yMean + (long) d.price) / (n+1);
-                    n+=1;
+                    n += 1;
+                    yMean += (d.price - yMean) / n;
 
                     b.xMin = Math.min(b.xMin, d.time);
                     b.xMax = Math.max(b.xMax, d.time);
@@ -168,23 +168,22 @@ public class DataManager {
             }
             d.time -= Constants.HOUR_SECONDS;
         }
-        b.y2Max = (int) (1.1*b.y2Max);
-        int pricePadding = (int) (0.03 * yMean);
-        if (pricePadding < 1) pricePadding = 1;
+        b.y2Max += b.y2Max / 10;
+        long pricePadding = Math.max(1L, (yMean / 100) * 3 + ((yMean % 100) * 3) / 100);
 
-        b.yMin = Math.max(0, b.yMin - pricePadding);
-        b.yMax+= pricePadding;
+        b.yMin = Math.max(0L, b.yMin - Math.min(b.yMin, pricePadding));
+        b.yMax = b.yMax > Long.MAX_VALUE - pricePadding ? Long.MAX_VALUE : b.yMax + pricePadding;
 
         return b;
     }
 
     private void addPriceDatapoints(List<Datapoint> target,
                                     int[] latestTimes,
-                                    int[] latestPrices,
+                                    long[] latestPrices,
                                     int[] fiveMinTimes,
-                                    int[] fiveMinPrices,
+                                    long[] fiveMinPrices,
                                     int[] hourTimes,
-                                    int[] hourPrices,
+                                    long[] hourPrices,
                                     boolean isLow) {
         for (int i = 0; i < latestTimes.length; i++) {
             target.add(new Datapoint(latestTimes[i], latestPrices[i], isLow, Datapoint.Type.INSTA_SELL_BUY));
@@ -207,7 +206,7 @@ public class DataManager {
 
     private void addHistoricalPoints(List<Datapoint> target,
                                      int[] times,
-                                     int[] prices,
+                                     long[] prices,
                                      int cut,
                                      boolean isLow,
                                      Datapoint.Type type) {
@@ -308,9 +307,10 @@ public class DataManager {
         int cut24h = (int) Instant.now().minus(Duration.ofDays(1)).getEpochSecond();
         int cutWeek = (int) Instant.now().minus(Duration.ofDays(7)).getEpochSecond();
         if (!lowDatapoints.isEmpty() && !highDatapoints.isEmpty()){
-            double priceCurrent = (lowDatapoints.get(lowDatapoints.size()-1).price *0.5 + highDatapoints.get(highDatapoints.size()-1).price *0.5);
-            this.priceChange24H = priceChangeSince(cut24h, priceCurrent);
-            this.priceChangeWeek = priceChangeSince(cutWeek, priceCurrent);
+            long currentLowPrice = lowDatapoints.get(lowDatapoints.size() - 1).price;
+            long currentHighPrice = highDatapoints.get(highDatapoints.size() - 1).price;
+            this.priceChange24H = priceChangeSince(cut24h, currentLowPrice, currentHighPrice);
+            this.priceChangeWeek = priceChangeSince(cutWeek, currentLowPrice, currentHighPrice);
         }
 
         if(!highDatapoints.isEmpty()) {
@@ -324,29 +324,30 @@ public class DataManager {
         }
 
         margin = data.sellPrice - data.buyPrice;
-        tax = data.sellPrice - ProfitCalculator.getPostTaxPrice(data.itemId, (int) data.sellPrice);
+        tax = ProfitCalculator.getTaxAmount(data.itemId, data.sellPrice);
         profit = margin - tax;
     }
 
-    private double priceChangeSince(int cut, double currentPrice) {
-        double lowPrice = firstPriceAfter(lowDatapoints, cut, currentPrice);
-        double highPrice = firstPriceAfter(highDatapoints, cut, currentPrice);
+    private double priceChangeSince(int cut, long currentLowPrice, long currentHighPrice) {
+        long lowPrice = firstPriceAfter(lowDatapoints, cut, currentLowPrice);
+        long highPrice = firstPriceAfter(highDatapoints, cut, currentHighPrice);
+        double currentPrice = currentLowPrice * 0.5 + currentHighPrice * 0.5;
         double oldPrice = lowPrice * 0.5 + highPrice * 0.5;
         return oldPrice > 0 ? (currentPrice - oldPrice) / oldPrice : 0;
     }
 
-    private double firstPriceAfter(List<Datapoint> datapoints, int cut, double fallback) {
+    private long firstPriceAfter(List<Datapoint> datapoints, int cut, long fallback) {
         return datapoints.stream()
                 .filter(i -> i.time > cut)
                 .findFirst()
-                .map(i -> (double) i.price)
+                .map(i -> i.price)
                 .orElse(fallback);
     }
 
     public List<Datapoint> sellPriceDataPoint() {
         return Collections.singletonList(new Datapoint(
                 (int) Instant.now().getEpochSecond(),
-                (int) data.sellPrice,
+                data.sellPrice,
                 false,
                 Datapoint.Type.PREDICTION
         ));
@@ -355,7 +356,7 @@ public class DataManager {
     public List<Datapoint> buyPriceDataPoint() {
         return Collections.singletonList(new Datapoint(
                 (int) Instant.now().getEpochSecond(),
-                (int) data.buyPrice,
+                data.buyPrice,
                 true,
                 Datapoint.Type.PREDICTION
         ));

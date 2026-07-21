@@ -312,9 +312,9 @@ public class TransactionsPanel extends JPanel {
 
     private long calculateTax(AckedTransaction tx) {
         if (tx.getQuantity() < 0) {
-            int pricePerItem = tx.getAmountSpent() / tx.getQuantity();
-            int pricePostTax = ProfitCalculator.getPostTaxPrice(tx.getItemId(), pricePerItem);
-            return (long) (pricePerItem - pricePostTax) * tx.getQuantity();
+            long pricePerItem = tx.getAmountSpent() / tx.getQuantity();
+            long pricePostTax = ProfitCalculator.getPostTaxPrice(tx.getItemId(), pricePerItem);
+            return (pricePerItem - pricePostTax) * tx.getQuantity();
         }
         return 0;
     }

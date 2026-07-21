@@ -91,7 +91,7 @@ public class RenderV2 {
     }
 
 
-    public void drawPredictionIQR(Graphics2D g2d,Config config, Rectangle pa,  Bounds bounds, int[] times, int[] lowerPrices, int[] upperPrices, boolean isLow) {
+    public void drawPredictionIQR(Graphics2D g2d,Config config, Rectangle pa, Bounds bounds, int[] times, long[] lowerPrices, long[] upperPrices, boolean isLow) {
         if (times.length < 2) return;
 
         // Set appropriate color

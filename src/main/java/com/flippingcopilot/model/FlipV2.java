@@ -48,8 +48,8 @@ public class FlipV2 {
             return 0;
         }
         long gpOut = (spent * amountToClose) / openedQuantity;
-        int sellPrice  = (int) (transaction.getAmountSpent() / transaction.getQuantity());
-        int sellPricePostTax = ProfitCalculator.getPostTaxPrice(transaction.getItemId(), sellPrice);
+        long sellPrice = transaction.getAmountSpent() / transaction.getQuantity();
+        long sellPricePostTax = ProfitCalculator.getPostTaxPrice(transaction.getItemId(), sellPrice);
         long gpIn = amountToClose * sellPricePostTax;
         return gpIn - gpOut;
     }

@@ -16,9 +16,9 @@ import java.nio.ByteBuffer;
 @ToString
 public class ItemPrice {
     @SerializedName("sell_price")
-    private int sellPrice;
+    private long sellPrice;
     @SerializedName("buy_price")
-    private  int buyPrice;
+    private long buyPrice;
     private  String message;
     @SerializedName("graph_data")
     private Data graphData;
@@ -33,10 +33,10 @@ public class ItemPrice {
             String key = (String) MsgPackUtil.decodePrimitive(b);
             switch (key) {
                 case "sp":
-                    ip.sellPrice = (int) (long)MsgPackUtil.decodePrimitive(b);
+                    ip.sellPrice = (long) MsgPackUtil.decodePrimitive(b);
                     break;
                 case "bp":
-                    ip.buyPrice = (int) (long) MsgPackUtil.decodePrimitive(b);
+                    ip.buyPrice = (long) MsgPackUtil.decodePrimitive(b);
                     break;
                 case "m":
                     ip.message = (String) MsgPackUtil.decodePrimitive(b);

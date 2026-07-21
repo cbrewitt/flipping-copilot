@@ -65,7 +65,7 @@ public class OfferEditor {
         } else if (offerHandler.isSettingPrice()) {
             if (currentItemId != suggestion.getItemId()
                     || !Objects.equals(suggestion.offerType(), offerHandler.getOfferType())) {
-                int price = offerManager.getViewedSlotItemPrice();
+                long price = offerManager.getViewedSlotItemPrice();
                 if (offerHandler.getViewedSlotPriceErrorText() != null && price <= 0) {
                     shiftChatboxWidgetsDown();
                     setErrorText(offerHandler.getViewedSlotPriceErrorText());
@@ -97,7 +97,7 @@ public class OfferEditor {
         });
     }
 
-    public void showPrice(int price) {
+    public void showPrice(long price) {
         text.setText(setActionText("Copilot price: " + String.format("%,d", price) + " gp"));
         text.setAction(0, "Set price");
         setHoverListeners(text);
@@ -107,7 +107,7 @@ public class OfferEditor {
         });
     }
 
-    private void showPriceWithWarning(int price, String warning) {
+    private void showPriceWithWarning(long price, String warning) {
         text.setText(setActionText("Copilot price: " + String.format("%,d", price) + " gp") + ". " + warning);
         text.setAction(0, "Set price");
         setHoverListeners(text);

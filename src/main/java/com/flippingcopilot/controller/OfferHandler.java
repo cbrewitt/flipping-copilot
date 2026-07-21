@@ -163,7 +163,7 @@ public class OfferHandler {
             }
             setChatboxValue(suggestion.getQuantity());
         } else if (isSettingPrice()) {
-            int price = -1;
+            long price = -1;
             if (suggestion == null || currentItemId != suggestion.getItemId()
                     || !Objects.equals(suggestion.offerType(), getOfferType())) {
                 if (offerManager.getViewedSlotItemId() != currentItemId) {
@@ -180,7 +180,7 @@ public class OfferHandler {
         }
     }
 
-    public void setChatboxValue(int value) {
+    public void setChatboxValue(long value) {
         var chatboxInputWidget = client.getWidget(ComponentID.CHATBOX_FULL_INPUT);
         if (chatboxInputWidget == null) return;
         chatboxInputWidget.setText(value + "*");

@@ -110,7 +110,7 @@ public class GrandExchangeOfferEventHandler {
         if(!consistent) {
             return;
         }
-        int uncollectedGp = 0;
+        long uncollectedGp = 0;
         int uncollectedItems = 0;
         switch (o.getState()) {
             case BUYING:
@@ -158,7 +158,7 @@ public class GrandExchangeOfferEventHandler {
         boolean login = client.getTickCount() <= osrsLoginManager.getLastLoginTick() + GE_LOGIN_BURST_WINDOW;
         boolean isNewOffer = isNewOffer(prev, offer);
         int quantityDiff = isNewOffer ? offer.getQuantitySold() : offer.getQuantitySold() - prev.getQuantitySold();
-        int amountSpentDiff = isNewOffer ? offer.getSpent() : offer.getSpent() - prev.getSpent();
+        long amountSpentDiff = isNewOffer ? offer.getSpent() : offer.getSpent() - prev.getSpent();
         if (quantityDiff > 0 && amountSpentDiff > 0) {
             Transaction t = new Transaction();
             t.setId(UUID.randomUUID());
