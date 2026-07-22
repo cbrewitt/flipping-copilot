@@ -281,7 +281,7 @@ public class MissedFlipsPanel extends JPanel {
 
     private void promptAndSubmitMissedSell(FlipV2 flip) {
         int qty = flip.getOpenedQuantity() - flip.getClosedQuantity();
-        int suggestedPrice = (int) (flip.getAvgBuyPrice() * 1.02);
+        long suggestedPrice = (long) (flip.getAvgBuyPrice() * 1.02);
 
         List<GeHistoryRow> sellMatches = findGeHistorySellMatches(flip);
 
@@ -331,13 +331,13 @@ public class MissedFlipsPanel extends JPanel {
             return;
         }
 
-        int price;
+        long price;
         PriceOption selected = priceCombo == null ? null : (PriceOption) priceCombo.getSelectedItem();
         if (selected != null && !selected.manual) {
             price = selected.price;
         } else {
             try {
-                price = Integer.parseInt(priceField.getText().trim());
+                price = Long.parseLong(priceField.getText().trim());
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(this,
                         "Please enter a valid number for the price.",
@@ -405,11 +405,11 @@ public class MissedFlipsPanel extends JPanel {
     }
 
     private static class PriceOption {
-        final int price;
+        final long price;
         final int quantity;
         final boolean manual;
 
-        PriceOption(int price, int quantity, boolean manual) {
+        PriceOption(long price, int quantity, boolean manual) {
             this.price = price;
             this.quantity = quantity;
             this.manual = manual;
@@ -451,7 +451,7 @@ public class MissedFlipsPanel extends JPanel {
         apiRequestHandler.asyncReviveGhostFlip(flip.getId(), onSuccess, onFailure);
     }
 
-    private boolean validateProfit(long profit, FlipV2 flip, int price) {
+    private boolean validateProfit(long profit, FlipV2 flip, long price) {
         long absProfit = Math.abs(profit);
         long avgBuyPrice = flip.getAvgBuyPrice();
         if (absProfit > 10_000_000L || (avgBuyPrice > 0 && price > avgBuyPrice * 5L)) {

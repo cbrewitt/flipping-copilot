@@ -15,7 +15,7 @@ import java.awt.geom.RoundRectangle2D;
 public class ZoomHandler {
 
     private static final int MIN_TIME_DELTA = 60*60;
-    private static final int MIN_PRICE_DELTA = 5;
+    private static final long MIN_PRICE_DELTA = 5;
     @Setter
     private Point selectionStart = null;
     @Setter
@@ -52,8 +52,8 @@ public class ZoomHandler {
         int newTimeMin = bounds.xMin + (int)(((long)bounds.xDelta() * (long)(x1 - pa.x)) / ((long) pa.width));
         int newTimeMax = bounds.xMin + (int)(((long)bounds.xDelta() * (long)(x2 - pa.x)) / ((long) pa.width));
 
-        int newPriceMax = (int) (bounds.yMax - ((bounds.yDelta() * (long)(y1 - pa.y)) / ((long) pa.height)));
-        int newPriceMin = (int) (bounds.yMax - ((bounds.yDelta() * (long)(y2 - pa.y)) / ((long) pa.height)));
+        long newPriceMax = interpolatePrice(bounds, y1 - pa.y, pa.height);
+        long newPriceMin = interpolatePrice(bounds, y2 - pa.y, pa.height);
 
         if (newTimeMax - newTimeMin < MIN_TIME_DELTA) {
             log.debug("zoomed time delta {}s too small", newTimeMax - newTimeMin);
@@ -84,10 +84,25 @@ public class ZoomHandler {
         int td = bounds.xDelta();
         bounds.xMin= Math.max(maxViewBounds.xMin, bounds.xMin- (int) (td*0.2));
         bounds.xMax = Math.min(maxViewBounds.xMax, bounds.xMax + (int) (td*0.2));
-        int pd = (int) bounds.yDelta();
-        bounds.yMin = Math.max(maxViewBounds.yMin, bounds.yMin - (int) (pd*0.1));
-        bounds.yMax = Math.min(maxViewBounds.yMax, bounds.yMax + (int) (pd*0.1));
-        bounds.y2Max = Math.min(maxViewBounds.y2Max, bounds.y2Max + (int) (pd*0.05));
+        long pd = bounds.yDelta();
+        bounds.yMin = Math.max(maxViewBounds.yMin, subtractSaturated(bounds.yMin, pd / 10));
+        bounds.yMax = Math.min(maxViewBounds.yMax, addSaturated(bounds.yMax, pd / 10));
+        bounds.y2Max = Math.min(maxViewBounds.y2Max, addSaturated(bounds.y2Max, pd / 20));
+    }
+
+    private long interpolatePrice(Bounds bounds, int pixelOffset, int pixelRange) {
+        long quotient = bounds.yDelta() / pixelRange;
+        long remainder = bounds.yDelta() % pixelRange;
+        long offset = quotient * pixelOffset + (remainder * pixelOffset) / pixelRange;
+        return bounds.yMax - offset;
+    }
+
+    private long addSaturated(long value, long delta) {
+        return value > Long.MAX_VALUE - delta ? Long.MAX_VALUE : value + delta;
+    }
+
+    private long subtractSaturated(long value, long delta) {
+        return value < Long.MIN_VALUE + delta ? Long.MIN_VALUE : value - delta;
     }
 
     public void applyHomeView(Bounds bounds) {

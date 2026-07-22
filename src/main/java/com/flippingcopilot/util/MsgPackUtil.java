@@ -117,6 +117,30 @@ public class MsgPackUtil {
         }
     }
 
+    public static long[] decodeLongArray(ByteBuffer b) {
+        int format = b.get() & 0xFF;
+        if (format == 0xC0) {
+            return null;
+        }
+
+        int arrayLength;
+        if ((format & 0xF0) == 0x90) {
+            arrayLength = format & 0x0F;
+        } else if (format == 0xDC) {
+            arrayLength = b.getShort() & 0xFFFF;
+        } else if (format == 0xDD) {
+            arrayLength = b.getInt();
+        } else {
+            throw new IllegalArgumentException("Expected array format or nil, got: " + format);
+        }
+
+        long[] result = new long[arrayLength];
+        for (int i = 0; i < arrayLength; i++) {
+            result[i] = (long) decodePrimitive(b);
+        }
+        return result;
+    }
+
     public static Integer decodeMapSize(ByteBuffer b) {
         int format = b.get() & 0xFF;
         if (format == 0xC0) {

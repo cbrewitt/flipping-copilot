@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 public class SuggestionPreferencesManager {
 
     private static final int DEFAULT_TIMEFRAME = 5;
-    private static final int DEFAULT_DUMP_MIN_PROFIT = 100_000;
+    private static final long DEFAULT_DUMP_MIN_PROFIT = 100_000;
 
     public static final Path DEFAULT_PROFILE_PATH = Paths.get(Persistance.COPILOT_DIR.getPath(), "Default profile.profile.json");
     public static final String PROFILE_SUFFIX = ".profile.json";
@@ -128,31 +128,31 @@ public class SuggestionPreferencesManager {
         return (dumpAlertsEnabled && timeframeMinutes <= 30) ? 1 : 0;
     }
 
-    public synchronized void setMinPredictedProfit(Integer minPredictedProfit) {
+    public synchronized void setMinPredictedProfit(Long minPredictedProfit) {
         AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
         preferences.setMinPredictedProfit(minPredictedProfit);
         osrsAccountPreferences.updateAndPersist(preferences);
     }
 
-    public synchronized Integer getMinPredictedProfit() {
+    public synchronized Long getMinPredictedProfit() {
         return osrsAccountPreferences.get().getMinPredictedProfit();
     }
 
-    public synchronized void setDumpMinPredictedProfit(Integer dumpMinPredictedProfit) {
+    public synchronized void setDumpMinPredictedProfit(Long dumpMinPredictedProfit) {
         AccountSuggestionPreferences preferences = osrsAccountPreferences.get();
         preferences.setDumpMinPredictedProfit(dumpMinPredictedProfit);
         osrsAccountPreferences.updateAndPersist(preferences);
     }
 
-    public synchronized Integer getDumpMinPredictedProfit() {
+    public synchronized Long getDumpMinPredictedProfit() {
         return osrsAccountPreferences.get().getDumpMinPredictedProfit();
     }
 
-    public synchronized Integer getEffectiveDumpMinPredictedProfit() {
+    public synchronized Long getEffectiveDumpMinPredictedProfit() {
         if (!isReceiveDumpSuggestions()) {
             return null;
         }
-        Integer dumpMinPredictedProfit = getDumpMinPredictedProfit();
+        Long dumpMinPredictedProfit = getDumpMinPredictedProfit();
         return dumpMinPredictedProfit != null ? dumpMinPredictedProfit : DEFAULT_DUMP_MIN_PROFIT;
     }
 

@@ -26,12 +26,12 @@ import static com.flippingcopilot.ui.UIUtilities.*;
 public class PreferencesPanel extends JPanel {
     private static final Option[] MIN_PREDICTED_PROFIT_OPTIONS = new Option[]{
             new Option("Auto", null),
-            new Option("20K", 20_000),
-            new Option("50K", 50_000),
-            new Option("100K", 100_000),
-            new Option("200K", 200_000),
-            new Option("500K", 500_000),
-            new Option("1M", 1_000_000)
+            new Option("20K", 20_000L),
+            new Option("50K", 50_000L),
+            new Option("100K", 100_000L),
+            new Option("200K", 200_000L),
+            new Option("500K", 500_000L),
+            new Option("1M", 1_000_000L)
     };
 
     private static final Option[] RESERVED_SLOTS_OPTIONS = new Option[]{
@@ -49,12 +49,12 @@ public class PreferencesPanel extends JPanel {
 
     private static final Option[] DUMP_ALERT_MIN_PROFIT_OPTIONS = new Option[]{
             new Option("Off", null),
-            new Option("100K+", 100_000),
-            new Option("200K+", 200_000),
-            new Option("500K+", 500_000),
-            new Option("1M+", 1_000_000),
-            new Option("2M+", 2_000_000),
-            new Option("5M+", 5_000_000)
+            new Option("100K+", 100_000L),
+            new Option("200K+", 200_000L),
+            new Option("500K+", 500_000L),
+            new Option("1M+", 1_000_000L),
+            new Option("2M+", 2_000_000L),
+            new Option("5M+", 5_000_000L)
     };
 
     private final SuggestionPreferencesManager preferencesManager;
@@ -251,7 +251,7 @@ public class PreferencesPanel extends JPanel {
                 return;
             }
             Option option = (Option) minPredictedProfitDropdown.getSelectedItem();
-            preferencesManager.setMinPredictedProfit(option == null ? null : option.value);
+            preferencesManager.setMinPredictedProfit(option == null || option.value == null ? null : option.value.longValue());
             suggestionManager.setSuggestionNeeded(true);
         });
         preferencesContent.add(formRow("Min. predicted profit", minPredictedProfitDropdown));
@@ -270,7 +270,7 @@ public class PreferencesPanel extends JPanel {
                 preferencesManager.setDumpMinPredictedProfit(null);
             } else {
                 preferencesManager.setReceiveDumpSuggestions(true);
-                preferencesManager.setDumpMinPredictedProfit(option.value);
+                preferencesManager.setDumpMinPredictedProfit(option.value.longValue());
             }
             suggestionManager.setSuggestionNeeded(true);
         });
@@ -285,7 +285,7 @@ public class PreferencesPanel extends JPanel {
                 return;
             }
             Option option = (Option) reservedSlotsDropdown.getSelectedItem();
-            preferencesManager.setReservedSlots(option == null ? null : option.value);
+            preferencesManager.setReservedSlots(option == null || option.value == null ? null : option.value.intValue());
             suggestionManager.setSuggestionNeeded(true);
         });
         preferencesContent.add(formRow("Reserved slots", reservedSlotsDropdown));
@@ -327,7 +327,7 @@ public class PreferencesPanel extends JPanel {
         model.setSelectedItem(preferencesManager.getCurrentProfile());
     }
 
-    private void syncMinPredictedProfit(Integer value) {
+    private void syncMinPredictedProfit(Long value) {
         try {
             suppressMinProfitEvents = true;
             minPredictedProfitDropdown.setSelectedItem(findMinProfitOption(value));
@@ -336,7 +336,7 @@ public class PreferencesPanel extends JPanel {
         }
     }
 
-    private void syncDumpAlerts(boolean enabled, Integer minProfit) {
+    private void syncDumpAlerts(boolean enabled, Long minProfit) {
         try {
             suppressDumpAlertsEvents = true;
             dumpAlertsDropdown.setSelectedItem(findDumpAlertOption(enabled, minProfit));
@@ -354,7 +354,7 @@ public class PreferencesPanel extends JPanel {
         }
     }
 
-    private Option findMinProfitOption(Integer value) {
+    private Option findMinProfitOption(Long value) {
         for (int i = 0; i < minPredictedProfitDropdown.getItemCount(); i++) {
             Option option = minPredictedProfitDropdown.getItemAt(i);
             if (Objects.equals(option.value, value)) {
@@ -364,11 +364,11 @@ public class PreferencesPanel extends JPanel {
         return minPredictedProfitDropdown.getItemAt(0);
     }
 
-    private Option findDumpAlertOption(boolean enabled, Integer minProfit) {
+    private Option findDumpAlertOption(boolean enabled, Long minProfit) {
         if (!enabled) {
             return dumpAlertsDropdown.getItemAt(0);
         }
-        Integer effective = minProfit != null ? minProfit : 100_000;
+        Long effective = minProfit != null ? minProfit : 100_000L;
         for (int i = 0; i < dumpAlertsDropdown.getItemCount(); i++) {
             Option option = dumpAlertsDropdown.getItemAt(i);
             if (Objects.equals(option.value, effective)) {
@@ -390,9 +390,9 @@ public class PreferencesPanel extends JPanel {
 
     private static final class Option {
         private final String label;
-        private final Integer value;
+        private final Number value;
 
-        private Option(String label, Integer value) {
+        private Option(String label, Number value) {
             this.label = label;
             this.value = value;
         }

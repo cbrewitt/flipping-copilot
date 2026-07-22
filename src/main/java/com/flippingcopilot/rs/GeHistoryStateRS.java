@@ -97,7 +97,7 @@ public class GeHistoryStateRS extends ReactiveStateImpl<GeHistoryState> {
                 if (itemId <= 0 || quantity <= 0) {
                     continue;
                 }
-                int price = parsePrice(priceW.getText(), quantity);
+                long price = parsePrice(priceW.getText(), quantity);
                 if (price <= 0) {
                     continue;
                 }
@@ -110,7 +110,7 @@ public class GeHistoryStateRS extends ReactiveStateImpl<GeHistoryState> {
         return rows;
     }
 
-    private static int parsePrice(String text, int quantity) {
+    private static long parsePrice(String text, int quantity) {
         if (text == null) {
             return 0;
         }
@@ -136,7 +136,7 @@ public class GeHistoryStateRS extends ReactiveStateImpl<GeHistoryState> {
         if (s.length() == 0) {
             return 0;
         }
-        int price = Integer.parseInt(s.toString());
+        long price = Long.parseLong(s.toString());
         if (isTotalPrice && quantity > 0) {
             return price / quantity;
         }

@@ -137,7 +137,7 @@ public class SlotProfitColorizer {
         if (!grandExchange.isOfferTypeSell()) {
             // For buy offers, show profitable if we have a tracked price and the price matches it.
             int viewedItemId = offerManager.getViewedSlotItemId();
-            int viewedItemPrice = offerManager.getViewedSlotItemPrice();
+            long viewedItemPrice = offerManager.getViewedSlotItemPrice();
             if (viewedItemId > 0 && viewedItemPrice > 0 && grandExchange.getOfferPrice() == viewedItemPrice) {
                 return config.slotPriceProfitableColor();
             }

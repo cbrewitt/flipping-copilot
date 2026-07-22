@@ -15,43 +15,43 @@ public class Data {
     // 6 months 1h data
     public int[] low1hTimes;
 
-    public int[] low1hPrices;
+    public long[] low1hPrices;
 
     public int[] high1hTimes;
 
-    public int[] high1hPrices;
+    public long[] high1hPrices;
 
     // 1 month 5m data
     public int[] low5mTimes;
 
-    public int[] low5mPrices;
+    public long[] low5mPrices;
 
     public int[] high5mTimes;
 
-    public int[] high5mPrices;
+    public long[] high5mPrices;
 
     // several days latest data
     public int[] lowLatestTimes;
 
-    public int[] lowLatestPrices;
+    public long[] lowLatestPrices;
 
     public int[] highLatestTimes;
 
-    public int[] highLatestPrices;
+    public long[] highLatestPrices;
 
     public int[] predictionTimes;
 
-    public int[] predictionLowMeans;
+    public long[] predictionLowMeans;
 
-    public int[] predictionLowIQRUpper;
+    public long[] predictionLowIQRUpper;
 
-    public int[] predictionLowIQRLower;
+    public long[] predictionLowIQRLower;
 
-    public int[] predictionHighMeans;
+    public long[] predictionHighMeans;
 
-    public int[] predictionHighIQRUpper;
+    public long[] predictionHighIQRUpper;
 
-    public int[] predictionHighIQRLower;
+    public long[] predictionHighIQRLower;
 
     // the volumes are for UTC hour bins and the current time is assumed to be (predictionTimes[0] - 60) epoch seconds
     public int[] volume1hLows;
@@ -85,59 +85,59 @@ public class Data {
                 case "l1ht":
                     d.low1hTimes = MsgPackUtil.decodeInt32Array(b);
                     break;
-                case "l1hp":
-                    d.low1hPrices = MsgPackUtil.decodeInt32Array(b);
+                case "l1hp64":
+                    d.low1hPrices = MsgPackUtil.decodeLongArray(b);
                     break;
                 case "h1ht":
                     d.high1hTimes = MsgPackUtil.decodeInt32Array(b);
                     break;
-                case "h1hp":
-                    d.high1hPrices = MsgPackUtil.decodeInt32Array(b);
+                case "h1hp64":
+                    d.high1hPrices = MsgPackUtil.decodeLongArray(b);
                     break;
                 case "l5mt":
                     d.low5mTimes = MsgPackUtil.decodeInt32Array(b);
                     break;
-                case "l5mp":
-                    d.low5mPrices = MsgPackUtil.decodeInt32Array(b);
+                case "l5mp64":
+                    d.low5mPrices = MsgPackUtil.decodeLongArray(b);
                     break;
                 case "h5mt":
                     d.high5mTimes = MsgPackUtil.decodeInt32Array(b);
                     break;
-                case "h5mp":
-                    d.high5mPrices = MsgPackUtil.decodeInt32Array(b);
+                case "h5mp64":
+                    d.high5mPrices = MsgPackUtil.decodeLongArray(b);
                     break;
                 case "llt":
                     d.lowLatestTimes = MsgPackUtil.decodeInt32Array(b);
                     break;
-                case "llp":
-                    d.lowLatestPrices = MsgPackUtil.decodeInt32Array(b);
+                case "llp64":
+                    d.lowLatestPrices = MsgPackUtil.decodeLongArray(b);
                     break;
                 case "hlt":
                     d.highLatestTimes = MsgPackUtil.decodeInt32Array(b);
                     break;
-                case "hlp":
-                    d.highLatestPrices = MsgPackUtil.decodeInt32Array(b);
+                case "hlp64":
+                    d.highLatestPrices = MsgPackUtil.decodeLongArray(b);
                     break;
                 case "pt":
                     d.predictionTimes = MsgPackUtil.decodeInt32Array(b);
                     break;
-                case "plm":
-                    d.predictionLowMeans = MsgPackUtil.decodeInt32Array(b);
+                case "plm64":
+                    d.predictionLowMeans = MsgPackUtil.decodeLongArray(b);
                     break;
-                case "pliu":
-                    d.predictionLowIQRUpper = MsgPackUtil.decodeInt32Array(b);
+                case "pliu64":
+                    d.predictionLowIQRUpper = MsgPackUtil.decodeLongArray(b);
                     break;
-                case "plil":
-                    d.predictionLowIQRLower = MsgPackUtil.decodeInt32Array(b);
+                case "plil64":
+                    d.predictionLowIQRLower = MsgPackUtil.decodeLongArray(b);
                     break;
-                case "phm":
-                    d.predictionHighMeans = MsgPackUtil.decodeInt32Array(b);
+                case "phm64":
+                    d.predictionHighMeans = MsgPackUtil.decodeLongArray(b);
                     break;
-                case "phiu":
-                    d.predictionHighIQRUpper = MsgPackUtil.decodeInt32Array(b);
+                case "phiu64":
+                    d.predictionHighIQRUpper = MsgPackUtil.decodeLongArray(b);
                     break;
-                case "phil":
-                    d.predictionHighIQRLower = MsgPackUtil.decodeInt32Array(b);
+                case "phil64":
+                    d.predictionHighIQRLower = MsgPackUtil.decodeLongArray(b);
                     break;
                 case "id":
                     d.itemId =  (int) (long)MsgPackUtil.decodePrimitive(b);

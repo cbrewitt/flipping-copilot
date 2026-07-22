@@ -34,8 +34,8 @@ public class AccountStatus {
     private int timeframe = 5; // Default to 5 minutes
     private RiskLevel riskLevel = RiskLevel.MEDIUM;
     private Integer reservedSlots;
-    private Integer minPredictedProfit;
-    private Integer dumpMinPredictedProfit;
+    private Long minPredictedProfit;
+    private Long dumpMinPredictedProfit;
 
     private Map<Integer, Integer> bankInventory;
     private boolean bankAvailable;
@@ -229,10 +229,10 @@ public class AccountStatus {
                 out.writeInt32(17, reservedSlots);
             }
             if (minPredictedProfit != null) {
-                out.writeInt32(18, minPredictedProfit);
+                out.writeInt64(34, minPredictedProfit);
             }
             if (dumpMinPredictedProfit != null) {
-                out.writeInt32(19, dumpMinPredictedProfit);
+                out.writeInt64(35, dumpMinPredictedProfit);
             }
 
             ProtoUtils.writeMap(

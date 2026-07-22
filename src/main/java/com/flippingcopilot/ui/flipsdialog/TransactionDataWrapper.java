@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 @AllArgsConstructor
 public class TransactionDataWrapper {
 
-    // 1 million transactions would be ~56MB in memory. Average transactions per user as of Aug 2025 is ~5000
+    // 1 million transactions would be ~64MB in memory. Average transactions per user as of Aug 2025 is ~5000
     private volatile byte[] data;
 
     public List<AckedTransaction> getPage(Set<Integer> filteredItems, Integer selectedAccount, int page, int pageSize) {

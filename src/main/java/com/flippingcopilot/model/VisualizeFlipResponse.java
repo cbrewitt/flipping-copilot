@@ -17,10 +17,10 @@ public class VisualizeFlipResponse {
 
     public int[] buyTimes;
     public int[] buyVolumes;
-    public int[] buyPrices;
+    public long[] buyPrices;
     public int[] sellTimes;
     public int[] sellVolumes;
-    public int[] sellPrices;
+    public long[] sellPrices;
     public Data graphData;
 
     public static VisualizeFlipResponse fromMsgPack(ByteBuffer b) {
@@ -38,8 +38,8 @@ public class VisualizeFlipResponse {
                 case "bv":
                     ip.buyVolumes = MsgPackUtil.decodeInt32Array(b);
                     break;
-                case "bp":
-                    ip.buyPrices = MsgPackUtil.decodeInt32Array(b);
+                case "bp64":
+                    ip.buyPrices = MsgPackUtil.decodeLongArray(b);
                     break;
                 case "st":
                     ip.sellTimes = MsgPackUtil.decodeInt32Array(b);
@@ -47,8 +47,8 @@ public class VisualizeFlipResponse {
                 case "sv":
                     ip.sellVolumes = MsgPackUtil.decodeInt32Array(b);
                     break;
-                case "sp":
-                    ip.sellPrices = MsgPackUtil.decodeInt32Array(b);
+                case "sp64":
+                    ip.sellPrices = MsgPackUtil.decodeLongArray(b);
                     break;
                 case "gd":
                     ip.graphData = Data.fromMsgPack(b);

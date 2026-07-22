@@ -10,7 +10,7 @@ public class AccountSuggestionPreferences {
     public RiskLevel riskLevel = RiskLevel.MEDIUM;
     public Integer reservedSlots = null;
     public boolean receiveDumpSuggestions = false;
-    public Integer minPredictedProfit = null;
-    public Integer dumpMinPredictedProfit = null;
+    public Long minPredictedProfit = null;
+    public Long dumpMinPredictedProfit = null;
     public String selectedProfile = null;
 }

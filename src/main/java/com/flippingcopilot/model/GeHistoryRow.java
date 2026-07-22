@@ -6,6 +6,6 @@ import lombok.Value;
 public class GeHistoryRow {
     int itemId;
     int quantity;
-    int price;
+    long price;
     boolean buy;
 }

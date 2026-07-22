@@ -19,7 +19,7 @@ public class Transaction {
     private UUID id;
     private OfferStatus type;
     private int itemId;
-    private int price;
+    private long price;
     private int quantity;
     private int boxId;
     private long amountSpent;
@@ -42,10 +42,10 @@ public class Transaction {
         JsonObject jsonObject = new JsonObject();
         jsonObject.addProperty("id", id.toString());
         jsonObject.addProperty("item_id", itemId);
-        jsonObject.addProperty("price", price);
+        jsonObject.addProperty("price64", price);
         jsonObject.addProperty("quantity", type.equals(OfferStatus.BUY) ? quantity : -quantity);
         jsonObject.addProperty("box_id", boxId);
-        jsonObject.addProperty("amount_spent", amountSpent);
+        jsonObject.addProperty("amount_spent64", amountSpent);
         jsonObject.addProperty("time", timestamp.getEpochSecond());
         jsonObject.addProperty("copilot_price_used", copilotPriceUsed);
         jsonObject.addProperty("was_copilot_suggestion", wasCopilotSuggestion);

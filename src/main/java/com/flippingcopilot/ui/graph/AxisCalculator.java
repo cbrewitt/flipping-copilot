@@ -101,48 +101,62 @@ public class AxisCalculator {
     }
 
     public static YAxis calculatePriceAxis(Bounds bounds) {
-        return calculateNumericAxis((int) bounds.yMin, (int) bounds.yMax, (int) bounds.yDelta(), 18, 28);
+        return calculateNumericAxis(bounds.yMin, bounds.yMax, bounds.yDelta(), 18, 28);
     }
 
     public static YAxis calculateVolumeAxis(Bounds bounds) {
-        return calculateNumericAxis((int) bounds.y2Min, (int) bounds.y2Max, (int) bounds.y2Delta(), 8, 16);
+        return calculateNumericAxis(bounds.y2Min, bounds.y2Max, bounds.y2Delta(), 8, 16);
     }
 
-    private static YAxis calculateNumericAxis(int min, int max, int range, int maxAllowableTicks, int maxAllowableGridLines) {
-        int magnitude = (int) Math.floor(Math.log10(range));
-        int[] possibleSteps = {1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500};
+    private static YAxis calculateNumericAxis(long min, long max, long range, int maxAllowableTicks, int maxAllowableGridLines) {
+        if (range <= 0 || max < min) {
+            return new YAxis(new long[]{min}, new long[]{});
+        }
 
-        int stepSize = 0;
+        int[] possibleSteps = {1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500};
+        long magnitudeScale = 1;
+        while (magnitudeScale <= Long.MAX_VALUE / 10 && range / magnitudeScale >= 10) {
+            magnitudeScale *= 10;
+        }
+        long baseScale = Math.max(1, magnitudeScale / 10);
+
+        long stepSize = 0;
         int numTicks = Integer.MAX_VALUE;
 
         for (int baseStep : possibleSteps) {
-            int candidateStep = baseStep * (int) Math.pow(10, magnitude - 1);
-            candidateStep = Math.max(1, candidateStep);
+            long candidateStep = multiplySaturated(baseStep, baseScale);
 
-            int candidateTicks = range / candidateStep + 1;
+            long candidateTicks = range / candidateStep + 1;
 
             if (candidateTicks <= maxAllowableTicks && candidateStep > 0) {
                 stepSize = candidateStep;
-                numTicks = candidateTicks;
+                numTicks = (int) candidateTicks;
                 break;
             }
         }
 
         if (stepSize == 0) {
-            stepSize = 500 * (int) Math.pow(10, magnitude - 1);
-            numTicks = range / stepSize + 1;
+            stepSize = Long.MAX_VALUE;
+            numTicks = 1;
         }
 
-        int startTick = (min / stepSize) * stepSize;
-        if (startTick < min) {
-            startTick += stepSize;
+        long remainder = Math.floorMod(min, stepSize);
+        long startTick = min;
+        if (remainder != 0) {
+            long adjustment = stepSize - remainder;
+            if (min > Long.MAX_VALUE - adjustment) {
+                return new YAxis(new long[]{}, new long[]{});
+            }
+            startTick += adjustment;
         }
 
         long[] ticks = new long[numTicks];
         int tickIndex = 0;
 
-        for (int value = startTick; value <= max && tickIndex < numTicks; value += stepSize) {
+        for (long value = startTick; value <= max && tickIndex < numTicks; ) {
             ticks[tickIndex++] = value;
+            if (value > Long.MAX_VALUE - stepSize) break;
+            value += stepSize;
         }
 
         if (tickIndex < numTicks) {
@@ -154,7 +168,7 @@ public class AxisCalculator {
         long[] gridOnlyTicks = new long[0];
 
         if (ticks.length > 1) {
-            int gridStep = stepSize / 2;
+            long gridStep = stepSize / 2;
             if (gridStep > 0 && (ticks.length * 2 - 1) <= maxAllowableGridLines) {
                 gridOnlyTicks = new long[ticks.length - 1];
 
@@ -165,6 +179,14 @@ public class AxisCalculator {
         }
 
         return new YAxis(ticks, gridOnlyTicks);
+    }
+
+    private static long multiplySaturated(long left, long right) {
+        try {
+            return Math.multiplyExact(left, right);
+        } catch (ArithmeticException e) {
+            return Long.MAX_VALUE;
+        }
     }
 
 

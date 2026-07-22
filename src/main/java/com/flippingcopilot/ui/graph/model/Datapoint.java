@@ -10,13 +10,13 @@ import java.awt.*;
 public class Datapoint {
 
     public int time;
-    public final int price;
+    public final long price;
     public final Type type;
     public final boolean isLow; // true if buy/low point, false if sell/high point
 
     // IQR values for prediction points
-    public final Integer iqrLower;
-    public final Integer iqrUpper;
+    public final Long iqrLower;
+    public final Long iqrUpper;
 
     // volume
     public long lowVolume;
@@ -25,7 +25,7 @@ public class Datapoint {
     // tx
     public long qty;
 
-    public Datapoint(int time, int price, boolean isLow, Type type) {
+    public Datapoint(int time, long price, boolean isLow, Type type) {
         this.time = time;
         this.price = price;
         this.isLow = isLow;
@@ -34,7 +34,7 @@ public class Datapoint {
         this.iqrUpper = null;
     }
 
-    public Datapoint(int time, int price, int iqrLower, int iqrUpper, boolean isLow) {
+    public Datapoint(int time, long price, long iqrLower, long iqrUpper, boolean isLow) {
         this.time = time;
         this.price = price;
         this.isLow = isLow;
@@ -61,13 +61,13 @@ public class Datapoint {
         return new Point(x, y);
     }
 
-    public static Datapoint newBuyTx(int time, int price, long qty) {
+    public static Datapoint newBuyTx(int time, long price, long qty) {
         Datapoint dp = new Datapoint(time, price,true, Type.FLIP_TRANSACTION);
         dp.qty = qty;
         return dp;
     }
 
-    public static Datapoint newSellTx(int time, int price, long qty) {
+    public static Datapoint newSellTx(int time, long price, long qty) {
         Datapoint dp = new Datapoint(time, price,false, Type.FLIP_TRANSACTION);
         dp.qty = qty;
         return dp;

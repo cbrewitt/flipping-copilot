@@ -35,7 +35,7 @@ public class OfferManager {
     private int lastViewedSlotItemId = -1;
     @Getter
     @Setter
-    private int lastViewedSlotItemPrice = -1;
+    private long lastViewedSlotItemPrice = -1;
     @Getter
     @Setter
     private int lastViewedSlotPriceTime = 0;
@@ -44,7 +44,7 @@ public class OfferManager {
     private int viewedSlotItemId = -1;
     @Getter
     @Setter
-    private int viewedSlotItemPrice = -1;
+    private long viewedSlotItemPrice = -1;
     @Getter
     @Setter
     boolean offerJustPlaced = false;

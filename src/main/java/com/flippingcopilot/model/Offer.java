@@ -23,13 +23,13 @@ public class Offer {
     @SerializedName("item_id")
     private int itemId;
 
-    private int price;
+    private long price;
 
     @SerializedName("amount_total")
     private int amountTotal;
 
     @SerializedName("amount_spent")
-    private int amountSpent;
+    private long amountSpent;
 
     @SerializedName("amount_traded")
     private int amountTraded;
