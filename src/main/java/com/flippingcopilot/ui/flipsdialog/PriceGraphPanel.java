@@ -192,6 +192,10 @@ public class PriceGraphPanel extends JPanel {
     public void setSuggestionPriceData(Data d) {
         suggestionPriceData = d;
         if (isShowingSuggestionPriceData) {
+            if (d == null || d.lowLatestTimes == null) {
+                showLandingCard();
+                return;
+            }
             DataManager dm = new DataManager(d, null);
             showGraphCard(dm, suggestedPriceLine);
         }
@@ -202,7 +206,7 @@ public class PriceGraphPanel extends JPanel {
     }
 
     private JPanel buildLandingCard() {
-        return DialogUi.centeredMessage("Search for an item to view its price graph", ColorScheme.DARK_GRAY_COLOR, true, 16f);
+        return DialogUi.centeredMessage("Search for item to see price graph", ColorScheme.DARK_GRAY_COLOR, true, 16f);
     }
 
     private JPanel buildLoadingCard() {

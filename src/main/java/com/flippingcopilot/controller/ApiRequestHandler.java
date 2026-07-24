@@ -5,8 +5,9 @@ import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.util.ProtoUtils;
 import com.google.gson.*;
-import com.google.gson.reflect.TypeToken;
 import com.google.inject.Singleton;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
@@ -17,7 +18,6 @@ import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Type;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -133,6 +133,7 @@ public class ApiRequestHandler {
         Request request = new Request.Builder()
                 .url(serverUrl + "/login")
                 .addHeader("Authorization", Credentials.basic(username, password))
+                .addHeader("Accept", "application/protobuf")
                 .post(jsonBody(""))
                 .build();
 
@@ -153,10 +154,12 @@ public class ApiRequestHandler {
                         failureCallback.accept(errorMessage);
                         return;
                     }
-                    String body = response.body() == null ? "" : response.body().string();
-                    LoginResponse loginResponse = gson.fromJson(body, LoginResponse.class);
+                    if (response.body() == null) {
+                        throw new IOException("empty login response");
+                    }
+                    LoginResponse loginResponse = LoginResponse.decodeProto(response.body().bytes());
                     successCallback.accept(loginResponse);
-                } catch (IOException | JsonParseException e) {
+                } catch (IOException e) {
                     log.warn("error reading/decoding login response body", e);
                     failureCallback.accept(UNKNOWN_ERROR);
                 }
@@ -317,15 +320,16 @@ public class ApiRequestHandler {
 
     public void sendTransactionsAsync(List<Transaction> transactions, String displayName, BiConsumer<Integer, List<FlipV2>> onSuccess, Consumer<HttpResponseException> onFailure) {
         log.debug("sending {} transactions for display name {}", transactions.size(), displayName);
-        JsonArray body = new JsonArray();
-        for (Transaction transaction : transactions) {
-            body.add(transaction.toJsonObject());
-        }
+        byte[] body = ProtoUtils.encodeMessage(out -> {
+            for (Transaction transaction : transactions) {
+                ProtoUtils.writeDelimitedMessageField(out, 1, transaction.encodeProto());
+            }
+        });
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
         String encodedDisplayName = URLEncoder.encode(displayName, StandardCharsets.UTF_8);
         Request request = authed(jwtToken, "/profit-tracking/client-transactions?display_name=" + encodedDisplayName)
-                .post(jsonBody(body.toString()))
+                .post(protoBody(body))
                 .header("Accept", "application/protobuf")
                 .build();
 
@@ -364,16 +368,14 @@ public class ApiRequestHandler {
 
 
     public void asyncGetVisualizeFlipData(UUID flipID, String displayName, Consumer<VisualizeFlipResponse> onSuccess, Consumer<String> onFailure) {
-        JsonObject body = new JsonObject();
-        body.add("flip_id", new JsonPrimitive(flipID.toString()));
-        body.add("display_name", new JsonPrimitive(displayName));
+        byte[] body = encodeUuidRequest(flipID);
         log.debug("requesting visualize data for flip {}", flipID);
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = authed(jwtToken, "/profit-tracking/visualize-flip")
                 .addHeader("Accept", "application/x-msgpack")
                 .addHeader(GRAPH_DATA_PRICE_BITS_HEADER, "64")
                 .addHeader("X-VERSION", "1")
-                .post(jsonBody(body.toString()))
+                .post(protoBody(body))
                 .build();
 
         enqueue(timeoutCall(request, 30), jwtToken, "visualize flip " + flipID, stringFailure(onFailure), response -> {
@@ -384,20 +386,20 @@ public class ApiRequestHandler {
     }
 
     public void asyncGetItemPriceWithGraphData(int itemId, String displayName, Consumer<ItemPrice> consumer, boolean includeGraphData) {
-        JsonObject body = new JsonObject();
-        body.add("item_id", new JsonPrimitive(itemId));
-        body.add("display_name", new JsonPrimitive(displayName));
-        body.addProperty("f2p_only", preferencesManager.isF2pOnlyMode());
-        body.addProperty("timeframe_minutes", preferencesManager.getTimeframe());
-        body.addProperty("risk_level", preferencesManager.getRiskLevel().toApiValue());
-        body.addProperty("include_graph_data", includeGraphData);
+        byte[] body = ProtoUtils.encodeMessage(out -> {
+            out.writeInt32(1, itemId);
+            out.writeString(2, displayName);
+            out.writeBool(3, preferencesManager.isF2pOnlyMode());
+            out.writeDouble(4, preferencesManager.getTimeframe());
+            out.writeBool(5, includeGraphData);
+        });
         log.debug("requesting price graph data for item {}", itemId);
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = authed(jwtToken, "/prices")
                 .addHeader("Accept", "application/x-msgpack")
                 .addHeader(GRAPH_DATA_PRICE_BITS_HEADER, "64")
                 .addHeader("X-VERSION", "1")
-                .post(jsonBody(body.toString()))
+                .post(protoBody(body))
                 .build();
 
         Consumer<HttpResponseException> emitError = error -> {
@@ -413,16 +415,18 @@ public class ApiRequestHandler {
 
 
     public void asyncUpdatePremiumInstances(Consumer<PremiumInstanceStatus> consumer, List<String> displayNames) {
-        JsonObject payload = new JsonObject();
-        JsonArray arr = new JsonArray();
-        displayNames.forEach(arr::add);
-        payload.add("premium_display_names", arr);
+        byte[] payload = ProtoUtils.encodeMessage(out -> {
+            for (String displayName : displayNames) {
+                out.writeString(1, displayName);
+            }
+        });
         String jwtToken = copilotLoginRS.get().getJwtToken();
 
         Request request = new Request.Builder()
                 .url(serverUrl +"/premium-instances/update-assignments")
                 .addHeader("Authorization", "Bearer " + jwtToken)
-                .post(jsonBody(payload.toString()))
+                .addHeader("Accept", "application/protobuf")
+                .post(protoBody(payload))
                 .build();
 
         enqueuePremiumStatusRequest(request, jwtToken, "update premium instances", consumer);
@@ -433,6 +437,7 @@ public class ApiRequestHandler {
         Request request = new Request.Builder()
                 .url(serverUrl +"/premium-instances/status")
                 .addHeader("Authorization", "Bearer " + jwtToken)
+                .addHeader("Accept", "application/protobuf")
                 .get()
                 .build();
 
@@ -446,7 +451,7 @@ public class ApiRequestHandler {
         enqueue(request, jwtToken, label,
                 error -> emitPremiumInstanceError(consumer),
                 response -> {
-                    PremiumInstanceStatus ip = gson.fromJson(response.body().string(), PremiumInstanceStatus.class);
+                    PremiumInstanceStatus ip = PremiumInstanceStatus.decodeProto(response.body().bytes());
                     clientThread.invoke(() -> consumer.accept(ip));
                 });
     }
@@ -456,13 +461,12 @@ public class ApiRequestHandler {
     }
 
     public void asyncDeleteFlip(FlipV2 flip, Consumer<FlipV2> onSuccess, Runnable onFailure) {
-        JsonObject body = new JsonObject();
-        body.addProperty("flip_id", flip.getId().toString());
+        byte[] body = encodeUuidRequest(flip.getId());
         String jwtToken = copilotLoginRS.get().getJwtToken();
 
         Request request = authed(jwtToken, "/profit-tracking/delete-flip")
                 .header("Accept", "application/protobuf")
-                .post(jsonBody(body.toString()))
+                .post(protoBody(body))
                 .build();
 
         enqueue(request, jwtToken, "delete flip " + flip.getId(), runnableFailure(onFailure),
@@ -506,16 +510,15 @@ public class ApiRequestHandler {
     }
 
     public void asyncClearAccountPortfolio(int accountId,
-                                            BiConsumer<Integer, ToggleItemPortfolioResult> onSuccess,
-                                            Consumer<HttpResponseException> onFailure) {
-        JsonObject body = new JsonObject();
-        body.addProperty("account_id", accountId);
+                                             BiConsumer<Integer, ToggleItemPortfolioResult> onSuccess,
+                                             Consumer<HttpResponseException> onFailure) {
+        byte[] body = encodeAccountRequest(accountId);
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
 
         Request request = authed(jwtToken, "/profit-tracking/clear-account-portfolio")
                 .addHeader("Accept", "application/protobuf")
-                .post(jsonBody(body.toString()))
+                .post(protoBody(body))
                 .build();
 
         enqueue(request, jwtToken, "clear account portfolio account=" + accountId, onFailure,
@@ -523,13 +526,11 @@ public class ApiRequestHandler {
     }
 
     public void asyncDeleteAccount(int accountId, Runnable onSuccess, Runnable onFailure) {
-        JsonObject body = new JsonObject();
-        body.addProperty("account_id", accountId);
+        byte[] body = encodeAccountRequest(accountId);
         String jwtToken = copilotLoginRS.get().getJwtToken();
 
         Request request = authed(jwtToken, "/profit-tracking/delete-account")
-                .header("Accept", "application/x-bytes")
-                .post(jsonBody(body.toString()))
+                .post(protoBody(body))
                 .build();
 
         enqueue(request, jwtToken, "delete account " + accountId, runnableFailure(onFailure),
@@ -539,14 +540,13 @@ public class ApiRequestHandler {
     public void asyncLoadAccounts(Consumer<Map<String, Integer>> onSuccess, Consumer<String> onFailure) {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = authed(jwtToken, "/profit-tracking/rs-account-names")
+                .header("Accept", "application/protobuf")
                 .method("GET", null)
                 .build();
 
         enqueue(request, jwtToken, "load user display names", stringFailure(onFailure), response -> {
-            String responseBody = response.body() != null ? response.body().string() : "{}";
-            Type respType = new TypeToken<Map<String, Integer>>(){}.getType();
-            Map<String, Integer> names = gson.fromJson(responseBody, respType);
-            onSuccess.accept(names != null ? names : new HashMap<>());
+            byte[] responseBody = response.body() != null ? response.body().bytes() : new byte[0];
+            onSuccess.accept(decodeRsAccountNames(responseBody));
         });
     }
 
@@ -554,11 +554,10 @@ public class ApiRequestHandler {
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
         DataDeltaRequest body = new DataDeltaRequest(accountIdTime);
-        String bodyStr = gson.toJson(body);
 
         Request request = authed(jwtToken, "/profit-tracking/client-flips-delta")
                 .header("Accept", "application/protobuf")
-                .method("POST", jsonBody(bodyStr))
+                .post(protoBody(body.encodeProto()))
                 .build();
 
         enqueue(request, jwtToken, "load flips", stringFailure(onFailure),
@@ -623,6 +622,53 @@ public class ApiRequestHandler {
         return call;
     }
 
+    private static byte[] encodeUuidRequest(UUID id) {
+        return ProtoUtils.encodeMessage(out -> out.writeByteArray(1, ProtoUtils.uuidToBytes(id)));
+    }
+
+    private static byte[] encodeAccountRequest(int accountId) {
+        return ProtoUtils.encodeMessage(out -> out.writeInt32(1, accountId));
+    }
+
+    private static Map<String, Integer> decodeRsAccountNames(byte[] bytes) throws IOException {
+        Map<String, Integer> names = new HashMap<>();
+        CodedInputStream input = CodedInputStream.newInstance(bytes);
+        while (!input.isAtEnd()) {
+            int tag = input.readTag();
+            if (tag == 0) {
+                break;
+            }
+            if (WireFormat.getTagFieldNumber(tag) != 1) {
+                input.skipField(tag);
+                continue;
+            }
+
+            int length = input.readRawVarint32();
+            int limit = input.pushLimit(length);
+            String displayName = "";
+            int accountId = 0;
+            while (!input.isAtEnd()) {
+                int entryTag = input.readTag();
+                if (entryTag == 0) {
+                    break;
+                }
+                switch (WireFormat.getTagFieldNumber(entryTag)) {
+                    case 1:
+                        displayName = input.readString();
+                        break;
+                    case 2:
+                        accountId = input.readInt32();
+                        break;
+                    default:
+                        input.skipField(entryTag);
+                }
+            }
+            input.popLimit(limit);
+            names.put(displayName, accountId);
+        }
+        return names;
+    }
+
 
     public void asyncOrphanTransaction(AckedTransaction transaction, BiConsumer<Integer, List<FlipV2>> onSuccess, Runnable onFailure) {
         asyncModifyTransaction("/profit-tracking/orphan-transaction", "orphaning transaction", transaction, onSuccess, onFailure);
@@ -637,14 +683,15 @@ public class ApiRequestHandler {
                                         AckedTransaction transaction,
                                         BiConsumer<Integer, List<FlipV2>> onSuccess,
                                         Runnable onFailure) {
-        JsonObject body = new JsonObject();
-        body.addProperty("transaction_id", transaction.getId().toString());
-        body.addProperty("account_id", transaction.getAccountId());
+        byte[] body = ProtoUtils.encodeMessage(out -> {
+            out.writeByteArray(1, ProtoUtils.uuidToBytes(transaction.getId()));
+            out.writeInt32(2, transaction.getAccountId());
+        });
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = authed(jwtToken, path)
                 .header("Accept", "application/protobuf")
-                .post(jsonBody(body.toString()))
+                .post(protoBody(body))
                 .build();
 
         enqueue(request, jwtToken, label + " " + transaction.getId(), runnableFailure(onFailure),
