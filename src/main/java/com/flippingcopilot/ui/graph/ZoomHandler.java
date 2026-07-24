@@ -28,11 +28,17 @@ public class ZoomHandler {
     private final Rectangle zoomOutButtonRect = new Rectangle();
     private final Rectangle weekButtonRect = new Rectangle();
     private final Rectangle monthButtonRect = new Rectangle();
+    private final Rectangle dayButtonRect = new Rectangle();
+    private final Rectangle eightHourButtonRect = new Rectangle();
+    private final Rectangle emaButtonRect = new Rectangle();
+    private final Rectangle bbButtonRect = new Rectangle();
 
     public Bounds maxViewBounds;
     public Bounds homeViewBounds;
     public Bounds weekViewBounds;
     public Bounds monthViewBounds;
+    public Bounds dayViewBounds;
+    public Bounds eightHourViewBounds;
 
     public void startSelection(Point point) {
         selectionStart = new Point(point);
@@ -121,6 +127,14 @@ public class ZoomHandler {
         copyBounds(bounds, monthViewBounds);
     }
 
+    public void applyDayView(Bounds bounds) {
+        copyBounds(bounds, dayViewBounds);
+    }
+
+    public void applyEightHourView(Bounds bounds) {
+        copyBounds(bounds, eightHourViewBounds);
+    }
+
     private void copyBounds(Bounds target, Bounds source) {
         target.xMin = source.xMin;
         target.xMax = source.xMax;
@@ -152,7 +166,7 @@ public class ZoomHandler {
         g2d.drawRect(x1, y1, x2-x1, y2 - y1);
     }
 
-    public void drawButtons(Graphics2D g2d, Rectangle pa, Point p) {
+    public void drawButtons(Graphics2D g2d, Rectangle pa, Point p, Config config) {
         int size = Config.GRAPH_BUTTON_SIZE;
         int x = pa.x + pa.width - size - Config.GRAPH_BUTTON_MARGIN;
         int y = pa.y + Config.GRAPH_BUTTON_MARGIN;
@@ -179,8 +193,21 @@ public class ZoomHandler {
         // Draw - symbol
         drawPlusMinusIcon(g2d, zoomOutButtonRect, false);
 
-        // Width for text buttons (Week and Month)
+        // Width for text buttons (8h, Day, Week, Month)
         int textButtonWidth = size * 2;
+
+        // Text buttons ordered by span, shortest (8h) rightmost: left-to-right Month, Week, Day, 8h.
+        // Draw 8h button (rightmost of the text buttons)
+        x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
+        drawButtonBackground(g2d, eightHourButtonRect, x, y, textButtonWidth, isOverEightHourButton(p));
+        // Draw 8h text
+        drawCenteredText(g2d, eightHourButtonRect, "8h");
+
+        // Draw Day button
+        x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
+        drawButtonBackground(g2d, dayButtonRect, x, y, textButtonWidth, isOverDayButton(p));
+        // Draw Day text
+        drawCenteredText(g2d, dayButtonRect, "Day");
 
         // Draw Week button (wider than the others)
         x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
@@ -193,12 +220,34 @@ public class ZoomHandler {
         drawButtonBackground(g2d, monthButtonRect, x, y, textButtonWidth, isOverMonthButton(p));
         // Draw Month text
         drawCenteredText(g2d, monthButtonRect, "Month");
+
+        // Second row: indicator toggle buttons, right-aligned beneath the zoom row.
+        // Drawn right-to-left so they read left-to-right as EMA, BB.
+        int y2 = pa.y + Config.GRAPH_BUTTON_MARGIN + size + Config.GRAPH_BUTTON_MARGIN;
+        int x2 = pa.x + pa.width - textButtonWidth - Config.GRAPH_BUTTON_MARGIN;
+        drawToggleButtonBackground(g2d, bbButtonRect, x2, y2, textButtonWidth, isOverBbButton(p), config.isShowBollinger());
+        drawCenteredText(g2d, bbButtonRect, "BB");
+
+        x2 -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
+        drawToggleButtonBackground(g2d, emaButtonRect, x2, y2, textButtonWidth, isOverEmaButton(p), config.isShowEma());
+        drawCenteredText(g2d, emaButtonRect, "EMA");
     }
 
     private void drawButtonBackground(Graphics2D g2d, Rectangle rect, int x, int y, int width, boolean hovered) {
         rect.setBounds(x, y, width, Config.GRAPH_BUTTON_SIZE);
         g2d.setColor(hovered ? Config.GRAPH_BUTTON_HOVER_COLOR : Config.GRAPH_BUTTON_COLOR);
         g2d.fill(new RoundRectangle2D.Float(x, y, width, Config.GRAPH_BUTTON_SIZE, 6, 6));
+    }
+
+    private void drawToggleButtonBackground(Graphics2D g2d, Rectangle rect, int x, int y, int width, boolean hovered, boolean active) {
+        rect.setBounds(x, y, width, Config.GRAPH_BUTTON_SIZE);
+        g2d.setColor(active || hovered ? Config.GRAPH_BUTTON_HOVER_COLOR : Config.GRAPH_BUTTON_COLOR);
+        g2d.fill(new RoundRectangle2D.Float(x, y, width, Config.GRAPH_BUTTON_SIZE, 6, 6));
+        if (active) {
+            g2d.setColor(Color.WHITE);
+            g2d.setStroke(new BasicStroke(1f));
+            g2d.draw(new RoundRectangle2D.Float(x, y, width, Config.GRAPH_BUTTON_SIZE, 6, 6));
+        }
     }
 
     private void drawHomeIcon(Graphics2D g2d, Rectangle rect) {
@@ -296,5 +345,21 @@ public class ZoomHandler {
 
     public boolean isOverMonthButton(Point point) {
         return isOver(monthButtonRect, point);
+    }
+
+    public boolean isOverDayButton(Point point) {
+        return isOver(dayButtonRect, point);
+    }
+
+    public boolean isOverEightHourButton(Point point) {
+        return isOver(eightHourButtonRect, point);
+    }
+
+    public boolean isOverEmaButton(Point point) {
+        return isOver(emaButtonRect, point);
+    }
+
+    public boolean isOverBbButton(Point point) {
+        return isOver(bbButtonRect, point);
     }
 }

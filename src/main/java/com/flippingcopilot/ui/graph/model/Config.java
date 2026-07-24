@@ -43,10 +43,15 @@ public class Config {
     // configurable properties
     public boolean connectPoints = true;
     public boolean showSuggestedPriceLines = true;
+    public boolean showEma = false;
+    public boolean showBollinger = false;
     public Color lowColor = new Color(0, 153, 255);
     public Color highColor = new Color(255, 102, 0);
     public Color lowShadeColor = new Color(0, 153, 255, 60);
     public Color highShadeColor = new Color(255, 102, 0, 60);
+    public Color emaUpColor = new Color(34, 197, 94, 120);    // Tailwind green-500
+    public Color emaDownColor = new Color(239, 68, 68, 120);  // Tailwind red-500
+    public Color bollingerCloudColor = new Color(148, 163, 184, 45); // Tailwind slate-400
 
     public Color backgroundColor = ColorScheme.DARKER_GRAY_COLOR.brighter();
     public Color plotAreaColor = new Color(51, 51, 51);

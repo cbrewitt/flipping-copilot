@@ -6,6 +6,7 @@ import com.flippingcopilot.ui.graph.model.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.function.Consumer;
 
 public class GraphPanel extends JPanel {
 
@@ -49,6 +50,8 @@ public class GraphPanel extends JPanel {
         zoomHandler.homeViewBounds = dataManager.calculateHomeBounds();
         zoomHandler.weekViewBounds = dataManager.calculateWeekBounds();
         zoomHandler.monthViewBounds = dataManager.calculateMonthBounds();
+        zoomHandler.dayViewBounds = dataManager.calculateDayBounds();
+        zoomHandler.eightHourViewBounds = dataManager.calculateEightHourBounds();
         if (oldItemID != dataManager.data.itemId) {
             bounds = zoomHandler.homeViewBounds.copy();
         }
@@ -104,6 +107,16 @@ public class GraphPanel extends JPanel {
                     repaint();
                     return;
                 }
+                if (zoomHandler.isOverDayButton(mousePosition)) {
+                    zoomHandler.applyDayView(bounds);
+                    repaint();
+                    return;
+                }
+                if (zoomHandler.isOverEightHourButton(mousePosition)) {
+                    zoomHandler.applyEightHourView(bounds);
+                    repaint();
+                    return;
+                }
                 if (zoomHandler.isOverWeekButton(mousePosition)) {
                     zoomHandler.applyWeekView(bounds);
                     repaint();
@@ -112,6 +125,14 @@ public class GraphPanel extends JPanel {
                 if (zoomHandler.isOverMonthButton(mousePosition)) {
                     zoomHandler.applyMonthView(bounds);
                     repaint();
+                    return;
+                }
+                if (zoomHandler.isOverEmaButton(mousePosition)) {
+                    toggleIndicator(c -> c.setShowEma(!c.isShowEma()));
+                    return;
+                }
+                if (zoomHandler.isOverBbButton(mousePosition)) {
+                    toggleIndicator(c -> c.setShowBollinger(!c.isShowBollinger()));
                     return;
                 }
 
@@ -160,6 +181,13 @@ public class GraphPanel extends JPanel {
 
         addMouseMotionListener(mouseAdapter);
         addMouseListener(mouseAdapter);
+    }
+
+    private void toggleIndicator(Consumer<Config> toggle) {
+        Config config = configManager.getConfig();
+        toggle.accept(config);
+        configManager.setConfig(config);
+        repaint();
     }
 
 
@@ -213,6 +241,14 @@ public class GraphPanel extends JPanel {
         renderer.drawXAxisLabels(g2d, config, volumePa, bounds, xAxis);
 
 
+        Indicators indicators = pickIndicators();
+        if (config.isShowBollinger()) {
+            renderer.drawIndicatorBand(g2d, pricePa, bounds, indicators.bollinger, config.getBollingerCloudColor());
+        }
+        if (config.isShowEma()) {
+            renderer.drawEmaCloud(g2d, pricePa, bounds, indicators.emaFast, indicators.emaSlow, config.getEmaUpColor(), config.getEmaDownColor());
+        }
+
         int pointSize = dynamicPointSize(Config.BASE_POINT_SIZE, bounds);
         renderer.drawPoints(g2d, pricePa, bounds, dataManager.lowDatapoints, config.lowColor, pointSize);
         renderer.drawPoints(g2d, pricePa, bounds, dataManager.highDatapoints, config.highColor, pointSize);
@@ -232,7 +268,7 @@ public class GraphPanel extends JPanel {
             renderer.drawPredictionIQR(g2d, config, pricePa, bounds, data.predictionTimes, data.predictionLowIQRLower, data.predictionLowIQRUpper, true);
             renderer.drawPredictionIQR(g2d, config, pricePa, bounds, data.predictionTimes, data.predictionHighIQRLower, data.predictionHighIQRUpper, false);
         }
-        zoomHandler.drawButtons(g2d, pricePa, mousePosition);
+        zoomHandler.drawButtons(g2d, pricePa, mousePosition, config);
         zoomHandler.drawSelectionRectangle(g2d, pricePa);
 
         renderer.drawVolumeBars(g2d, config, volumePa, bounds, dataManager.volumes, hoveredPoint);
@@ -278,6 +314,12 @@ public class GraphPanel extends JPanel {
                 ? Math.max(pricePa.y + metrics.getAscent(), y - (Config.LABEL_PADDING / 2))
                 : Math.min(pricePa.y + pricePa.height - Config.LABEL_PADDING, y + metrics.getAscent() + (Config.LABEL_PADDING / 2));
         g2d.drawString(label, labelX, labelY);
+    }
+
+    private Indicators pickIndicators() {
+        boolean use5m = bounds.xDelta() <= 7 * Constants.DAY_SECONDS
+                && dataManager.indicators5m.covers(bounds.xMin);
+        return use5m ? dataManager.indicators5m : dataManager.indicators1h;
     }
 
     private int dynamicPointSize(int baseSize, Bounds bounds) {
