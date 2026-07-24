@@ -22,8 +22,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.NumberFormat;
-import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -205,8 +205,8 @@ public class FlipsPanel extends JPanel {
             if (result == JOptionPane.YES_OPTION) {
                 tablePanel.setSpinnerVisible(true);
                 log.info("deleting flip with ID: {}", flip.getId());
-                Consumer<FlipV2> onSuccess = (f) -> {
-                    flipsManager.mergeFlips(Collections.singletonList(f), copilotLoginRS.get().getUserId());
+                Consumer<List<FlipV2>> onSuccess = (flips) -> {
+                    flipsManager.mergeFlips(flips, copilotLoginRS.get().getUserId());
                     tablePanel.setSpinnerVisible(false);
                     sortAndFilter.reloadFlips(true, true);
                 };

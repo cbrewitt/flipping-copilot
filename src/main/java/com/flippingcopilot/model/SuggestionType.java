@@ -31,15 +31,6 @@ public enum SuggestionType {
         return apiValue();
     }
 
-    public static SuggestionType fromApiValue(String apiValue) {
-        for (SuggestionType value : values()) {
-            if (value.apiValue().equals(apiValue)) {
-                return value;
-            }
-        }
-        return null;
-    }
-
     public static SuggestionType fromProtoInt(int protoInt) {
         for (SuggestionType value : values()) {
             if (value.protoInt == protoInt) {

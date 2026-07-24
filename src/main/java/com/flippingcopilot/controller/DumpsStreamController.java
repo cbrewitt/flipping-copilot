@@ -1,6 +1,7 @@
 package com.flippingcopilot.controller;
 
 
+import com.flippingcopilot.model.DumpAlert;
 import com.flippingcopilot.model.Suggestion;
 import com.flippingcopilot.rs.*;
 import com.google.inject.Singleton;
@@ -12,7 +13,6 @@ import okio.BufferedSource;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -20,8 +20,8 @@ import java.util.concurrent.atomic.AtomicReference;
 @Singleton
 public class DumpsStreamController {
 
-    private static final byte HEARTBEAT_BYTE = (byte) 0x01;
-    private static final byte MESSAGE_BYTE = (byte) 0x02;
+    // a dump alert is a few hundred bytes; anything near this is a framing bug
+    private static final long MAX_FRAME_BYTES = 1 << 20;
 
     private final ClientThread clientThread;
     private final ApiRequestHandler apiRequestHandler;
@@ -90,27 +90,20 @@ public class DumpsStreamController {
         }
     }
 
+    // each frame is a uvarint byte length followed by that many bytes of an encoded DumpAlert; a zero-length frame is the keepalive
     private void consumeDumpStream(Response response) {
         try (Response resp = response) {
             BufferedSource source = resp.body().source();
             while (activeCall.get() != null) {
-                byte frameType = source.readByte();
-                if (frameType == HEARTBEAT_BYTE) {
+                long length = readUvarint(source);
+                if (length == 0) {
                     continue;
                 }
-                if (frameType == MESSAGE_BYTE) {
-                    int length = source.readInt();
-                    if (length < 0) {
-                        throw new IOException("invalid message length: " + length);
-                    }
-                    byte[] data = source.readByteArray(length);
-                    if (data.length != length) {
-                        throw new IOException("incomplete message payload");
-                    }
-                    handleDumpMessage(data);
-                    continue;
+                // a negative length means the uvarint overflowed, and readByteArray would then throw an unchecked exception
+                if (length < 0 || length > MAX_FRAME_BYTES) {
+                    throw new IOException("invalid dump frame length: " + length);
                 }
-                throw new IOException("unknown dump frame type: " + frameType);
+                handleDumpMessage(source.readByteArray(length));
             }
         } catch (IOException e) {
             String displayName = subscribedDisplayName.get();
@@ -123,8 +116,20 @@ public class DumpsStreamController {
         }
     }
 
-    private void handleDumpMessage(byte[] data) {
-        Suggestion suggestion = Suggestion.fromMsgPack(ByteBuffer.wrap(data));
+    private static long readUvarint(BufferedSource source) throws IOException {
+        long value = 0;
+        for (int shift = 0; shift < 64; shift += 7) {
+            int b = source.readByte() & 0xFF;
+            value |= (long) (b & 0x7F) << shift;
+            if ((b & 0x80) == 0) {
+                return value;
+            }
+        }
+        throw new IOException("dump frame length is not a valid uvarint");
+    }
+
+    private void handleDumpMessage(byte[] data) throws IOException {
+        Suggestion suggestion = DumpAlert.decodeProto(data).suggestion;
         if (suggestion == null) {
             log.warn("dump suggestion decode failed");
             return;

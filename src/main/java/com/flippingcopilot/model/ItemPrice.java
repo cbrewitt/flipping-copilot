@@ -1,14 +1,17 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.ui.graph.model.Data;
-import com.flippingcopilot.util.MsgPackUtil;
+import com.flippingcopilot.util.ProtoUtils;
 import com.google.gson.annotations.SerializedName;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import java.nio.ByteBuffer;
+import java.io.IOException;
+import java.time.Instant;
 
 @Getter
 @AllArgsConstructor
@@ -22,31 +25,47 @@ public class ItemPrice {
     private  String message;
     @SerializedName("graph_data")
     private Data graphData;
+    @SerializedName("time_given")
+    private Instant timeGiven;
+    @SerializedName("item_id")
+    private int itemId;
 
-    public static ItemPrice fromMsgPack(ByteBuffer b) {
+    public ItemPrice(long sellPrice, long buyPrice, String message, Data graphData) {
+        this(sellPrice, buyPrice, message, graphData, null, 0);
+    }
+
+    public static ItemPrice decodeProto(byte[] bytes) throws IOException {
         ItemPrice ip = new ItemPrice();
-        Integer mapSize = MsgPackUtil.decodeMapSize(b);
-        if(mapSize == null) {
-            return null;
+        if (bytes == null || bytes.length == 0) {
+            return ip;
         }
-        for (int i = 0; i < mapSize; i++) {
-            String key = (String) MsgPackUtil.decodePrimitive(b);
-            switch (key) {
-                case "sp":
-                    ip.sellPrice = (long) MsgPackUtil.decodePrimitive(b);
+        CodedInputStream input = CodedInputStream.newInstance(bytes);
+        while (!input.isAtEnd()) {
+            int tag = input.readTag();
+            if (tag == 0) {
+                break;
+            }
+            switch (WireFormat.getTagFieldNumber(tag)) {
+                case 1:
+                    ip.buyPrice = input.readInt64();
                     break;
-                case "bp":
-                    ip.buyPrice = (long) MsgPackUtil.decodePrimitive(b);
+                case 2:
+                    ip.sellPrice = input.readInt64();
                     break;
-                case "m":
-                    ip.message = (String) MsgPackUtil.decodePrimitive(b);
+                case 3:
+                    ip.message = input.readString();
                     break;
-                case "gd":
-                    ip.graphData = Data.fromMsgPack(b);
+                case 4:
+                    ip.graphData = Data.decodeProto(input.readByteArray());
+                    break;
+                case 5:
+                    ip.timeGiven = ProtoUtils.decodeTimestamp(input);
+                    break;
+                case 6:
+                    ip.itemId = input.readInt32();
                     break;
                 default:
-                    // discard value for unrecognised key
-                    MsgPackUtil.decodePrimitive(b);
+                    input.skipField(tag);
             }
         }
         return ip;

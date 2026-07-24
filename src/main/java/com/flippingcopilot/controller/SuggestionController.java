@@ -186,7 +186,7 @@ public class SuggestionController {
         log.debug("tick {} getting suggestion", client.getTickCount());
         boolean sendGraphData = config.priceGraphWebsite() == FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT && !config.lowDataMode();
         boolean geOpen = grandExchange.isOpen();
-        apiRequestHandler.getSuggestionAsync(accountStatus.encodeProto(geOpen, sendGraphData), suggestionConsumer, graphDataConsumer, onFailure, skipGraphData);
+        apiRequestHandler.getSuggestionAsync(accountStatus.encodeProto(geOpen, sendGraphData), suggestionConsumer, graphDataConsumer, onFailure);
     }
 
     void handleDumpSuggestion(Suggestion suggestion) {

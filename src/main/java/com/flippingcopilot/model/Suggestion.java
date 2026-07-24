@@ -1,7 +1,6 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.ui.graph.model.Data;
-import com.flippingcopilot.util.MsgPackUtil;
 import com.flippingcopilot.util.ProtoUtils;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
@@ -9,7 +8,6 @@ import com.google.gson.annotations.SerializedName;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 
-import java.nio.ByteBuffer;
 import java.text.NumberFormat;
 import java.time.Instant;
 import java.io.IOException;
@@ -246,64 +244,6 @@ public class Suggestion {
                 break;
         }
         return string;
-    }
-
-    public static Suggestion fromMsgPack(ByteBuffer b) {
-        Suggestion s = new Suggestion();
-        Integer mapSize = MsgPackUtil.decodeMapSize(b);
-        if(mapSize == null) {
-            return null;
-        }
-
-        for (int i = 0; i < mapSize; i++) {
-            String key = (String) MsgPackUtil.decodePrimitive(b);
-            switch (key) {
-                case "t":
-                    s.type = SuggestionType.fromApiValue((String) MsgPackUtil.decodePrimitive(b));
-                    break;
-                case "b":
-                    s.boxId = (int) (long) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "i":
-                    s.itemId = (int) (long) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "p":
-                    s.price = (long) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "q":
-                    s.quantity = (int) (long) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "n":
-                    s.name = (String) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "id":
-                    s.id = (int) (long) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "m":
-                    s.message = (String) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "ed":
-                    s.expectedDuration = (Double) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "ep":
-                    s.expectedProfit = (Double) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "ih":
-                    s.isHold = (Boolean) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "gd":
-                    s.graphData = Data.fromMsgPack(b);
-                    break;
-                default:
-                    // discard value for unrecognised key
-                    MsgPackUtil.decodePrimitive(b);
-            }
-        }
-        if(s.message != null && s.message.contains("Dump alert")) {
-            s.isDumpAlert = true;
-        }
-
-        return s;
     }
 
     public static Suggestion decodeProto(byte[] bytes) {

@@ -1,13 +1,15 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.ui.graph.model.Data;
-import com.flippingcopilot.util.MsgPackUtil;
+import com.flippingcopilot.util.ProtoUtils;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import java.nio.ByteBuffer;
+import java.io.IOException;
 
 @Getter
 @AllArgsConstructor
@@ -22,42 +24,49 @@ public class VisualizeFlipResponse {
     public int[] sellVolumes;
     public long[] sellPrices;
     public Data graphData;
+    // set, with everything else empty, when the item has no usable price data
+    public String message;
 
-    public static VisualizeFlipResponse fromMsgPack(ByteBuffer b) {
-        VisualizeFlipResponse ip = new VisualizeFlipResponse();
-        Integer mapSize = MsgPackUtil.decodeMapSize(b);
-        if(mapSize == null) {
-            return null;
+    public static VisualizeFlipResponse decodeProto(byte[] bytes) throws IOException {
+        VisualizeFlipResponse r = new VisualizeFlipResponse();
+        if (bytes == null || bytes.length == 0) {
+            return r;
         }
-        for (int i = 0; i < mapSize; i++) {
-            String key = (String) MsgPackUtil.decodePrimitive(b);
-            switch (key) {
-                case "bt":
-                    ip.buyTimes = MsgPackUtil.decodeInt32Array(b);
+        CodedInputStream input = CodedInputStream.newInstance(bytes);
+        while (!input.isAtEnd()) {
+            int tag = input.readTag();
+            if (tag == 0) {
+                break;
+            }
+            switch (WireFormat.getTagFieldNumber(tag)) {
+                case 1:
+                    r.graphData = Data.decodeProto(input.readByteArray());
                     break;
-                case "bv":
-                    ip.buyVolumes = MsgPackUtil.decodeInt32Array(b);
+                case 2:
+                    r.buyTimes = ProtoUtils.readPackedInt32Array(input);
                     break;
-                case "bp64":
-                    ip.buyPrices = MsgPackUtil.decodeLongArray(b);
+                case 3:
+                    r.buyVolumes = ProtoUtils.readPackedInt32Array(input);
                     break;
-                case "st":
-                    ip.sellTimes = MsgPackUtil.decodeInt32Array(b);
+                case 4:
+                    r.buyPrices = ProtoUtils.readPackedInt64Array(input);
                     break;
-                case "sv":
-                    ip.sellVolumes = MsgPackUtil.decodeInt32Array(b);
+                case 5:
+                    r.sellTimes = ProtoUtils.readPackedInt32Array(input);
                     break;
-                case "sp64":
-                    ip.sellPrices = MsgPackUtil.decodeLongArray(b);
+                case 6:
+                    r.sellVolumes = ProtoUtils.readPackedInt32Array(input);
                     break;
-                case "gd":
-                    ip.graphData = Data.fromMsgPack(b);
+                case 7:
+                    r.sellPrices = ProtoUtils.readPackedInt64Array(input);
+                    break;
+                case 8:
+                    r.message = input.readString();
                     break;
                 default:
-                    // discard value for unrecognised key
-                    MsgPackUtil.decodePrimitive(b);
+                    input.skipField(tag);
             }
         }
-        return ip;
+        return r;
     }
 }

@@ -67,16 +67,22 @@ public class VisualizeFlipPanel extends JPanel {
         }
         currentFlip = flip;
         contentCardLayout.show(this, Cards.LOADING_CARD.name());
+        Consumer<String> onFailure = (String errorMessage) -> {
+            SwingUtilities.invokeLater(() -> showErrorCard(errorMessage));
+        };
         Consumer<VisualizeFlipResponse> onSuccess = (VisualizeFlipResponse d) -> {
+            // the server sends a message and no graph data when it has no price history for the item
+            if (d.getGraphData() == null) {
+                String message = d.getMessage();
+                onFailure.accept(message == null || message.isEmpty() ? "No price data available for this item." : message);
+                return;
+            }
             d.graphData.clearPredictionData();
             SwingUtilities.invokeLater(() -> {
                 showGraphCard(new DataManager(d.getGraphData(), d), flip);
             });
         };
-        Consumer<String> onFailure = (String errorMessage) -> {
-            SwingUtilities.invokeLater(() -> showErrorCard(errorMessage));
-        };
-        apiRequestHandler.asyncGetVisualizeFlipData(flip.getId(), "FlipCopilot", onSuccess, onFailure);
+        apiRequestHandler.asyncGetVisualizeFlipData(flip.getId(), onSuccess, onFailure);
     }
 
     private JPanel buildLandingCard() {

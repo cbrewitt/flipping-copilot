@@ -1,8 +1,11 @@
 package com.flippingcopilot.ui.graph.model;
 
-import com.flippingcopilot.util.MsgPackUtil;
+import com.flippingcopilot.util.ProtoUtils;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 import lombok.Getter;
-import java.nio.ByteBuffer;
+
+import java.io.IOException;
 
 public class Data {
 
@@ -73,108 +76,57 @@ public class Data {
     public long buyPrice;
 
 
-    public static Data fromMsgPack(ByteBuffer b) {
+    // every series is delta encoded, so a series that was not sent simply leaves its field null
+    public static Data decodeProto(byte[] bytes) throws IOException {
         Data d = new Data();
-        Integer mapSize = MsgPackUtil.decodeMapSize(b);
-        if(mapSize == null) {
-            return null;
+        if (bytes == null || bytes.length == 0) {
+            return d;
         }
-        for (int i = 0; i < mapSize; i++) {
-            String key = (String) MsgPackUtil.decodePrimitive(b);
-            switch (key) {
-                case "l1ht":
-                    d.low1hTimes = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "l1hp64":
-                    d.low1hPrices = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "h1ht":
-                    d.high1hTimes = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "h1hp64":
-                    d.high1hPrices = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "l5mt":
-                    d.low5mTimes = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "l5mp64":
-                    d.low5mPrices = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "h5mt":
-                    d.high5mTimes = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "h5mp64":
-                    d.high5mPrices = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "llt":
-                    d.lowLatestTimes = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "llp64":
-                    d.lowLatestPrices = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "hlt":
-                    d.highLatestTimes = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "hlp64":
-                    d.highLatestPrices = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "pt":
-                    d.predictionTimes = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "plm64":
-                    d.predictionLowMeans = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "pliu64":
-                    d.predictionLowIQRUpper = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "plil64":
-                    d.predictionLowIQRLower = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "phm64":
-                    d.predictionHighMeans = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "phiu64":
-                    d.predictionHighIQRUpper = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "phil64":
-                    d.predictionHighIQRLower = MsgPackUtil.decodeLongArray(b);
-                    break;
-                case "id":
-                    d.itemId =  (int) (long)MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "n":
-                    d.name = (String) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "dv":
-                    d.dailyVolume = (double) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "sp":
-                    d.sellPrice = (long) (long) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "bp":
-                    d.buyPrice = (long) MsgPackUtil.decodePrimitive(b);
-                    break;
-                case "v1ht":
-                    d.volume1hTimes = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "v1hl":
-                    d.volume1hLows = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "v1hh":
-                    d.volume1hHighs = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "v5mt":
-                    d.volume5mTimes = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "v5ml":
-                    d.volume5mLows = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                case "v5mh":
-                    d.volume5mHighs = MsgPackUtil.decodeInt32Array(b);
-                    break;
-                default:
-                    // discard value for unrecognised key
-                    MsgPackUtil.decodePrimitive(b);
+        CodedInputStream input = CodedInputStream.newInstance(bytes);
+        while (!input.isAtEnd()) {
+            int tag = input.readTag();
+            if (tag == 0) {
+                break;
+            }
+            switch (WireFormat.getTagFieldNumber(tag)) {
+                case 1:  d.volume1hTimes = ProtoUtils.readDeltaInt32Array(input); break;
+                case 2:  d.volume1hLows = ProtoUtils.readDeltaInt32Array(input); break;
+                case 3:  d.volume1hHighs = ProtoUtils.readDeltaInt32Array(input); break;
+
+                case 4:  d.volume5mTimes = ProtoUtils.readDeltaInt32Array(input); break;
+                case 5:  d.volume5mLows = ProtoUtils.readDeltaInt32Array(input); break;
+                case 6:  d.volume5mHighs = ProtoUtils.readDeltaInt32Array(input); break;
+
+                case 7:  d.low1hTimes = ProtoUtils.readDeltaInt32Array(input); break;
+                case 8:  d.low1hPrices = ProtoUtils.readDeltaInt64Array(input); break;
+                case 9:  d.high1hTimes = ProtoUtils.readDeltaInt32Array(input); break;
+                case 10: d.high1hPrices = ProtoUtils.readDeltaInt64Array(input); break;
+
+                case 11: d.low5mTimes = ProtoUtils.readDeltaInt32Array(input); break;
+                case 12: d.low5mPrices = ProtoUtils.readDeltaInt64Array(input); break;
+                case 13: d.high5mTimes = ProtoUtils.readDeltaInt32Array(input); break;
+                case 14: d.high5mPrices = ProtoUtils.readDeltaInt64Array(input); break;
+
+                case 15: d.lowLatestTimes = ProtoUtils.readDeltaInt32Array(input); break;
+                case 16: d.lowLatestPrices = ProtoUtils.readDeltaInt64Array(input); break;
+                case 17: d.highLatestTimes = ProtoUtils.readDeltaInt32Array(input); break;
+                case 18: d.highLatestPrices = ProtoUtils.readDeltaInt64Array(input); break;
+
+                case 19: d.predictionTimes = ProtoUtils.readDeltaInt32Array(input); break;
+                case 20: d.predictionLowMeans = ProtoUtils.readDeltaInt64Array(input); break;
+                case 21: d.predictionLowIQRUpper = ProtoUtils.readDeltaInt64Array(input); break;
+                case 22: d.predictionLowIQRLower = ProtoUtils.readDeltaInt64Array(input); break;
+                case 23: d.predictionHighMeans = ProtoUtils.readDeltaInt64Array(input); break;
+                case 24: d.predictionHighIQRUpper = ProtoUtils.readDeltaInt64Array(input); break;
+                case 25: d.predictionHighIQRLower = ProtoUtils.readDeltaInt64Array(input); break;
+
+                case 26: d.itemId = input.readInt32(); break;
+                case 27: d.name = input.readString(); break;
+                case 28: d.dailyVolume = input.readDouble(); break;
+                case 29: d.sellPrice = input.readInt64(); break;
+                case 30: d.buyPrice = input.readInt64(); break;
+
+                default: input.skipField(tag);
             }
         }
         return d;

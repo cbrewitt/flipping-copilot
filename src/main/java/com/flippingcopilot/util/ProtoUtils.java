@@ -10,7 +10,9 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -105,6 +107,92 @@ public final class ProtoUtils {
         }
         input.popLimit(limit);
         return Instant.ofEpochSecond(seconds, nanos);
+    }
+
+    // the server always packs repeated scalars, so the unpacked encoding is not supported
+    public static int[] readPackedInt32Array(CodedInputStream input) throws IOException {
+        int limit = input.pushLimit(input.readRawVarint32());
+        List<Integer> values = new ArrayList<>();
+        while (input.getBytesUntilLimit() > 0) {
+            values.add(input.readInt32());
+        }
+        input.popLimit(limit);
+        int[] array = new int[values.size()];
+        for (int i = 0; i < array.length; i++) {
+            array[i] = values.get(i);
+        }
+        return array;
+    }
+
+    public static long[] readPackedInt64Array(CodedInputStream input) throws IOException {
+        int limit = input.pushLimit(input.readRawVarint32());
+        List<Long> values = new ArrayList<>();
+        while (input.getBytesUntilLimit() > 0) {
+            values.add(input.readInt64());
+        }
+        input.popLimit(limit);
+        long[] array = new long[values.size()];
+        for (int i = 0; i < array.length; i++) {
+            array[i] = values.get(i);
+        }
+        return array;
+    }
+
+    // a PackedInt32Array is a base value plus successive zigzag deltas: vals[0] = base, vals[i] = vals[i-1] + deltas[i-1]
+    public static int[] readDeltaInt32Array(CodedInputStream input) throws IOException {
+        int limit = input.pushLimit(input.readRawVarint32());
+        int base = 0;
+        List<Integer> deltas = new ArrayList<>();
+        while (input.getBytesUntilLimit() > 0) {
+            int tag = input.readTag();
+            int field = WireFormat.getTagFieldNumber(tag);
+            if (field == 1) {
+                base = input.readSInt32();
+            } else if (field == 2) {
+                int inner = input.pushLimit(input.readRawVarint32());
+                while (input.getBytesUntilLimit() > 0) {
+                    deltas.add(input.readSInt32());
+                }
+                input.popLimit(inner);
+            } else {
+                input.skipField(tag);
+            }
+        }
+        input.popLimit(limit);
+        int[] vals = new int[deltas.size() + 1];
+        vals[0] = base;
+        for (int i = 0; i < deltas.size(); i++) {
+            vals[i + 1] = vals[i] + deltas.get(i);
+        }
+        return vals;
+    }
+
+    public static long[] readDeltaInt64Array(CodedInputStream input) throws IOException {
+        int limit = input.pushLimit(input.readRawVarint32());
+        long base = 0L;
+        List<Long> deltas = new ArrayList<>();
+        while (input.getBytesUntilLimit() > 0) {
+            int tag = input.readTag();
+            int field = WireFormat.getTagFieldNumber(tag);
+            if (field == 1) {
+                base = input.readSInt64();
+            } else if (field == 2) {
+                int inner = input.pushLimit(input.readRawVarint32());
+                while (input.getBytesUntilLimit() > 0) {
+                    deltas.add(input.readSInt64());
+                }
+                input.popLimit(inner);
+            } else {
+                input.skipField(tag);
+            }
+        }
+        input.popLimit(limit);
+        long[] vals = new long[deltas.size() + 1];
+        vals[0] = base;
+        for (int i = 0; i < deltas.size(); i++) {
+            vals[i + 1] = vals[i] + deltas.get(i);
+        }
+        return vals;
     }
 
     public static <T> void writePacked(CodedOutputStream out, int fieldNumber, Collection<T> values, ValueWriter<T> valueWriter) {
