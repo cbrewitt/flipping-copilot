@@ -1,6 +1,6 @@
 package com.flippingcopilot.model;
 
-import com.google.gson.JsonObject;
+import com.flippingcopilot.util.ProtoUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -38,20 +38,17 @@ public class Transaction {
                 this.amountSpent == other.amountSpent;
     }
 
-    public JsonObject toJsonObject() {
-        JsonObject jsonObject = new JsonObject();
-        jsonObject.addProperty("id", id.toString());
-        jsonObject.addProperty("item_id", itemId);
-        jsonObject.addProperty("price64", price);
-        jsonObject.addProperty("quantity", type.equals(OfferStatus.BUY) ? quantity : -quantity);
-        jsonObject.addProperty("box_id", boxId);
-        jsonObject.addProperty("amount_spent64", amountSpent);
-        jsonObject.addProperty("time", timestamp.getEpochSecond());
-        jsonObject.addProperty("copilot_price_used", copilotPriceUsed);
-        jsonObject.addProperty("was_copilot_suggestion", wasCopilotSuggestion);
-        jsonObject.addProperty("consistent_previous_offer", consistent);
-        jsonObject.addProperty("login", login);
-        return jsonObject;
+    public byte[] encodeProto() {
+        return ProtoUtils.encodeMessage(out -> {
+            out.writeByteArray(1, ProtoUtils.uuidToBytes(id));
+            out.writeInt32(4, Math.toIntExact(timestamp.getEpochSecond()));
+            out.writeInt32(5, itemId);
+            out.writeInt32(6, type.equals(OfferStatus.BUY) ? quantity : -quantity);
+            out.writeBool(9, copilotPriceUsed);
+            out.writeBool(10, wasCopilotSuggestion);
+            out.writeInt64(11, price);
+            out.writeInt64(12, amountSpent);
+        });
     }
 
     @Override
