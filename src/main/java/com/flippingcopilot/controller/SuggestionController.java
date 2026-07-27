@@ -14,15 +14,18 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
-import net.runelite.api.SoundEffectID;
 import net.runelite.api.VarClientInt;
 import net.runelite.client.Notifier;
+import net.runelite.client.audio.AudioPlayer;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageBuilder;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.*;
+import java.io.IOException;
 import java.util.function.Consumer;
 
 
@@ -33,9 +36,12 @@ import java.util.function.Consumer;
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class SuggestionController {
 
+    private static final String DUMP_ALERT_SOUND = "/alert-sound.wav";
+
     // dependencies
     private final PausedManager pausedManager;
     private final Client client;
+    private final AudioPlayer audioPlayer;
     private final OsrsLoginManager osrsLoginManager;
     private final HighlightController highlightController;
     private final GrandExchange grandExchange;
@@ -214,7 +220,7 @@ public class SuggestionController {
             return;
         }
         if (newSuggestion.isDumpAlert && config.dumpAlertSound()) {
-            client.playSoundEffect(SoundEffectID.GE_ADD_OFFER_DINGALING);
+            playDumpAlertSound();
         }
         suggestionManager.setSuggestion(newSuggestion);
         portfolioStateRS.updatePortfolioState(
@@ -249,6 +255,14 @@ public class SuggestionController {
         }
         if (client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 14) {
             clientThread.invokeLater(gePreviousSearch::showSuggestedItemInSearch);
+        }
+    }
+
+    private void playDumpAlertSound() {
+        try {
+            audioPlayer.play(SuggestionController.class, DUMP_ALERT_SOUND, 0);
+        } catch (IOException | UnsupportedAudioFileException | LineUnavailableException e) {
+            log.warn("failed to play dump alert sound", e);
         }
     }
 

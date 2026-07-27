@@ -304,7 +304,7 @@ public interface FlippingCopilotConfig extends Config
     @ConfigItem(
             keyName = "dumpAlertSound",
             name = "Dump alert sound",
-            description = "Play the GE offer completed sound when a dump alert arrives.",
+            description = "Play the dump alert sound when a dump alert arrives.",
             section = notificationsSection,
             position = 1
     )
