@@ -4,9 +4,7 @@ import com.flippingcopilot.model.IntervalTimeUnit;
 import com.flippingcopilot.model.SortDirection;
 
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 final class FilterSortUtil {
     private FilterSortUtil() {

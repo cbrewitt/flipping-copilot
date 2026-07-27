@@ -1,10 +1,8 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.DumpsStreamController;
-import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.controller.PremiumInstanceController;
-import com.flippingcopilot.model.OsrsLoginManager;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.model.SuggestionPreferencesManager;
+import com.flippingcopilot.rs.AccountSuggestionPreferencesRS;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
 import lombok.extern.slf4j.Slf4j;
@@ -15,11 +13,10 @@ import javax.inject.Singleton;
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import static com.flippingcopilot.ui.UIUtilities.*;
+import java.util.List;
 
 @Slf4j
 @Singleton
@@ -58,12 +55,9 @@ public class PreferencesPanel extends JPanel {
     };
 
     private final SuggestionPreferencesManager preferencesManager;
-    private final OsrsLoginManager osrsLoginManager;
-    private final JPanel sellOnlyButton;
+    private final AccountSuggestionPreferencesRS accountPreferences;
     private final PreferencesToggleButton sellOnlyModeToggleButton;
-    private final JPanel buyAndHoldButton;
     private final PreferencesToggleButton buyAndHoldToggleButton;
-    private final JPanel f2pOnlyButton;
     private final PreferencesToggleButton f2pOnlyModeToggleButton;
     private final ItemSearchMultiSelect blocklistDropdownPanel;
     private final JComboBox<String> profileSelector;
@@ -84,11 +78,11 @@ public class PreferencesPanel extends JPanel {
             SuggestionPreferencesManager preferencesManager,
             PremiumInstanceController premiumInstanceController,
             ItemController itemController,
-            OsrsLoginManager osrsLoginManager,
+            AccountSuggestionPreferencesRS accountPreferences,
             DumpsStreamController dumpsStreamController) {
         super();
         this.preferencesManager = preferencesManager;
-        this.osrsLoginManager = osrsLoginManager;
+        this.accountPreferences = accountPreferences;
 
         blocklistDropdownPanel = new ItemSearchMultiSelect(
                 () -> new HashSet<>(preferencesManager.blockedItems()),
@@ -116,10 +110,10 @@ public class PreferencesPanel extends JPanel {
         preferencesContent.add(preferencesTitle);
         addVerticalGap(preferencesContent, 8);
 
-        loginPromptPanel = messagePanel(
-                "<html><center>Log in to the game<br>to alter suggestion settings.</center></html>",
-                ColorScheme.DARKER_GRAY_COLOR,
-                ColorScheme.LIGHT_GRAY_COLOR);
+        loginPromptPanel = darkPanel(new GridBagLayout(), ColorScheme.DARKER_GRAY_COLOR);
+        JLabel loginPromptLabel = new JLabel("<html><center>Log in to the game<br>to alter suggestion settings.</center></html>");
+        loginPromptLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        loginPromptPanel.add(loginPromptLabel);
 
         add(preferencesContent, "preferences");
         add(loginPromptPanel, "login");
@@ -129,7 +123,9 @@ public class PreferencesPanel extends JPanel {
         profilePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
 
         // Panel for dropdown and buttons
-        JPanel profileControlPanel = transparentXAxisPanel();
+        JPanel profileControlPanel = new JPanel();
+        profileControlPanel.setLayout(new BoxLayout(profileControlPanel, BoxLayout.X_AXIS));
+        profileControlPanel.setOpaque(false);
 
         // Initialize profile model with default
         profileSelector = new JComboBox<>();
@@ -216,8 +212,7 @@ public class PreferencesPanel extends JPanel {
 
         // Buy and hold toggle
         buyAndHoldToggleButton = new PreferencesToggleButton("Disable holds", "Enable holds");
-        buyAndHoldButton = formRow("Enable holds", buyAndHoldToggleButton);
-        preferencesContent.add(buyAndHoldButton);
+        preferencesContent.add(formRow("Enable holds", buyAndHoldToggleButton));
         buyAndHoldToggleButton.addItemListener(i -> {
             preferencesManager.setBuyAndHold(buyAndHoldToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
@@ -226,8 +221,7 @@ public class PreferencesPanel extends JPanel {
 
         // Sell-only mode toggle
         sellOnlyModeToggleButton = new PreferencesToggleButton("Disable sell-only mode", "Enable sell-only mode");
-        sellOnlyButton = formRow("Sell-only mode", sellOnlyModeToggleButton);
-        preferencesContent.add(sellOnlyButton);
+        preferencesContent.add(formRow("Sell-only mode", sellOnlyModeToggleButton));
         sellOnlyModeToggleButton.addItemListener(i -> {
             preferencesManager.setSellOnlyMode(sellOnlyModeToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
@@ -236,8 +230,7 @@ public class PreferencesPanel extends JPanel {
 
         // F2P-only mode toggle
         f2pOnlyModeToggleButton = new PreferencesToggleButton("Disable F2P-only mode",  "Enable F2P-only mode");
-        f2pOnlyButton = formRow("F2P-only mode", f2pOnlyModeToggleButton);
-        preferencesContent.add(f2pOnlyButton);
+        preferencesContent.add(formRow("F2P-only mode", f2pOnlyModeToggleButton));
         f2pOnlyModeToggleButton.addItemListener(i -> {
             preferencesManager.setF2pOnlyMode(f2pOnlyModeToggleButton.isSelected());
             suggestionManager.setSuggestionNeeded(true);
@@ -302,13 +295,9 @@ public class PreferencesPanel extends JPanel {
 
 
     public void refresh() {
-        if (!SwingUtilities.isEventDispatchThread()) {
-            // we always execute this in the Swing EDT thread
-            SwingUtilities.invokeLater(this::refresh);
-            return;
-        }
+        if (!ensureEdt(this::refresh)) return;
         CardLayout layout = (CardLayout) getLayout();
-        if (osrsLoginManager.getPlayerDisplayName() == null) {
+        if (!accountPreferences.hasAccount()) {
             layout.show(this, "login");
             return;
         }

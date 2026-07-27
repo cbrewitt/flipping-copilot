@@ -2,15 +2,11 @@ package com.flippingcopilot.ui;
 
 import net.runelite.api.NPC;
 import net.runelite.api.Point;
-import net.runelite.client.ui.overlay.Overlay;
-import net.runelite.client.ui.overlay.OverlayLayer;
-import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.*;
 import net.runelite.client.ui.overlay.outline.ModelOutlineRenderer;
 import net.runelite.client.util.ImageUtil;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Graphics2D;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.function.Supplier;
 
@@ -43,11 +39,9 @@ public class NpcHighlightOverlay extends Overlay {
         }
         modelOutlineRenderer.drawOutline(npc, OUTLINE_BORDER_WIDTH, color, OUTLINE_FEATHER);
 
-        if (ICON != null) {
-            Point iconLocation = npc.getCanvasImageLocation(ICON, npc.getLogicalHeight() / 2);
-            if (iconLocation != null) {
-                graphics.drawImage(ICON, iconLocation.getX(), iconLocation.getY(), null);
-            }
+        Point iconLocation = npc.getCanvasImageLocation(ICON, npc.getLogicalHeight() / 2);
+        if (iconLocation != null) {
+            graphics.drawImage(ICON, iconLocation.getX(), iconLocation.getY(), null);
         }
         return null;
     }

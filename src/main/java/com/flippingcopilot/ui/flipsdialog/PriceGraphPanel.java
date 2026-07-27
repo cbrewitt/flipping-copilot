@@ -4,25 +4,18 @@ import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
-import com.flippingcopilot.model.ItemPrice;
-import com.flippingcopilot.model.OsrsLoginManager;
-import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.UIUtilities;
 import com.flippingcopilot.ui.components.ItemSearchBox;
 import com.flippingcopilot.ui.components.TrackingCardLayout;
-import com.flippingcopilot.ui.graph.ConfigPanel;
-import com.flippingcopilot.ui.graph.DataManager;
-import com.flippingcopilot.ui.graph.GraphPanel;
-import com.flippingcopilot.ui.graph.StatsPanel;
+import com.flippingcopilot.ui.graph.*;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.ui.graph.model.PriceLine;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.util.ImageUtil;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.util.function.Consumer;
 
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
@@ -61,11 +54,11 @@ public class PriceGraphPanel extends JPanel {
                            PriceGraphConfigManager configManager,
                            FlippingCopilotConfig copilotConfig,
                            ApiRequestHandler apiRequestHandler,
-                           OsrsLoginManager osrsLoginManager, PriceGraphConfigManager priceGraphConfigManager, SuggestionManager suggestionManager) {
+                           OsrsLoginManager osrsLoginManager, SuggestionManager suggestionManager) {
         this.itemController = itemController;
         this.apiRequestHandler = apiRequestHandler;
         this.osrsLoginManager = osrsLoginManager;
-        this.priceGraphConfigManager = priceGraphConfigManager;
+        this.priceGraphConfigManager = configManager;
         this.suggestionManager = suggestionManager;
 
         setLayout(new BorderLayout());
@@ -109,10 +102,7 @@ public class PriceGraphPanel extends JPanel {
         contentPanel = new JPanel(contentCardLayout);
 
         try {
-            BufferedImage gearIcon = ImageUtil.loadImageResource(getClass(), "/preferences-icon.png");
-            gearIcon = ImageUtil.resizeImage(gearIcon, 20, 20);
-            BufferedImage recoloredIcon = ImageUtil.recolorImage(gearIcon, ColorScheme.LIGHT_GRAY_COLOR);
-            JLabel gearButton = UIUtilities.buildButton(recoloredIcon, "Graph Settings", ()-> {
+            JLabel gearButton = UIUtilities.gearButton("Graph Settings", ()-> {
                 if(contentCardLayout.getCurrentCard().equals(Cards.SETTINGS_CARD.name())) {
                     contentCardLayout.showPrevious(contentPanel);
                 } else {
@@ -135,27 +125,20 @@ public class PriceGraphPanel extends JPanel {
 
         contentPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        contentPanel.add(buildLandingCard(), Cards.LANDING_CARD.name());
-        contentPanel.add(buildLogIntoGameCard(), Cards.LOGIN_PROMPT.name());
-        contentPanel.add(buildLoadingCard(), Cards.LOADING_CARD.name());
-        contentPanel.add(buildGraphCard(), Cards.GRAPH_CARD.name());
-        contentPanel.add(buildErrorCard(), Cards.ERROR_CARD.name());
-        contentPanel.add(buildSettingsCard(), Cards.SETTINGS_CARD.name());
-
-
-        errorLabel.setForeground(Color.RED);
-        errorLabel.setFont(errorLabel.getFont().deriveFont(14f));
-        errorLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        contentPanel.add(DialogUi.centeredMessage("Search for item to see price graph", ColorScheme.DARK_GRAY_COLOR, true, 16f), Cards.LANDING_CARD.name());
+        contentPanel.add(DialogUi.centeredMessage("Log into game to use price graphs.", ColorScheme.DARK_GRAY_COLOR, true, 16f), Cards.LOGIN_PROMPT.name());
+        contentPanel.add(DialogUi.loadingCard("Loading price data...", ColorScheme.DARK_GRAY_COLOR), Cards.LOADING_CARD.name());
+        contentPanel.add(DialogUi.splitGraphCard(graphPanel, statsPanel), Cards.GRAPH_CARD.name());
+        contentPanel.add(DialogUi.errorCard(errorLabel, () -> {
+            if (currentItemId > 0) {
+                onItemSelected(currentItemId);
+            }
+        }), Cards.ERROR_CARD.name());
+        contentPanel.add(new ConfigPanel(priceGraphConfigManager, () -> contentCardLayout.showPrevious(contentPanel)), Cards.SETTINGS_CARD.name());
 
         add(contentPanel, BorderLayout.CENTER);
 
         contentCardLayout.show(contentPanel, Cards.LANDING_CARD.name());
-    }
-
-    private JPanel buildSettingsCard() {
-        return new ConfigPanel(priceGraphConfigManager, () -> {
-            contentCardLayout.showPrevious(contentPanel);
-        });
     }
 
     private void onItemSelected(Integer itemId) {
@@ -201,40 +184,6 @@ public class PriceGraphPanel extends JPanel {
         }
     }
 
-    private JPanel buildLogIntoGameCard() {
-        return DialogUi.centeredMessage("Log into game to use price graphs.", ColorScheme.DARK_GRAY_COLOR, true, 16f);
-    }
-
-    private JPanel buildLandingCard() {
-        return DialogUi.centeredMessage("Search for item to see price graph", ColorScheme.DARK_GRAY_COLOR, true, 16f);
-    }
-
-    private JPanel buildLoadingCard() {
-        return DialogUi.loadingCard("Loading price data...", ColorScheme.DARK_GRAY_COLOR);
-    }
-
-    private JPanel buildErrorCard() {
-        JPanel errorPanel = new JPanel(new GridBagLayout());
-        errorPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.insets = new Insets(10, 10, 10, 10);
-        errorPanel.add(errorLabel, gbc);
-        gbc.gridy = 1;
-        gbc.insets = new Insets(20, 10, 10, 10);
-        JButton retryButton = new JButton("Retry");
-        retryButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        retryButton.setFocusable(false);
-        retryButton.addActionListener(e -> {
-            if (currentItemId > 0) {
-                onItemSelected(currentItemId);
-            }
-        });
-        errorPanel.add(retryButton, gbc);
-        return errorPanel;
-    }
-
     private void showErrorCard(String errorMessage) {
         showSuggestionButton.setVisible(false);
         errorLabel.setText("<html><center>" + errorMessage + "</center></html>");
@@ -255,16 +204,6 @@ public class PriceGraphPanel extends JPanel {
             return;
         }
         contentCardLayout.show(contentPanel, Cards.LANDING_CARD.name());
-    }
-
-    private JSplitPane buildGraphCard() {
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true);
-        splitPane.setLeftComponent(graphPanel);
-        splitPane.setRightComponent(statsPanel);
-        splitPane.setResizeWeight(0.95); // Graph gets 75% of space
-        splitPane.setDividerLocation(0.95);
-        splitPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        return splitPane;
     }
 
     public void onTabShown() {

@@ -3,17 +3,8 @@ package com.flippingcopilot.ui.flipsdialog;
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.model.FlipManager;
-import com.flippingcopilot.model.FlipStatus;
-import com.flippingcopilot.model.FlipV2;
-import com.flippingcopilot.model.HttpResponseException;
-import com.flippingcopilot.model.PortfolioId;
-import com.flippingcopilot.model.SortDirection;
-import com.flippingcopilot.model.GeHistoryRow;
-import com.flippingcopilot.model.GeHistoryState;
-import com.flippingcopilot.rs.CopilotLoginRS;
-import com.flippingcopilot.rs.GeHistoryStateRS;
-import com.flippingcopilot.rs.OsrsLoginRS;
+import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.*;
 import com.flippingcopilot.ui.Spinner;
 import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
 import com.flippingcopilot.util.ProfitCalculator;
@@ -26,19 +17,14 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static com.flippingcopilot.util.DateUtil.formatEpoch;
+import static com.flippingcopilot.util.DateUtil.formatEpochOrNa;
+import java.util.List;
 
 @Slf4j
 public class MissedFlipsPanel extends JPanel {
@@ -102,15 +88,8 @@ public class MissedFlipsPanel extends JPanel {
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         leftPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        searchField = new ItemSearchMultiSelect(
-                () -> new HashSet<>(filteredItems),
-                itemController::allItemIds,
-                itemController::search,
-                this::setFilteredItems,
-                "Items filter...",
-                SwingUtilities.getWindowAncestor(this));
-        searchField.setMinimumSize(new Dimension(300, 0));
-        searchField.setToolTipText("Search by item name");
+        searchField = ItemSearchMultiSelect.itemsFilter(this, itemController,
+                () -> new HashSet<>(filteredItems), this::setFilteredItems);
 
         leftPanel.add(searchField);
         topPanel.add(leftPanel, BorderLayout.WEST);
@@ -137,7 +116,7 @@ public class MissedFlipsPanel extends JPanel {
         cardPanel = new JPanel(cardLayout);
         cardPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         cardPanel.add(sectionsPanel, SECTIONS_CARD);
-        cardPanel.add(buildLoginPromptPanel(), LOGIN_PROMPT_CARD);
+        cardPanel.add(DialogUi.centeredMessage("Log into the game to view missed flips", ColorScheme.DARK_GRAY_COLOR, true, 18f), LOGIN_PROMPT_CARD);
 
         spinner = new Spinner();
         spinner.show();
@@ -169,10 +148,6 @@ public class MissedFlipsPanel extends JPanel {
         }
         geHistoryStatusLabel.setText("GE history known since " + formatEpoch(state.getCapturedAt()));
         geHistoryStatusLabel.setVisible(true);
-    }
-
-    private JPanel buildLoginPromptPanel() {
-        return DialogUi.loginPrompt("Log into the game to view missed flips", ColorScheme.DARK_GRAY_COLOR, true);
     }
 
     private void setFilteredItems(Set<Integer> items) {
@@ -239,13 +214,6 @@ public class MissedFlipsPanel extends JPanel {
             disappearedSection.setTableEnabled(!visible);
             ghostSection.setTableEnabled(!visible);
         });
-    }
-
-    private String formatTimestamp(int epochSeconds) {
-        if (epochSeconds == 0) {
-            return "N/A";
-        }
-        return formatEpoch(epochSeconds);
     }
 
     private void showFlipMenu(MouseEvent e, FlipV2 flip, boolean isDisappearedSection) {
@@ -467,8 +435,8 @@ public class MissedFlipsPanel extends JPanel {
 
     private Object[] toRow(FlipV2 flip) {
         return new Object[]{
-                formatTimestamp(flip.getOpenedTime()),
-                formatTimestamp(flip.getClosedTime()),
+                formatEpochOrNa(flip.getOpenedTime()),
+                formatEpochOrNa(flip.getClosedTime()),
                 flip.getCachedItemName(),
                 flip.getStatus().name(),
                 flip.getOpenedQuantity(),

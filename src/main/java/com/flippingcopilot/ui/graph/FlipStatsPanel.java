@@ -5,10 +5,8 @@ import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.FlipV2;
 
-import javax.swing.JTable;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import java.awt.Component;
+import java.util.Collections;
 
 public class FlipStatsPanel extends BaseStatsPanel {
     private static final String[] ROWS = {
@@ -16,9 +14,10 @@ public class FlipStatsPanel extends BaseStatsPanel {
             "Avg. buy price", "Avg. sell price", "Tax", "Profit", "Profit ea.", "ROI"
     };
 
-    // Set custom cell renderer for value column to color profit/loss
+    // Set custom cell renderer for value column to color the Profit (row 8) and ROI (row 10) rows
     public FlipStatsPanel(PriceGraphConfigManager configManager, FlippingCopilotConfig copilotConfig) {
-        super(configManager, copilotConfig, ROWS, 450, new ProfitRenderer(copilotConfig));
+        super(configManager, ROWS, 450,
+                new ValueRenderer(copilotConfig, "0.00%", Collections.singletonList(10), Collections.singletonList(8)));
     }
 
     public void populate(FlipV2 flip, ItemController itemController) {
@@ -46,55 +45,5 @@ public class FlipStatsPanel extends BaseStatsPanel {
         model.setValueAt(formatNumber(flip.getProfit()), 8, 1);
         model.setValueAt(formatNumber(profitPerItem), 9, 1);
         model.setValueAt(roi, 10, 1);
-    }
-
-    private static class ProfitRenderer extends DefaultTableCellRenderer {
-        private final FlippingCopilotConfig config;
-
-        ProfitRenderer(FlippingCopilotConfig config) {
-            this.config = config;
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-            // Apply color to Profit and ROI rows only.
-            if (row == 8 || row == 10) {
-                String valueStr = value.toString();
-                if (row == 10) {
-                    colorPercent(c, table, valueStr);
-                } else {
-                    colorProfit(c, table, valueStr);
-                }
-            } else {
-                c.setForeground(table.getForeground());
-            }
-            return c;
-        }
-
-        private void colorPercent(Component c, JTable table, String valueStr) {
-            if (valueStr.contains("-")) {
-                c.setForeground(config.lossAmountColor());
-            } else if (!valueStr.equals("0.00%")) {
-                c.setForeground(config.profitAmountColor());
-            } else {
-                c.setForeground(table.getForeground());
-            }
-        }
-
-        private void colorProfit(Component c, JTable table, String valueStr) {
-            try {
-                long profitValue = Long.parseLong(valueStr.replace(",", ""));
-                if (profitValue < 0) {
-                    c.setForeground(config.lossAmountColor());
-                } else if (profitValue > 0) {
-                    c.setForeground(config.profitAmountColor());
-                } else {
-                    c.setForeground(table.getForeground());
-                }
-            } catch (NumberFormatException e) {
-                c.setForeground(table.getForeground());
-            }
-        }
     }
 }

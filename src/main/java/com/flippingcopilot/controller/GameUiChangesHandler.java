@@ -1,10 +1,7 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.model.OfferManager;
-import com.flippingcopilot.model.OfferStatus;
-import com.flippingcopilot.model.Suggestion;
-import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.HeldItemSyncStateRS;
 import com.flippingcopilot.ui.OfferEditor;
 import lombok.Getter;
@@ -12,15 +9,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
-import net.runelite.api.gameval.VarClientID;
-import net.runelite.api.gameval.VarPlayerID;
-import net.runelite.api.gameval.VarbitID;
-import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.*;
 import net.runelite.api.widgets.*;
 import net.runelite.client.callback.ClientThread;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import net.runelite.api.gameval.InterfaceID;
 
 
 @Slf4j

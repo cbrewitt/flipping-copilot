@@ -37,8 +37,7 @@ public class AccountsAggregatePanel extends JPanel {
     // state
     private final AccountsAggregateFilterSort sortAndFilter;
 
-    public AccountsAggregatePanel(FlipManager flipsManager,
-                                  CopilotLoginRS copilotLoginRS,
+    public AccountsAggregatePanel(CopilotLoginRS copilotLoginRS,
                                   @Named("copilotExecutor") ExecutorService executorService,
                                   FlippingCopilotConfig config,
                                   ApiRequestHandler apiRequestHandler,
@@ -53,13 +52,11 @@ public class AccountsAggregatePanel extends JPanel {
 
         // Initialize sort and filter
         tablePanel = new PaginatedTablePanel<>(COLUMN_NAMES, this::toRow);
-        sortAndFilter = new AccountsAggregateFilterSort(flipsManager, copilotLoginRS,
+        sortAndFilter = new AccountsAggregateFilterSort(flipManager, copilotLoginRS,
                 tablePanel::setRows, tablePanel::setSpinnerVisible, executorService);
 
         // Create top panel with all controls
-        IntervalDropdown timeIntervalDropdown = new IntervalDropdown(sortAndFilter::setInterval, IntervalDropdown.ALL_TIME, false);
-        timeIntervalDropdown.setPreferredSize(new Dimension(150, timeIntervalDropdown.getPreferredSize().height));
-        timeIntervalDropdown.setToolTipText("Select time interval");
+        IntervalDropdown timeIntervalDropdown = DialogUi.intervalDropdown(sortAndFilter::setInterval);
         tablePanel.leftControls().add(timeIntervalDropdown);
 
         // Enable built-in table sorting

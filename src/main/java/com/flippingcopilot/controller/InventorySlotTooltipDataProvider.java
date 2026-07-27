@@ -1,10 +1,6 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.model.InventorySlotTooltipData;
-import com.flippingcopilot.model.PortfolioItemCardData;
-import com.flippingcopilot.model.Suggestion;
-import com.flippingcopilot.model.SuggestionManager;
-import com.flippingcopilot.model.TooltipHoverSource;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import com.flippingcopilot.ui.UIUtilities;
 import lombok.RequiredArgsConstructor;

@@ -1,8 +1,6 @@
 package com.flippingcopilot.ui.graph.model;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import net.runelite.client.ui.ColorScheme;
 
 import java.awt.*;

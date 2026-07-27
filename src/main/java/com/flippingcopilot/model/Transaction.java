@@ -1,10 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.ProtoUtils;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.UUID;

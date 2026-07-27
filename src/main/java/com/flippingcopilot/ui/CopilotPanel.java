@@ -34,11 +34,7 @@ public class CopilotPanel extends JPanel {
     }
 
     public void refresh() {
-        if(!SwingUtilities.isEventDispatchThread()) {
-            // we always execute this in the Swing EDT thread
-            SwingUtilities.invokeLater(this::refresh);
-            return;
-        }
+        if (!UIUtilities.ensureEdt(this::refresh)) return;
         suggestionPanel.refresh();
         controlPanel.refresh();
     }

@@ -348,10 +348,10 @@ public class ProfitGraphPanel extends JPanel {
     }
 
     private void drawToolTip(LocalDate t, long v, Graphics2D g2, Point p) {
-        // Use exact same constants as DatapointTooltip
+        // Tooltip styling local to this panel - deliberately not the graph Config colours
         final Color TOOLTIP_BACKGROUND = new Color(43, 43, 43);
         final Color TOOLTIP_BORDER = new Color(150, 150, 150);
-        final int TOOLTIP_PADDING = 8; // Don't scale - use exact value from DatapointTooltip
+        final int TOOLTIP_PADDING = 8; // Don't scale
 
         // Prepare tooltip text
         String dailyProfitStr = String.format("%,d", v);

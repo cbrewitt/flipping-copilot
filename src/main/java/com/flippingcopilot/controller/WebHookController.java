@@ -1,9 +1,7 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.model.DiscordWebhookBody;
-import com.flippingcopilot.model.SessionData;
-import com.flippingcopilot.model.Stats;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.UIUtilities;
 import joptsimple.internal.Strings;
 import lombok.RequiredArgsConstructor;

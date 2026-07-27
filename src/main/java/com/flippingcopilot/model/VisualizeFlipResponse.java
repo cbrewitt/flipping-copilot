@@ -4,10 +4,7 @@ import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.util.ProtoUtils;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import java.io.IOException;
 

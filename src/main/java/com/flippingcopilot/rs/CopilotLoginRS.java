@@ -3,18 +3,14 @@ package com.flippingcopilot.rs;
 import com.flippingcopilot.controller.Persistance;
 import com.flippingcopilot.model.CopilotLoginState;
 import com.flippingcopilot.model.LoginResponse;
-import com.google.gson.Gson;
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import com.google.gson.*;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.concurrent.ExecutorService;
 
 @Singleton

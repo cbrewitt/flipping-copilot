@@ -1,8 +1,6 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.model.GrandExchangeUncollectedManager;
-import com.flippingcopilot.model.OsrsLoginManager;
-import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.HeldItemSyncStateRS;
 import com.flippingcopilot.ui.SuggestionPanel;
 import com.google.inject.Singleton;

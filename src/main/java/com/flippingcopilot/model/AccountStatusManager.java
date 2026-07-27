@@ -1,8 +1,6 @@
 package com.flippingcopilot.model;
 
-import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.controller.PortfolioController;
-import com.flippingcopilot.controller.GrandExchange;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.HeldItemSyncStateRS;
 import lombok.RequiredArgsConstructor;
@@ -13,11 +11,7 @@ import net.runelite.api.gameval.InventoryID;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @Slf4j
 @Singleton

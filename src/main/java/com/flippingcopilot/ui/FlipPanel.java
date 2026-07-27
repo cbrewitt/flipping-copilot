@@ -6,12 +6,7 @@ import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -52,7 +47,7 @@ public class FlipPanel extends JPanel {
                 ? String.format("%.2f%%", ((double) flip.getProfit() / (double) closedCostBasis) * 100.0d)
                 : "Unknown";
         Color profitColor = UIUtilities.getProfitColor(flip.getProfit(), config);
-        String profitColorHex = String.format("#%06X", (0xFFFFFF & profitColor.getRGB()));
+        String profitColorHex = UIUtilities.colorHex(profitColor);
 
         String tooltipText = String.format("<html>Profit: <font color='%s'>%s</font><br>ROI: <font color='%s'>%s</font><br>Avg buy price: <font color='#32A0FA'>%s</font><br>Avg sell price: <font color='#F0CF7B'>%s</font><br>Tax paid: <font color='#FFFFFF'>%s</font><br>Opened time: %s<br>%s: %s</html>",
                 profitColorHex,

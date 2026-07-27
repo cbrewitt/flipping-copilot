@@ -6,11 +6,11 @@ import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.ItemAggregate;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.Paginator;
-import com.flippingcopilot.ui.components.AccountDropdown;
-import com.flippingcopilot.ui.components.IntervalDropdown;
-import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
+import com.flippingcopilot.ui.components.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
+
+import static com.flippingcopilot.ui.UIUtilities.addHorizontalGap;
 
 import javax.inject.Named;
 import javax.swing.*;
@@ -22,7 +22,6 @@ import java.util.concurrent.ExecutorService;
 @Slf4j
 public class ItemAggregatePanel extends JPanel {
 
-    private static final Integer[] PAGE_SIZE_OPTIONS = {10, 25, 50, 100, 200, 500, 1000, 2000};
     private static final NumberFormat GP_FORMAT = NumberFormat.getNumberInstance(Locale.US);
     private static final String[] COLUMN_NAMES = {
             "Item", "Number of flips", "Total quantity flipped", "Biggest loss", "Biggest win",
@@ -51,33 +50,18 @@ public class ItemAggregatePanel extends JPanel {
         sortAndFilter = new ItemAggregateFilterSort(flipsManager, itemController, tablePanel::setRows,
                 paginatorPanel::setTotalPages, tablePanel::setSpinnerVisible, executorService);
 
-        ItemSearchMultiSelect searchField = new ItemSearchMultiSelect(
-                sortAndFilter::getFilteredItems,
-                itemController::allItemIds,
-                itemController::search,
-                sortAndFilter::setFilteredItems,
-                "Items filter...",
-                SwingUtilities.getWindowAncestor(this));
-        searchField.setMinimumSize(new Dimension(300, 0));
-        searchField.setToolTipText("Search by item name");
+        ItemSearchMultiSelect searchField = ItemSearchMultiSelect.itemsFilter(this, itemController,
+                sortAndFilter::getFilteredItems, sortAndFilter::setFilteredItems);
 
-        IntervalDropdown timeIntervalDropdown = new IntervalDropdown(sortAndFilter::setInterval, IntervalDropdown.ALL_TIME, false);
-        timeIntervalDropdown.setPreferredSize(new Dimension(150, timeIntervalDropdown.getPreferredSize().height));
-        timeIntervalDropdown.setToolTipText("Select time interval");
+        IntervalDropdown timeIntervalDropdown = DialogUi.intervalDropdown(sortAndFilter::setInterval);
 
-        accountDropdown = new AccountDropdown(
-                () -> copilotLoginRS.get().displayNameToAccountId,
-                sortAndFilter::setAccountId,
-                AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
-        );
-        accountDropdown.setPreferredSize(new Dimension(120, accountDropdown.getPreferredSize().height));
-        accountDropdown.setToolTipText("Select account");
+        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.get().displayNameToAccountId, sortAndFilter::setAccountId);
         accountDropdown.refresh();
 
         tablePanel.leftControls().add(searchField);
-        addGap(tablePanel.leftControls(), 3);
+        addHorizontalGap(tablePanel.leftControls(), 3);
         tablePanel.leftControls().add(timeIntervalDropdown);
-        addGap(tablePanel.leftControls(), 3);
+        addHorizontalGap(tablePanel.leftControls(), 3);
         tablePanel.leftControls().add(accountDropdown);
 
         tablePanel.installHeaderSort(sortAndFilter::getSortColumn, sortAndFilter::getSortDirection, (column, direction) -> {
@@ -90,13 +74,7 @@ public class ItemAggregatePanel extends JPanel {
         tablePanel.moneyColumns(GP_FORMAT, 2, 3);
         tablePanel.profitColumns(GP_FORMAT, config, 4, 5, 6, 7);
 
-        JComboBox<Integer> pageSizeComboBox = new JComboBox<>(PAGE_SIZE_OPTIONS);
-        pageSizeComboBox.setSelectedItem(sortAndFilter.getPageSize());
-        pageSizeComboBox.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        pageSizeComboBox.setFocusable(false);
-        pageSizeComboBox.setToolTipText("Page size");
-        pageSizeComboBox.addActionListener(e -> sortAndFilter.setPageSize((Integer) pageSizeComboBox.getSelectedItem()));
-        tablePanel.installPageFooter(paginatorPanel, pageSizeComboBox);
+        tablePanel.installPageFooter(paginatorPanel, sortAndFilter.getPageSize(), sortAndFilter::setPageSize);
 
         add(tablePanel, BorderLayout.CENTER);
     }
@@ -112,10 +90,6 @@ public class ItemAggregatePanel extends JPanel {
                 aggregate.getAvgProfit(),
                 aggregate.getAvgProfitEa()
         };
-    }
-
-    private static void addGap(JPanel panel, int width) {
-        panel.add(Box.createRigidArea(new Dimension(width, 0)));
     }
 
     public void onTabShown() {

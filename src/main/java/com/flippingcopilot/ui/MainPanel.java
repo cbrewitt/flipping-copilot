@@ -41,44 +41,27 @@ public class MainPanel extends PluginPanel {
 
         setLayout(cardLayout);
         setBorder(BorderFactory.createEmptyBorder(5, 6, 5, 6));
-        add(buildLoggedInView(), "logged-in");
-        add(buildLoggedOutView(), "logged-out");
+        add(buildView(true, copilotPanel), "logged-in");
+        add(buildView(false, loginPanel), "logged-out");
         cardLayout.show(this, copilotLoginRS.get().isLoggedIn() ? "logged-in" : "logged-out");
 
     }
 
-    private JPanel buildLoggedOutView() {
+    private JPanel buildView(boolean isLoggedIn, JComponent content) {
         JPanel wrapper = new JPanel();
         wrapper.setLayout(new BorderLayout());
-        JPanel topBar = constructTopBar(false);
-        wrapper.add(topBar, BorderLayout.NORTH);
-        wrapper.add(loginPanel, BorderLayout.CENTER);
+        wrapper.add(constructTopBar(isLoggedIn), BorderLayout.NORTH);
+        wrapper.add(content, BorderLayout.CENTER);
         return wrapper;
     }
-
-    private JPanel buildLoggedInView() {
-        JPanel wrapper = new JPanel();
-        wrapper.setLayout(new BorderLayout());
-        JPanel topBar = constructTopBar(true);
-        wrapper.add(topBar, BorderLayout.NORTH);
-        wrapper.add(copilotPanel, BorderLayout.CENTER);
-        return wrapper;
-    }
-
-
 
     public void refresh() {
-        if (!SwingUtilities.isEventDispatchThread()) {
-            // Always execute this in the Swing EDT thread
-            SwingUtilities.invokeLater(this::refresh);
-            return;
-        }
+        if (!UIUtilities.ensureEdt(this::refresh)) return;
         if (copilotLoginRS.get().isLoggedIn()) {
             showLoggedInView();
             copilotPanel.refresh();
         } else {
             showLoggedOutView();
-            loginPanel.refresh();
             copilotPanel.suggestionPanel.refresh();
         }
     }

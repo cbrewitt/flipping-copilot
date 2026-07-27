@@ -75,7 +75,7 @@ public class OfferEditor {
                 if (offerManager.getViewedSlotItemId() == currentItemId) {
                     shiftChatboxWidgetsDown();
                     if (offerHandler.getViewedSlotPriceErrorText() != null) {
-                        showPriceWithWarning(price, offerHandler.getViewedSlotPriceErrorText());
+                        showPrice(price, offerHandler.getViewedSlotPriceErrorText());
                     } else {
                         showPrice(price);
                     }
@@ -98,17 +98,12 @@ public class OfferEditor {
     }
 
     public void showPrice(long price) {
-        text.setText(setActionText("Copilot price: " + String.format("%,d", price) + " gp"));
-        text.setAction(0, "Set price");
-        setHoverListeners(text);
-        text.setOnOpListener((JavaScriptCallback) ev ->
-        {
-            offerHandler.setChatboxValue(price);
-        });
+        showPrice(price, null);
     }
 
-    private void showPriceWithWarning(long price, String warning) {
-        text.setText(setActionText("Copilot price: " + String.format("%,d", price) + " gp") + ". " + warning);
+    private void showPrice(long price, String warning) {
+        text.setText(setActionText("Copilot price: " + String.format("%,d", price) + " gp")
+                + (warning == null ? "" : ". " + warning));
         text.setAction(0, "Set price");
         setHoverListeners(text);
         text.setOnOpListener((JavaScriptCallback) ev ->

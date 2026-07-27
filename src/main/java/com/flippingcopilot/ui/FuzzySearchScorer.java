@@ -26,9 +26,7 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.model.ItemIdName;
-import org.apache.commons.text.similarity.JaroWinklerDistance;
-import org.apache.commons.text.similarity.LongestCommonSubsequence;
-import org.apache.commons.text.similarity.SimilarityScore;
+import org.apache.commons.text.similarity.*;
 
 import javax.inject.Singleton;
 import java.util.function.ToDoubleFunction;

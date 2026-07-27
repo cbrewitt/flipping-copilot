@@ -11,12 +11,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.GridLayout;
-import java.awt.Image;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 
 
@@ -62,11 +57,11 @@ public class LoginPanel extends JPanel {
 
         emailTextField = new JTextField();
         emailTextField.setSize(PAGE_WIDTH, 40);
-        loginContainer.add(this.buildEmailInput(emailTextField));
+        loginContainer.add(this.buildInput("Email address", emailTextField));
 
         passwordTextField = new JPasswordField();
         passwordTextField.setSize(PAGE_WIDTH, 40);
-        loginContainer.add(this.buildPasswordInput(passwordTextField));
+        loginContainer.add(this.buildInput("Password", passwordTextField));
 
         JPanel loginButtonContainer = this.buildLoginButtons(signUpButton, loginButton);
         loginContainer.add(loginButtonContainer, BorderLayout.CENTER);
@@ -136,14 +131,6 @@ public class LoginPanel extends JPanel {
         container.add(errorLabel);
         container.setAlignmentX(Component.LEFT_ALIGNMENT);
         return container;
-    }
-
-    public JPanel buildEmailInput(JTextField textField) {
-        return buildInput("Email address", textField);
-    }
-
-    public JPanel buildPasswordInput(JTextField textField) {
-        return buildInput("Password", textField);
     }
 
     private JPanel buildInput(String label, JTextField textField) {
@@ -229,9 +216,5 @@ public class LoginPanel extends JPanel {
         container.setPreferredSize(new Dimension(PAGE_WIDTH, 36));
         container.setAlignmentX(LEFT_ALIGNMENT);
         return container;
-    }
-
-    public void refresh() {
-
     }
 }

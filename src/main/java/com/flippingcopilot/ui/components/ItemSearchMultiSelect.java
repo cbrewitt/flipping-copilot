@@ -1,5 +1,6 @@
 package com.flippingcopilot.ui.components;
 
+import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.ItemIdName;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.RuneLite;
@@ -11,9 +12,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 @Slf4j
 public class ItemSearchMultiSelect extends JPanel {
@@ -33,6 +32,25 @@ public class ItemSearchMultiSelect extends JPanel {
     private final Consumer<Set<Integer>> onItemSelectionChanged;
     private final Supplier<Set<Integer>> selectedItemsGetter;
     private List<ItemIdName> currentSearchResults = new ArrayList<>();
+
+    /**
+     * Builds the standard "Items filter..." search field used by the flips dialog tabs.
+     */
+    public static ItemSearchMultiSelect itemsFilter(Component parent,
+                                                    ItemController itemController,
+                                                    Supplier<Set<Integer>> selectedItemsGetter,
+                                                    Consumer<Set<Integer>> onItemSelectionChanged) {
+        ItemSearchMultiSelect field = new ItemSearchMultiSelect(
+                selectedItemsGetter,
+                itemController::allItemIds,
+                itemController::search,
+                onItemSelectionChanged,
+                "Items filter...",
+                SwingUtilities.getWindowAncestor(parent));
+        field.setMinimumSize(new Dimension(300, 0));
+        field.setToolTipText("Search by item name");
+        return field;
+    }
 
     public ItemSearchMultiSelect(
             Supplier<Set<Integer>> selectedItemsGetter,

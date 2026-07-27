@@ -1,9 +1,7 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.controller.GrandExchange;
-import com.flippingcopilot.controller.HighlightController;
-import com.flippingcopilot.controller.PremiumInstanceController;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.util.ProfitCalculator;
@@ -40,7 +38,7 @@ public class SuggestionPanel extends JPanel {
     private final SuggestionPreferencesManager suggestionPreferencesManager;
     private final AccountStatusManager accountStatusManager;
     public final PauseButton pauseButton;
-    private final BlockButton blockButton;
+    private final JButton blockButton = new JButton();
     private final OsrsLoginManager osrsLoginManager;
     private final Client client;
     private final PausedManager pausedManager;
@@ -61,15 +59,13 @@ public class SuggestionPanel extends JPanel {
     public final Spinner spinner = new Spinner();
     private JLabel skipButton;
     private final JPanel buttonContainer = new JPanel();
-    private JLabel graphButton;
-    private JLabel portfolioButton;
     private final JPanel suggestedActionPanel;
     private final PreferencesPanel preferencesPanel;
     private final JLayeredPane layeredPane = new JLayeredPane();
     private boolean isPreferencesPanelVisible = false;
     private final JLabel gearButton;
     private String innerSuggestionMessage;
-    private String highlightedColor = "yellow";
+    private static final String HIGHLIGHTED_COLOR = "yellow";
 
     private String serverMessage = "";
 
@@ -84,7 +80,6 @@ public class SuggestionPanel extends JPanel {
                            SuggestionPreferencesManager suggestionPreferencesManager,
                            AccountStatusManager accountStatusManager,
                            PauseButton pauseButton,
-                           BlockButton blockButton,
                            PreferencesPanel preferencesPanel,
                            OsrsLoginManager osrsLoginManager,
                            Client client, PausedManager pausedManager,
@@ -99,7 +94,6 @@ public class SuggestionPanel extends JPanel {
         this.suggestionPreferencesManager = suggestionPreferencesManager;
         this.accountStatusManager = accountStatusManager;
         this.pauseButton = pauseButton;
-        this.blockButton = blockButton;
         this.osrsLoginManager = osrsLoginManager;
         this.client = client;
         this.pausedManager = pausedManager;
@@ -160,10 +154,7 @@ public class SuggestionPanel extends JPanel {
         layeredPane.add(this.preferencesPanel, JLayeredPane.PALETTE_LAYER);
 
         // Create and add the gear button
-        BufferedImage gearIcon = ImageUtil.loadImageResource(getClass(), "/preferences-icon.png");
-        gearIcon = ImageUtil.resizeImage(gearIcon, 20, 20);
-        BufferedImage recoloredIcon = ImageUtil.recolorImage(gearIcon, ColorScheme.LIGHT_GRAY_COLOR);
-        gearButton = buildButton(recoloredIcon, "Settings", this::handleGearClick);
+        gearButton = UIUtilities.gearButton("Settings", this::handleGearClick);
         gearButton.setEnabled(true);
         gearButton.setFocusable(true);
         gearButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -210,14 +201,23 @@ public class SuggestionPanel extends JPanel {
         JPanel centerPanel = darkPanel(new GridLayout(1, 5, 15, 0), ColorScheme.DARKER_GRAY_COLOR);
 
         BufferedImage graphIcon = ImageUtil.loadImageResource(getClass(), "/graph.png");
-        graphButton = buildButton(graphIcon, "Price graph", flipsDialogController::openSuggestionPriceGraph);
-        centerPanel.add(graphButton);
+        centerPanel.add(buildButton(graphIcon, "Price graph", flipsDialogController::openSuggestionPriceGraph));
 
         BufferedImage portfolioIcon = ImageUtil.loadImageResource(getClass(), "/pie-chart.png");
-        portfolioButton = buildButton(portfolioIcon, "Open portfolio", flipsDialogController::showPortfolioTab);
-        centerPanel.add(portfolioButton);
+        centerPanel.add(buildButton(portfolioIcon, "Open portfolio", flipsDialogController::showPortfolioTab));
 
         centerPanel.add(pauseButton);
+
+        BufferedImage blockImg = ImageUtil.loadImageResource(getClass(), "/block.png");
+        ImageIcon blockIcon = new ImageIcon(blockImg);
+        ImageIcon blockIconHover = new ImageIcon(ImageUtil.luminanceScale(blockImg, BUTTON_HOVER_LUMINANCE));
+        blockButton.setIcon(blockIcon);
+        blockButton.setToolTipText("Block this item");
+        blockButton.setFocusPainted(false);
+        blockButton.setBorderPainted(false);
+        blockButton.setContentAreaFilled(false);
+        blockButton.addActionListener(e -> confirmAndBlock());
+        addHoverIcons(blockButton, () -> blockIcon, () -> blockIconHover);
         centerPanel.add(blockButton);
 
         BufferedImage skipIcon = ImageUtil.loadImageResource(getClass(), "/skip.png");
@@ -231,6 +231,30 @@ public class SuggestionPanel extends JPanel {
         buttonContainer.add(centerPanel, BorderLayout.CENTER);
     }
 
+    private void confirmAndBlock() {
+        Suggestion s = suggestionManager.getSuggestion();
+        if (s == null) {
+            log.debug("No current suggestion to block.");
+            return;
+        }
+
+        String itemName = s.getName() != null ? s.getName() : "this item";
+        int choice = JOptionPane.showConfirmDialog(
+                blockButton,
+                "Do you want to block " + itemName + "?",
+                "Confirm Block",
+                JOptionPane.YES_NO_OPTION
+        );
+
+        if (choice == JOptionPane.YES_OPTION) {
+            suggestionPreferencesManager.blockItem(s.getItemId());
+            log.debug("Blocked item with ID {} ({})", s.getItemId(), itemName);
+            suggestionManager.setSuggestionNeeded(true);
+        } else {
+            log.debug("User canceled blocking for {}", itemName);
+        }
+    }
+
 
     private void setItemIcon(int itemId) {
         AsyncBufferedImage image = itemManager.getImage(itemId);
@@ -240,14 +264,16 @@ public class SuggestionPanel extends JPanel {
         }
     }
 
-    public void setAdditionalInfoText(String text) {
-        setAdditionalInfoText(text, null);
-    }
-
     private void setAdditionalInfoText(String text, String tooltip) {
         additionalInfoText.setText("<html><center>" + text + "</center></html>");
         additionalInfoText.setToolTipText(tooltip);
         suggestionText.setToolTipText(tooltip);
+    }
+
+    private static String quantityNameAndPrice(Suggestion suggestion, NumberFormat formatter) {
+        return " <FONT COLOR=" + HIGHLIGHTED_COLOR + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
+                "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
+                "for <FONT COLOR=" + HIGHLIGHTED_COLOR + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
     }
 
     public void updateSuggestion(Suggestion suggestion) {
@@ -270,10 +296,7 @@ public class SuggestionPanel extends JPanel {
                 setItemIcon(suggestion.getItemId());
                 break;
             case BUY:
-                suggestionString += (suggestion.isHold() ? "Buy and hold" : "Buy") +
-                        " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
-                        "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
-                        "for <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
+                suggestionString += (suggestion.isHold() ? "Buy and hold" : "Buy") + quantityNameAndPrice(suggestion, formatter);
                 setItemIcon(suggestion.getItemId());
                 break;
             case SELL:
@@ -284,12 +307,9 @@ public class SuggestionPanel extends JPanel {
                     suggestionString += "Modify " + action +
                             "<br>" +
                             "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
-                            "to <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
+                            "to <FONT COLOR=" + HIGHLIGHTED_COLOR + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
                 } else {
-                    suggestionString += (shouldSellFromBank(suggestion) ? "Sell from bank" : suggestion.isSellSuggestion() ? "Sell" : "Buy") +
-                            " <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getQuantity()) + "</FONT><br>" +
-                            "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
-                            "for <FONT COLOR=" + highlightedColor + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
+                    suggestionString += (shouldSellFromBank(suggestion) ? "Sell from bank" : suggestion.isSellSuggestion() ? "Sell" : "Buy") + quantityNameAndPrice(suggestion, formatter);
                 }
                 setItemIcon(suggestion.getItemId());
                 break;
@@ -322,7 +342,7 @@ public class SuggestionPanel extends JPanel {
                     formatSuggestionTooltip(suggestion, profit == null ? null : (double) profit)
             );
         } else {
-            setAdditionalInfoText(additionalInfoMessage);
+            setAdditionalInfoText(additionalInfoMessage, null);
         }
 
         suggestionTextContainer.setVisible(true);
@@ -343,7 +363,7 @@ public class SuggestionPanel extends JPanel {
     public void suggestAddGp() {
         NumberFormat formatter = NumberFormat.getNumberInstance();
         setMessage("Add " +
-                "at least <FONT COLOR=" + highlightedColor + ">" + formatter.format(MIN_GP_NEEDED_TO_FLIP)
+                "at least <FONT COLOR=" + HIGHLIGHTED_COLOR + ">" + formatter.format(MIN_GP_NEEDED_TO_FLIP)
                 + "</FONT> gp<br>to your inventory<br>"
                 + "to get a flip suggestion");
         setButtonsVisible(false);
@@ -473,11 +493,7 @@ public class SuggestionPanel extends JPanel {
 
     public void refresh() {
         log.debug("refreshing suggestion panel {}", client.getGameState());
-        if(!SwingUtilities.isEventDispatchThread()) {
-            // we always execute this in the Swing EDT thread
-            SwingUtilities.invokeLater(this::refresh);
-            return;
-        }
+        if (!ensureEdt(this::refresh)) return;
         if(isPreferencesPanelVisible) {
             preferencesPanel.refresh();
             return;
@@ -588,10 +604,6 @@ public class SuggestionPanel extends JPanel {
 
     private String boldColor(String text, Color color) {
         return "<b><font color='" + colorHex(color) + "'>" + text + "</font></b>";
-    }
-
-    private String colorHex(Color color) {
-        return String.format("#%06X", (0xFFFFFF & color.getRGB()));
     }
 
     private String formatRoi(double roi) {

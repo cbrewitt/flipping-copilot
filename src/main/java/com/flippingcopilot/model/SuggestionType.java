@@ -1,8 +1,6 @@
 package com.flippingcopilot.model;
 
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 
 public enum SuggestionType {
     BUY(1),

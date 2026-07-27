@@ -1,14 +1,9 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.model.FlipManager;
-import com.flippingcopilot.model.FlipStatus;
-import com.flippingcopilot.model.FlipV2;
-import com.flippingcopilot.model.IntervalTimeUnit;
-import com.flippingcopilot.model.SortDirection;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import joptsimple.internal.Strings;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.inject.Named;
@@ -22,9 +17,7 @@ import java.util.function.Predicate;
 
 
 @Slf4j
-public class FlipFilterAndSort {
-
-    public static final int DEFAULT_PAGE_SIZE = 50;
+public class FlipFilterAndSort extends PagedFilterSort {
 
     // dependencies
     private final FlipManager flipManager;
@@ -36,26 +29,13 @@ public class FlipFilterAndSort {
     private final ItemController itemController;
 
     // state
-    private List<FlipV2> cachedFlips = new ArrayList<>();
-    private Integer cachedAccountId = null;
-    private int cachedIntervalStartTime = Integer.MIN_VALUE;
+    private final List<FlipV2> cachedFlips = new ArrayList<>();
     private EnumSet<FlipStatus> cachedIncludedStatuses = EnumSet.allOf(FlipStatus.class);
-    private Set<Integer> cachedFilteredItems = new HashSet<>();
     private SortDirection cachedSortDirection = SortDirection.DESC;
     private String cachedSortColumn = "";
 
-    private int intervalStartTime = 1;
-    private Integer accountId = null;
     private EnumSet<FlipStatus> includedStatuses = EnumSet.allOf(FlipStatus.class);
-    @Getter
-    private String sortColumn = "Last sell time";
-    @Getter
-    private SortDirection sortDirection = SortDirection.DESC;
-    private Set<Integer> filteredItems = new HashSet<>();
-    @Getter
-    private int pageSize = DEFAULT_PAGE_SIZE;
     private int totalFlips = 1;
-    private int page = 1;
 
     public FlipFilterAndSort(FlipManager flipManager,
                              Consumer<List<FlipV2>> flipsCallback,
@@ -63,6 +43,7 @@ public class FlipFilterAndSort {
                              Consumer<Boolean> slowLoadingCallback,
                              @Named("copilotExecutor") ExecutorService executorService,
                              CopilotLoginRS copilotLoginRS, ItemController itemController) {
+        super("Last sell time", SortDirection.DESC);
         this.flipManager = flipManager;
 
         this.flipsCallback = flipsCallback;
@@ -83,56 +64,11 @@ public class FlipFilterAndSort {
         }
     }
 
-    public synchronized void setInterval(IntervalTimeUnit timeUnit, Integer value) {
-        intervalStartTime = FilterSortUtil.intervalStart(timeUnit, value);
-        reloadFlips(true, false);
+    @Override
+    protected void reload(boolean totalPagesMaybeChanged) {
+        reloadFlips(totalPagesMaybeChanged, false);
     }
 
-    public synchronized void setAccountId(Integer accountId) {
-        if(!Objects.equals(accountId,this.accountId)) {
-            this.accountId = accountId;
-            reloadFlips(true, false);
-        }
-    }
-
-    public synchronized Set<Integer> getFilteredItems() {
-        return new HashSet<>(filteredItems);
-    }
-
-    public synchronized void setFilteredItems(Set<Integer> filteredItems) {
-        if(!Objects.equals(filteredItems, this.filteredItems)) {
-            this.filteredItems = filteredItems;
-            reloadFlips(true, false);
-        }
-    }
-
-    public synchronized void setPageSize(int newSize) {
-        if(newSize != pageSize) {
-            pageSize = newSize;
-            reloadFlips(true, false);
-        }
-    }
-
-    public synchronized void setSortColumn(String sortColumn) {
-        if(!sortColumn.equals(this.sortColumn)) {
-            this.sortColumn = sortColumn;
-            reloadFlips(false, false);
-        }
-    }
-
-    public synchronized void setSortDirection(SortDirection sortDirection) {
-        if(!Objects.equals(sortDirection, this.sortDirection)) {
-            this.sortDirection = sortDirection;
-            reloadFlips(false, false);
-        }
-    }
-
-    public synchronized void setPage(int page) {
-        if(page != this.page) {
-            this.page = page;
-            reloadFlips(false, false);
-        }
-    }
     public void reloadFlips(boolean totalPagesMaybeChanged, boolean forceReload) {
         executorService.submit(() -> _reloadFlips(totalPagesMaybeChanged, forceReload));
     }

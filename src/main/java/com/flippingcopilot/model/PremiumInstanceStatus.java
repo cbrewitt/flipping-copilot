@@ -3,11 +3,7 @@ package com.flippingcopilot.model;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import com.google.gson.annotations.SerializedName;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import java.io.IOException;
 import java.util.ArrayList;

@@ -13,19 +13,13 @@ class PreferencesToggleButton extends JToggleButton
 {
     private static final ImageIcon ON_SWITCHER;
     private static final ImageIcon OFF_SWITCHER;
-    private final String unSelectedToolTipText;
-    private final String selectedToolTipText;
-
 
     public PreferencesToggleButton(String selectedToolTipText, String unSelectedToolTipText) {
         super(OFF_SWITCHER);
         setSelectedIcon(ON_SWITCHER);
         SwingUtil.removeButtonDecorations(this);
         setPreferredSize(new Dimension(25, 25));
-        this.selectedToolTipText = selectedToolTipText;
-        this.unSelectedToolTipText = unSelectedToolTipText;
-        addItemListener(l -> updateTooltip());
-        updateTooltip();
+        SwingUtil.addModalTooltip(this, selectedToolTipText, unSelectedToolTipText);
     }
 
     static
@@ -40,10 +34,5 @@ class PreferencesToggleButton extends JToggleButton
                 true,
                 false
         ));
-    }
-
-    private void updateTooltip()
-    {
-        setToolTipText(isSelected() ? selectedToolTipText :  unSelectedToolTipText);
     }
 }

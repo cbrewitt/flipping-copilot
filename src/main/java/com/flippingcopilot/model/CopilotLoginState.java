@@ -3,9 +3,7 @@ package com.flippingcopilot.model;
 import joptsimple.internal.Strings;
 import lombok.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 
 @NoArgsConstructor

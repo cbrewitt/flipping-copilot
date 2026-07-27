@@ -48,7 +48,6 @@ public class RenderV2 {
         FontMetrics metrics = g2.getFontMetrics();
 
         java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("d MMM");
-        java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HH:mm");
 
         // Draw date labels (longer ticks)
         for (int time : xAxis.dateOnlyTickTimes) {
@@ -70,7 +69,7 @@ public class RenderV2 {
         for (int time : xAxis.timeOnlyTickTimes) {
             int x = bounds.toX(pa,time);
             g2.drawLine(x, pa.y + pa.height, x, pa.y +  pa.height + Config.TICK_SIZE);
-            String label = timeFormat.format(new java.util.Date(time * 1000L));
+            String label = Constants.MINUTE_TIME_FORMAT.format(new java.util.Date(time * 1000L));
             int labelWidth = metrics.stringWidth(label);
             g2.drawString(label, x - labelWidth / 2, pa.y +  pa.height + Config.TICK_SIZE + metrics.getHeight());
         }

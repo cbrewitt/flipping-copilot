@@ -2,27 +2,22 @@ package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.SortDirection;
-import com.flippingcopilot.ui.Paginator;
-import com.flippingcopilot.ui.Spinner;
+import com.flippingcopilot.ui.*;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableColumn;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableRowSorter;
+import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 public class PaginatedTablePanel<T> extends JPanel {
+
+    private static final Integer[] PAGE_SIZE_OPTIONS = {10, 25, 50, 100, 200, 500, 1000, 2000};
 
     private final String[] columnNames;
     private final Function<T, Object[]> rowMapper;
@@ -127,11 +122,11 @@ public class PaginatedTablePanel<T> extends JPanel {
     }
 
     public void centerColumns(int... columns) {
-        setRenderer(centerRenderer(), columns);
+        setRenderer(alignedRenderer(JLabel.CENTER), columns);
     }
 
     public void rightColumns(int... columns) {
-        setRenderer(rightTextRenderer(value -> value == null ? "" : value.toString()), columns);
+        setRenderer(alignedRenderer(JLabel.RIGHT), columns);
     }
 
     public void moneyColumns(NumberFormat format, int... columns) {
@@ -203,7 +198,14 @@ public class PaginatedTablePanel<T> extends JPanel {
         });
     }
 
-    public void installPageFooter(Paginator paginatorPanel, JComboBox<Integer> pageSizeComboBox) {
+    public void installPageFooter(Paginator paginatorPanel, int initialPageSize, IntConsumer onPageSizeChanged) {
+        JComboBox<Integer> pageSizeComboBox = new JComboBox<>(PAGE_SIZE_OPTIONS);
+        pageSizeComboBox.setSelectedItem(initialPageSize);
+        pageSizeComboBox.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        pageSizeComboBox.setFocusable(false);
+        pageSizeComboBox.setToolTipText("Page size");
+        pageSizeComboBox.addActionListener(e -> onPageSizeChanged.accept((Integer) pageSizeComboBox.getSelectedItem()));
+
         // Create bottom panel with pagination
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -262,11 +264,7 @@ public class PaginatedTablePanel<T> extends JPanel {
             }
             resizeAllColumns();
         };
-        if (SwingUtilities.isEventDispatchThread()) {
-            updateRows.run();
-        } else {
-            SwingUtilities.invokeLater(updateRows);
-        }
+        if (UIUtilities.ensureEdt(updateRows)) updateRows.run();
     }
 
     public T row(int modelRow) {
@@ -280,7 +278,7 @@ public class PaginatedTablePanel<T> extends JPanel {
         });
     }
 
-    public void resizeAllColumns() {
+    private void resizeAllColumns() {
         for (int i = 0; i < table.getColumnCount(); i++) {
             resizeColumnWidth(i);
         }
@@ -306,17 +304,13 @@ public class PaginatedTablePanel<T> extends JPanel {
         tableColumn.setPreferredWidth(Math.min(preferredWidth, maxWidth));
     }
 
-    public static DefaultTableCellRenderer centerRenderer() {
+    private static DefaultTableCellRenderer alignedRenderer(int alignment) {
         DefaultTableCellRenderer renderer = new DefaultTableCellRenderer();
-        renderer.setHorizontalAlignment(JLabel.CENTER);
+        renderer.setHorizontalAlignment(alignment);
         return renderer;
     }
 
-    public static DefaultTableCellRenderer moneyRenderer(NumberFormat format) {
-        return moneyRenderer(format, false);
-    }
-
-    public static DefaultTableCellRenderer moneyRenderer(NumberFormat format, boolean centerStrings) {
+    private static DefaultTableCellRenderer moneyRenderer(NumberFormat format, boolean centerStrings) {
         return new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
@@ -333,24 +327,7 @@ public class PaginatedTablePanel<T> extends JPanel {
         };
     }
 
-    public static DefaultTableCellRenderer rightTextRenderer(Function<Object, String> formatter) {
-        return textRenderer(formatter, JLabel.RIGHT);
-    }
-
-    public static DefaultTableCellRenderer textRenderer(Function<Object, String> formatter, int alignment) {
-        return new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                                                           boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                setText(formatter.apply(value));
-                setHorizontalAlignment(alignment);
-                return c;
-            }
-        };
-    }
-
-    public static DefaultTableCellRenderer profitRenderer(NumberFormat format, FlippingCopilotConfig config) {
+    private static DefaultTableCellRenderer profitRenderer(NumberFormat format, FlippingCopilotConfig config) {
         return new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,

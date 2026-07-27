@@ -9,10 +9,7 @@ import net.runelite.api.Client;
 import net.runelite.api.widgets.Widget;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 

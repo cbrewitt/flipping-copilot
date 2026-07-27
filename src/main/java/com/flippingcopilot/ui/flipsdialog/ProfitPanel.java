@@ -3,8 +3,8 @@ package com.flippingcopilot.ui.flipsdialog;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.FlipManager;
 import com.flippingcopilot.model.FlipV2;
-import com.flippingcopilot.model.SessionManager;
 import com.flippingcopilot.rs.CopilotLoginRS;
+import com.flippingcopilot.ui.UIUtilities;
 import com.flippingcopilot.ui.components.AccountDropdown;
 import com.flippingcopilot.ui.components.IntervalDropdown;
 import lombok.NoArgsConstructor;
@@ -38,7 +38,6 @@ public class ProfitPanel extends JPanel {
 
     public ProfitPanel(FlipManager flipManager,
                        @Named("copilotExecutor") ExecutorService executorService,
-                       SessionManager sessionManager,
                        CopilotLoginRS copilotLoginRS,
                        FlippingCopilotConfig config) {
         this.flipManager = flipManager;
@@ -56,21 +55,13 @@ public class ProfitPanel extends JPanel {
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         leftPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        intervalDropdown = new IntervalDropdown((units, value) -> refreshGraph(false), IntervalDropdown.ALL_TIME, false);
-        intervalDropdown.setPreferredSize(new Dimension(150, intervalDropdown.getPreferredSize().height));
-        intervalDropdown.setToolTipText("Select time interval");
+        intervalDropdown = DialogUi.intervalDropdown((units, value) -> refreshGraph(false));
 
-        accountDropdown = new AccountDropdown(
-                () -> copilotLoginRS.get().displayNameToAccountId,
-                accountId -> refreshGraph(false),
-                AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
-        );
-        accountDropdown.setPreferredSize(new Dimension(120, accountDropdown.getPreferredSize().height));
-        accountDropdown.setToolTipText("Select account");
+        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.get().displayNameToAccountId, accountId -> refreshGraph(false));
         accountDropdown.refresh();
 
         leftPanel.add(intervalDropdown);
-        leftPanel.add(Box.createRigidArea(new Dimension(3, 0)));
+        UIUtilities.addHorizontalGap(leftPanel, 3);
         leftPanel.add(accountDropdown);
 
         topPanel.add(leftPanel, BorderLayout.WEST);

@@ -1,15 +1,11 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.model.OfferManager;
-import com.flippingcopilot.model.OfferStatus;
-import com.flippingcopilot.model.SavedOffer;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.util.ProfitCalculator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.api.GrandExchangeOffer;
-import net.runelite.api.GrandExchangeOfferState;
+import net.runelite.api.*;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.widgets.Widget;

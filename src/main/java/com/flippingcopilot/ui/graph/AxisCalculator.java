@@ -1,14 +1,9 @@
 package com.flippingcopilot.ui.graph;
 
 
-import com.flippingcopilot.ui.graph.model.Bounds;
-import com.flippingcopilot.ui.graph.model.Constants;
-import com.flippingcopilot.ui.graph.model.YAxis;
-import com.flippingcopilot.ui.graph.model.TimeAxis;
+import com.flippingcopilot.ui.graph.model.*;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
+import java.time.*;
 
 public class AxisCalculator {
 
@@ -100,15 +95,7 @@ public class AxisCalculator {
         );
     }
 
-    public static YAxis calculatePriceAxis(Bounds bounds) {
-        return calculateNumericAxis(bounds.yMin, bounds.yMax, bounds.yDelta(), 18, 28);
-    }
-
-    public static YAxis calculateVolumeAxis(Bounds bounds) {
-        return calculateNumericAxis(bounds.y2Min, bounds.y2Max, bounds.y2Delta(), 8, 16);
-    }
-
-    private static YAxis calculateNumericAxis(long min, long max, long range, int maxAllowableTicks, int maxAllowableGridLines) {
+    public static YAxis calculateNumericAxis(long min, long max, long range, int maxAllowableTicks, int maxAllowableGridLines) {
         if (range <= 0 || max < min) {
             return new YAxis(new long[]{min}, new long[]{});
         }

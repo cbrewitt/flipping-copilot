@@ -75,12 +75,35 @@ public class ZoomHandler {
         cancelSelection();
     }
 
-    public void applyZoomIn(Bounds bounds) {
+    /**
+     * Applies the view of whichever zoom button is under the point, if any.
+     * Returns true when a button was hit (and the bounds were changed).
+     */
+    public boolean applyButtonView(Point p, Bounds bounds) {
+        if (isOver(homeButtonRect, p)) {
+            copyBounds(bounds, homeViewBounds);
+        } else if (isOver(maxButtonRect, p)) {
+            copyBounds(bounds, maxViewBounds);
+        } else if (isOver(zoomInButtonRect, p)) {
+            applyZoomIn(bounds);
+        } else if (isOver(zoomOutButtonRect, p)) {
+            applyZoomOut(bounds);
+        } else if (isOver(weekButtonRect, p)) {
+            copyBounds(bounds, weekViewBounds);
+        } else if (isOver(monthButtonRect, p)) {
+            copyBounds(bounds, monthViewBounds);
+        } else {
+            return false;
+        }
+        return true;
+    }
+
+    private void applyZoomIn(Bounds bounds) {
         bounds.xMin = Math.min(bounds.xMax - MIN_TIME_DELTA, bounds.xMin + (int) (bounds.xDelta()*0.2));
 
     }
 
-    public void applyZoomOut( Bounds bounds) {
+    private void applyZoomOut( Bounds bounds) {
         int td = bounds.xDelta();
         bounds.xMin= Math.max(maxViewBounds.xMin, bounds.xMin- (int) (td*0.2));
         bounds.xMax = Math.min(maxViewBounds.xMax, bounds.xMax + (int) (td*0.2));
@@ -103,22 +126,6 @@ public class ZoomHandler {
 
     private long subtractSaturated(long value, long delta) {
         return value < Long.MIN_VALUE + delta ? Long.MIN_VALUE : value - delta;
-    }
-
-    public void applyHomeView(Bounds bounds) {
-        copyBounds(bounds, homeViewBounds);
-    }
-
-    public void applyMaxView(Bounds bounds) {
-        copyBounds(bounds, maxViewBounds);
-    }
-
-    public void applyWeekView(Bounds bounds) {
-        copyBounds(bounds, weekViewBounds);
-    }
-
-    public void applyMonthView(Bounds bounds) {
-        copyBounds(bounds, monthViewBounds);
     }
 
     private void copyBounds(Bounds target, Bounds source) {
@@ -158,24 +165,24 @@ public class ZoomHandler {
         int y = pa.y + Config.GRAPH_BUTTON_MARGIN;
 
         // Draw home button
-        drawButtonBackground(g2d, homeButtonRect, x, y, size, isOverHomeButton(p));
+        drawButtonBackground(g2d, homeButtonRect, x, y, size, isOver(homeButtonRect, p));
         drawHomeIcon(g2d, homeButtonRect);
 
         // Draw max button
         x -= size + Config.GRAPH_BUTTON_MARGIN;
-        drawButtonBackground(g2d, maxButtonRect, x, y, size, isOverMaxButton(p));
+        drawButtonBackground(g2d, maxButtonRect, x, y, size, isOver(maxButtonRect, p));
         // Draw max icon (four outward arrows)
         drawMaxIcon(g2d, maxButtonRect);
 
         // Draw zoom in (+) button
         x -= size + Config.GRAPH_BUTTON_MARGIN;
-        drawButtonBackground(g2d, zoomInButtonRect, x, y, size, isOverZoomInButton(p));
+        drawButtonBackground(g2d, zoomInButtonRect, x, y, size, isOver(zoomInButtonRect, p));
         // Draw + symbol
         drawPlusMinusIcon(g2d, zoomInButtonRect, true);
 
         // Draw zoom out (-) button
         x -= size + Config.GRAPH_BUTTON_MARGIN;
-        drawButtonBackground(g2d, zoomOutButtonRect, x, y, size, isOverZoomOutButton(p));
+        drawButtonBackground(g2d, zoomOutButtonRect, x, y, size, isOver(zoomOutButtonRect, p));
         // Draw - symbol
         drawPlusMinusIcon(g2d, zoomOutButtonRect, false);
 
@@ -184,13 +191,13 @@ public class ZoomHandler {
 
         // Draw Week button (wider than the others)
         x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
-        drawButtonBackground(g2d, weekButtonRect, x, y, textButtonWidth, isOverWeekButton(p));
+        drawButtonBackground(g2d, weekButtonRect, x, y, textButtonWidth, isOver(weekButtonRect, p));
         // Draw Week text
         drawCenteredText(g2d, weekButtonRect, "Week");
 
         // Draw Month button (wider than the others)
         x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
-        drawButtonBackground(g2d, monthButtonRect, x, y, textButtonWidth, isOverMonthButton(p));
+        drawButtonBackground(g2d, monthButtonRect, x, y, textButtonWidth, isOver(monthButtonRect, p));
         // Draw Month text
         drawCenteredText(g2d, monthButtonRect, "Month");
     }
@@ -272,29 +279,5 @@ public class ZoomHandler {
 
     private boolean isOver(Rectangle rect, Point point) {
         return point != null && rect.contains(point);
-    }
-
-    public boolean isOverHomeButton(Point point) {
-        return isOver(homeButtonRect, point);
-    }
-
-    public boolean isOverMaxButton(Point point) {
-        return isOver(maxButtonRect, point);
-    }
-
-    public boolean isOverZoomInButton(Point point) {
-        return isOver(zoomInButtonRect, point);
-    }
-
-    public boolean isOverZoomOutButton(Point point) {
-        return isOver(zoomOutButtonRect, point);
-    }
-
-    public boolean isOverWeekButton(Point point) {
-        return isOver(weekButtonRect, point);
-    }
-
-    public boolean isOverMonthButton(Point point) {
-        return isOver(monthButtonRect, point);
     }
 }

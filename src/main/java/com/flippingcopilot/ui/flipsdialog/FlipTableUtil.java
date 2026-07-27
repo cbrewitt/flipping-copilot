@@ -2,9 +2,7 @@ package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.model.FlipV2;
 
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 final class FlipTableUtil {
     // Sort comparators map

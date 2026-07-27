@@ -1,9 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.Persistance;
-import com.google.gson.Gson;
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import com.google.gson.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

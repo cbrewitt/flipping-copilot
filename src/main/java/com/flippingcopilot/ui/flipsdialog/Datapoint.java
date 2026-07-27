@@ -2,9 +2,7 @@ package com.flippingcopilot.ui.flipsdialog;
 
 import lombok.RequiredArgsConstructor;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneOffset;
+import java.time.*;
 
 @RequiredArgsConstructor
 public class Datapoint {

@@ -9,10 +9,7 @@ import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.concurrent.ScheduledExecutorService;
 
 @Singleton
@@ -36,10 +33,19 @@ public class AccountSuggestionPreferencesRS extends ReactiveStateImpl<AccountSug
         this.executorService.submit(() -> loadAccountPreferences(accountHash));
     }
 
+    /**
+     * True once an OSRS account hash is known. The hash is retained after logout, so preferences
+     * remain editable and persistable for the last account seen in this client run.
+     */
+    public boolean hasAccount() {
+        return accountHashState.get() != null;
+    }
+
     public void updateAndPersist(AccountSuggestionPreferences preferences) {
         Long osrsAccountHash = accountHashState.get();
         if (osrsAccountHash == null) {
-            log.warn("updateAndPersist called when not logged in to OSRS");
+            // Callers must gate on hasAccount(); reaching here drops the change on the floor.
+            log.error("updateAndPersist called before any OSRS account hash is known, discarding {}", preferences);
         } else {
             forceSet(preferences);
             executorService.submit(() -> persist(preferences, osrsAccountHash));

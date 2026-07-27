@@ -1,12 +1,7 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.model.OfferManager;
-import com.flippingcopilot.model.PortfolioId;
-import com.flippingcopilot.model.PortfolioItemCardData;
-import com.flippingcopilot.model.Suggestion;
-import com.flippingcopilot.model.SuggestionManager;
-import com.flippingcopilot.model.ToggleItemPortfolioRequest;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
@@ -224,12 +219,7 @@ public class MenuHandler {
             apiRequestHandler.toggleItemPortfolioAsync(
                     request,
                     (userId, result) -> {
-                        Suggestion suggestion = suggestionManager.getSuggestion();
-                        portfolioStateRS.updatePortfolioState(
-                                suggestion == null ? null : suggestion.getBankItems(),
-                                result == null ? null : result.getPortfolioItems(),
-                                result == null ? null : result.getTime()
-                        );
+                        portfolioStateRS.updatePortfolioState(suggestionManager.getSuggestion(), result);
                         suggestionManager.setSuggestionNeeded(true);
                         int itemsUpdated = result == null || result.getPortfolioItems() == null ? 0 : result.getPortfolioItems().size();
                         log.info("toggle portfolio succeeded for item_id={}, account_id={}, portfolio_id={}, quantity={}, portfolio_items_updated={}", menuItem.unnotedItemId, accountId, portfolioId, quantity, itemsUpdated);

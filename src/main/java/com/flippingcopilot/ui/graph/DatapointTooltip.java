@@ -1,34 +1,18 @@
 package com.flippingcopilot.ui.graph;
 
-import com.flippingcopilot.ui.graph.model.Bounds;
-import com.flippingcopilot.ui.graph.model.Config;
-import com.flippingcopilot.ui.graph.model.Constants;
-import com.flippingcopilot.ui.graph.model.Datapoint;
-import lombok.Getter;
+import com.flippingcopilot.ui.graph.model.*;
 
-import java.awt.Color;
-import java.awt.FontMetrics;
-import java.awt.Graphics2D;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.text.NumberFormat;
-import java.util.Arrays;
-import java.util.Date;
+import java.awt.*;
+import java.text.*;
+import java.util.*;
 import java.util.List;
-import java.util.Locale;
 
-@Getter
 public class DatapointTooltip {
 
-    private int padding;
+    // Padding inside tooltip
+    private static final int PADDING = 8;
 
-    public DatapointTooltip() {
-        this.padding = 8; // Padding inside tooltip
-    }
-
-    public void draw(Graphics2D g2, Config config, Rectangle pa, Bounds paBounds, Datapoint point) {
+    public static void draw(Graphics2D g2, Config config, Rectangle pa, Bounds paBounds, Datapoint point) {
         // Prepare tooltip text
         NumberFormat format = new DecimalFormat("#,###", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
         String priceStr = format.format(point.getPrice());
@@ -70,8 +54,8 @@ public class DatapointTooltip {
         int textWidth = Math.max(Math.max(typeTextWidth, timeTextWidth), priceStrWidth);
         int textHeight = fm.getHeight() * 3; // Three lines of text
 
-        int tooltipWidth = textWidth + padding * 2;
-        int tooltipHeight = textHeight + padding * 2;
+        int tooltipWidth = textWidth + PADDING * 2;
+        int tooltipHeight = textHeight + PADDING * 2;
 
         Point hoverPosition = point.getHoverPosition(pa, paBounds);
 
@@ -97,16 +81,16 @@ public class DatapointTooltip {
 
         // Draw tooltip text - first line (type text)
         g2.setColor(config.textColor);
-        int yPos = tooltipY + padding + fm.getAscent();
-        g2.drawString(typeText, tooltipX + padding, yPos);
+        int yPos = tooltipY + PADDING + fm.getAscent();
+        g2.drawString(typeText, tooltipX + PADDING, yPos);
 
         // Draw tooltip text - second line (time)
         yPos += fm.getHeight();
-        g2.drawString(timeText, tooltipX + padding, yPos);
+        g2.drawString(timeText, tooltipX + PADDING, yPos);
 
         // Draw tooltip text - third line (price)
         yPos += fm.getHeight();
-        g2.drawString(priceStr, tooltipX + padding, yPos);
+        g2.drawString(priceStr, tooltipX + PADDING, yPos);
 
         // Highlight the hovered point
         if (point.type != Datapoint.Type.FLIP_TRANSACTION) {
@@ -129,7 +113,7 @@ public class DatapointTooltip {
         }
     }
 
-    public void drawVolume(Graphics2D g2d, Config config, Rectangle pa, Bounds bounds, Datapoint point) {
+    public static void drawVolume(Graphics2D g2d, Config config, Rectangle pa, Bounds bounds, Datapoint point) {
         NumberFormat format = new DecimalFormat("#,###", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
 
         String headerLine = "1h volume";
@@ -145,7 +129,7 @@ public class DatapointTooltip {
         int textWidth = lines.stream().mapToInt(fm::stringWidth).max().orElse(0);
         int textHeight = fm.getHeight() * 4;
 
-        int y = bounds.toY2(pa, point.lowVolume + point.highVolume) - textHeight - 8 - 2*padding;
+        int y = bounds.toY2(pa, point.lowVolume + point.highVolume) - textHeight - 8 - 2*PADDING;
         
         int x = bounds.toX(pa, point.time + Constants.HOUR_SECONDS / 2) - textWidth / 2;
         
@@ -156,16 +140,16 @@ public class DatapointTooltip {
         }
 
         g2d.setColor(Config.TOOLTIP_BACKGROUND);
-        g2d.fillRoundRect(x, y, textWidth + 2*padding, textHeight + 2* padding, 8, 8);
+        g2d.fillRoundRect(x, y, textWidth + 2*PADDING, textHeight + 2* PADDING, 8, 8);
 
         g2d.setColor(Config.TOOLTIP_BORDER);
-        g2d.drawRoundRect(x, y, textWidth + 2*padding, textHeight + 2*padding, 8, 8);
+        g2d.drawRoundRect(x, y, textWidth + 2*PADDING, textHeight + 2*PADDING, 8, 8);
 
 
-        int yPos = y + fm.getHeight()+padding /2;
+        int yPos = y + fm.getHeight()+PADDING /2;
         g2d.setColor(config.textColor);
         for(String line : lines) {
-            g2d.drawString(line, x + padding, yPos);
+            g2d.drawString(line, x + PADDING, yPos);
             yPos += fm.getHeight();
         }
     }

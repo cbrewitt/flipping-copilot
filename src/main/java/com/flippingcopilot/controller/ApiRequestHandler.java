@@ -14,10 +14,7 @@ import net.runelite.client.callback.ClientThread;
 import okhttp3.*;
 
 import javax.inject.Inject;
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;

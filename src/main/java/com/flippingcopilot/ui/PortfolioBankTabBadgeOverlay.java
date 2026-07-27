@@ -7,19 +7,13 @@ import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.plugins.banktags.BankTagsPlugin;
-import net.runelite.client.ui.overlay.Overlay;
-import net.runelite.client.ui.overlay.OverlayLayer;
-import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.*;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics2D;
-import java.awt.Rectangle;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 
 @Singleton
@@ -28,12 +22,10 @@ public class PortfolioBankTabBadgeOverlay extends Overlay {
 
     private static final String PORTFOLIO_BANK_TAG = "portfolio";
     private static final int BANK_TAG_TAB_CHILD_OFFSET = 4;
-    private static final Color BADGE_BG = new Color(30, 60, 35, 220);
-    private static final Color BADGE_BORDER = new Color(120, 230, 150);
-    private static final Color BADGE_TEXT = Color.WHITE;
     private static final int BADGE_SIZE = 16;
     private static final int BADGE_MARGIN = 1;
-    private static final BufferedImage BADGE_ICON = loadBadgeIcon();
+    private static final BufferedImage BADGE_ICON = ImageUtil.resizeImage(
+            ImageUtil.loadImageResource(PortfolioBankTabBadgeOverlay.class, "/icon-small.png"), BADGE_SIZE, BADGE_SIZE);
 
     private final Client client;
     private final FlippingCopilotConfig config;
@@ -64,7 +56,10 @@ public class PortfolioBankTabBadgeOverlay extends Overlay {
             return null;
         }
 
-        drawBadge(graphics, bounds);
+        graphics.drawImage(BADGE_ICON,
+                bounds.x + bounds.width - BADGE_SIZE - BADGE_MARGIN,
+                bounds.y + bounds.height - BADGE_SIZE - BADGE_MARGIN,
+                null);
         return null;
     }
 
@@ -87,34 +82,5 @@ public class PortfolioBankTabBadgeOverlay extends Overlay {
             }
         }
         return null;
-    }
-
-    private void drawBadge(Graphics2D graphics, Rectangle slotBounds) {
-        int x = slotBounds.x + slotBounds.width - BADGE_SIZE - BADGE_MARGIN;
-        int y = slotBounds.y + slotBounds.height - BADGE_SIZE - BADGE_MARGIN;
-
-        if (BADGE_ICON != null) {
-            graphics.drawImage(BADGE_ICON, x, y, null);
-            return;
-        }
-
-        graphics.setColor(BADGE_BG);
-        graphics.fillOval(x, y, BADGE_SIZE, BADGE_SIZE);
-        graphics.setColor(BADGE_BORDER);
-        graphics.drawOval(x, y, BADGE_SIZE, BADGE_SIZE);
-
-        Font originalFont = graphics.getFont();
-        graphics.setFont(originalFont.deriveFont(Font.BOLD, Math.max(8f, BADGE_SIZE - 4f)));
-        graphics.setColor(BADGE_TEXT);
-        graphics.drawString("P", x + 2, y + BADGE_SIZE - 4);
-        graphics.setFont(originalFont);
-    }
-
-    private static BufferedImage loadBadgeIcon() {
-        BufferedImage icon = ImageUtil.loadImageResource(PortfolioBankTabBadgeOverlay.class, "/icon-small.png");
-        if (icon == null) {
-            return null;
-        }
-        return ImageUtil.resizeImage(icon, BADGE_SIZE, BADGE_SIZE);
     }
 }

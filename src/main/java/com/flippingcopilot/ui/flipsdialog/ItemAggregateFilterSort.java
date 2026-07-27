@@ -3,7 +3,6 @@ package com.flippingcopilot.ui.flipsdialog;
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.*;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.inject.Named;
@@ -13,9 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 @Slf4j
-public class ItemAggregateFilterSort {
-
-    public static final int DEFAULT_PAGE_SIZE = 50;
+public class ItemAggregateFilterSort extends PagedFilterSort {
 
     private static final Map<String, Comparator<ItemAggregate>> SORT_COMPARATORS = new HashMap<>();
     static {
@@ -38,23 +35,9 @@ public class ItemAggregateFilterSort {
     private final ExecutorService executorService;
 
     // state
-    private List<ItemAggregate> cachedAggregates = new ArrayList<>();
-    private Integer cachedAccountId = null;
-    private int cachedIntervalStartTime = Integer.MIN_VALUE;
-    private Set<Integer> cachedFilteredItems = new HashSet<>();
+    private final List<ItemAggregate> cachedAggregates = new ArrayList<>();
     private SortDirection cachedSortDirection = SortDirection.ASC;
     private String cachedSortColumn = "";
-
-    private int intervalStartTime = 1;
-    private Integer accountId = null;
-    @Getter
-    private String sortColumn = "Total profit";
-    @Getter
-    private SortDirection sortDirection = SortDirection.ASC;
-    private Set<Integer> filteredItems = new HashSet<>();
-    @Getter
-    private int pageSize = DEFAULT_PAGE_SIZE;
-    private int page = 1;
 
     public ItemAggregateFilterSort(FlipManager flipManager,
                                    ItemController itemController,
@@ -62,6 +45,7 @@ public class ItemAggregateFilterSort {
                                    Consumer<Integer> totalPagesChangedCallback,
                                    Consumer<Boolean> slowLoadingCallback,
                                    @Named("copilotExecutor") ExecutorService executorService) {
+        super("Total profit", SortDirection.ASC);
         this.flipManager = flipManager;
         this.itemController = itemController;
         this.aggregatesCallback = aggregatesCallback;
@@ -70,54 +54,9 @@ public class ItemAggregateFilterSort {
         this.executorService = executorService;
     }
 
-    public synchronized void setInterval(IntervalTimeUnit timeUnit, Integer value) {
-        intervalStartTime = FilterSortUtil.intervalStart(timeUnit, value);
-        reloadAggregates(true);
-    }
-
-    public synchronized void setAccountId(Integer accountId) {
-        if (!Objects.equals(accountId, this.accountId)) {
-            this.accountId = accountId;
-            reloadAggregates(true);
-        }
-    }
-
-    public synchronized void setFilteredItems(Set<Integer> filteredItems) {
-        if (!Objects.equals(filteredItems, this.filteredItems)) {
-            this.filteredItems = filteredItems;
-            reloadAggregates(true);
-        }
-    }
-    public synchronized Set<Integer> getFilteredItems() {
-        return new HashSet<>(filteredItems);
-    }
-
-    public synchronized void setPageSize(int newSize) {
-        if (newSize != pageSize) {
-            pageSize = newSize;
-            reloadAggregates(true);
-        }
-    }
-
-    public synchronized void setSortColumn(String sortColumn) {
-        if (!sortColumn.equals(this.sortColumn)) {
-            this.sortColumn = sortColumn;
-            reloadAggregates(false);
-        }
-    }
-
-    public synchronized void setSortDirection(SortDirection sortDirection) {
-        if (!Objects.equals(sortDirection, this.sortDirection)) {
-            this.sortDirection = sortDirection;
-            reloadAggregates(false);
-        }
-    }
-
-    public synchronized void setPage(int page) {
-        if (page != this.page) {
-            this.page = page;
-            reloadAggregates(false);
-        }
+    @Override
+    protected void reload(boolean totalPagesMaybeChanged) {
+        reloadAggregates(totalPagesMaybeChanged);
     }
 
     public void reloadAggregates(boolean totalPagesMaybeChanged) {
@@ -195,7 +134,6 @@ public class ItemAggregateFilterSort {
                 } else {
                     i.biggestWin = Math.max(i.biggestWin, profit);
                 }
-                i.quantityFlipped += flip.getClosedQuantity();
             }
         }
     }
@@ -206,14 +144,13 @@ public class ItemAggregateFilterSort {
         private long biggestLoss = Long.MAX_VALUE;
         private long biggestWin = Long.MIN_VALUE;
         private int numberOfFlips = 0;
-        private int quantityFlipped = 0;
 
 
         public ItemAggregate toItemAggregate(String itemName) {
             return ItemAggregate.builder()
                     .itemName(itemName)
                     .numberOfFlips(numberOfFlips)
-                    .totalQuantityFlipped(quantityFlipped)
+                    .totalQuantityFlipped((int) totalQuantitySold)
                     .biggestLoss(biggestLoss == Long.MAX_VALUE ? 0 : biggestLoss)
                     .biggestWin(biggestWin == Long.MIN_VALUE ? 0 : biggestWin)
                     .totalProfit(totalProfit)

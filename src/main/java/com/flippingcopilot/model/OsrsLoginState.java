@@ -1,10 +1,7 @@
 package com.flippingcopilot.model;
 
 import lombok.*;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.api.Player;
-import net.runelite.api.WorldType;
+import net.runelite.api.*;
 import net.runelite.api.gameval.VarbitID;
 
 import java.util.EnumSet;

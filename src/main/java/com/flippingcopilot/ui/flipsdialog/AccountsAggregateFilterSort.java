@@ -75,16 +75,14 @@ public class AccountsAggregateFilterSort {
         final Map<Integer, AccountAggregator> accounts = new HashMap<>();
 
         public void accept(FlipV2 flip) {
-            {
-                AccountAggregator a = accounts.computeIfAbsent(flip.getAccountId(), AccountAggregator::new);
-                long profit = flip.getProfit();
-                a.totalProfit += profit;
-                a.numberOfFlips++;
-                if (profit < 0) {
-                    a.biggestLoss = Math.min(a.biggestLoss, profit);
-                } else {
-                    a.biggestWin = Math.max(a.biggestWin, profit);
-                }
+            AccountAggregator a = accounts.computeIfAbsent(flip.getAccountId(), AccountAggregator::new);
+            long profit = flip.getProfit();
+            a.totalProfit += profit;
+            a.numberOfFlips++;
+            if (profit < 0) {
+                a.biggestLoss = Math.min(a.biggestLoss, profit);
+            } else {
+                a.biggestWin = Math.max(a.biggestWin, profit);
             }
         }
     }

@@ -9,18 +9,13 @@ import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 import net.runelite.api.Point;
 import net.runelite.api.widgets.Widget;
-import net.runelite.client.ui.overlay.Overlay;
-import net.runelite.client.ui.overlay.OverlayLayer;
-import net.runelite.client.ui.overlay.OverlayPosition;
-import net.runelite.client.ui.overlay.OverlayPriority;
+import net.runelite.client.ui.overlay.*;
 import net.runelite.client.ui.overlay.tooltip.Tooltip;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.awt.Dimension;
-import java.awt.Graphics2D;
-import java.awt.Rectangle;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,12 +59,7 @@ public class InventorySlotTooltipOverlay extends Overlay {
             return null;
         }
 
-        HoveredInventorySlot slot = findHoveredInventorySlot();
-        if (slot == null) {
-            return null;
-        }
-
-        InventorySlotTooltipData tooltipData = tooltipDataProvider.getTooltipData(slot.itemId, slot.quantity, slot.source);
+        InventorySlotTooltipData tooltipData = findHoveredSlotTooltipData();
         if (tooltipData == null) {
             return null;
         }
@@ -81,7 +71,7 @@ public class InventorySlotTooltipOverlay extends Overlay {
         return null;
     }
 
-    private HoveredInventorySlot findHoveredInventorySlot() {
+    private InventorySlotTooltipData findHoveredSlotTooltipData() {
         Point mousePos = client.getMouseCanvasPosition();
         if (mousePos == null) {
             return null;
@@ -109,7 +99,7 @@ public class InventorySlotTooltipOverlay extends Overlay {
                     continue;
                 }
 
-                return new HoveredInventorySlot(itemId, quantity, sourcedWidget.source);
+                return tooltipDataProvider.getTooltipData(itemId, quantity, sourcedWidget.source);
             }
         }
 
@@ -159,14 +149,11 @@ public class InventorySlotTooltipOverlay extends Overlay {
     }
 
     private String formatTooltipLine(String line) {
-        String formattedSignedValueLine = formatSignedValueLine(line, UNREALISED_PROFIT_PREFIX);
-        if (formattedSignedValueLine != null) {
-            return formattedSignedValueLine;
-        }
-
-        formattedSignedValueLine = formatSignedValueLine(line, UNREALISED_ROI_PREFIX);
-        if (formattedSignedValueLine != null) {
-            return formattedSignedValueLine;
+        for (String prefix : new String[]{UNREALISED_PROFIT_PREFIX, UNREALISED_ROI_PREFIX}) {
+            String formatted = formatSignedValueLine(line, prefix);
+            if (formatted != null) {
+                return formatted;
+            }
         }
 
         return line == null ? "" : line;
@@ -186,25 +173,9 @@ public class InventorySlotTooltipOverlay extends Overlay {
         return prefix + color + value + COLOR_END;
     }
 
-    private static class HoveredInventorySlot {
-        private final int itemId;
-        private final int quantity;
-        private final TooltipHoverSource source;
-
-        private HoveredInventorySlot(int itemId, int quantity, TooltipHoverSource source) {
-            this.itemId = itemId;
-            this.quantity = quantity;
-            this.source = source;
-        }
-    }
-
+    @RequiredArgsConstructor
     private static class SourcedWidget {
         private final Widget widget;
         private final TooltipHoverSource source;
-
-        private SourcedWidget(Widget widget, TooltipHoverSource source) {
-            this.widget = widget;
-            this.source = source;
-        }
     }
 }

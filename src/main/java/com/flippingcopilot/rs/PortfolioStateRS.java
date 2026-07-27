@@ -1,25 +1,14 @@
 package com.flippingcopilot.rs;
 
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.model.AccountStatus;
-import com.flippingcopilot.model.AccountStatusManager;
-import com.flippingcopilot.model.PortfolioItemCardData;
-import com.flippingcopilot.model.PortfolioState;
-import com.flippingcopilot.model.PortfolioSummaryData;
-import com.flippingcopilot.model.Offer;
-import com.flippingcopilot.model.OfferStatus;
-import com.flippingcopilot.model.StatusOfferList;
-import com.flippingcopilot.model.Suggestion;
+import com.flippingcopilot.model.*;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 
 import java.time.Instant;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import net.runelite.api.ItemID;
 
 @Slf4j
@@ -120,6 +109,13 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
             }
             return true;
         });
+    }
+
+    public void updatePortfolioState(Suggestion suggestion, ToggleItemPortfolioResult result) {
+        updatePortfolioState(
+                suggestion == null ? null : suggestion.getBankItems(),
+                result == null ? null : result.getPortfolioItems(),
+                result == null ? null : result.getTime());
     }
 
     public void updatePortfolioState(Map<Integer, Integer> suggestionBank,

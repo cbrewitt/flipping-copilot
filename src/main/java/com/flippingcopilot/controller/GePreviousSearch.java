@@ -1,19 +1,10 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.model.Suggestion;
-import com.flippingcopilot.model.SuggestionType;
-import com.flippingcopilot.model.SuggestionPreferencesManager;
-import com.flippingcopilot.model.SuggestionManager;
-import com.flippingcopilot.model.AccountStatus;
-import com.flippingcopilot.model.AccountStatusManager;
+import com.flippingcopilot.model.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.widgets.ComponentID;
-import net.runelite.api.widgets.JavaScriptCallback;
-import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetTextAlignment;
-import net.runelite.api.widgets.WidgetType;
+import net.runelite.api.widgets.*;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;

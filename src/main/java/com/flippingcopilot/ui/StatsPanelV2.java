@@ -109,8 +109,7 @@ public class StatsPanelV2 extends JPanel {
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
         // Create a main panel with vertical layout
-        JPanel mainPanel = UIUtilities.newVerticalBoxLayoutJPanel();
-        mainPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        JPanel mainPanel = UIUtilities.verticalPanel(ColorScheme.DARKER_GRAY_COLOR);
 
         JPanel timeIntervalDropdownWrapper = new JPanel(new BorderLayout(0, 0));
         timeIntervalDropdownWrapper.setBorder(BorderFactory.createEmptyBorder()); // No border
@@ -161,16 +160,8 @@ public class StatsPanelV2 extends JPanel {
                 log.debug("opening flips dialog");
                 flipsDialogController.showPortfolioTab();
             }
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                flipsDialogButton.setIcon(HIGHLIGHTED_FLIPS_DIALOG);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                flipsDialogButton.setIcon(FLIPS_DIALOG);
-            }
         });
+        UIUtilities.addHoverIcons(flipsDialogButton, () -> FLIPS_DIALOG, () -> HIGHLIGHTED_FLIPS_DIALOG);
     }
 
     private void setupSessionResetButton() {
@@ -259,22 +250,20 @@ public class StatsPanelV2 extends JPanel {
     }
 
     private JPanel buildSubInfoPanel() {
-        JPanel subInfoPanel = UIUtilities.newVerticalBoxLayoutJPanel();
+        JPanel subInfoPanel = UIUtilities.verticalPanel(ColorScheme.DARKER_GRAY_COLOR);
         subInfoPanel.add(buildSubInfoPanelItem("Unrealized profit:", unrealizedProfitVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
         subInfoPanel.add(buildSubInfoPanelItem("Flips made:", flipsMadeVal, ColorScheme.LIGHT_GRAY_COLOR));
         subInfoPanel.add(buildSubInfoPanelItem("ROI:", roiVal, UIUtilities.TOMATO));
         subInfoPanel.add(buildSubInfoPanelItem("Session time:", sessionTimeVal, ColorScheme.GRAND_EXCHANGE_ALCH));
         subInfoPanel.add(buildSubInfoPanelItem("Hourly profit:", hourlyProfitVal, Color.WHITE));
         subInfoPanel.add(buildSubInfoPanelItem("Portfolio value:", portfolioValueVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
-        subInfoPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         subInfoPanel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0,0,1,0, ColorScheme.DARK_GRAY_COLOR),
                 new EmptyBorder(2, 5, 5, 5)));
         return subInfoPanel;
     }
 
     private void setupProfitAndSubInfoPanel() {
-        profitAndSubInfoPanel = UIUtilities.newVerticalBoxLayoutJPanel();
-        profitAndSubInfoPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        profitAndSubInfoPanel = UIUtilities.verticalPanel(ColorScheme.DARK_GRAY_COLOR);
 
         // Create the header panel that can be clicked to expand/collapse sub info
         JPanel headerPanel = new JPanel(new BorderLayout());
@@ -295,7 +284,7 @@ public class StatsPanelV2 extends JPanel {
         profitTextPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
         profitTextPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         profitTextPanel.add(profitTitle);
-        profitTextPanel.add(Box.createRigidArea(new Dimension(5, 0))); // Spacing between title and value
+        UIUtilities.addHorizontalGap(profitTextPanel, 5); // Spacing between title and value
         profitTextPanel.add(totalProfitVal);
         profitTextPanel.setBorder(BorderFactory.createEmptyBorder(1,4,1,4));
 
@@ -359,11 +348,7 @@ public class StatsPanelV2 extends JPanel {
     // - page changed (Swing EDT thread)
     //
     public void refresh(boolean flipsMaybeChanged, boolean validLoginState) {
-        if(!SwingUtilities.isEventDispatchThread()) {
-            // we always execute this in the Swing EDT thread
-            SwingUtilities.invokeLater(() -> refresh(flipsMaybeChanged, validLoginState));
-            return;
-        }
+        if (!UIUtilities.ensureEdt(() -> refresh(flipsMaybeChanged, validLoginState))) return;
         lastValidState = validLoginState;
         if (!validLoginState) {
             totalProfitVal.setText("0 gp");

@@ -6,9 +6,7 @@ import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.FlipV2;
 import com.flippingcopilot.model.VisualizeFlipResponse;
-import com.flippingcopilot.ui.graph.DataManager;
-import com.flippingcopilot.ui.graph.FlipStatsPanel;
-import com.flippingcopilot.ui.graph.GraphPanel;
+import com.flippingcopilot.ui.graph.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 
@@ -49,15 +47,15 @@ public class VisualizeFlipPanel extends JPanel {
         statsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
 
-        add(buildLandingCard(), Cards.LANDING_CARD.name());
-        add(buildLoadingCard(), Cards.LOADING_CARD.name());
-        add(buildGraphCard(), Cards.GRAPH_CARD.name());
-        add(buildErrorCard(), Cards.ERROR_CARD.name());
+        add(DialogUi.centeredMessage("Right click on a flip in the flips tab and select 'Visualize flip' option.", ColorScheme.DARK_GRAY_COLOR, true, 16f), Cards.LANDING_CARD.name());
+        add(DialogUi.loadingCard("Loading price data...", ColorScheme.DARK_GRAY_COLOR), Cards.LOADING_CARD.name());
+        add(DialogUi.splitGraphCard(graphPanel, statsPanel), Cards.GRAPH_CARD.name());
+        add(DialogUi.errorCard(errorLabel, () -> {
+            if (currentFlip != null) {
+                showFlipVisualization(currentFlip);
+            }
+        }), Cards.ERROR_CARD.name());
 
-
-        errorLabel.setForeground(Color.RED);
-        errorLabel.setFont(errorLabel.getFont().deriveFont(14f));
-        errorLabel.setHorizontalAlignment(SwingConstants.CENTER);
         contentCardLayout.show(this, Cards.LANDING_CARD.name());
     }
 
@@ -85,36 +83,6 @@ public class VisualizeFlipPanel extends JPanel {
         apiRequestHandler.asyncGetVisualizeFlipData(flip.getId(), onSuccess, onFailure);
     }
 
-    private JPanel buildLandingCard() {
-        return DialogUi.centeredMessage("Right click on a flip in the flips tab and select 'Visualize flip' option.", ColorScheme.DARK_GRAY_COLOR, true, 16f);
-    }
-
-    private JPanel buildLoadingCard() {
-        return DialogUi.loadingCard("Loading price data...", ColorScheme.DARK_GRAY_COLOR);
-    }
-
-    private JPanel buildErrorCard() {
-        JPanel errorPanel = new JPanel(new GridBagLayout());
-        errorPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.insets = new Insets(10, 10, 10, 10);
-        errorPanel.add(errorLabel, gbc);
-        gbc.gridy = 1;
-        gbc.insets = new Insets(20, 10, 10, 10);
-        JButton retryButton = new JButton("Retry");
-        retryButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        retryButton.setFocusable(false);
-        retryButton.addActionListener(e -> {
-            if (currentFlip != null) {
-                showFlipVisualization(currentFlip);
-            }
-        });
-        errorPanel.add(retryButton, gbc);
-        return errorPanel;
-    }
-
     private void showErrorCard(String errorMessage) {
         errorLabel.setText("<html><center>" + errorMessage + "</center></html>");
         contentCardLayout.show(this, Cards.ERROR_CARD.name());
@@ -124,16 +92,6 @@ public class VisualizeFlipPanel extends JPanel {
         graphPanel.setData(dm);
         contentCardLayout.show(this, Cards.GRAPH_CARD.name());
         statsPanel.populate(f, itemController);
-    }
-
-    private JSplitPane buildGraphCard() {
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true);
-        splitPane.setLeftComponent(graphPanel);
-        splitPane.setRightComponent(statsPanel);
-        splitPane.setResizeWeight(0.95); // Graph gets 75% of space
-        splitPane.setDividerLocation(0.95);
-        splitPane.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        return splitPane;
     }
 
     enum Cards {

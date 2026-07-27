@@ -13,7 +13,6 @@ public class GraphPanel extends JPanel {
     public DataManager dataManager;
     private final RenderV2 renderer;
     public final ZoomHandler zoomHandler;
-    private final DatapointTooltip tooltip;
     private PriceLine priceLine;
 
     public Bounds bounds;
@@ -29,7 +28,6 @@ public class GraphPanel extends JPanel {
         this.configManager = configManager;
         this.renderer = new RenderV2();
         this.zoomHandler = new ZoomHandler();
-        this.tooltip = new DatapointTooltip();
 
         setBackground(configManager.getConfig().backgroundColor);
         setPreferredSize(new Dimension(500, 300));
@@ -47,8 +45,8 @@ public class GraphPanel extends JPanel {
         this.priceLine = priceLine;
         zoomHandler.maxViewBounds = dataManager.maxBounds;
         zoomHandler.homeViewBounds = dataManager.calculateHomeBounds();
-        zoomHandler.weekViewBounds = dataManager.calculateWeekBounds();
-        zoomHandler.monthViewBounds = dataManager.calculateMonthBounds();
+        zoomHandler.weekViewBounds = dataManager.calculateRecentBounds(7);
+        zoomHandler.monthViewBounds = dataManager.calculateRecentBounds(30);
         if (oldItemID != dataManager.data.itemId) {
             bounds = zoomHandler.homeViewBounds.copy();
         }
@@ -84,33 +82,7 @@ public class GraphPanel extends JPanel {
                     return;
                 }
 
-                if (zoomHandler.isOverHomeButton(mousePosition)) {
-                    zoomHandler.applyHomeView(bounds);
-                    repaint();
-                    return;
-                }
-                if (zoomHandler.isOverMaxButton(mousePosition)) {
-                    zoomHandler.applyMaxView(bounds);
-                    repaint();
-                    return;
-                }
-                if (zoomHandler.isOverZoomInButton(mousePosition)) {
-                    zoomHandler.applyZoomIn(bounds);
-                    repaint();
-                    return;
-                }
-                if (zoomHandler.isOverZoomOutButton(mousePosition)) {
-                    zoomHandler.applyZoomOut(bounds);
-                    repaint();
-                    return;
-                }
-                if (zoomHandler.isOverWeekButton(mousePosition)) {
-                    zoomHandler.applyWeekView(bounds);
-                    repaint();
-                    return;
-                }
-                if (zoomHandler.isOverMonthButton(mousePosition)) {
-                    zoomHandler.applyMonthView(bounds);
+                if (zoomHandler.applyButtonView(mousePosition, bounds)) {
                     repaint();
                     return;
                 }
@@ -183,7 +155,7 @@ public class GraphPanel extends JPanel {
         if(dataManager == null) {
             return;
         }
-        Data data = dataManager.getData();
+        Data data = dataManager.data;
         if (data == null) return;
         Config config = configManager.getConfig();
         setBackground(config.backgroundColor);
@@ -201,8 +173,9 @@ public class GraphPanel extends JPanel {
         g2d.fillRect(volumePa.x, volumePa.y,  volumePa.width, volumePa.height);
         
         TimeAxis xAxis = AxisCalculator.calculateTimeAxis(bounds, AxisCalculator.getLocalTimeOffsetSeconds());
-        YAxis yAxis = AxisCalculator.calculatePriceAxis(bounds);
-        YAxis y2Axis = AxisCalculator.calculateVolumeAxis(bounds);
+        // trailing args are (max labelled ticks, max grid lines) for each axis
+        YAxis yAxis = AxisCalculator.calculateNumericAxis(bounds.yMin, bounds.yMax, bounds.yDelta(), 18, 28);
+        YAxis y2Axis = AxisCalculator.calculateNumericAxis(bounds.y2Min, bounds.y2Max, bounds.y2Delta(), 8, 16);
 
         renderer.drawGrid(g2d, config, pricePa, bounds, bounds::toY, xAxis, yAxis);
         renderer.drawGrid(g2d, config, volumePa, bounds, bounds:: toY2, xAxis, y2Axis);
@@ -249,9 +222,9 @@ public class GraphPanel extends JPanel {
         // Draw tooltip for hovered point
         if (hoveredPoint != null) {
             if (hoveredPoint.type == Datapoint.Type.VOLUME_1H) {
-                tooltip.drawVolume(g2d, config, volumePa, bounds, hoveredPoint);
+                DatapointTooltip.drawVolume(g2d, config, volumePa, bounds, hoveredPoint);
             } else {
-                tooltip.draw(g2d, config, pricePa, bounds, hoveredPoint);
+                DatapointTooltip.draw(g2d, config, pricePa, bounds, hoveredPoint);
             }
         }
     }

@@ -10,10 +10,7 @@ import javax.inject.Singleton;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.api.GrandExchangeOffer;
-import net.runelite.api.GrandExchangeOfferState;
+import net.runelite.api.*;
 import net.runelite.api.events.GrandExchangeOfferChanged;
 import net.runelite.client.ui.overlay.OverlayManager;
 

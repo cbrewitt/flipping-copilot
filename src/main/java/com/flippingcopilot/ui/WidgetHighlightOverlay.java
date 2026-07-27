@@ -26,16 +26,11 @@
 
 package com.flippingcopilot.ui;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Graphics2D;
-import java.awt.Rectangle;
+import java.awt.*;
 import java.util.function.Supplier;
 
 import net.runelite.api.widgets.Widget;
-import net.runelite.client.ui.overlay.Overlay;
-import net.runelite.client.ui.overlay.OverlayLayer;
-import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.*;
 
 public class WidgetHighlightOverlay extends Overlay
 {
@@ -81,13 +76,8 @@ public class WidgetHighlightOverlay extends Overlay
             return null;
         }
 
-        drawHighlight(graphics, highlightBounds, color);
-        return null;
-    }
-
-    private void drawHighlight(Graphics2D graphics, Rectangle bounds, Color color)
-    {
         graphics.setColor(color);
-        graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        graphics.fillRect(highlightBounds.x, highlightBounds.y, highlightBounds.width, highlightBounds.height);
+        return null;
     }
 }

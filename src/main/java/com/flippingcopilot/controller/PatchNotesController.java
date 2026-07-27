@@ -1,6 +1,7 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.ui.PatchNotesPopup;
+import com.flippingcopilot.ui.UIUtilities;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.inject.Singleton;
@@ -18,10 +19,7 @@ public class PatchNotesController {
     static final String PATCH_NOTES_VERSION_FILE = "patch-notes-version.txt";
 
     public void maybeShowOnStartup(Component parent, boolean hadExistingInstallation) {
-        if (!SwingUtilities.isEventDispatchThread()) {
-            SwingUtilities.invokeLater(() -> maybeShowOnStartup(parent, hadExistingInstallation));
-            return;
-        }
+        if (!UIUtilities.ensureEdt(() -> maybeShowOnStartup(parent, hadExistingInstallation))) return;
 
         int latestVersion = PatchNotesPopup.LATEST_VERSION;
         Integer lastSeenVersion = loadLastSeenVersion();

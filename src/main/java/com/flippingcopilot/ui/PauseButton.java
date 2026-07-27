@@ -8,8 +8,6 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
 
@@ -43,17 +41,9 @@ public class PauseButton extends JButton {
             update();
         });
 
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                setIcon(pausedManager.isPaused() ? PLAY_ICON_HOVER : PAUSE_ICON_HOVER);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                setIcon(pausedManager.isPaused() ? PLAY_ICON : PAUSE_ICON);
-            }
-        });
+        UIUtilities.addHoverIcons(this,
+                () -> pausedManager.isPaused() ? PLAY_ICON : PAUSE_ICON,
+                () -> pausedManager.isPaused() ? PLAY_ICON_HOVER : PAUSE_ICON_HOVER);
 
         setFocusPainted(false);
         setBorderPainted(false);

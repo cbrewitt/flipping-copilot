@@ -6,6 +6,7 @@ import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.Paginator;
+import com.flippingcopilot.ui.UIUtilities;
 import com.flippingcopilot.ui.components.AccountDropdown;
 import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
 import com.flippingcopilot.util.ProfitCalculator;
@@ -18,15 +19,8 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.MouseEvent;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.io.*;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
@@ -35,12 +29,12 @@ import java.util.function.Consumer;
 import static com.flippingcopilot.ui.flipsdialog.FlipFilterAndSort.escapeCSV;
 import static com.flippingcopilot.ui.flipsdialog.FlipFilterAndSort.formatTimestampISO;
 import static com.flippingcopilot.util.DateUtil.formatEpoch;
+import java.util.List;
 
 @Slf4j
 public class TransactionsPanel extends JPanel {
 
     private static final UUID ZERO_UUID = new UUID(0L, 0L);
-    private static final Integer[] PAGE_SIZE_OPTIONS = {10, 25, 50, 100, 200, 500, 1000, 2000};
     private static final int DEFAULT_PAGE_SIZE = 200;
     private static final String[] COLUMN_NAMES = {
             "Timestamp", "Account", "Side", "Item", "Quantity", "Paid/Received", "Tax", "Price ea.", "Part of Flip"
@@ -99,14 +93,7 @@ public class TransactionsPanel extends JPanel {
         setupTable(config);
         setupErrorOverlay();
 
-        // Page size combo box
-        JComboBox<Integer> pageSizeComboBox = new JComboBox<>(PAGE_SIZE_OPTIONS);
-        pageSizeComboBox.setSelectedItem(pageSize);
-        pageSizeComboBox.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        pageSizeComboBox.setFocusable(false);
-        pageSizeComboBox.setToolTipText("Page size");
-        pageSizeComboBox.addActionListener(e -> {
-            int newPageSize = (Integer) pageSizeComboBox.getSelectedItem();
+        tablePanel.installPageFooter(paginatorPanel, pageSize, newPageSize -> {
             if (newPageSize != pageSize) {
                 pageSize = newPageSize;
                 currentPage = 1;
@@ -114,16 +101,13 @@ public class TransactionsPanel extends JPanel {
                 applyFilters(true);
             }
         });
-        tablePanel.installPageFooter(paginatorPanel, pageSizeComboBox);
 
         add(tablePanel, BorderLayout.CENTER);
     }
 
     public void loadTransactionsIfNeeded() {
         if (!canLoadForCurrentPlayer()) {
-            setSpinnerVisible(false);
-            errorLabel.setText("Log into the game to view account transactions");
-            errorLabel.setVisible(true);
+            showLoginPrompt();
             return;
         }
         if (loadTransactionsTriggered.compareAndSet(false, true)) {
@@ -133,10 +117,8 @@ public class TransactionsPanel extends JPanel {
 
     private void setupControls() {
         // Create left panel with dropdowns
-        ItemSearchMultiSelect searchField = new ItemSearchMultiSelect(
+        ItemSearchMultiSelect searchField = ItemSearchMultiSelect.itemsFilter(this, itemController,
                 () -> new HashSet<>(filteredItems),
-                itemController::allItemIds,
-                itemController::search,
                 items -> {
                     if (!Objects.equals(items, filteredItems)) {
                         filteredItems = new HashSet<>(items);
@@ -144,14 +126,10 @@ public class TransactionsPanel extends JPanel {
                         paginatorPanel.setPageNumber(1);
                         applyFilters(true);
                     }
-                },
-                "Items filter...",
-                SwingUtilities.getWindowAncestor(this));
-        searchField.setMinimumSize(new Dimension(300, 0));
-        searchField.setToolTipText("Search by item name");
+                });
 
         // Account dropdown
-        accountDropdown = new AccountDropdown(
+        accountDropdown = DialogUi.accountDropdown(
                 () -> copilotLoginRS.get().displayNameToAccountId,
                 accountId -> {
                     if (!Objects.equals(accountId, selectedAccountId)) {
@@ -160,15 +138,11 @@ public class TransactionsPanel extends JPanel {
                         selectedAccountId = accountId;
                         applyFilters(true);
                     }
-                },
-                AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
-        );
-        accountDropdown.setPreferredSize(new Dimension(120, accountDropdown.getPreferredSize().height));
-        accountDropdown.setToolTipText("Select account");
+                });
         accountDropdown.refresh();
 
         tablePanel.leftControls().add(searchField);
-        tablePanel.leftControls().add(Box.createRigidArea(new Dimension(3, 0)));
+        UIUtilities.addHorizontalGap(tablePanel.leftControls(), 3);
         tablePanel.leftControls().add(accountDropdown);
 
         JButton refreshButton = new JButton("Refresh");
@@ -188,7 +162,7 @@ public class TransactionsPanel extends JPanel {
         downloadButton.addActionListener(e -> downloadTransactionsCSV());
 
         tablePanel.rightControls().add(refreshButton);
-        tablePanel.rightControls().add(Box.createRigidArea(new Dimension(5, 0)));
+        UIUtilities.addHorizontalGap(tablePanel.rightControls(), 5);
         tablePanel.rightControls().add(downloadButton);
     }
 
@@ -224,22 +198,18 @@ public class TransactionsPanel extends JPanel {
         tablePanel.addOverlay(errorLabel, JLayeredPane.PALETTE_LAYER);
     }
 
+    private void showLoginPrompt() {
+        setSpinnerVisible(false);
+        errorLabel.setText("Log into the game to view account transactions");
+        errorLabel.setVisible(true);
+    }
+
     private void loadTransactions() {
-        if (!canLoadForCurrentPlayer()) {
-            setSpinnerVisible(false);
-            errorLabel.setText("Log into the game to view account transactions");
-            errorLabel.setVisible(true);
-            return;
-        }
-
         String displayName = osrsLoginManager.getPlayerDisplayName();
-        if (Strings.isNullOrEmpty(displayName)) {
-            setSpinnerVisible(false);
-            errorLabel.setText("Log into the game to view account transactions");
-            errorLabel.setVisible(true);
+        if (!osrsLoginManager.isValidLoginState() || Strings.isNullOrEmpty(displayName)) {
+            showLoginPrompt();
             return;
         }
-
         setSpinnerVisible(true);
         errorLabel.setVisible(false);
         apiRequestHandler.asyncLoadTransactionsData(

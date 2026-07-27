@@ -3,19 +3,15 @@ package com.flippingcopilot.ui.graph;
 import com.flippingcopilot.model.VisualizeFlipResponse;
 import com.flippingcopilot.ui.graph.model.*;
 import com.flippingcopilot.util.ProfitCalculator;
-import lombok.Getter;
 
 import java.awt.*;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.function.Predicate;
+import java.util.List;
 
 
-@Getter
 public class DataManager {
 
     public final List<Datapoint> highDatapoints = new ArrayList<>();
@@ -52,27 +48,19 @@ public class DataManager {
     public Datapoint findClosestPoint(Point mousePos, int hoverRadius, Rectangle pa, Bounds bounds) {
         if (mousePos == null) return null;
 
-        Datapoint closest = null;
-        double minDistance = hoverRadius*2;
-
-        // prioritize hovering on the flip transaction datapoints
-        for(List<Datapoint> datapoints : Arrays.asList(flipEntryDatapoints, flipCloseDatapoints)) {
-            for (Datapoint d : datapoints) {
-                Point hoverPosition = d.getHoverPosition(pa, bounds);
-                double distance = mousePos.distance(hoverPosition);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closest = d;
-                }
-            }
-        }
+        // prioritize hovering on the flip transaction datapoints, which get double the hover radius
+        Datapoint closest = closestWithin(mousePos, hoverRadius * 2, pa, bounds,
+                Arrays.asList(flipEntryDatapoints, flipCloseDatapoints));
         if (closest != null) {
             return closest;
         }
+        return closestWithin(mousePos, hoverRadius, pa, bounds,
+                Arrays.asList(highDatapoints, lowDatapoints, predictionLowDatapoints, predictionHighDatapoints));
+    }
 
-        minDistance = hoverRadius;
-
-        for(List<Datapoint> datapoints : Arrays.asList(highDatapoints, lowDatapoints, predictionLowDatapoints, predictionHighDatapoints)) {
+    private Datapoint closestWithin(Point mousePos, double minDistance, Rectangle pa, Bounds bounds, List<List<Datapoint>> lists) {
+        Datapoint closest = null;
+        for (List<Datapoint> datapoints : lists) {
             for (Datapoint d : datapoints) {
                 Point hoverPosition = d.getHoverPosition(pa, bounds);
                 double distance = mousePos.distance(hoverPosition);
@@ -105,15 +93,8 @@ public class DataManager {
         return b;
     }
 
-    public Bounds calculateWeekBounds() {
-        Bounds b = calculateBounds((p) -> p.time > maxBounds.xMax - 7 * Constants.DAY_SECONDS);
-        b.xMin= ((b.xMin) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS;
-        b.xMax = ((b.xMax) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS + Constants.HOUR_SECONDS;
-        return b;
-    }
-
-    public Bounds calculateMonthBounds() {
-        Bounds b = calculateBounds((p) -> p.time > maxBounds.xMax - 30 * Constants.DAY_SECONDS);
+    public Bounds calculateRecentBounds(int days) {
+        Bounds b = calculateBounds((p) -> p.time > maxBounds.xMax - days * Constants.DAY_SECONDS);
         b.xMin= ((b.xMin) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS;
         b.xMax = ((b.xMax) / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS + Constants.HOUR_SECONDS;
         return b;

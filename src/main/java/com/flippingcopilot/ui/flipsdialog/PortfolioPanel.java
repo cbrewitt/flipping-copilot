@@ -3,17 +3,8 @@ package com.flippingcopilot.ui.flipsdialog;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.model.PortfolioItemCardData;
-import com.flippingcopilot.model.PortfolioState;
-import com.flippingcopilot.model.PortfolioSummaryData;
-import com.flippingcopilot.model.SortDirection;
-import com.flippingcopilot.model.Suggestion;
-import com.flippingcopilot.model.SuggestionManager;
-import com.flippingcopilot.model.ToggleItemPortfolioRequest;
-import com.flippingcopilot.rs.CopilotLoginRS;
-import com.flippingcopilot.rs.BankStateRS;
-import com.flippingcopilot.rs.OsrsLoginRS;
-import com.flippingcopilot.rs.PortfolioStateRS;
+import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.*;
 import com.flippingcopilot.ui.UIUtilities;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.ColorScheme;
@@ -25,14 +16,10 @@ import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.List;
 
 public class PortfolioPanel extends JPanel {
     private static final NumberFormat GP_FORMAT = NumberFormat.getNumberInstance(Locale.US);
@@ -161,24 +148,13 @@ public class PortfolioPanel extends JPanel {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 if (value instanceof Long) {
                     setText(formatGp((Long) value, false));
-                }
-                setHorizontalAlignment(RIGHT);
-                return c;
-            }
-        }, 1);
-        tablePanel.setRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (value instanceof Long) {
-                    setText(formatGp((Long) value, false));
                 } else if (value == null) {
                     setText("Unknown");
                 }
                 setHorizontalAlignment(RIGHT);
                 return c;
             }
-        }, 5);
+        }, 1, 5);
         tablePanel.setRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -243,7 +219,7 @@ public class PortfolioPanel extends JPanel {
         contentPanel.add(tablePanel, BorderLayout.CENTER);
 
         cardPanel.add(contentPanel, CONTENT_CARD);
-        cardPanel.add(buildLoginPromptPanel(), LOGIN_PROMPT_CARD);
+        cardPanel.add(DialogUi.centeredMessage("Log into the game to see account portfolio", null, false, 18f), LOGIN_PROMPT_CARD);
         add(cardPanel, BorderLayout.CENTER);
 
         portfolioStateRS.registerListener(state -> SwingUtilities.invokeLater(() -> {
@@ -293,12 +269,7 @@ public class PortfolioPanel extends JPanel {
         apiRequestHandler.asyncClearAccountPortfolio(
                 accountId,
                 (userId, result) -> SwingUtilities.invokeLater(() -> {
-                    Suggestion suggestion = suggestionManager.getSuggestion();
-                    portfolioStateRS.updatePortfolioState(
-                            suggestion == null ? null : suggestion.getBankItems(),
-                            result == null ? null : result.getPortfolioItems(),
-                            result == null ? null : result.getTime()
-                    );
+                    portfolioStateRS.updatePortfolioState(suggestionManager.getSuggestion(), result);
                     suggestionManager.setSuggestionNeeded(true);
                     clearPortfolioButton.setEnabled(true);
                 }),
@@ -444,12 +415,7 @@ public class PortfolioPanel extends JPanel {
             apiRequestHandler.toggleItemPortfolioAsync(
                     request,
                     (userId, result) -> {
-                        Suggestion suggestion = suggestionManager.getSuggestion();
-                        portfolioStateRS.updatePortfolioState(
-                                suggestion == null ? null : suggestion.getBankItems(),
-                                result == null ? null : result.getPortfolioItems(),
-                                result == null ? null : result.getTime()
-                        );
+                        portfolioStateRS.updatePortfolioState(suggestionManager.getSuggestion(), result);
                         suggestionManager.setSuggestionNeeded(true);
                     },
                     error -> {
@@ -457,10 +423,6 @@ public class PortfolioPanel extends JPanel {
             );
             return true;
         });
-    }
-
-    private JPanel buildLoginPromptPanel() {
-        return DialogUi.loginPrompt("Log into the game to see account portfolio", null, false);
     }
 
     private String formatGp(long amount, boolean signed) {

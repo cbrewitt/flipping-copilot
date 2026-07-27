@@ -12,6 +12,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
@@ -27,7 +28,6 @@ public class Paginator extends JPanel {
 
 	@Getter
 	private int pageNumber = 1;
-	@Getter
 	private int totalPages = 1;
 	private final JLabel statusText = new JLabel("Page 1 of 1", SwingUtilities.CENTER);
 	private final JLabel arrowRight= new JLabel(ARROW_RIGHT);
@@ -44,8 +44,12 @@ public class Paginator extends JPanel {
 		add(arrowRight);
 		setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		setBorder(new EmptyBorder(3, 0, 0, 0));
-		arrowLeft.addMouseListener(onDecreasePage());
-		arrowRight.addMouseListener(onIncreasePage());
+		arrowLeft.addMouseListener(onPageStep(arrowLeft, ARROW_LEFT, HIGHLIGHTED_ARROW_LEFT, -1, () -> pageNumber > 1));
+		arrowRight.addMouseListener(onPageStep(arrowRight, ARROW_RIGHT, HIGHLIGHTED_ARROW_RIGHT, 1, () -> pageNumber < totalPages));
+	}
+
+	private void updateStatusText() {
+		statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
 	}
 
 	public void setTotalPages(int totalPages) {
@@ -54,61 +58,38 @@ public class Paginator extends JPanel {
 			pageNumber = 1;
 			onPageChange.accept(pageNumber);
 		}
-		statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
+		updateStatusText();
 	}
 
 	public void setTotalPagesWithoutEffect(int totalPages) {
 		this.totalPages = totalPages;
-		statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
+		updateStatusText();
 	}
 
 	public void setPageNumber(int pageNumber) {
 		this.pageNumber = pageNumber;
-		statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
+		updateStatusText();
 	}
 
-	private MouseAdapter onIncreasePage() {
+	private MouseAdapter onPageStep(JLabel arrow, Icon icon, Icon highlightedIcon, int delta, BooleanSupplier canStep) {
 		return new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent e) {
-				if (pageNumber < totalPages) {
-					pageNumber++;
+				if (canStep.getAsBoolean()) {
+					pageNumber += delta;
 					onPageChange.accept(pageNumber);
-					statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
+					updateStatusText();
 				}
 			}
 
 			@Override
 			public void mouseEntered(MouseEvent e) {
-				arrowRight.setIcon(HIGHLIGHTED_ARROW_RIGHT);
+				arrow.setIcon(highlightedIcon);
 			}
 
 			@Override
 			public void mouseExited(MouseEvent e) {
-				arrowRight.setIcon(ARROW_RIGHT);
-			}
-		};
-	}
-
-	private MouseAdapter onDecreasePage() {
-		return new MouseAdapter() {
-			@Override
-			public void mousePressed(MouseEvent e) {
-				if (pageNumber > 1) {
-					pageNumber--;
-					onPageChange.accept(pageNumber);
-					statusText.setText(String.format("Page %d of %d", pageNumber, totalPages));
-				}
-			}
-
-			@Override
-			public void mouseEntered(MouseEvent e) {
-				arrowLeft.setIcon(HIGHLIGHTED_ARROW_LEFT);
-			}
-
-			@Override
-			public void mouseExited(MouseEvent e) {
-				arrowLeft.setIcon(ARROW_LEFT);
+				arrow.setIcon(icon);
 			}
 		};
 	}

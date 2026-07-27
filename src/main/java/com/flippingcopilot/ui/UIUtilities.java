@@ -1,6 +1,7 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
+import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.QuantityFormatter;
 
@@ -9,22 +10,19 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.text.NumberFormat;
+import java.text.*;
 import java.util.Locale;
+import java.util.function.Supplier;
 
 public class UIUtilities {
     public static final String redditIcon = "/reddit-icon.png";
     public static final String discordIcon = "/discord.png";
     public static final String logoutIcon = "/logout.png";
     public static final String internetIcon = "/internet.png";
-    public static final String graphIcon = "/graph.png";
 
     public static final float BUTTON_HOVER_LUMINANCE = 0.65f;
     public static final Color OUTDATED_COLOR = new Color(250, 74, 75);
     public static final Color TOMATO = new Color(255,99,71);
-    public static final Color DARK_GRAY = new Color(27, 27, 27);
 
     private static final NumberFormat PRECISE_DECIMAL_FORMATTER = new DecimalFormat(
             "#,###.###",
@@ -145,10 +143,39 @@ public class UIUtilities {
         return label;
     }
 
-    public static JPanel newVerticalBoxLayoutJPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        return panel;
+    public static JLabel gearButton(String tooltip, Runnable onClick) {
+        BufferedImage icon = ImageUtil.resizeImage(ImageUtil.loadImageResource(UIUtilities.class, "/preferences-icon.png"), 20, 20);
+        return buildButton(ImageUtil.recolorImage(icon, ColorScheme.LIGHT_GRAY_COLOR), tooltip, onClick);
+    }
+
+    public static void addHoverIcons(AbstractButton button, Supplier<Icon> normal, Supplier<Icon> hover) {
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setIcon(hover.get());
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setIcon(normal.get());
+            }
+        });
+    }
+
+    /**
+     * Returns true when the caller may proceed on the current (EDT) thread. Otherwise the task has
+     * been scheduled via invokeLater and the caller must return immediately.
+     */
+    public static boolean ensureEdt(Runnable task) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            return true;
+        }
+        SwingUtilities.invokeLater(task);
+        return false;
+    }
+
+    public static String colorHex(Color color) {
+        return String.format("#%06X", (0xFFFFFF & color.getRGB()));
     }
 
     public static JPanel darkPanel(LayoutManager layout, Color background) {
@@ -159,13 +186,6 @@ public class UIUtilities {
 
     public static JPanel transparentPanel(LayoutManager layout) {
         JPanel panel = new JPanel(layout);
-        panel.setOpaque(false);
-        return panel;
-    }
-
-    public static JPanel transparentXAxisPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
         panel.setOpaque(false);
         return panel;
     }
@@ -195,14 +215,6 @@ public class UIUtilities {
         JPanel panel = transparentPanel(new BorderLayout());
         panel.add(new JLabel(label), BorderLayout.LINE_START);
         panel.add(control, BorderLayout.LINE_END);
-        return panel;
-    }
-
-    public static JPanel messagePanel(String html, Color background, Color foreground) {
-        JPanel panel = darkPanel(new GridBagLayout(), background);
-        JLabel label = new JLabel(html);
-        label.setForeground(foreground);
-        panel.add(label);
         return panel;
     }
 }

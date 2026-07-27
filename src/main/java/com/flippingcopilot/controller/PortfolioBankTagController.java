@@ -1,9 +1,7 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.model.BankState;
-import com.flippingcopilot.model.PortfolioItemCardData;
-import com.flippingcopilot.model.PortfolioState;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import com.google.inject.Inject;
@@ -14,16 +12,10 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.PluginManager;
-import net.runelite.client.plugins.banktags.BankTagsService;
-import net.runelite.client.plugins.banktags.BankTagsPlugin;
-import net.runelite.client.plugins.banktags.TagManager;
+import net.runelite.client.plugins.banktags.*;
 import net.runelite.client.util.Text;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Singleton
