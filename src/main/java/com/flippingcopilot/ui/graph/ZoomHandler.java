@@ -2,17 +2,30 @@ package com.flippingcopilot.ui.graph;
 
 import com.flippingcopilot.ui.graph.model.Bounds;
 import com.flippingcopilot.ui.graph.model.Config;
+import com.flippingcopilot.ui.graph.model.Constants;
 import com.flippingcopilot.util.MathUtil;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
+import java.util.Arrays;
+import java.util.List;
 
 @Slf4j
 @Getter
 public class ZoomHandler {
+
+    @RequiredArgsConstructor
+    public static class ZoomPreset {
+        public final String label;
+        public final int spanSeconds;
+        public final int horizonSeconds;
+        public final Rectangle buttonRect = new Rectangle();
+        public Bounds bounds;
+    }
 
     private static final int MIN_TIME_DELTA = 60*60;
     private static final long MIN_PRICE_DELTA = 5;
@@ -26,13 +39,15 @@ public class ZoomHandler {
     private final Rectangle maxButtonRect = new Rectangle();
     private final Rectangle zoomInButtonRect = new Rectangle();
     private final Rectangle zoomOutButtonRect = new Rectangle();
-    private final Rectangle weekButtonRect = new Rectangle();
-    private final Rectangle monthButtonRect = new Rectangle();
+
+    public final List<ZoomPreset> presets = Arrays.asList(
+            new ZoomPreset("Month", 30 * Constants.DAY_SECONDS, 0),
+            new ZoomPreset("Week", 7 * Constants.DAY_SECONDS, 0),
+            new ZoomPreset("Day", Constants.DAY_SECONDS, 6 * Constants.HOUR_SECONDS),
+            new ZoomPreset("8h", 8 * Constants.HOUR_SECONDS, 2 * Constants.HOUR_SECONDS));
 
     public Bounds maxViewBounds;
     public Bounds homeViewBounds;
-    public Bounds weekViewBounds;
-    public Bounds monthViewBounds;
 
     public void startSelection(Point point) {
         selectionStart = new Point(point);
@@ -80,6 +95,12 @@ public class ZoomHandler {
      * Returns true when a button was hit (and the bounds were changed).
      */
     public boolean applyButtonView(Point p, Bounds bounds) {
+        for (ZoomPreset preset : presets) {
+            if (isOver(preset.buttonRect, p)) {
+                copyBounds(bounds, preset.bounds);
+                return true;
+            }
+        }
         if (isOver(homeButtonRect, p)) {
             copyBounds(bounds, homeViewBounds);
         } else if (isOver(maxButtonRect, p)) {
@@ -88,10 +109,6 @@ public class ZoomHandler {
             applyZoomIn(bounds);
         } else if (isOver(zoomOutButtonRect, p)) {
             applyZoomOut(bounds);
-        } else if (isOver(weekButtonRect, p)) {
-            copyBounds(bounds, weekViewBounds);
-        } else if (isOver(monthButtonRect, p)) {
-            copyBounds(bounds, monthViewBounds);
         } else {
             return false;
         }
@@ -186,20 +203,14 @@ public class ZoomHandler {
         // Draw - symbol
         drawPlusMinusIcon(g2d, zoomOutButtonRect, false);
 
-        // Width for text buttons (Week and Month)
+        // Draw the preset buttons (wider than the others), right to left so the longest span ends up leftmost
         int textButtonWidth = size * 2;
-
-        // Draw Week button (wider than the others)
-        x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
-        drawButtonBackground(g2d, weekButtonRect, x, y, textButtonWidth, isOver(weekButtonRect, p));
-        // Draw Week text
-        drawCenteredText(g2d, weekButtonRect, "Week");
-
-        // Draw Month button (wider than the others)
-        x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
-        drawButtonBackground(g2d, monthButtonRect, x, y, textButtonWidth, isOver(monthButtonRect, p));
-        // Draw Month text
-        drawCenteredText(g2d, monthButtonRect, "Month");
+        for (int i = presets.size() - 1; i >= 0; i--) {
+            ZoomPreset preset = presets.get(i);
+            x -= textButtonWidth + Config.GRAPH_BUTTON_MARGIN;
+            drawButtonBackground(g2d, preset.buttonRect, x, y, textButtonWidth, isOver(preset.buttonRect, p));
+            drawCenteredText(g2d, preset.buttonRect, preset.label);
+        }
     }
 
     private void drawButtonBackground(Graphics2D g2d, Rectangle rect, int x, int y, int width, boolean hovered) {

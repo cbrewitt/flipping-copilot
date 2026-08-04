@@ -45,8 +45,9 @@ public class GraphPanel extends JPanel {
         this.priceLine = priceLine;
         zoomHandler.maxViewBounds = dataManager.maxBounds;
         zoomHandler.homeViewBounds = dataManager.calculateHomeBounds();
-        zoomHandler.weekViewBounds = dataManager.calculateRecentBounds(7);
-        zoomHandler.monthViewBounds = dataManager.calculateRecentBounds(30);
+        for (ZoomHandler.ZoomPreset preset : zoomHandler.presets) {
+            preset.bounds = dataManager.calculateSpanBounds(preset.spanSeconds, preset.horizonSeconds);
+        }
         if (oldItemID != dataManager.data.itemId) {
             bounds = zoomHandler.homeViewBounds.copy();
         }
