@@ -1,25 +1,33 @@
 package com.flippingcopilot.model;
 
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 @Data
 @AllArgsConstructor
 public class PluginDiscordLoginInitResponse {
     public String url;
 
-    public static PluginDiscordLoginInitResponse fromRaw(DataInputStream s) throws IOException {
-        int length = s.readInt();
-        if (length < 0) {
-            throw new IOException("invalid oauth url length: " + length);
+    public static PluginDiscordLoginInitResponse decodeProto(byte[] bytes) throws IOException {
+        PluginDiscordLoginInitResponse response = new PluginDiscordLoginInitResponse("");
+        CodedInputStream input = CodedInputStream.newInstance(bytes);
+        while (!input.isAtEnd()) {
+            int tag = input.readTag();
+            if (tag == 0) {
+                break;
+            }
+            switch (WireFormat.getTagFieldNumber(tag)) {
+                case 1:
+                    response.url = input.readString();
+                    break;
+                default:
+                    input.skipField(tag);
+            }
         }
-        byte[] urlBytes = new byte[length];
-        s.readFully(urlBytes);
-        String url = new String(urlBytes, StandardCharsets.UTF_8);
-        return new PluginDiscordLoginInitResponse(url);
+        return response;
     }
 }

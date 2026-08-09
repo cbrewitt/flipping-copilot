@@ -4,7 +4,6 @@ import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.util.ProtoUtils;
-import com.google.gson.*;
 import com.google.inject.Singleton;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
@@ -19,6 +18,9 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+
+import static com.flippingcopilot.util.FormatUtil.formatDuration;
+import static com.flippingcopilot.util.FormatUtil.formatSize;
 
 
 /** The plugin's HTTP surface against the copilot backend, all of it the v2 protobuf contract (servergolang/api-contract/api.proto). */
@@ -38,7 +40,6 @@ public class ApiRequestHandler {
     public static final int UNAUTHORIZED_CODE = 401;
     // dependencies
     private final OkHttpClient client;
-    private final Gson gson;
     private final CopilotLoginRS copilotLoginRS;
     private final SuggestionPreferencesManager preferencesManager;
     private final ClientThread clientThread;
@@ -54,6 +55,12 @@ public class ApiRequestHandler {
 
     private Request.Builder authed(String jwtToken, String path) {
         return unauthed(path).addHeader("Authorization", "Bearer " + jwtToken);
+    }
+
+    private Request.Builder authedV3(String jwtToken, String path) {
+        return new Request.Builder()
+                .url(serverUrl + "/v3" + path)
+                .addHeader("Authorization", "Bearer " + jwtToken);
     }
 
     private RequestBody protoBody(byte[] body) {
@@ -146,7 +153,7 @@ public class ApiRequestHandler {
                                   Consumer<HttpResponseException>  onFailure) {
         log.debug("sending request to login via discord");
         Request r = new Request.Builder()
-                .url(serverFeUrl + "/v1/plugin-discord-login")
+                .url(serverFeUrl + "/v2/plugin-discord-login")
                 .get().build();
 
         Call call = client.newBuilder()
@@ -169,16 +176,16 @@ public class ApiRequestHandler {
                             copilotLoginRS.clear();
                         }
                         log.warn("login via discord call failed with http status code {}", response.code());
-                        clientThread.invoke(() -> onFailure.accept(new HttpResponseException(response.code(), extractJsonErrorMessage(response))));
+                        clientThread.invoke(() -> onFailure.accept(new HttpResponseException(response.code(), extractErrorMessage(response))));
                         return;
                     }
                     if (response.body() == null) {
                         throw new IOException("empty discord login response");
                     }
-                    try(DataInputStream is = new DataInputStream(new BufferedInputStream(response.body().byteStream()))) {
-                        PluginDiscordLoginInitResponse initResponse = PluginDiscordLoginInitResponse.fromRaw(is);
+                    try(InputStream is = response.body().byteStream()) {
+                        PluginDiscordLoginInitResponse initResponse = PluginDiscordLoginInitResponse.decodeProto(ProtoUtils.readFrame(is));
                         clientThread.invoke(() -> oathUrlConsumer.accept(initResponse.getUrl()));
-                        LoginResponse loginResponse = LoginResponse.fromRaw(is);
+                        LoginResponse loginResponse = LoginResponse.decodeDiscordLoginResult(ProtoUtils.readFrame(is));
                         if (loginResponse.getError() != null && !loginResponse.getError().isEmpty()) {
                             clientThread.invoke(() -> onFailure.accept(new HttpResponseException(-1, loginResponse.getError())));
                         } else {
@@ -200,87 +207,56 @@ public class ApiRequestHandler {
                                    Consumer<Data> graphDataConsumer,
                                    Consumer<HttpResponseException>  onFailure) {
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = authed(jwtToken, "/suggestion")
+        Request request = authedV3(jwtToken, "/suggestion")
                 .post(protoBody(status))
                 .build();
 
+        long startNanos = System.nanoTime();
         enqueue(request, jwtToken, "get suggestion",
                 error -> clientThread.invoke(() -> onFailure.accept(error)),
-                response -> handleSuggestionResponse(response, suggestionConsumer, graphDataConsumer));
+                response -> handleSuggestionResponse(response, startNanos, suggestionConsumer, graphDataConsumer));
     }
 
-    private void handleSuggestionResponse(Response response, Consumer<Suggestion> suggestionConsumer, Consumer<Data> graphDataConsumer) throws IOException {
+    private void handleSuggestionResponse(Response response, long startNanos, Consumer<Suggestion> suggestionConsumer, Consumer<Data> graphDataConsumer) throws IOException {
         if (response.body() == null) {
             throw new IOException("empty suggestion request response");
         }
         Suggestion s;
-        int contentLength = resolveContentLength(response);
-        int suggestionContentLength = resolveSuggestionContentLength(response);
-        int graphDataContentLength = contentLength - suggestionContentLength;
-        log.debug("suggestion response size is: {}, suggestion size is {}", contentLength, suggestionContentLength);
+        int suggestionSize;
+        int graphDataSize = 0;
+        long suggestionNanos = -1;
+        long graphDataNanos = -1;
 
         Data d = new Data();
         try(InputStream is = response.body().byteStream()) {
-            // This is some bespoke handling to make the user experience better. We basically pack two different
-            // objects in the response body. The suggestion (first object) and the graph data (second
-            // object). The graph data can be a few kb, and we want the suggestion to be displayed
-            // immediately, without having to wait for the graph data to be loaded.
-
-            byte[] suggestionBytes = new byte[suggestionContentLength];
-            int bytesRead = is.readNBytes(suggestionBytes, 0, suggestionContentLength);
-            if (bytesRead != suggestionContentLength) {
-                throw new IOException("failed to read complete suggestion content: " + bytesRead + " of " + suggestionContentLength + " bytes");
-            }
+            byte[] suggestionBytes = ProtoUtils.readFrame(is);
+            suggestionSize = suggestionBytes.length;
             s = Suggestion.decodeProto(suggestionBytes);
-            log.debug("suggestion received");
+            suggestionNanos = System.nanoTime() - startNanos;
             clientThread.invoke(() -> suggestionConsumer.accept(s));
 
-            if (graphDataContentLength == 0) {
-                d.loadingErrorMessage = "No graph data loaded for this item.";
-            } else {
-                try {
-                    byte[] remainingBytes = is.readAllBytes();
-                    if (graphDataContentLength != remainingBytes.length) {
-                        log.error("the graph data bytes read {} doesn't match the expected bytes {}", bytesRead, graphDataContentLength);
-                        d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
-                    } else {
-                        try {
-                            d = Data.decodeProto(remainingBytes);
-                            log.debug("graph data received");
-                        } catch (Exception e) {
-                            log.error("error deserializing graph data", e);
-                            d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
-                        }
-                    }
-                } catch (IOException e) {
-                    log.error("error on reading graph data bytes from the suggestion response", e);
-                    d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
+            try {
+                byte[] graphDataBytes = ProtoUtils.readFrame(is);
+                graphDataSize = graphDataBytes.length;
+                if (graphDataBytes.length == 0) {
+                    d.loadingErrorMessage = "No graph data loaded for this item.";
+                } else {
+                    d = Data.decodeProto(graphDataBytes);
+                    graphDataNanos = System.nanoTime() - startNanos;
                 }
+            } catch (Exception e) {
+                log.error("error reading graph data part of the suggestion response", e);
+                d.loadingErrorMessage = "There was an issue loading the graph data for this item.";
             }
         }
+        log.debug("suggestion response: suggestion size={}, graph data size={}, total time={}, suggestion received={}, graph data received={}",
+                formatSize(suggestionSize), formatSize(graphDataSize),
+                formatDuration(System.nanoTime() - startNanos), formatDuration(suggestionNanos), formatDuration(graphDataNanos));
         if (s != null && s.getType() == SuggestionType.WAIT){
             d.fromWaitSuggestion = true;
         }
         Data finalD = d;
         clientThread.invoke(() -> graphDataConsumer.accept(finalD));
-    }
-
-    private int resolveContentLength(Response resp) throws IOException {
-        try {
-            String cl = resp.header("Content-Length");
-            return Integer.parseInt(cl != null ? cl : "missing Content-Length header");
-        } catch (NumberFormatException  e) {
-            throw new IOException("Failed to parse response Content-Length", e);
-        }
-    }
-
-    private int resolveSuggestionContentLength(Response resp) throws IOException {
-        try {
-            String cl = resp.header("X-Suggestion-Content-Length");
-            return Integer.parseInt(cl != null ? cl : "missing Content-Length header");
-        } catch (NumberFormatException  e) {
-            throw new IOException("Failed to parse response Content-Length", e);
-        }
     }
 
     public void sendTransactionsAsync(List<Transaction> transactions, String displayName, BiConsumer<Integer, List<FlipV2>> onSuccess, Consumer<HttpResponseException> onFailure) {
@@ -321,22 +297,6 @@ public class ApiRequestHandler {
                 ApiError error = ApiError.decodeProto(response.body().bytes());
                 if (!error.getDisplayErr().isEmpty()) {
                     return error.getDisplayErr();
-                }
-            } catch (Exception e) {
-                log.warn("failed reading/parsing error message from http {} response body", response.code(), e);
-            }
-        }
-        return UNKNOWN_ERROR;
-    }
-
-    // reads the website's JSON error body; only the discord login handshake needs this
-    private String extractJsonErrorMessage(Response response) {
-        if (response.body() != null) {
-            try {
-                String bodyStr = response.body().string();
-                JsonObject errorJson = gson.fromJson(bodyStr, JsonObject.class);
-                if (errorJson.has("message")) {
-                    return errorJson.get("message").getAsString();
                 }
             } catch (Exception e) {
                 log.warn("failed reading/parsing error message from http {} response body", response.code(), e);
