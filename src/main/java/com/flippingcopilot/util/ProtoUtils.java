@@ -13,6 +13,39 @@ public final class ProtoUtils {
     private ProtoUtils() {
     }
 
+    private static final byte[] ABSENT_PART = new byte[0];
+
+    public static byte[] readFrame(InputStream is) throws IOException {
+        long size = 0;
+        int shift = 0;
+        while (true) {
+            int b = is.read();
+            if (b < 0) {
+                throw new EOFException("multipart response ended before the next part");
+            }
+            size |= (long) (b & 0x7F) << shift;
+            if ((b & 0x80) == 0) {
+                break;
+            }
+            shift += 7;
+            if (shift >= 64) {
+                throw new IOException("malformed multipart frame length");
+            }
+        }
+        if (size == 0) {
+            return ABSENT_PART;
+        }
+        if (size > Integer.MAX_VALUE) {
+            throw new IOException("multipart frame too large: " + size + " bytes");
+        }
+        byte[] payload = new byte[(int) size];
+        int read = is.readNBytes(payload, 0, payload.length);
+        if (read != payload.length) {
+            throw new EOFException("multipart part truncated: read " + read + " of " + payload.length + " bytes");
+        }
+        return payload;
+    }
+
     @FunctionalInterface
     public interface TaggedFieldWriter<T> {
         void write(CodedOutputStream out, int fieldNumber, T value) throws IOException;

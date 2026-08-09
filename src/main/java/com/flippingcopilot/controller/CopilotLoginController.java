@@ -16,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
+import static com.flippingcopilot.util.FormatUtil.formatDurationSince;
+
 @Slf4j
 @Singleton
 public class CopilotLoginController {
@@ -71,7 +73,7 @@ public class CopilotLoginController {
         long s = System.nanoTime();
         Consumer<Map<String, Integer>> onSuccess = (displayNameToAccountId) -> {
             displayNameToAccountId.forEach((key, value) -> copilotLoginRS.addAccountIfMissing(value, key, userId));
-            log.info("loading {} copilot accounts succeeded - took {}ms", displayNameToAccountId.size(), (System.nanoTime() - s) / 1000_000);
+            log.info("loading {} copilot accounts succeeded - took {}", displayNameToAccountId.size(), formatDurationSince(s));
             syncFlips(copilotLoginRS.get().getUserId(), new HashMap<>(), 0);
         };
         Consumer<String> onFailure = (errorMessage) -> {
@@ -104,7 +106,7 @@ public class CopilotLoginController {
                 log.info("user={}, no longer logged in, stopping syncFlips.", userId);
                 return;
             }
-            log.debug("user={}, loading {} updated flips - took {}ms", userId, r.flips.size(), (System.nanoTime() - s) / 1000_000);
+            log.debug("user={}, loading {} updated flips - took {}", userId, r.flips.size(), formatDurationSince(s));
             accountIds.forEach((a) -> accountIdTime.put(a, r.time));
             executorService.schedule(() -> syncFlips(userId, accountIdTime, 0), 5, TimeUnit.SECONDS);
         };
