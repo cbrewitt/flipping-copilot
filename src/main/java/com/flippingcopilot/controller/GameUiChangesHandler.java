@@ -145,6 +145,7 @@ public class GameUiChangesHandler {
     }
 
     public void handleMenuOptionClicked(MenuOptionClicked event) {
+        gePreviousSearch.handleCopilotMenuClick(event);
         if (event.getMenuOption().equals("Confirm") && grandExchange.isSlotOpen()) {
             log.debug("offer confirmed tick {}", client.getTickCount());
             heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
@@ -164,6 +165,10 @@ public class GameUiChangesHandler {
         if (BANK_TAG_TAB_VIEW_OPTION.equals(event.getMenuOption())) {
             requestBankRebuildHighlightRedraw();
         }
+    }
+
+    public void onMenuEntryAdded(MenuEntryAdded event) {
+        gePreviousSearch.updateCopilotMenuEntry(event);
     }
 
     private OfferStatus suggestionOfferStatus(Suggestion suggestion) {
