@@ -119,7 +119,8 @@ public class PriceGraphPanel extends JPanel {
         contentPanel.add(DialogUi.errorCard(errorLabel, () -> {
             if (currentItemId > 0) { onItemSelected(currentItemId); }
         }), Cards.ERROR_CARD.name());
-        contentPanel.add(new ConfigPanel(priceGraphConfigManager, () -> contentCardLayout.showPrevious(contentPanel)), Cards.SETTINGS_CARD.name());
+        contentPanel.add(new ConfigPanel(priceGraphConfigManager, graphPanel::repaint,
+                () -> contentCardLayout.showPrevious(contentPanel)), Cards.SETTINGS_CARD.name());
 
         add(contentPanel, BorderLayout.CENTER);
 

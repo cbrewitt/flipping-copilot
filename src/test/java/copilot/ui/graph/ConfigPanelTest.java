@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
 
 public class ConfigPanelTest {
-    @Test public void controlsInitializeWithoutSavingAndApplyAllBoundValues() throws Exception {
+    @Test public void controlsInitializeWithoutSavingAndApplyChangesImmediately() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             Config config = new Config();
             AtomicInteger saves = new AtomicInteger(), callbacks = new AtomicInteger();
@@ -22,17 +22,19 @@ public class ConfigPanelTest {
                     saves.incrementAndGet();
                 }
             };
-            ConfigPanel panel = new ConfigPanel(manager, callbacks::incrementAndGet);
+            AtomicInteger backCallbacks = new AtomicInteger();
+            ConfigPanel panel = new ConfigPanel(manager, callbacks::incrementAndGet, backCallbacks::incrementAndGet);
             List<Component> controls = new ArrayList<>();
             collect(panel, controls);
             List<JCheckBox> checks = new ArrayList<>();
             List<JPanel> swatches = new ArrayList<>();
-            JButton apply = null;
+            JButton apply = null, back = null;
             for (Component control : controls) {
                 if (control instanceof JCheckBox) checks.add((JCheckBox) control);
                 if (control instanceof JPanel && control.getPreferredSize().equals(new Dimension(30, 20))) {
                     swatches.add((JPanel) control);
                 }
+                if (control instanceof JButton && "Back".equals(((JButton) control).getText())) back = (JButton) control;
                 if (control instanceof JButton && "Apply".equals(((JButton) control).getText())) apply = (JButton) control;
             }
             assertEquals(2, checks.size());
@@ -42,17 +44,28 @@ public class ConfigPanelTest {
             assertEquals(0, saves.get());
             boolean connect = !config.connectPoints, prices = !config.showSuggestedPriceLines;
             checks.get(0).setSelected(connect);
+            assertEquals(connect, config.connectPoints);
+            assertEquals(1, saves.get());
+            assertEquals(1, callbacks.get());
             checks.get(1).setSelected(prices);
+            assertEquals(prices, config.showSuggestedPriceLines);
+            assertEquals(2, saves.get());
+            assertEquals(2, callbacks.get());
             for (int i = 0; i < swatches.size(); i++) swatches.get(i).setBackground(new Color(i * 10, 20, 30));
-            assertNotNull(apply);
-            apply.doClick();
+            assertNull(apply);
             assertEquals(connect, config.connectPoints);
             assertEquals(prices, config.showSuggestedPriceLines);
             Color[] actual = {config.lowColor, config.highColor, config.lowShadeColor, config.highShadeColor,
                     config.backgroundColor, config.plotAreaColor, config.textColor, config.axisColor, config.gridColor};
             for (int i = 0; i < actual.length; i++) assertEquals(new Color(i * 10, 20, 30), actual[i]);
-            assertEquals(1, saves.get());
-            assertEquals(1, callbacks.get());
+            assertEquals(11, saves.get());
+            assertEquals(11, callbacks.get());
+            assertEquals(0, backCallbacks.get());
+            assertNotNull(back);
+            back.doClick();
+            assertEquals(1, backCallbacks.get());
+            assertEquals(11, saves.get());
+            assertEquals(11, callbacks.get());
         });
     }
 

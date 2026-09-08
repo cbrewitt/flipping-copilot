@@ -1,6 +1,5 @@
 package copilot.ui.graph;
 
-import java.util.*;
 import java.util.function.*;
 import static copilot.ui.UIUtilities.*;
 import static net.runelite.client.ui.ColorScheme.*;
@@ -14,14 +13,13 @@ import java.awt.*;
 
 @Slf4j
 public class ConfigPanel extends JPanel {
-    private final java.util.List<Runnable> updates = new ArrayList<>();
-    private final Runnable onApplyCallback;
+    private final Runnable onChangeCallback;
     private final GraphSettings configManager;
     private final Config configInstance;
 
-    public ConfigPanel(GraphSettings configManager, Runnable callback) {
+    public ConfigPanel(GraphSettings configManager, Runnable callback, Runnable onBackCallback) {
         this.configManager = configManager; configInstance = configManager.getConfig();
-        onApplyCallback = callback;
+        onChangeCallback = callback;
 
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -69,23 +67,18 @@ public class ConfigPanel extends JPanel {
         add(scrollPane, BorderLayout.CENTER);
 
         var buttonPanel = darkPanel(new FlowLayout(FlowLayout.RIGHT), DARKER_GRAY_COLOR);
-
-        var applyButton = new JButton("Apply");
-        applyButton.setFocusPainted(false); applyButton.setBackground(BRAND_ORANGE);
-        applyButton.setForeground(Color.WHITE);
-        applyButton.addActionListener(e -> {
-            applySettings();
-            if (onApplyCallback != null) { onApplyCallback.run(); }
-        });
-
-        buttonPanel.add(applyButton);
+        var backButton = new JButton("Back");
+        backButton.setFocusPainted(false); backButton.setBackground(BRAND_ORANGE);
+        backButton.setForeground(Color.WHITE);
+        backButton.addActionListener(e -> onBackCallback.run());
+        buttonPanel.add(backButton);
         add(buttonPanel, BorderLayout.SOUTH);
     }
 
     private void addBooleanSetting(JPanel panel, GridBagConstraints c, String name, boolean value, Consumer<Boolean> setter) {
         var checkBox = new JCheckBox();
         checkBox.setSelected(value); checkBox.setToolTipText(name); checkBox.setBackground(DARKER_GRAY_COLOR);
-        updates.add(() -> setter.accept(checkBox.isSelected()));
+        checkBox.addItemListener(e -> applySetting(() -> setter.accept(checkBox.isSelected())));
         addSetting(panel, c, name, checkBox);
     }
 
@@ -105,7 +98,8 @@ public class ConfigPanel extends JPanel {
         wrapper.add(colorPanel);
         wrapper.add(colorButton);
 
-        updates.add(() -> setter.accept(colorPanel.getBackground()));
+        colorPanel.addPropertyChangeListener("background",
+                e -> applySetting(() -> setter.accept((Color) e.getNewValue())));
         addSetting(panel, c, name, wrapper);
     }
 
@@ -130,11 +124,12 @@ public class ConfigPanel extends JPanel {
         c.gridy++;
     }
 
-    private void applySettings() {
+    private void applySetting(Runnable update) {
         try {
-            updates.forEach(Runnable::run);
+            update.run();
 
             configManager.setConfig(configInstance);
+            if (onChangeCallback != null) { onChangeCallback.run(); }
         } catch (Exception e) {
             log.error("Error applying settings", e);
             JOptionPane.showMessageDialog(this, "Error applying settings: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
