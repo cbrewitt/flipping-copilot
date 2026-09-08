@@ -1,0 +1,178 @@
+package copilot.controller;
+
+import lombok.*;
+import copilot.config.*;
+import copilot.model.*;
+import copilot.rs.*;
+import copilot.ui.*;
+import lombok.extern.slf4j.*;
+import net.runelite.api.*;
+import net.runelite.api.events.*;
+import net.runelite.api.gameval.*;
+import net.runelite.api.widgets.*;
+import net.runelite.client.callback.*;
+
+import javax.inject.*;
+import net.runelite.api.gameval.InterfaceID;
+
+@Slf4j
+@Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
+public class GameUiChangesHandler {
+    private static final int GE_HISTORY_TAB_WIDGET_ID = 149, SCRIPT_GE_COLLECT = 782;
+    private static final int SCRIPT_GE_SLOT_REDRAW = 804;
+    private static final String BANK_TAG_TAB_VIEW_OPTION = "View tag tab";
+    // Bank tag tab widgets exist before bank item bounds settle.
+    // Wait one full frame before resolving the highlight target.
+    private static final int BANK_REBUILD_HIGHLIGHT_REDRAW_DELAY_FRAMES = 2;
+
+    // dependencies
+    private final ClientThread clientThread;
+    private final Client client;
+    private final GePreviousSearch gePreviousSearch;
+    private final HighlightController highlights;
+    private final Suggestions suggestions;
+    private final GrandExchange grandExchange;
+    private final Offers offerManager;
+    private final OfferHandler offerHandler;
+    private final SlotProfitColorizer slotProfitColorizer;
+    private final HeldItemSyncStateRS heldItemSyncStateRS;
+    private final CopilotConfig config;
+    // state
+    boolean quantityOrPriceChatboxOpen, itemSearchChatboxOpen = false;
+    int bankRebuildHighlightRedrawFramesRemaining = 0;
+    @Getter
+    OfferEditor flippingWidget = null;
+
+    public void onVarClientIntChanged(VarClientIntChanged event) {
+        if (event.getIndex() == VarClientID.CHAT_LASTREBUILD) {
+            // this is triggered when a bank tag tab is opened/closed
+            requestBankRebuildHighlightRedraw();
+        }
+
+        if (event.getIndex() == VarClientID.MESLAYERMODE
+                && client.getVarcIntValue(VarClientID.MESLAYERMODE) == 14
+                && client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS) != null) {
+            itemSearchChatboxOpen = true;
+            clientThread.invokeLater(gePreviousSearch::showSuggestedItemInSearch);
+        }
+
+        if (quantityOrPriceChatboxOpen
+                && event.getIndex() == VarClientID.MESLAYERMODE
+                && client.getVarcIntValue(VarClientID.MESLAYERMODE) == 0
+        ) {
+            quantityOrPriceChatboxOpen = false;
+            return;
+        }
+
+        if (itemSearchChatboxOpen
+                && event.getIndex() == VarClientID.MESLAYERMODE
+                && client.getVarcIntValue(VarClientID.MESLAYERMODE) == 0
+        ) {
+            clientThread.invokeLater(highlights::redraw);
+            itemSearchChatboxOpen = false;
+            return;
+        }
+
+        //Check that it was the chat input that got enabled.
+        if (event.getIndex() != VarClientID.MESLAYERMODE
+                || client.getWidget(ComponentID.CHATBOX_TITLE) == null
+                || client.getVarcIntValue(VarClientID.MESLAYERMODE) != 7
+                || client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER) == null) { return; }
+        quantityOrPriceChatboxOpen = true;
+
+        clientThread.invokeLater(() -> {
+            flippingWidget = new OfferEditor(offerManager, client.getWidget(ComponentID.CHATBOX_CONTAINER), offerHandler, client, config);
+            Suggestion suggestion = suggestions.getSuggestion();
+            if (suggestion != null) { flippingWidget.showSuggestion(suggestion); }
+        });
+    }
+
+    public void onVarClientStrChanged(VarClientStrChanged event) {
+        if (event.getIndex() == VarClientID.MESLAYERINPUT && itemSearchChatboxOpen) {
+            clientThread.invokeLater(highlights::redraw);
+        }
+    }
+
+    public void onWidgetLoaded(WidgetLoaded event) {
+        if (event.getGroupId() == InterfaceID.GE_OFFERS) {
+            suggestions.setSuggestionNeeded(true);
+            clientThread.invokeLater(slotProfitColorizer::updateAllSlots);
+        }
+        if (event.getGroupId() == 383
+                || event.getGroupId() == InterfaceID.GE_OFFERS
+                || event.getGroupId() == 213
+                || event.getGroupId() == GE_HISTORY_TAB_WIDGET_ID) { clientThread.invokeLater(highlights::redraw); }
+        if (event.getGroupId() == InterfaceID.BANKMAIN) { requestBankRebuildHighlightRedraw(); }
+    }
+
+    public void onWidgetClosed(WidgetClosed event) {
+        if (event.getGroupId() == InterfaceID.GE_OFFERS) {
+            clientThread.invokeLater(highlights::removeAll);
+            suggestions.setSuggestionNeeded(true);
+        }
+        if (event.getGroupId() == InterfaceID.BANKMAIN) { clientThread.invokeLater(highlights::redraw); }
+    }
+
+    public void onVarbitChanged(VarbitChanged event) {
+        if (event.getVarpId() == 375
+                || event.getVarpId() == VarPlayerID.TRADINGPOST_SEARCH
+                || event.getVarbitId() == VarbitID.GE_NEWOFFER_QUANTITY
+                || event.getVarbitId() == VarbitID.GE_NEWOFFER_PRICE
+                || event.getVarbitId() == VarbitID.GE_SELECTEDSLOT) { clientThread.invokeLater(highlights::redraw); }
+
+        if (event.getVarpId() == VarPlayerID.TRADINGPOST_SEARCH) {
+            clientThread.invokeLater(() -> offerHandler.fetchSlotItemPrice(event.getValue() > -1, this::getFlippingWidget));
+        }
+    }
+
+    public void handleMenuOptionClicked(MenuOptionClicked event) {
+        gePreviousSearch.handleCopilotMenuClick(event);
+        if (event.getMenuOption().equals("Confirm") && grandExchange.isSlotOpen()) {
+            log.debug("offer confirmed tick {}", client.getTickCount());
+            heldItemSyncStateRS.delayForTicks(client.getTickCount(), 3);
+            offerManager.setOfferJustPlaced(true);
+            suggestions.setLastOfferSubmittedTick(client.getTickCount());
+            suggestions.setSuggestionNeeded(true);
+            Suggestion suggestion = suggestions.getSuggestion();
+            if(suggestion != null) {
+                suggestion.actionedTick = client.getTickCount();
+                suggestions.setSuggestionItemIdOnOfferSubmitted(suggestion.itemId);
+                suggestions.setSuggestionOfferStatusOnOfferSubmitted(suggestionOfferStatus(suggestion));
+            } else {
+                suggestions.setSuggestionItemIdOnOfferSubmitted(-1);
+                suggestions.setSuggestionOfferStatusOnOfferSubmitted(null);
+            }
+        }
+        if (BANK_TAG_TAB_VIEW_OPTION.equals(event.getMenuOption())) { requestBankRebuildHighlightRedraw(); }
+    }
+
+    public void onMenuEntryAdded(MenuEntryAdded event) { gePreviousSearch.updateCopilotMenuEntry(event); }
+
+    private OfferStatus suggestionOfferStatus(Suggestion suggestion) {
+        if (suggestion.isSellSuggestion()) { return OfferStatus.SELL; } else if (suggestion.isBuySuggestion()) {
+            return OfferStatus.BUY;
+        } else {
+            return null;
+        }
+    }
+
+    public void onScriptPostFired(ScriptPostFired event) {
+        if (event.getScriptId() == SCRIPT_GE_COLLECT || event.getScriptId() == SCRIPT_GE_SLOT_REDRAW) {
+            clientThread.invokeLater(slotProfitColorizer::updateAllSlots);
+        }
+        if (event.getScriptId() == ScriptID.BANKMAIN_FINISHBUILDING) { requestBankRebuildHighlightRedraw(); }
+    }
+
+    public void onBeforeRender(BeforeRender event) {
+        if (bankRebuildHighlightRedrawFramesRemaining > 0) {
+            bankRebuildHighlightRedrawFramesRemaining--;
+            if (bankRebuildHighlightRedrawFramesRemaining == 0) { highlights.redraw(); }
+        }
+        if (grandExchange.isOpen()) { slotProfitColorizer.updateAllSlots(); }
+    }
+
+    private void requestBankRebuildHighlightRedraw() {
+        bankRebuildHighlightRedrawFramesRemaining = BANK_REBUILD_HIGHLIGHT_REDRAW_DELAY_FRAMES;
+    }
+}

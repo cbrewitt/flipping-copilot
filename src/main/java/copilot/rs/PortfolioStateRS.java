@@ -1,0 +1,196 @@
+package copilot.rs;
+
+import copilot.controller.*;
+import copilot.model.*;
+import com.google.inject.*;
+import lombok.extern.slf4j.*;
+import net.runelite.client.callback.*;
+
+import java.time.*;
+import java.util.*;
+import net.runelite.api.*;
+
+@Slf4j
+@Singleton
+public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
+    private final Items itemController;
+    private final BankStateRS bankStateRS;
+    private final ClientThread clientThread;
+    private final AccountStatusManager accounts;
+
+    private volatile Instant portfolioItemsServerTime;
+
+    @Inject
+    public PortfolioStateRS(GameLogin osrsLoginRS,
+                            Items itemController,
+                            BankStateRS bankStateRS,
+                            ClientThread clientThread,
+                            AccountStatusManager accounts) {
+        super(PortfolioState.empty());
+        this.itemController = itemController; this.bankStateRS = bankStateRS; this.clientThread = clientThread;
+        this.accounts = accounts;
+        osrsLoginRS.registerListener(state -> {
+            if (state == null || !state.loggedIn) {
+                set(PortfolioState.empty());
+                portfolioItemsServerTime = null;
+            }
+        });
+    }
+
+    public PortfolioState buildPortfolioState(Map<Integer, Integer> bank,
+                                              Map<Integer, Integer> runeliteInventory,
+                                              List<Suggestion.PortfolioItem> portfolioItems,
+                                              StatusOfferList offers,
+                                              Map<Integer, Long> uncollected) {
+        if (portfolioItems == null) {
+            return new PortfolioState(true, Collections.emptyMap(),
+                    buildSummaryData(Collections.emptyMap(), bank, runeliteInventory, uncollected, offers));
+        }
+
+        var geQuantitiesByItemId = buildGeQuantitiesByItemId(offers, uncollected);
+        Map<Integer, PortfolioItem> map = new LinkedHashMap<>();
+        for (Suggestion.PortfolioItem portfolioItem : portfolioItems) {
+            if (portfolioItem == null) { continue; }
+            int itemId = portfolioItem.itemId, inventoryQty = safeQty(runeliteInventory, itemId);
+            int bankQty = safeQty(bank, itemId), portfolioQuantity = Math.max(0, portfolioItem.getAmount());
+
+            var data = new PortfolioItem(
+                    itemId,
+                    itemController.getItemName(itemId),
+                    safeQty(geQuantitiesByItemId, itemId),
+                    inventoryQty,
+                    bankQty,
+                    1,
+                    portfolioItem.getPostTaxSellUnitPrice(),
+                    portfolioItem.getUnitBuyPrice(),
+                    calculateUnrealizedUnitProfit(portfolioItem),
+                    Math.max(0, portfolioItem.getHeldMinutes()),
+                    portfolioQuantity
+            );
+            map.put(itemId, data);
+        }
+        return new PortfolioState(true, map, buildSummaryData(map, bank, runeliteInventory, uncollected, offers));
+    }
+
+    public void updatePortfolioState(Map<Integer, Integer> suggestionBank,
+                                     List<Suggestion.PortfolioItem> portfolioItems,
+                                     StatusOfferList offers,
+                                     Map<Integer, Long> uncollected,
+                                     Instant portfolioItemsTime) {
+        clientThread.invokeLater(() -> {
+            if (portfolioItems != null && portfolioItemsTime != null) {
+                Instant current = portfolioItemsServerTime;
+                if (current != null && !portfolioItemsTime.isAfter(current)) {
+                    log.debug("discarding stale portfolio items update, incoming={}, current={}", portfolioItemsTime, current);
+                    return true;
+                }
+            }
+            Map<Integer, Integer> runeliteBank = bankStateRS.get().loaded ? bankStateRS.get().items : null;
+            Map<Integer, Integer> effectiveBank = runeliteBank == null ? suggestionBank : runeliteBank;
+            set(buildPortfolioState(
+                    effectiveBank,
+                    itemController.getRunliteInventory(),
+                    portfolioItems,
+                    offers,
+                    uncollected
+            ));
+            if (portfolioItems != null && portfolioItemsTime != null) { portfolioItemsServerTime = portfolioItemsTime; }
+            return true;
+        });
+    }
+
+    public void updatePortfolioState(Suggestion suggestion, PortfolioResponse result) {
+        updatePortfolioState(
+                suggestion == null ? null : suggestion.bankItems,
+                result == null ? null : result.getPortfolioItems(),
+                result == null ? null : result.getTime());
+    }
+
+    public void updatePortfolioState(Map<Integer, Integer> suggestionBank,
+                                     List<Suggestion.PortfolioItem> portfolioItems,
+                                     Instant portfolioItemsTime) {
+        clientThread.invokeLater(() -> {
+            var s = accounts.getAccountStatus();
+            updatePortfolioState(
+                    suggestionBank,
+                    portfolioItems,
+                    s == null ? null : s.getOffers(),
+                    s == null ? null : s.getUncollected(),
+                    portfolioItemsTime
+            );
+            return true;
+        });
+    }
+
+    private int safeQty(Map<Integer, Integer> map, int itemId) {
+        if (map == null) { return 0; }
+        Integer v = map.get(itemId);
+        return v == null ? 0 : Math.max(0, v);
+    }
+
+    private Long calculateUnrealizedUnitProfit(Suggestion.PortfolioItem portfolioItem) {
+        if (portfolioItem == null || portfolioItem.getAmount() <= 0) { return null; }
+        return portfolioItem.getPostTaxSellUnitPrice() - portfolioItem.getUnitBuyPrice();
+    }
+
+    private Map<Integer, Integer> buildGeQuantitiesByItemId(StatusOfferList offers, Map<Integer, Long> uncollected) {
+        Map<Integer, Integer> geByItemId = new LinkedHashMap<>();
+
+        if (offers != null) {
+            for (Offer offer : offers) {
+                if (offer == null || offer.getItemId() <= 0) { continue; }
+                int itemId = itemController.toUnnotedItemId(offer.getItemId());
+                if (offer.status == OfferStatus.SELL) {
+                    int unsoldAmount = Math.max(0, offer.getAmountTotal() - offer.getAmountTraded());
+                    if (unsoldAmount > 0) { geByItemId.merge(itemId, unsoldAmount, Integer::sum); }
+                }
+            }
+        }
+
+        if (uncollected != null) {
+            for (Map.Entry<Integer, Long> entry : uncollected.entrySet()) {
+                Integer itemId = entry.getKey();
+                Long quantity = entry.getValue();
+                if (itemId == null || quantity == null || quantity <= 0 || itemId == ItemID.COINS_995) { continue; }
+                int normalizedItemId = itemController.toUnnotedItemId(itemId);
+                int uncollectedQty = quantity > Integer.MAX_VALUE ? Integer.MAX_VALUE : quantity.intValue();
+                geByItemId.merge(normalizedItemId, uncollectedQty, Integer::sum);
+            }
+        }
+
+        return geByItemId;
+    }
+
+    private PortfolioSummary buildSummaryData(Map<Integer, PortfolioItem> map,
+                                                  Map<Integer, Integer> bank,
+                                                  Map<Integer, Integer> runeliteInventory,
+                                                  Map<Integer, Long> uncollected,
+                                                  StatusOfferList offers) {
+        long assetsValue = 0L, unrealizedProfit = 0L;
+        for (PortfolioItem item : map.values()) {
+            if (!item.isInPortfolio()) { continue; }
+            assetsValue += item.postTaxSellUnitPrice * item.portfolioQuantity;
+            unrealizedProfit += item.portfolioUnrealizedProfit();
+        }
+        long cashValue = itemController.totalCash(bank)
+                + itemController.totalCash(runeliteInventory)
+                + totalUncollectedCash(uncollected);
+        long lockedBuyCash = totalLockedBuyCash(offers);
+        return new PortfolioSummary(assetsValue + cashValue + lockedBuyCash, unrealizedProfit, cashValue, assetsValue, lockedBuyCash);
+    }
+
+    private long totalUncollectedCash(Map<Integer, Long> uncollected) {
+        if (uncollected == null) { return 0L; }
+        Long coins = uncollected.get(ItemID.COINS_995);
+        return coins == null ? 0L : Math.max(0L, coins);
+    }
+
+    private long totalLockedBuyCash(StatusOfferList offers) {
+        if (offers == null) { return 0L; }
+        long total = 0L;
+        for (Offer offer : offers) {
+            if (offer != null && offer.status == OfferStatus.BUY) { total += offer.cashStackGpValue(); }
+        }
+        return total;
+    }
+}

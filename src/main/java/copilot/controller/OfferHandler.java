@@ -1,0 +1,167 @@
+package copilot.controller;
+
+import java.util.function.*;
+import net.runelite.api.widgets.*;
+import lombok.*;
+import copilot.model.*;
+import copilot.rs.*;
+import copilot.ui.*;
+import lombok.extern.slf4j.*;
+import net.runelite.api.*;
+import net.runelite.client.callback.*;
+
+import javax.inject.*;
+import java.time.*;
+import java.util.*;
+
+import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
+
+@Slf4j
+@Getter
+@Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
+public class OfferHandler {
+
+    private static final int GE_OFFER_INIT_STATE_CHILD_ID = 20;
+
+    // dependencies
+    private final Client client;
+    private final ClientThread clientThread;
+    private final Suggestions suggestions;
+    private final ApiClient apiRequestHandler;
+    private final PlayerLogin login;
+    private final Offers offerManager;
+    private final HighlightController highlights;
+    private final CopilotLogin copilotLogin;
+
+    // state
+    private String viewedSlotPriceErrorText = null;
+
+    public void fetchSlotItemPrice(boolean isViewingSlot, Supplier<OfferEditor> offerEditorSupplier) {
+        if (isViewingSlot) {
+            var currentItemId = client.getVarpValue(CURRENT_GE_ITEM);
+            offerManager.setViewedSlotItemId(currentItemId);
+            if (currentItemId == -1 || currentItemId == 0) return;
+
+            var suggestion = suggestions.getSuggestion();
+            if (suggestion != null && suggestion.itemId == currentItemId &&
+                    Objects.equals(suggestion.offerType(), getOfferType())) {
+                offerManager.setViewedSlotItemPrice(suggestion.price);
+                offerManager.setLastViewedSlotItemId(suggestion.itemId);
+                offerManager.setLastViewedSlotItemPrice(suggestion.price);
+                offerManager.setLastViewedSlotPriceTime((int) Instant.now().getEpochSecond());
+                return;
+            }
+
+            if (!copilotLogin.get().isLoggedIn()) {
+                viewedSlotPriceErrorText = "Login to copilot to see item price.";
+                return;
+            }
+            viewedSlotPriceErrorText = "Loading copilot item price..";
+            Consumer<ItemPrice> itemPriceConsumer = (fetchedPrice) -> {
+                clientThread.invoke(() -> {
+                    if (fetchedPrice == null) {
+                        viewedSlotPriceErrorText = "Unknown error";
+                        return;
+                    }
+
+                    if (fetchedPrice.getMessage() != null && !fetchedPrice.getMessage().isEmpty()) {
+                        viewedSlotPriceErrorText = fetchedPrice.getMessage();
+                    } else {
+                        viewedSlotPriceErrorText = null;
+                    }
+                    offerManager.setViewedSlotItemPrice(isSelling() ? fetchedPrice.getSellPrice() : fetchedPrice.getBuyPrice());
+                    offerManager.setLastViewedSlotItemId(offerManager.getViewedSlotItemId());
+                    offerManager.setLastViewedSlotItemPrice(offerManager.getViewedSlotItemPrice());
+                    offerManager.setLastViewedSlotPriceTime((int) Instant.now().getEpochSecond());
+
+                    highlights.redraw();
+                    log.debug("fetched item {} price: {}", offerManager.getViewedSlotItemId(), offerManager.getViewedSlotItemPrice());
+
+                    // todo: Usage of OfferEditor is messy. It mutates a widget so we need to get the original instance
+                    //  of it which is created downstream on some other event handler path. This is why we use a supplier
+                    //  but probably it should be an injected class of some kind. We should clean this up in the future
+                    //  but for now just need it to work as currently broken.
+
+                    var flippingWidget = offerEditorSupplier.get();
+                    if (flippingWidget != null) { flippingWidget.showPrice(offerManager.getViewedSlotItemPrice()); }
+                });
+            };
+
+            apiRequestHandler.asyncGetItemPriceWithGraphData(currentItemId, login.getPlayerDisplayName(), itemPriceConsumer, false);
+
+        } else {
+            offerManager.setViewedSlotItemPrice(-1);
+            offerManager.setViewedSlotItemId(-1);
+            viewedSlotPriceErrorText = null;
+        }
+        highlights.redraw();
+    }
+
+    public boolean isSettingQuantity() {
+        var chatboxTitleWidget = getChatboxTitleWidget();
+        if (chatboxTitleWidget == null) return false;
+        String chatInputText = chatboxTitleWidget.getText();
+        return chatInputText.equals("How many do you wish to buy?") || chatInputText.equals("How many do you wish to sell?");
+    }
+
+    public boolean isSettingPrice() {
+        var chatboxTitleWidget = getChatboxTitleWidget();
+        if (chatboxTitleWidget == null) return false;
+        String chatInputText = chatboxTitleWidget.getText();
+
+        var offerTextWidget = getOfferTextWidget();
+        if (offerTextWidget == null) return false;
+        String offerText = offerTextWidget.getText();
+        return chatInputText.equals("Set a price for each item:") && (offerText.equals("Buy offer") || offerText.equals("Sell offer"));
+    }
+
+    private Widget getChatboxTitleWidget() { return client.getWidget(ComponentID.CHATBOX_TITLE); }
+
+    private Widget getOfferTextWidget() {
+        var offerContainerWidget = client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER);
+        if (offerContainerWidget == null) return null;
+        return offerContainerWidget.getChild(GE_OFFER_INIT_STATE_CHILD_ID);
+    }
+
+    public boolean isSelling() { return client.getVarbitValue(Varbits.GE_OFFER_CREATION_TYPE) == 1; }
+
+    public boolean isBuying() { return client.getVarbitValue(Varbits.GE_OFFER_CREATION_TYPE) == 0; }
+
+    public String getOfferType() {
+        if (isBuying()) { return "buy"; } else if (isSelling()) {
+            return "sell";
+        } else {
+            return null;
+        }
+    }
+
+    public void setSuggestedAction(Suggestion suggestion) {
+        var currentItemId = client.getVarpValue(CURRENT_GE_ITEM);
+
+        if (isSettingQuantity()) {
+            if (suggestion == null || currentItemId != suggestion.itemId) { return; }
+            setChatboxValue(suggestion.quantity);
+        } else if (isSettingPrice()) {
+            long price = -1;
+            if (suggestion == null || currentItemId != suggestion.itemId
+                    || !Objects.equals(suggestion.offerType(), getOfferType())) {
+                if (offerManager.getViewedSlotItemId() != currentItemId) { return; }
+                price = offerManager.getViewedSlotItemPrice();
+            } else {
+                price = suggestion.price;
+            }
+
+            if (price == -1) return;
+
+            setChatboxValue(price);
+        }
+    }
+
+    public void setChatboxValue(long value) {
+        var chatboxInputWidget = client.getWidget(ComponentID.CHATBOX_FULL_INPUT);
+        if (chatboxInputWidget == null) return;
+        chatboxInputWidget.setText(value + "*");
+        client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(value));
+    }
+}

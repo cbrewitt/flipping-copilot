@@ -1,0 +1,240 @@
+package copilot.controller;
+import copilot.model.Preferences;
+
+import net.runelite.api.events.*;
+import copilot.model.*;
+import lombok.*;
+import lombok.extern.slf4j.*;
+import net.runelite.api.*;
+import net.runelite.api.gameval.*;
+import net.runelite.api.widgets.*;
+
+import javax.inject.*;
+
+@Singleton
+@RequiredArgsConstructor(onConstructor_ = @Inject)
+@Slf4j
+public class GePreviousSearch {
+
+    private static final int SCRIPT_SELECT_GE_SEARCH_RESULT = 754, GE_SEARCH_RESULT_SOURCE = 84;
+
+    private final Suggestions suggestions;
+    private final Preferences preferences;
+    private final AccountStatusManager accounts;
+    private final GrandExchange grandExchange;
+    private final HighlightController highlights;
+    private final Client client;
+
+    public void showSuggestedItemInSearch() {
+        Suggestion suggestion = suggestions.getSuggestion();
+        if (suggestion == null || !client.getVarcStrValue(VarClientID.MESLAYERINPUT).isEmpty()) { return; }
+
+        if (isScanningForDumpsSuggested(suggestion)) {
+            if ((grandExchange.isPreviousSearchSet() || copilotPreviousSearchItemExists()) && grandExchange.showLastSearchEnabled()) {
+                setScanningForDumpsMessage();
+            } else {
+                createPreviousSearchWidget(-1, "");
+                createPreviousSearchItemNameWidget("");
+                createPreviousSearchItemWidget(-1);
+                createPreviousSearchTextWidget();
+                setScanningForDumpsMessage();
+            }
+            highlights.redraw();
+            return;
+        }
+
+        if (suggestion.type == SuggestionType.BUY) {
+            if ((grandExchange.isPreviousSearchSet() || copilotPreviousSearchItemExists()) && grandExchange.showLastSearchEnabled()) {
+                setPreviousSearch(suggestion.itemId, suggestion.name);
+            } else {
+                createPreviousSearchWidget(suggestion.itemId, suggestion.name);
+                createPreviousSearchItemNameWidget(suggestion.name);
+                createPreviousSearchItemWidget(suggestion.itemId);
+                createPreviousSearchTextWidget();
+            }
+            highlights.redraw();
+        }
+    }
+
+    private boolean isScanningForDumpsSuggested(Suggestion suggestion) {
+        var accountStatus = accounts.getAccountStatus();
+        return accountStatus != null
+                && suggestion.isWaitSuggestion()
+                && grandExchange.isOpen()
+                && accountStatus.emptySlotExists()
+                && !accountStatus.moreGpNeeded()
+                && preferences.isReceiveDumpSuggestions();
+    }
+
+    private boolean copilotPreviousSearchItemExists() {
+        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        if(searchResults == null || searchResults.getChildren() == null || searchResults.getChildren().length < 2) {
+            return false;
+        }
+        for (int i = 0; i < searchResults.getChildren().length; i++) {
+            Widget child = searchResults.getChild(i);
+            if (child == null) { continue; }
+            String text = child.getText();
+            if (text == null) { continue; }
+            if (text.startsWith("Copilot item:") || text.startsWith("Waiting for dumps...")) { return true; }
+        }
+        return false;
+    }
+
+    public void updateCopilotMenuEntry(MenuEntryAdded event) {
+        Suggestion suggestion = getClickedCopilotSuggestion(event.getOption(), event.getMenuEntry().getWidget());
+        if (suggestion != null) { event.getMenuEntry().setTarget("<col=ff9040>" + suggestion.name + "</col>"); }
+    }
+
+    public void handleCopilotMenuClick(MenuOptionClicked event) {
+        Suggestion suggestion = getClickedCopilotSuggestion(event.getMenuOption(), event.getWidget());
+        if (suggestion == null) { return; }
+
+        // The game can rebuild child 0 with the player's previous-search listener
+        // while leaving the Copilot label and item visible. Consume that stale
+        // action and select the item which is actually displayed.
+        event.consume();
+        client.runScript(SCRIPT_SELECT_GE_SEARCH_RESULT, suggestion.itemId, GE_SEARCH_RESULT_SOURCE);
+    }
+
+    private Suggestion getClickedCopilotSuggestion(String option, Widget clickedWidget) {
+        if (!"Select".equals(option) || clickedWidget == null || clickedWidget.getIndex() != 0) { return null; }
+
+        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        if (searchResults == null || clickedWidget.getParent() != searchResults || !copilotPreviousSearchItemExists()) {
+            return null;
+        }
+
+        Suggestion suggestion = suggestions.getSuggestion();
+        return suggestion != null && suggestion.type == SuggestionType.BUY ? suggestion : null;
+    }
+
+    private void setPreviousSearch(int itemId, String itemName) {
+        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget previousSearch = searchResults.getChild(0);
+        previousSearch.setHasListener(true);
+        previousSearch.setOnOpListener(SCRIPT_SELECT_GE_SEARCH_RESULT, itemId, GE_SEARCH_RESULT_SOURCE);
+        previousSearch.setOnKeyListener(SCRIPT_SELECT_GE_SEARCH_RESULT, itemId, -2147483640);
+        previousSearch.setName("<col=ff9040>" + itemName + "</col>");
+        previousSearch.setAction(0, "Select");
+        previousSearch.revalidate();
+
+        Widget previousSearchText = searchResults.getChild(1);
+        previousSearchText.setText("Copilot item:");
+        previousSearchText.setOriginalWidth(95);
+        previousSearchText.setXTextAlignment(WidgetTextAlignment.LEFT);
+        previousSearchText.revalidate();
+
+        Widget itemNameWidget = searchResults.getChild(2);
+        itemNameWidget.setText(itemName);
+        itemNameWidget.revalidate();
+
+        Widget item = searchResults.getChild(3);
+        item.setItemId(itemId);
+        item.revalidate();
+    }
+
+    private void setScanningForDumpsMessage() {
+        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        if (searchResults == null) { return; }
+
+        Widget previousSearch = searchResults.getChild(0);
+        if (previousSearch != null) {
+            previousSearch.setHasListener(false);
+            previousSearch.setName("");
+            previousSearch.setAction(0, "");
+            previousSearch.revalidate();
+        }
+
+        Widget previousSearchText = searchResults.getChild(1);
+        if (previousSearchText != null) {
+            previousSearchText.setText("Waiting for dumps...");
+            previousSearchText.setOriginalWidth(256);
+            previousSearchText.setXTextAlignment(WidgetTextAlignment.CENTER);
+            previousSearchText.revalidate();
+        }
+
+        Widget itemNameWidget = searchResults.getChild(2);
+        if (itemNameWidget != null) {
+            itemNameWidget.setText("");
+            itemNameWidget.revalidate();
+        }
+
+        Widget item = searchResults.getChild(3);
+        if (item != null) {
+            item.setItemId(-1);
+            item.revalidate();
+        }
+    }
+
+    private void createPreviousSearchWidget(int itemId, String itemName) {
+        Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget widget = parentWidget.createChild(0, WidgetType.RECTANGLE);
+        widget.setTextColor(0xFFFFFF);
+        widget.setOpacity(255);
+        widget.setName("<col=ff9040>" + itemName + "</col>");
+        widget.setHasListener(true);
+        widget.setFilled(true);
+        widget.setOriginalX(114);
+        widget.setOriginalY(0);
+        widget.setOriginalWidth(256);
+        widget.setOriginalHeight(32);
+        widget.setOnOpListener(SCRIPT_SELECT_GE_SEARCH_RESULT, itemId, GE_SEARCH_RESULT_SOURCE);
+        widget.setOnKeyListener(SCRIPT_SELECT_GE_SEARCH_RESULT, itemId, -2147483640);
+        widget.setHasListener(true);
+        widget.setAction(0, "Select");
+        // set opacity to 200 when mouse is hovering
+        widget.setOnMouseOverListener((JavaScriptCallback) ev -> {
+            widget.setOpacity(200);
+        });
+        // set opacity back to 255 when mouse is not hovering
+        widget.setOnMouseLeaveListener((JavaScriptCallback) ev -> {
+            widget.setOpacity(255);
+        });
+
+        widget.revalidate();
+    }
+
+    private void createPreviousSearchTextWidget() {
+        Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget widget = parentWidget.createChild(1, WidgetType.TEXT);
+        widget.setText("Copilot item:");
+        widget.setFontId(495);
+        widget.setOriginalX(114);
+        widget.setOriginalY(0);
+        widget.setOriginalWidth(95);
+        widget.setOriginalHeight(32);
+        widget.setYTextAlignment(1);
+        widget.revalidate();
+    }
+
+    private void createPreviousSearchItemNameWidget(String itemName) {
+        Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget widget = parentWidget.createChild(2, WidgetType.TEXT);
+        widget.setText(itemName);
+        widget.setFontId(495);
+        widget.setOriginalX(254);
+        widget.setOriginalY(0);
+        widget.setOriginalWidth(116);
+        widget.setOriginalHeight(32);
+        widget.setYTextAlignment(1);
+        widget.revalidate();
+    }
+
+    private void createPreviousSearchItemWidget(int itemId) {
+        Widget parentWidget = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        Widget widget = parentWidget.createChild(3, WidgetType.GRAPHIC);
+        widget.setItemId(itemId);
+        widget.setItemQuantity(1);
+        widget.setItemQuantityMode(0);
+        widget.setRotationX(550);
+        widget.setModelZoom(1031);
+        widget.setBorderType(1);
+        widget.setOriginalX(214);
+        widget.setOriginalY(0);
+        widget.setOriginalWidth(36);
+        widget.setOriginalHeight(32);
+        widget.revalidate();
+    }
+
+}

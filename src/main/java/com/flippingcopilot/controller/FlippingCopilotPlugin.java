@@ -1,54 +1,52 @@
 package com.flippingcopilot.controller;
-
-import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.*;
-import com.flippingcopilot.ui.*;
-import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
-import com.google.gson.Gson;
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
-import com.google.inject.name.Named;
-import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.*;
+import copilot.controller.*;
 import net.runelite.api.gameval.InterfaceID;
-import net.runelite.api.gameval.InventoryID;
-import net.runelite.api.events.*;
-import net.runelite.api.widgets.Widget;
-import net.runelite.client.callback.ClientThread;
-import net.runelite.client.config.ConfigManager;
-import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.ClientShutdown;
-import net.runelite.client.events.ConfigChanged;
-import net.runelite.client.plugins.*;
-import net.runelite.client.plugins.banktags.BankTagsPlugin;
-import net.runelite.client.ui.ClientToolbar;
-import net.runelite.client.ui.NavigationButton;
-import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.util.ImageUtil;
 
 import javax.inject.Inject;
+import com.google.inject.name.Named;
+import com.google.inject.Singleton;
+import net.runelite.api.gameval.InventoryID;
+import net.runelite.client.ui.*;
+import net.runelite.client.events.*;
+import net.runelite.api.gameval.*;
+import copilot.config.*;
+import copilot.model.*;
+import copilot.rs.*;
+import copilot.ui.*;
+import copilot.ui.flipsdialog.*;
+import com.google.gson.*;
+import com.google.inject.*;
+import com.google.inject.name.*;
+import lombok.extern.slf4j.*;
+import net.runelite.api.*;
+import net.runelite.api.events.*;
+import net.runelite.api.widgets.*;
+import net.runelite.client.callback.*;
+import net.runelite.client.config.*;
+import net.runelite.client.eventbus.*;
+import net.runelite.client.plugins.*;
+import net.runelite.client.plugins.banktags.*;
+import net.runelite.client.ui.overlay.*;
+import net.runelite.client.util.*;
+
+import javax.inject.*;
 import javax.swing.*;
-import java.awt.image.BufferedImage;
 import java.util.concurrent.*;
 
 @Slf4j
-@PluginDescriptor(
-		name = "Flipping Copilot",
-		description = "Your AI assistant for trading"
-)
+@PluginDescriptor(name = "Flipping Copilot", description = "Your AI assistant for trading" )
 @PluginDependency(BankTagsPlugin.class)
 public class FlippingCopilotPlugin extends Plugin {
 
 	@Inject
-	private FlippingCopilotConfig config;
+	private CopilotConfig config;
 	@Inject
 	private Client client;
 	@Inject
 	private ClientThread clientThread;
 	@Inject
 	@Named("copilotExecutor")
-	private ScheduledExecutorService executorService;
+	private ScheduledExecutorService executor;
 	@Inject
 	private ClientToolbar clientToolbar;
 	@Inject
@@ -60,11 +58,11 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private GrandExchangeOfferEventHandler offerEventHandler;
 	@Inject
-	private AccountStatusManager accountStatusManager;
+	private AccountStatusManager accounts;
 	@Inject
 	private SuggestionController suggestionController;
 	@Inject
-	private SuggestionManager suggestionManager;
+	private Suggestions suggestions;
 	@Inject
 	private WebHookController webHookController;
 	@Inject
@@ -74,39 +72,39 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private OverlayManager overlayManager;
 	@Inject
-	private CopilotLoginRS copilotLoginRS;
+	private CopilotLogin copilotLogin;
 	@Inject
-	private HighlightController highlightController;
+	private HighlightController highlights;
 	@Inject
 	private GameUiChangesHandler gameUiChangesHandler;
 	@Inject
-	private OsrsLoginManager osrsLoginManager;
+	private PlayerLogin osrsLoginManager;
 	@Inject
 	private FlipManager flipManager;
 	@Inject
 	private SessionManager sessionManager;
 	@Inject
-	private GrandExchangeUncollectedManager grandExchangeUncollectedManager;
+	private Uncollected uncollected;
 	@Inject
-	private TransactionManager transactionManager;
+	private Transactions transactionManager;
 	@Inject
-	private OfferManager offerManager;
+	private Offers offerManager;
 	@Inject
 	private TooltipController tooltipController;
   	@Inject
 	private MenuHandler menuHandler;
 	@Inject
-	private FlipsDialogController flipsDialogController;
+	private FlipsDialogController dialogs;
 	@Inject
 	private SlotProfitColorizer slotProfitColorizer;
 	@Inject
-	private DumpsStreamController dumpsStreamController;
+	private DumpStream dumpsStreamController;
 	@Inject
 	private GrandExchangeOpenRS grandExchangeOpenRS;
 	@Inject
-	private OsrsLoginRS osrsLoginRS;
+	private GameLogin gameLogin;
 	@Inject
-	private FlippingCopilotConfigRS configRS;
+	private ConfigState configRS;
 	@Inject
 	private InventorySlotTooltipOverlay inventorySlotTooltipOverlay;
 	@Inject
@@ -116,7 +114,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private BankStateRS bankStateRS;
 	@Inject
-	private GeHistoryStateRS geHistoryStateRS;
+	private GeHistoryStateRS history;
 	@Inject
 	private PatchNotesController patchNotesController;
 	@Inject
@@ -128,9 +126,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Provides
 	@Singleton
 	@Named("copilotExecutor")
-	public ScheduledExecutorService provideCustomExecutorService() {
-		return Executors.newScheduledThreadPool(2);
-	}
+	public ScheduledExecutorService provideCustomExecutorService() { return Executors.newScheduledThreadPool(2); }
 
 	@Provides
 	@Singleton
@@ -139,7 +135,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	}
 
 	private MainPanel mainPanel;
-	private StatsPanelV2 statsPanel;
+	private StatsPanel statsPanel;
 	private NavigationButton navButton;
 
 	@Override
@@ -150,11 +146,11 @@ public class FlippingCopilotPlugin extends Plugin {
 		overlayManager.add(inventoryPortfolioBadgeOverlay);
 		overlayManager.add(portfolioBankTabBadgeOverlay);
 		portfolioBankTagController.startUp();
-		highlightController.activate();
+		highlights.activate();
 		Persistance.setUp(gson);
 		// seems we need to delay instantiating the UI till here as otherwise the panels look different
 		mainPanel = injector.getInstance(MainPanel.class);
-		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/icon-small.png");
+		final var icon = ImageUtil.loadImageResource(getClass(), "/icon-small.png");
 		navButton = NavigationButton.builder()
 				.tooltip("Flipping Copilot")
 				.icon(icon)
@@ -178,16 +174,16 @@ public class FlippingCopilotPlugin extends Plugin {
 			flipManager.setIntervalAccount(null);
 			flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
 		}
-		flipsDialogController.initDialog(SwingUtilities.getWindowAncestor(mainPanel));
-		executorService.scheduleAtFixedRate(() ->
+		dialogs.initDialog(SwingUtilities.getWindowAncestor(mainPanel));
+		executor.scheduleAtFixedRate(() ->
 			clientThread.invoke(() -> {
 				boolean loginValid = osrsLoginManager.isValidLoginState();
 				if (loginValid) {
-					AccountStatus accStatus = accountStatusManager.getAccountStatus();
+					var accStatus = accounts.getAccountStatus();
 					boolean isFlipping = accStatus != null && accStatus.currentlyFlipping();
 					long cashStack = accStatus == null ? 0 : accStatus.currentCashStack();
 					if(sessionManager.updateSessionStats(isFlipping, cashStack)) {
-						mainPanel.copilotPanel.statsPanel.refresh(false, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
+						mainPanel.copilotPanel.statsPanel.refresh(false, copilotLogin.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
 					}
 				}
 			})
@@ -201,29 +197,33 @@ public class FlippingCopilotPlugin extends Plugin {
 		overlayManager.remove(portfolioBankTabBadgeOverlay);
 		portfolioBankTagController.shutDown();
 		offerManager.saveAll();
-		highlightController.deactivateAndRemoveAll();
+		highlights.deactivateAndRemoveAll();
 		clientThread.invokeLater(() -> slotProfitColorizer.resetAllSlots());
 		clientToolbar.removeNavigation(navButton);
-		if(copilotLoginRS.get().isLoggedIn()) {
+		sendSessionStats();
+		keybindHandler.unregister();
+	}
+
+	private void sendSessionStats() {
+		if(copilotLogin.get().isLoggedIn()) {
 			String displayName = osrsLoginManager.getLastDisplayName();
-			Integer accountId = copilotLoginRS.get().getAccountId(displayName);
+			Integer accountId = copilotLogin.get().getAccountId(displayName);
 			if (accountId != null && accountId != -1) {
 				webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
 			}
 		}
-		keybindHandler.unregister();
 	}
 
 	@Provides
-	public FlippingCopilotConfig provideConfig(ConfigManager configManager) {
-		return configManager.getConfig(FlippingCopilotConfig.class);
+	public CopilotConfig provideConfig(ConfigManager configManager) {
+		return configManager.getConfig(CopilotConfig.class);
 	}
 
 	//---------------------------- Event Handlers ----------------------------//
 	@Subscribe
 	public void onGrandExchangeOfferChanged(GrandExchangeOfferChanged event) {
 		offerEventHandler.onGrandExchangeOfferChanged(event);
-		clientThread.invokeLater(() -> highlightController.redraw());
+		clientThread.invokeLater(() -> highlights.redraw());
 	}
 
 	@Subscribe
@@ -233,15 +233,15 @@ public class FlippingCopilotPlugin extends Plugin {
 
 		if (bankChanged || (inventoryChanged && isBankOpen())) {
 			bankStateRS.onGameTick();
-			clientThread.invokeLater(() -> highlightController.redraw());
+			clientThread.invokeLater(() -> highlights.redraw());
 		}
 		if (bankChanged && playerLocationController.isNearGE()) {
-			suggestionManager.setSuggestionNeeded(true);
+			suggestions.setSuggestionNeeded(true);
 		}
 
 		if (event.getContainerId() == InventoryID.INV && grandExchange.isOpen()) {
-			suggestionManager.setSuggestionNeeded(true);
-			clientThread.invokeLater(() -> highlightController.redraw());
+			suggestions.setSuggestionNeeded(true);
+			clientThread.invokeLater(() -> highlights.redraw());
 		}
 	}
 
@@ -253,12 +253,12 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Subscribe
 	public void onGameTick(GameTick event) {
 		bankStateRS.onGameTick();
-		geHistoryStateRS.onGameTick(client);
+		history.onGameTick(client);
 		grandExchangeOpenRS.set(grandExchange.isOpen());
 
 		suggestionController.onGameTick();
 		offerEventHandler.onGameTick();
-		osrsLoginRS.set(osrsLoginRS.get().nextState(client));
+		gameLogin.set(gameLogin.get().nextState(client));
 	}
 
 	@Subscribe
@@ -310,47 +310,42 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event) {
-		switch (event.getGameState())
-		{
+		switch (event.getGameState()) {
 			case LOGIN_SCREEN:
 				sessionManager.reset();
-				suggestionManager.reset();
+				suggestions.reset();
 				osrsLoginManager.reset();
-				accountStatusManager.reset();
-				grandExchangeUncollectedManager.reset();
-				statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
-				osrsLoginRS.set(osrsLoginRS.get().nextState(client));
+				accounts.reset();
+				uncollected.reset();
+				statsPanel.refresh(true, copilotLogin.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
+				gameLogin.set(gameLogin.get().nextState(client));
 				mainPanel.refresh();
 				break;
 			case LOGGING_IN:
 			case HOPPING:
 			case CONNECTION_LOST:
 				osrsLoginManager.setLastLoginTick(client.getTickCount());
-				osrsLoginRS.set(osrsLoginRS.get().nextState(client));
+				gameLogin.set(gameLogin.get().nextState(client));
 				break;
 			case LOGGED_IN:
 				// we want to update the flips panel on login but unfortunately the display name
 				// is not available immediately so schedule what we need to do here for in the future
 				// todo: move to just using the accountHash which is available immediately to simply things
 				clientThread.invokeLater(() -> {
-					if (client.getGameState() != GameState.LOGGED_IN) {
-						return true;
-					}
+					if (client.getGameState() != GameState.LOGGED_IN) { return true; }
 					final String name = osrsLoginManager.getPlayerDisplayName();
-					if(name == null) {
-						return false;
-					}
+					if (name == null) { return false; }
 					statsPanel.resetIntervalDropdownToSession();
-					Integer accountId = copilotLoginRS.get().getAccountId(name);
+					Integer accountId = copilotLogin.get().getAccountId(name);
 					if (accountId != null && accountId != -1) {
 						flipManager.setIntervalAccount(accountId);
 					} else {
 						flipManager.setIntervalAccount(null);
 					}
 					flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
-					statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn()  && osrsLoginManager.isValidLoginState());
+					statsPanel.refresh(true, copilotLogin.get().isLoggedIn()  && osrsLoginManager.isValidLoginState());
 					mainPanel.refresh();
-					if(copilotLoginRS.get().isLoggedIn()) {
+					if(copilotLogin.get().isLoggedIn()) {
 						transactionManager.scheduleSyncIn(0, name);
 					}
 					return true;
@@ -367,13 +362,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	public void onClientShutdown(ClientShutdown clientShutdownEvent) {
 		log.debug("client shutdown event received");
 		offerManager.saveAll();
-		if(copilotLoginRS.get().isLoggedIn()) {
-			String displayName = osrsLoginManager.getLastDisplayName();
-			Integer accountId = copilotLoginRS.get().getAccountId(displayName);
-			if (accountId != null && accountId != -1) {
-				webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
-			}
-		}
+		sendSessionStats();
 	}
 
 	@Subscribe
@@ -382,10 +371,10 @@ public class FlippingCopilotPlugin extends Plugin {
 			log.debug("copilot config changed event received");
 			configRS.forceSet(config);
 			if (event.getKey().equals("profitAmountColor") || event.getKey().equals("lossAmountColor")) {
-				mainPanel.copilotPanel.statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
+				mainPanel.copilotPanel.statsPanel.refresh(true, copilotLogin.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
 			}
 			if (event.getKey().equals("suggestionHighlights")) {
-				clientThread.invokeLater(() -> highlightController.redraw());
+				clientThread.invokeLater(() -> highlights.redraw());
 			}
 			if (event.getKey().equals("slotPriceColorEnabled")) {
 				handleSlotPriceColorConfigChange();
@@ -393,7 +382,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			if (event.getKey().equals("slotPriceProfitableColor") || event.getKey().equals("slotPriceUnprofitableColor")) {
 				clientThread.invokeLater(() -> {
 					slotProfitColorizer.updateAllSlots();
-					highlightController.redraw();
+					highlights.redraw();
 				});
 			}
 			if (event.getKey().equals("portfolioBankTag")) {

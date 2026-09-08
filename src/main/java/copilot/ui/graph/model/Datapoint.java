@@ -1,0 +1,69 @@
+package copilot.ui.graph.model;
+
+import lombok.*;
+
+import java.awt.*;
+
+@Getter
+@Setter
+public class Datapoint {
+
+    public int time;
+    public final long price;
+    public final Type type;
+    public final boolean isLow; // true if buy/low point, false if sell/high point
+
+    // IQR values for prediction points
+    public final Long iqrLower, iqrUpper;
+
+    // volume
+    public long lowVolume, highVolume;
+
+    // tx
+    public long qty;
+
+    public Datapoint(int time, long price, boolean isLow, Type type) {
+        this.time = time; this.price = price; this.isLow = isLow; this.type = type; iqrLower = null;
+        iqrUpper = null;
+    }
+
+    public Datapoint(int time, long price, long iqrLower, long iqrUpper, boolean isLow) {
+        this.time = time; this.price = price; this.isLow = isLow; type = Type.PREDICTION; this.iqrLower = iqrLower;
+        this.iqrUpper = iqrUpper;
+    }
+
+    public static Datapoint newVolumeDatapoint(int time, long lowVolume, long highVolume) {
+        var dp = new Datapoint(time, 0,false, Type.VOLUME_1H);
+        dp.lowVolume = lowVolume; dp.highVolume = highVolume;
+        return dp;
+    }
+
+    public Point getHoverPosition(Rectangle pa, Bounds bounds) {
+        int x = bounds.toX(pa,time), y = bounds.toY(pa, price);
+        if (type == Type.FIVE_MIN_AVERAGE) { x += bounds.toW(pa,Constants.FIVE_MIN_SECONDS / 2); } else if (type == Type.HOUR_AVERAGE) {
+            x += bounds.toW(pa,Constants.HOUR_SECONDS / 2);
+        }
+        return new Point(x, y);
+    }
+
+    public static Datapoint newBuyTx(int time, long price, long qty) {
+        var dp = new Datapoint(time, price,true, Type.FLIP_TRANSACTION);
+        dp.qty = qty;
+        return dp;
+    }
+
+    public static Datapoint newSellTx(int time, long price, long qty) {
+        var dp = new Datapoint(time, price,false, Type.FLIP_TRANSACTION);
+        dp.qty = qty;
+        return dp;
+    }
+
+    public enum Type {
+        INSTA_SELL_BUY,
+        FIVE_MIN_AVERAGE,
+        HOUR_AVERAGE,
+        PREDICTION,
+        VOLUME_1H,
+        FLIP_TRANSACTION
+    }
+}
