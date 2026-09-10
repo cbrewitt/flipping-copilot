@@ -53,19 +53,7 @@ public class AccountSuggestionPreferencesRS extends ReactiveStateImpl<AccountSug
     }
 
     private synchronized void persist(AccountSuggestionPreferences preferences, Long ah) {
-        Path file = accountPreferencesPath(ah);
-        Path tmpFile = Paths.get(file + ".tmp");
-        try {
-            String toWrite = gson.toJson(preferences);
-            try {
-                Files.writeString(tmpFile, toWrite);
-                Files.move(tmpFile, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } finally {
-                Files.deleteIfExists(tmpFile);
-            }
-        } catch (IOException e) {
-            log.warn("error saving account preferences json file {}", file, e);
-        }
+        Persistance.writeAtomically(accountPreferencesPath(ah).toFile(), gson.toJson(preferences));
     }
 
     private void loadAccountPreferences(Long accountHash) {

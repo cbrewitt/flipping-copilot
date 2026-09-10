@@ -306,7 +306,7 @@ public class SuggestionController {
         clientThread.invokeLater(() -> showChatNotification(newSuggestion.toMessage()));
     }
 
-    private void showChatNotification(String message) {
+    public void showChatNotification(String message) {
         String chatMessage = new ChatMessageBuilder()
                 .append(config.chatTextColor(), message)
                 .build();

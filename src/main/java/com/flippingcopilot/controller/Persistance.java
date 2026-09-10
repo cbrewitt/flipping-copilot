@@ -8,6 +8,10 @@ import net.runelite.client.RuneLite;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
@@ -114,6 +118,22 @@ public class Persistance {
             }
         } catch (IOException e) {
             log.warn("error storing un acked transactions to file {}", unackedTransactionsFile, e);
+        }
+    }
+
+    public static boolean writeAtomically(File file, String content) {
+        Path tmp = Paths.get(file + ".tmp");
+        try {
+            try {
+                Files.writeString(tmp, content);
+                Files.move(tmp, file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                return true;
+            } finally {
+                Files.deleteIfExists(tmp);
+            }
+        } catch (IOException e) {
+            log.warn("error saving json file {}", file, e);
+            return false;
         }
     }
 

@@ -54,6 +54,7 @@ public class GrandExchangeOfferEventHandler {
             log.debug("ignoring GE offer update on unsupported world type(s): {}", client.getWorldType());
             return;
         }
+        offerPersistence.stampSeen(accountHash, Instant.now().getEpochSecond(), osrsLoginManager.getPlayerDisplayName());
 
         log.debug("tick {} GE offer updated: state: {}, slot: {}, item: {}, qty: {}, lastLoginTick: {}", client.getTickCount(), offer.getState(), slot, offer.getItemId(), offer.getQuantitySold(), osrsLoginManager.getLastLoginTick());
 
