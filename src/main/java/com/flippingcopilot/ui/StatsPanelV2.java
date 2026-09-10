@@ -24,6 +24,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 
+import static com.flippingcopilot.util.FormatUtil.formatDurationSince;
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
 
 @Slf4j
@@ -383,7 +384,7 @@ public class StatsPanelV2 extends JPanel {
             flipsMadeVal.setText(String.format("%d", stats.flipsMade));
             totalProfitVal.setText(UIUtilities.formatProfit(stats.profit));
             totalProfitVal.setForeground(UIUtilities.getProfitColor(stats.profit, config));
-            log.debug("populating flips took {}ms", (System.nanoTime() - s) / 1000_000);
+            log.debug("populating flips took {}", formatDurationSince(s));
         }
 
         PortfolioSummaryData summaryData = portfolioStateRS.get().getSummaryData();

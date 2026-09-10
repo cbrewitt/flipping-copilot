@@ -15,6 +15,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+import static com.flippingcopilot.util.FormatUtil.formatDurationSince;
+
 @Slf4j
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
@@ -48,7 +50,7 @@ public class TransactionManager {
                 copilotLoginRS.addAccountIfMissing(flips.get(0).getAccountId(), displayName, userId);
             }
             flipManager.mergeFlips(flips, userId);
-            log.info("sending {} transactions took {}ms", toSend.size(), (System.nanoTime() - s) / 1000_000);
+            log.info("sending {} transactions took {}", toSend.size(), formatDurationSince(s));
             synchronized (this) {
                 List<Transaction> unAckedTransactions  = getUnAckedTransactions(displayName);
                 transactionSyncScheduled.get(displayName).set(false);

@@ -6,6 +6,8 @@ import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.util.ProfitCalculator;
 import joptsimple.internal.Strings;
+import lombok.Builder;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.callback.ClientThread;
@@ -22,6 +24,7 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.text.NumberFormat;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.flippingcopilot.ui.UIUtilities.*;
 import static com.flippingcopilot.util.Constants.MIN_GP_NEEDED_TO_FLIP;
@@ -62,12 +65,29 @@ public class SuggestionPanel extends JPanel {
     private final JPanel suggestedActionPanel;
     private final PreferencesPanel preferencesPanel;
     private final JLayeredPane layeredPane = new JLayeredPane();
-    private boolean isPreferencesPanelVisible = false;
+    private volatile boolean isPreferencesPanelVisible = false;
     private final JLabel gearButton;
-    private String innerSuggestionMessage;
+    private volatile boolean collectItemsSuggested;
+    private final AtomicLong refreshGeneration = new AtomicLong();
     private static final String HIGHLIGHTED_COLOR = "yellow";
 
     private String serverMessage = "";
+
+    private enum DisplayMode {
+        MESSAGE, LOADING, SUGGESTION, EMPTY
+    }
+
+    @Value
+    @Builder
+    private static class DisplaySnapshot {
+        DisplayMode mode;
+        String text;
+        String serverMessage;
+        String additionalInfo;
+        String tooltip;
+        AsyncBufferedImage image;
+        boolean showButtons;
+    }
 
     public void setServerMessage(String serverMessage) {
         this.serverMessage = serverMessage == null ? "" : serverMessage;
@@ -256,8 +276,7 @@ public class SuggestionPanel extends JPanel {
     }
 
 
-    private void setItemIcon(int itemId) {
-        AsyncBufferedImage image = itemManager.getImage(itemId);
+    private void setItemIcon(AsyncBufferedImage image) {
         if (image != null) {
             image.addTo(suggestionIcon);
             suggestionIcon.setVisible(true);
@@ -276,12 +295,10 @@ public class SuggestionPanel extends JPanel {
                 "for <FONT COLOR=" + HIGHLIGHTED_COLOR + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
     }
 
-    public void updateSuggestion(Suggestion suggestion) {
+    private DisplaySnapshot buildSuggestionSnapshot(Suggestion suggestion, AccountStatus accountStatus) {
         NumberFormat formatter = NumberFormat.getNumberInstance();
         String suggestionString = "<html><center>";
-        suggestionTextContainer.setVisible(false);
-        additionalInfoText.setText("");
-        clearSuggestionTooltips();
+        AsyncBufferedImage image = null;
         SuggestionType suggestionType = suggestion.getType();
         if (suggestionType == null) {
             suggestionString += "Error processing suggestion<br>";
@@ -289,15 +306,14 @@ public class SuggestionPanel extends JPanel {
         switch (suggestionType) {
             case WAIT:
                 suggestionString += "Wait <br>";
-                suggestionIcon.setVisible(false);
                 break;
             case ABORT:
                 suggestionString += "Abort offer for<br><FONT COLOR=white>" + suggestion.getName() + "<br></FONT>";
-                setItemIcon(suggestion.getItemId());
+                image = itemManager.getImage(suggestion.getItemId());
                 break;
             case BUY:
                 suggestionString += (suggestion.isHold() ? "Buy and hold" : "Buy") + quantityNameAndPrice(suggestion, formatter);
-                setItemIcon(suggestion.getItemId());
+                image = itemManager.getImage(suggestion.getItemId());
                 break;
             case SELL:
             case MODIFY_BUY:
@@ -309,9 +325,9 @@ public class SuggestionPanel extends JPanel {
                             "<FONT COLOR=white>" + suggestion.getName() + "</FONT><br>" +
                             "to <FONT COLOR=" + HIGHLIGHTED_COLOR + ">" + formatter.format(suggestion.getPrice()) + "</FONT> gp<br>";
                 } else {
-                    suggestionString += (shouldSellFromBank(suggestion) ? "Sell from bank" : suggestion.isSellSuggestion() ? "Sell" : "Buy") + quantityNameAndPrice(suggestion, formatter);
+                    suggestionString += (accountStatus.shouldSellFromBank(suggestion) ? "Sell from bank" : suggestion.isSellSuggestion() ? "Sell" : "Buy") + quantityNameAndPrice(suggestion, formatter);
                 }
-                setItemIcon(suggestion.getItemId());
+                image = itemManager.getImage(suggestion.getItemId());
                 break;
             default:
                 suggestionString += "Error processing suggestion<br>";
@@ -320,75 +336,35 @@ public class SuggestionPanel extends JPanel {
         String additionalInfoMessage = Strings.isNullOrEmpty(suggestion.getMessage()) ? "" : "<br>" + suggestion.getMessage();
 
         suggestionString += "</center></html>";
-        innerSuggestionMessage = "";
-        if (!suggestion.isWaitSuggestion()) {
-            setButtonsVisible(true);
-        }
-        suggestionText.setText(suggestionString);
-        suggestionText.setMaximumSize(new Dimension(suggestionText.getPreferredSize().width, Integer.MAX_VALUE));
+        String additionalInfo = additionalInfoMessage;
+        String tooltip = null;
         if (suggestion.isBuySuggestion()) {
-            setAdditionalInfoText(
-                    formatExpectedProfitAndDuration(suggestion.getExpectedProfit(), suggestion.getExpectedDuration()) + additionalInfoMessage,
-                    formatSuggestionTooltip(suggestion, suggestion.getExpectedProfit())
-            );
+            additionalInfo = formatExpectedProfitAndDuration(suggestion.getExpectedProfit(), suggestion.getExpectedDuration()) + additionalInfoMessage;
+            tooltip = formatSuggestionTooltip(suggestion, suggestion.getExpectedProfit());
         } else if (suggestion.isSellSuggestion()) {
             String text = "";
             Long profit = profitCalculator.calculateSuggestionProfit(suggestion);
             if (profit != null) {
                 text = formatSellProfitLossAndDuration((double) profit, suggestion.getExpectedDuration());
             }
-            setAdditionalInfoText(
-                    text + additionalInfoMessage,
-                    formatSuggestionTooltip(suggestion, profit == null ? null : (double) profit)
-            );
-        } else {
-            setAdditionalInfoText(additionalInfoMessage, null);
+            additionalInfo = text + additionalInfoMessage;
+            tooltip = formatSuggestionTooltip(suggestion, profit == null ? null : (double) profit);
         }
-
-        suggestionTextContainer.setVisible(true);
-        suggestionTextContainer.revalidate();
-        suggestionTextContainer.repaint();
-    }
-
-    private boolean shouldSellFromBank(Suggestion suggestion) {
-        AccountStatus accountStatus = accountStatusManager.getAccountStatus();
-        return accountStatus != null && accountStatus.shouldSellFromBank(suggestion);
-    }
-
-    public void suggestCollect() {
-        setMessage("Collect items");
-        setButtonsVisible(false);
-    }
-
-    public void suggestAddGp() {
-        NumberFormat formatter = NumberFormat.getNumberInstance();
-        setMessage("Add " +
-                "at least <FONT COLOR=" + HIGHLIGHTED_COLOR + ">" + formatter.format(MIN_GP_NEEDED_TO_FLIP)
-                + "</FONT> gp<br>to your inventory<br>"
-                + "to get a flip suggestion");
-        setButtonsVisible(false);
-    }
-
-    public void suggestScanningForDumps() {
-        setMessage("Waiting for dumps...");
-        setButtonsVisible(false);
-    }
-
-    public void suggestOpenGe() {
-        setMessage("Open the Grand Exchange<br>"
-                + "to get a flip suggestion");
-        setButtonsVisible(false);
-    }
-
-    public void setIsPausedMessage() {
-        setMessage("Suggestions are paused");
-        setButtonsVisible(false);
+        return DisplaySnapshot.builder()
+                .mode(DisplayMode.SUGGESTION)
+                .text(suggestionString)
+                .serverMessage(suggestion.getMessage())
+                .additionalInfo(additionalInfo)
+                .tooltip(tooltip)
+                .image(image)
+                .showButtons(!suggestion.isWaitSuggestion())
+                .build();
     }
 
     public void setMessage(String message) {
         additionalInfoText.setVisible(false);
         clearSuggestionTooltips();
-        innerSuggestionMessage = message;
+        collectItemsSuggested = "Collect items".equals(message);
         setButtonsVisible(false);
 
         // Check if message contains "<manage>"
@@ -432,10 +408,11 @@ public class SuggestionPanel extends JPanel {
     }
 
     public boolean isCollectItemsSuggested() {
-        return suggestionText.isVisible() && "Collect items".equals(innerSuggestionMessage);
+        return collectItemsSuggested;
     }
 
     public void showLoading() {
+        collectItemsSuggested = false;
         suggestionTextContainer.setVisible(false);
         setServerMessage("");
         spinner.show();
@@ -459,77 +436,114 @@ public class SuggestionPanel extends JPanel {
         suggestionIcon.setVisible(visible);
     }
 
-    public void displaySuggestion() {
+    private DisplaySnapshot messageSnapshot(String message, String serverMessage) {
+        return DisplaySnapshot.builder()
+                .mode(DisplayMode.MESSAGE)
+                .text(message)
+                .serverMessage(serverMessage)
+                .build();
+    }
+
+    private DisplaySnapshot buildDisplaySnapshot() {
+        if (isPreferencesPanelVisible) {
+            return DisplaySnapshot.builder().mode(DisplayMode.EMPTY).build();
+        }
+        if (pausedManager.isPaused()) {
+            return messageSnapshot("Suggestions are paused", "");
+        }
+        String errorMessage = osrsLoginManager.getInvalidStateDisplayMessage();
+        if (errorMessage != null) {
+            return messageSnapshot(errorMessage, "");
+        }
+        if (suggestionManager.isSuggestionRequestInProgress() || suggestionManager.isSuggestionRefreshPending()) {
+            return DisplaySnapshot.builder().mode(DisplayMode.LOADING).build();
+        }
+        HttpResponseException suggestionError = suggestionManager.getSuggestionError();
+        if (suggestionError != null) {
+            highlightController.redraw();
+            return messageSnapshot("Error: " + suggestionError.getMessage(), "");
+        }
         Suggestion suggestion = suggestionManager.getSuggestion();
-        setServerMessage("");
         if (suggestion == null) {
-            return;
+            return DisplaySnapshot.builder().mode(DisplayMode.EMPTY).build();
         }
         AccountStatus accountStatus = accountStatusManager.getAccountStatus();
         if(accountStatus == null) {
-            return;
+            return DisplaySnapshot.builder().mode(DisplayMode.EMPTY).build();
         }
-        setServerMessage(suggestion.getMessage());
+        String message = suggestion.getMessage();
         boolean collectNeeded = accountStatus.isCollectNeeded(suggestion, grandExchange.isSetupOfferOpen());
         if(collectNeeded && !uncollectedManager.HasUncollected(osrsLoginManager.getAccountHash())) {
             log.warn("tick {} collect is suggested but there is nothing to collect! suggestion: {} {} {}", client.getTickCount(), suggestion.getType(), suggestion.getQuantity(), suggestion.getItemId());
         }
+        DisplaySnapshot snapshot;
         if (collectNeeded) {
-            suggestCollect();
+            snapshot = messageSnapshot("Collect items", message);
         } else if (suggestion.isWaitSuggestion() && !grandExchange.isOpen() && accountStatus.emptySlotExists()) {
-            suggestOpenGe();
+            snapshot = messageSnapshot("Open the Grand Exchange<br>to get a flip suggestion", message);
         } else if (suggestion.isWaitSuggestion() && accountStatus.moreGpNeeded()) {
-            suggestAddGp();
+            snapshot = messageSnapshot("Add at least <FONT COLOR=" + HIGHLIGHTED_COLOR + ">"
+                    + NumberFormat.getNumberInstance().format(MIN_GP_NEEDED_TO_FLIP)
+                    + "</FONT> gp<br>to your inventory<br>to get a flip suggestion", message);
         } else if (suggestion.isWaitSuggestion()
                 && grandExchange.isOpen()
                 && accountStatus.emptySlotExists()
                 && suggestionPreferencesManager.isReceiveDumpSuggestions()) {
-            suggestScanningForDumps();
+            snapshot = messageSnapshot("Waiting for dumps...", message);
         }  else {
-            updateSuggestion(suggestion);
+            snapshot = buildSuggestionSnapshot(suggestion, accountStatus);
         }
         highlightController.redraw();
+        return snapshot;
     }
 
     public void refresh() {
-        log.debug("refreshing suggestion panel {}", client.getGameState());
-        if (!ensureEdt(this::refresh)) return;
-        if(isPreferencesPanelVisible) {
+        long generation = refreshGeneration.incrementAndGet();
+        clientThread.invokeLater(() -> {
+            if (generation != refreshGeneration.get()) {
+                return;
+            }
+            log.debug("refreshing suggestion panel {}", client.getGameState());
+            DisplaySnapshot snapshot = buildDisplaySnapshot();
+            SwingUtilities.invokeLater(() -> {
+                if (generation == refreshGeneration.get()) {
+                    applyDisplaySnapshot(snapshot);
+                }
+            });
+        });
+    }
+
+    private void applyDisplaySnapshot(DisplaySnapshot snapshot) {
+        if (isPreferencesPanelVisible) {
             preferencesPanel.refresh();
             return;
         }
-        if (pausedManager.isPaused()) {
-            hideLoading();
-            setIsPausedMessage();
-            return;
-        }
-
-        String errorMessage = osrsLoginManager.getInvalidStateDisplayMessage();
-        if (errorMessage != null) {
-            hideLoading();
-            setServerMessage("");
-            setMessage(errorMessage);
-            return;
-        }
-
-        if(suggestionManager.isSuggestionRequestInProgress() || suggestionManager.isSuggestionRefreshPending()) {
+        if (snapshot.getMode() == DisplayMode.LOADING) {
             showLoading();
             return;
         }
         hideLoading();
-
-        final HttpResponseException suggestionError = suggestionManager.getSuggestionError();
-        if(suggestionError != null) {
-            highlightController.redraw();
-            setMessage("Error: " + suggestionError.getMessage());
+        setServerMessage(snapshot.getServerMessage());
+        if (snapshot.getMode() == DisplayMode.MESSAGE) {
+            setMessage(snapshot.getText());
             return;
         }
-
-        if(!client.isClientThread()) {
-            clientThread.invoke(this::displaySuggestion);
-        } else {
-            displaySuggestion();
+        if (snapshot.getMode() == DisplayMode.EMPTY) {
+            collectItemsSuggested = false;
+            return;
         }
+        collectItemsSuggested = false;
+        suggestionTextContainer.setVisible(false);
+        clearSuggestionTooltips();
+        setButtonsVisible(snapshot.isShowButtons());
+        suggestionIcon.setVisible(false);
+        setItemIcon(snapshot.getImage());
+        suggestionText.setText(snapshot.getText());
+        suggestionText.setMaximumSize(new Dimension(suggestionText.getPreferredSize().width, Integer.MAX_VALUE));
+        setAdditionalInfoText(snapshot.getAdditionalInfo(), snapshot.getTooltip());
+        suggestionTextContainer.setVisible(true);
+        suggestionTextContainer.revalidate();
+        suggestionTextContainer.repaint();
     }
 
     private String formatSellProfitLossAndDuration(Double expectedProfit, Double expectedDuration) {
