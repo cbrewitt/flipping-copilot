@@ -71,6 +71,9 @@ public class FlipManager {
         if (copilotUserId != this.copilotUserId) {
             return false;
         }
+        if (flips.isEmpty()) {
+            return true;
+        }
         flips.sort(FLIP_STATUS_TIME_COMPARATOR);
         flips.forEach(this::mergeFlip_);
         SwingUtilities.invokeLater(flipsChangedCallback);
