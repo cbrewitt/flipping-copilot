@@ -4,6 +4,9 @@ import com.flippingcopilot.model.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.widgets.*;
 
 import javax.inject.Inject;
@@ -13,6 +16,9 @@ import javax.inject.Singleton;
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 @Slf4j
 public class GePreviousSearch {
+
+    private static final int SCRIPT_SELECT_GE_SEARCH_RESULT = 754;
+    private static final int GE_SEARCH_RESULT_SOURCE = 84;
 
     private final SuggestionManager suggestionManager;
     private final SuggestionPreferencesManager suggestionPreferencesManager;
@@ -24,7 +30,9 @@ public class GePreviousSearch {
 
     public void showSuggestedItemInSearch() {
         Suggestion suggestion = suggestionManager.getSuggestion();
-        if (suggestion == null) {
+        // The first children belong to live results once the player types a query.
+        // A deferred suggestion refresh must not overwrite those widgets.
+        if (suggestion == null || !"".equals(client.getVarcStrValue(VarClientID.MESLAYERINPUT))) {
             return;
         }
 
@@ -86,12 +94,43 @@ public class GePreviousSearch {
         return false;
     }
 
+    public void updateCopilotMenuEntry(MenuEntryAdded event) {
+        Suggestion suggestion = getClickedCopilotSuggestion(event.getOption(), event.getMenuEntry().getWidget());
+        if (suggestion != null) {
+            event.getMenuEntry().setTarget("<col=ff9040>" + suggestion.getName() + "</col>");
+        }
+    }
+
+    public void handleCopilotMenuClick(MenuOptionClicked event) {
+        if (event.isConsumed()) {
+            return;
+        }
+        Suggestion suggestion = getClickedCopilotSuggestion(event.getMenuOption(), event.getWidget());
+        if (suggestion != null) {
+            event.consume();
+            client.runScript(SCRIPT_SELECT_GE_SEARCH_RESULT, suggestion.getItemId(), GE_SEARCH_RESULT_SOURCE);
+        }
+    }
+
+    private Suggestion getClickedCopilotSuggestion(String option, Widget clickedWidget) {
+        if (!"Select".equals(option) || clickedWidget == null || clickedWidget.getIndex() != 0
+                || !"".equals(client.getVarcStrValue(VarClientID.MESLAYERINPUT))) {
+            return null;
+        }
+        Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
+        if (searchResults == null || clickedWidget.getParent() != searchResults || !copilotPreviousSearchItemExists()) {
+            return null;
+        }
+        Suggestion suggestion = suggestionManager.getSuggestion();
+        return suggestion != null && suggestion.getType() == SuggestionType.BUY ? suggestion : null;
+    }
+
     private void setPreviousSearch(int itemId, String itemName) {
         Widget searchResults = client.getWidget(ComponentID.CHATBOX_GE_SEARCH_RESULTS);
         Widget previousSearch = searchResults.getChild(0);
         previousSearch.setHasListener(true);
-        previousSearch.setOnOpListener(754, itemId, 84);
-        previousSearch.setOnKeyListener(754, itemId, -2147483640);
+        previousSearch.setOnOpListener(SCRIPT_SELECT_GE_SEARCH_RESULT, itemId, GE_SEARCH_RESULT_SOURCE);
+        previousSearch.setOnKeyListener(SCRIPT_SELECT_GE_SEARCH_RESULT, itemId, -2147483640);
         previousSearch.setName("<col=ff9040>" + itemName + "</col>");
         previousSearch.setAction(0, "Select");
         previousSearch.revalidate();
@@ -158,8 +197,8 @@ public class GePreviousSearch {
         widget.setOriginalY(0);
         widget.setOriginalWidth(256);
         widget.setOriginalHeight(32);
-        widget.setOnOpListener(754, itemId, 84);
-        widget.setOnKeyListener(754, itemId, -2147483640);
+        widget.setOnOpListener(SCRIPT_SELECT_GE_SEARCH_RESULT, itemId, GE_SEARCH_RESULT_SOURCE);
+        widget.setOnKeyListener(SCRIPT_SELECT_GE_SEARCH_RESULT, itemId, -2147483640);
         widget.setHasListener(true);
         widget.setAction(0, "Select");
         // set opacity to 200 when mouse is hovering

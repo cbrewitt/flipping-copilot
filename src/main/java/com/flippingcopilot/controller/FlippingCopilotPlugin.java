@@ -281,6 +281,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event) {
+		gameUiChangesHandler.onMenuEntryAdded(event);
 		menuHandler.injectInventoryPortfolioMenuEntry(event);
 		menuHandler.injectCopilotPriceGraphMenuEntry(event);
 		menuHandler.injectConfirmMenuEntry(event);
