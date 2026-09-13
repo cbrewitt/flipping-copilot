@@ -14,14 +14,14 @@ import java.util.Map;
 @Slf4j
 public class ConfigPanel extends JPanel {
     private final Map<String, Component> configComponents = new HashMap<>();
-    private final Runnable onApplyCallback;
+    private final Runnable onChangeCallback;
     private final PriceGraphConfigManager configManager;
     private final Config configInstance;
 
-    public ConfigPanel(PriceGraphConfigManager configManager, Runnable callback) {
+    public ConfigPanel(PriceGraphConfigManager configManager, Runnable onChangeCallback, Runnable onBackCallback) {
         this.configManager = configManager;
         this.configInstance = configManager.getConfig();
-        this.onApplyCallback = callback;
+        this.onChangeCallback = onChangeCallback;
 
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -83,18 +83,17 @@ public class ConfigPanel extends JPanel {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-        JButton applyButton = new JButton("Apply");
-        applyButton.setFocusPainted(false);
-        applyButton.setBackground(ColorScheme.BRAND_ORANGE);
-        applyButton.setForeground(Color.WHITE);
-        applyButton.addActionListener(e -> {
-            applySettings();
-            if (onApplyCallback != null) {
-                onApplyCallback.run();
+        JButton backButton = new JButton("Back");
+        backButton.setFocusPainted(false);
+        backButton.setBackground(ColorScheme.BRAND_ORANGE);
+        backButton.setForeground(Color.WHITE);
+        backButton.addActionListener(e -> {
+            if (onBackCallback != null) {
+                onBackCallback.run();
             }
         });
 
-        buttonPanel.add(applyButton);
+        buttonPanel.add(backButton);
         add(buttonPanel, BorderLayout.SOUTH);
     }
 
@@ -108,6 +107,7 @@ public class ConfigPanel extends JPanel {
         checkBox.setSelected(value);
         checkBox.setToolTipText(name);
         checkBox.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        checkBox.addItemListener(e -> applySettings());
         configComponents.put(name, checkBox);
         panel.add(checkBox, c);
 
@@ -132,6 +132,7 @@ public class ConfigPanel extends JPanel {
             Color newColor = JColorChooser.showDialog(this, "Choose " + formatFieldName(name), colorPanel.getBackground());
             if (newColor != null) {
                 colorPanel.setBackground(newColor);
+                applySettings();
             }
         });
 
@@ -188,6 +189,9 @@ public class ConfigPanel extends JPanel {
             configInstance.setGridColor(extractColor("gridColor"));
 
             configManager.setConfig(configInstance);
+            if (onChangeCallback != null) {
+                onChangeCallback.run();
+            }
             log.debug("Applied and saved graph settings");
         } catch (Exception e) {
             log.error("Error applying settings", e);

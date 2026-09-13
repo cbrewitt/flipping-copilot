@@ -134,7 +134,8 @@ public class PriceGraphPanel extends JPanel {
                 onItemSelected(currentItemId);
             }
         }), Cards.ERROR_CARD.name());
-        contentPanel.add(new ConfigPanel(priceGraphConfigManager, () -> contentCardLayout.showPrevious(contentPanel)), Cards.SETTINGS_CARD.name());
+        contentPanel.add(new ConfigPanel(priceGraphConfigManager, graphPanel::repaint,
+                () -> contentCardLayout.showPrevious(contentPanel)), Cards.SETTINGS_CARD.name());
 
         add(contentPanel, BorderLayout.CENTER);
 
