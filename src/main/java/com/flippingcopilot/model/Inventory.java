@@ -66,7 +66,8 @@ public class Inventory extends ArrayList<RSItem> {
              Integer itemId = entry.getKey();
              Long qty = entry.getValue();
              if (qty > 0) {
-                 long inventoryQty = getTotalAmount(itemId);
+                 // Pending coins represent GP-equivalent value, including platinum tokens.
+                 long inventoryQty = itemId == ItemID.COINS_995 ? getTotalGp() : getTotalAmount(itemId);
                  if (inventoryQty < qty) {
                      return true;
                  }
