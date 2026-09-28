@@ -19,6 +19,8 @@ import static net.runelite.api.Varbits.GE_OFFER_CREATION_TYPE;
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GrandExchange {
+    private static final int GE_SETUP_PRICE_VARP = 1043;
+
     private final Client client;
 
     boolean isHomeScreenOpen() {
@@ -85,8 +87,14 @@ public class GrandExchange {
         return client.getVarbitValue(VarbitID.GE_NEWOFFER_QUANTITY);
     }
 
-    int getOfferPrice() {
-        return client.getVarbitValue(VarbitID.GE_NEWOFFER_PRICE);
+    long getOfferPrice() {
+        // TODO: Confirm that varp 1043 holds the long setup price after the game update.
+        // It currently backs GE_NEWOFFER_PRICE and is typed as int.
+        try {
+            return client.getVarpLongValue(GE_SETUP_PRICE_VARP);
+        } catch (IllegalArgumentException e) {
+            return client.getVarbitValue(VarbitID.GE_NEWOFFER_PRICE);
+        }
     }
 
     boolean isOfferTypeSell() {

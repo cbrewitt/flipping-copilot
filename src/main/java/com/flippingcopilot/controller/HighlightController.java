@@ -4,6 +4,7 @@ import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.NpcHighlightOverlay;
 import com.flippingcopilot.ui.WidgetHighlightOverlay;
+import com.flippingcopilot.util.BankTagsUtil;
 import lombok.RequiredArgsConstructor;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
@@ -11,7 +12,6 @@ import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.plugins.PluginManager;
-import net.runelite.client.plugins.banktags.BankTagsPlugin;
 import net.runelite.client.plugins.banktags.BankTagsService;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -53,7 +53,6 @@ public class HighlightController {
     private final OverlayManager overlayManager;
     private final HighlightColorController highlightColorController;
     private final PluginManager pluginManager;
-    private final BankTagsPlugin bankTagsPlugin;
     private final BankTagsService bankTagsService;
     private final ModelOutlineRenderer modelOutlineRenderer;
 
@@ -570,7 +569,7 @@ public class HighlightController {
 
     private Widget getPortfolioBankTagButton() {
         if (!config.portfolioBankTag()
-                || !pluginManager.isPluginActive(bankTagsPlugin)
+                || !BankTagsUtil.isActive(pluginManager)
                 || PORTFOLIO_BANK_TAG.equals(bankTagsService.getActiveTag())) {
             return null;
         }

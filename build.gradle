@@ -10,7 +10,7 @@ repositories {
 	mavenLocal()
 }
 
-def runeLiteVersion = 'latest.release'
+def runeLiteVersion = 'latest.integration'
 
 dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion

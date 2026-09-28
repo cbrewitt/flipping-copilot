@@ -108,7 +108,11 @@ public class GePreviousSearch {
         Suggestion suggestion = getClickedCopilotSuggestion(event.getMenuOption(), event.getWidget());
         if (suggestion != null) {
             event.consume();
-            client.runScript(SCRIPT_SELECT_GE_SEARCH_RESULT, suggestion.getItemId(), GE_SEARCH_RESULT_SOURCE);
+            // Selecting the item sends RESUME_OBJDIALOG to the game server.
+            client.createScriptEventBuilder(SCRIPT_SELECT_GE_SEARCH_RESULT, suggestion.getItemId(), GE_SEARCH_RESULT_SOURCE)
+                    .build()
+                    .setCanSendPackets(true)
+                    .run();
         }
     }
 

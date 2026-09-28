@@ -4,6 +4,7 @@ import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.BankStateRS;
 import com.flippingcopilot.rs.PortfolioStateRS;
+import com.flippingcopilot.util.BankTagsUtil;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +35,6 @@ public class PortfolioBankTagController {
     private final ClientThread clientThread;
     private final ConfigManager configManager;
     private final PluginManager pluginManager;
-    private final BankTagsPlugin bankTagsPlugin;
     private final BankTagsService bankTagsService;
     private final TagManager bankTagManager;
     private final ItemManager itemManager;
@@ -53,7 +53,6 @@ public class PortfolioBankTagController {
                                       ClientThread clientThread,
                                       ConfigManager configManager,
                                       PluginManager pluginManager,
-                                      BankTagsPlugin bankTagsPlugin,
                                       BankTagsService bankTagsService,
                                       TagManager bankTagManager,
                                       ItemManager itemManager,
@@ -63,7 +62,6 @@ public class PortfolioBankTagController {
         this.clientThread = clientThread;
         this.configManager = configManager;
         this.pluginManager = pluginManager;
-        this.bankTagsPlugin = bankTagsPlugin;
         this.bankTagsService = bankTagsService;
         this.bankTagManager = bankTagManager;
         this.itemManager = itemManager;
@@ -111,7 +109,7 @@ public class PortfolioBankTagController {
     }
 
     private void sync() {
-        if (!config.portfolioBankTag() || !pluginManager.isPluginActive(bankTagsPlugin)) {
+        if (!config.portfolioBankTag() || !BankTagsUtil.isActive(pluginManager)) {
             bankedPortfolioItemIds = Collections.emptySet();
             if (!config.portfolioBankTag()) {
                 removeAutoCreatedTab();

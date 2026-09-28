@@ -5,6 +5,8 @@ import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.model.SuggestionType;
 import net.runelite.api.Client;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.ScriptEvent;
+import net.runelite.api.ScriptEventBuilder;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
@@ -40,6 +42,8 @@ public class GePreviousSearchTest {
         assertEquals("<col=ff9040>Serpentine helm</col>", f.target);
         assertTrue(f.click.isConsumed());
         assertArrayEquals(new Object[]{754, 12929, 84}, f.script);
+        assertTrue(f.canSendPackets);
+        assertEquals(1, f.scriptRuns);
     }
 
     @Test
@@ -65,6 +69,8 @@ public class GePreviousSearchTest {
         String label = "Copilot item:";
         String target = "<col=ff9040>Ancestral robe top</col>";
         int widgetReads;
+        boolean canSendPackets;
+        int scriptRuns;
         Object[] script;
         Widget parent;
         Widget clicked;
@@ -94,11 +100,25 @@ public class GePreviousSearchTest {
                 if (m.getName().equals("getText")) return label;
                 throw new AssertionError(m.getName());
             });
+            ScriptEvent scriptEvent = proxy(ScriptEvent.class, (p, m, a) -> {
+                switch (m.getName()) {
+                    case "setCanSendPackets": canSendPackets = (boolean) a[0]; return p;
+                    case "run":
+                        assertTrue("Item selection requires packet permission before execution", canSendPackets);
+                        scriptRuns++;
+                        return null;
+                    default: throw new AssertionError(m.getName());
+                }
+            });
+            ScriptEventBuilder scriptBuilder = proxy(ScriptEventBuilder.class, (p, m, a) -> {
+                if (m.getName().equals("build")) return scriptEvent;
+                throw new AssertionError(m.getName());
+            });
             Client client = proxy(Client.class, (p, m, a) -> {
                 switch (m.getName()) {
                     case "getVarcStrValue": return query;
                     case "getWidget": widgetReads++; return parent;
-                    case "runScript": script = (Object[]) a[0]; return null;
+                    case "createScriptEventBuilder": script = (Object[]) a[0]; return scriptBuilder;
                     default: throw new AssertionError(m.getName());
                 }
             });
