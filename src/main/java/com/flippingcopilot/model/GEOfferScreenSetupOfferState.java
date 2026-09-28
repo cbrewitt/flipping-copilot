@@ -7,7 +7,7 @@ public class GEOfferScreenSetupOfferState {
 
     public final String offerType;
     public final int currentItemId;
-    public final int offerPrice;
+    public final long offerPrice;
     public final int offerQuantity;
     public final boolean searchOpen;
 

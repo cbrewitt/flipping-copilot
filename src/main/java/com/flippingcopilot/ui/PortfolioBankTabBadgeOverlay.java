@@ -1,12 +1,12 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
+import com.flippingcopilot.util.BankTagsUtil;
 import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.plugins.PluginManager;
-import net.runelite.client.plugins.banktags.BankTagsPlugin;
 import net.runelite.client.ui.overlay.*;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
@@ -30,7 +30,6 @@ public class PortfolioBankTabBadgeOverlay extends Overlay {
     private final Client client;
     private final FlippingCopilotConfig config;
     private final PluginManager pluginManager;
-    private final BankTagsPlugin bankTagsPlugin;
 
     {
         setPosition(OverlayPosition.DYNAMIC);
@@ -42,7 +41,7 @@ public class PortfolioBankTabBadgeOverlay extends Overlay {
 
     @Override
     public Dimension render(Graphics2D graphics) {
-        if (!config.portfolioBankTag() || !pluginManager.isPluginActive(bankTagsPlugin)) {
+        if (!config.portfolioBankTag() || !BankTagsUtil.isActive(pluginManager)) {
             return null;
         }
 
