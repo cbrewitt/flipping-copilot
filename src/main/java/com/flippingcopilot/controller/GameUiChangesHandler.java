@@ -82,7 +82,7 @@ public class GameUiChangesHandler {
         //Check that it was the chat input that got enabled.
         if (event.getIndex() != VarClientID.MESLAYERMODE
                 || client.getWidget(ComponentID.CHATBOX_TITLE) == null
-                || client.getVarcIntValue(VarClientID.MESLAYERMODE) != 7
+                || !OfferHandler.isNumericInputMode(client.getVarcIntValue(VarClientID.MESLAYERMODE))
                 || client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER) == null) {
             return;
         }
@@ -134,7 +134,7 @@ public class GameUiChangesHandler {
         if (event.getVarpId() == 375
                 || event.getVarpId() == VarPlayerID.TRADINGPOST_SEARCH
                 || event.getVarbitId() == VarbitID.GE_NEWOFFER_QUANTITY
-                || event.getVarbitId() == VarbitID.GE_NEWOFFER_PRICE
+                || event.getVarpId() == GrandExchange.GE_SETUP_PRICE_VARP
                 || event.getVarbitId() == VarbitID.GE_SELECTEDSLOT) {
             clientThread.invokeLater(highlightController::redraw);
         }

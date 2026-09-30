@@ -27,6 +27,9 @@ import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 public class OfferHandler {
 
     private static final int GE_OFFER_INIT_STATE_CHILD_ID = 20;
+    // Chatbox numeric prompt modes: 32-bit (quantity) and 64-bit (price, since the 2026-09-30 max-cash update).
+    static final int MESLAYER_MODE_INT_INPUT = 7;
+    static final int MESLAYER_MODE_LONG_INPUT = 30;
 
     // dependencies
     private final Client client;
@@ -103,6 +106,10 @@ public class OfferHandler {
             viewedSlotPriceErrorText = null;
         }
         highlightController.redraw();
+    }
+
+    public static boolean isNumericInputMode(int mesLayerMode) {
+        return mesLayerMode == MESLAYER_MODE_INT_INPUT || mesLayerMode == MESLAYER_MODE_LONG_INPUT;
     }
 
     public boolean isSettingQuantity() {

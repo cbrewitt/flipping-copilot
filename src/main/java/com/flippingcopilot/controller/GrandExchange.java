@@ -19,7 +19,8 @@ import static net.runelite.api.Varbits.GE_OFFER_CREATION_TYPE;
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class GrandExchange {
-    private static final int GE_SETUP_PRICE_VARP = 1043;
+    // GE offer-setup price varp (64-bit since the 2026-09-30 max-cash update; unnamed in RuneLite 1.13.1).
+    static final int GE_SETUP_PRICE_VARP = 5753;
 
     private final Client client;
 
@@ -88,13 +89,7 @@ public class GrandExchange {
     }
 
     long getOfferPrice() {
-        // TODO: Confirm that varp 1043 holds the long setup price after the game update.
-        // It currently backs GE_NEWOFFER_PRICE and is typed as int.
-        try {
-            return client.getVarpLongValue(GE_SETUP_PRICE_VARP);
-        } catch (IllegalArgumentException e) {
-            return client.getVarbitValue(VarbitID.GE_NEWOFFER_PRICE);
-        }
+        return client.getVarpLongValue(GE_SETUP_PRICE_VARP);
     }
 
     boolean isOfferTypeSell() {

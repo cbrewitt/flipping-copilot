@@ -87,7 +87,7 @@ public class KeybindHandler {
                 var inputType = client.getVarcIntValue(VarClientInt.INPUT_TYPE);
 
                 var isPriceOrQuantityBoxOpen = client.getWidget(ComponentID.CHATBOX_TITLE) != null
-                        && inputType == 7
+                        && OfferHandler.isNumericInputMode(inputType)
                         && client.getWidget(ComponentID.GRAND_EXCHANGE_OFFER_CONTAINER) != null
                         && grandExchange.isSlotOpen();
 
