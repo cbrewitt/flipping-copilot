@@ -65,7 +65,7 @@ public class PortfolioPanel extends JPanel {
     private final Map<Integer, ImageIcon> itemIconCache = new ConcurrentHashMap<>();
 
     private List<PortfolioItemCardData> currentItems = new ArrayList<>();
-    private String sortColumn = "Market value";
+    private String sortColumn = "Unrealized Profit";
     private SortDirection sortDirection = SortDirection.DESC;
 
     public PortfolioPanel(ItemController itemController,
