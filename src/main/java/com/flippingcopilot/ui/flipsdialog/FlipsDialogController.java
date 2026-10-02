@@ -200,7 +200,7 @@ public class FlipsDialogController {
         Suggestion suggestion = suggestionManager.getSuggestion();
         if (config.priceGraphWebsite().equals(FlippingCopilotConfig.PriceGraphWebsite.FLIPPING_COPILOT)) {
             if (isSuggestionWithoutGraphData(suggestion)) {
-                showPriceGraphTab(suggestion.getItemId(), false, null);
+                showPriceGraphTab(suggestion.getItemId(), false, priceGraphPanel.suggestedPriceLine);
             } else if (suggestion != null && !suggestion.isWaitSuggestion()) {
                 showPriceGraphTab(null, true, null);
             } else {
@@ -217,7 +217,8 @@ public class FlipsDialogController {
     }
 
     private boolean isSuggestionWithoutGraphData(Suggestion suggestion) {
-        return suggestion != null && !suggestion.isWaitSuggestion() && suggestion.isDumpAlert;
+        return suggestion != null && !suggestion.isWaitSuggestion()
+                && (suggestion.isDumpAlert || config.lowDataMode());
     }
 
 
