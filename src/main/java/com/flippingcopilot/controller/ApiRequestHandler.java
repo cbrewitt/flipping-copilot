@@ -70,7 +70,7 @@ public class ApiRequestHandler {
 
     // a null jwtToken means the request was the login attempt itself, which always clears the login on a 401
     private void clearLoginIfUnauthorized(Response response, String jwtToken) {
-        if (response.code() != UNAUTHORIZED_CODE) {
+        if (response.code() != UNAUTHORIZED_CODE || "WIKI".equals(jwtToken)) {
             return;
         }
         if (jwtToken == null || Objects.equals(jwtToken, copilotLoginRS.get().getJwtToken())) {
@@ -339,6 +339,20 @@ public class ApiRequestHandler {
         });
     }
 
+
+    static Request wikiLatestPriceForItem(int itemId) {
+        return new Request.Builder()
+                .url("https://prices.runescape.wiki/api/v1/osrs/latest?id=" + itemId)
+                .header("User-Agent", "RuneLite/FlippingCopilotPlugin")
+                .get()
+                .build();
+    }
+
+    public void asyncGetWikiLatestPrice(int itemId, Consumer<WikiLatestPrice> consumer) {
+        enqueue(timeoutCall(wikiLatestPriceForItem(itemId), 10), "WIKI", "wiki latest item=" + itemId,
+                error -> consumer.accept(null),
+                response -> consumer.accept(WikiLatestPrice.fromJson(gson, response.body().string(), itemId)));
+    }
 
     public void asyncUpdatePremiumInstances(Consumer<PremiumInstanceStatus> consumer, List<String> displayNames) {
         byte[] payload = ProtoUtils.encodeMessage(out -> {

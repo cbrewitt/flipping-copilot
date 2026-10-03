@@ -353,4 +353,16 @@ public interface FlippingCopilotConfig extends Config
     )
     String webhook();
 
+    @ConfigItem(
+            keyName = "offlineFlipAlerts",
+            name = "Offline flip alerts",
+            description = "Notify when a resting offer likely bought/sold while you are logged out or on another account.",
+            section = notificationsSection,
+            position = 6
+    )
+    default boolean offlineFlipAlerts()
+    {
+        return true;
+    }
+
 }
