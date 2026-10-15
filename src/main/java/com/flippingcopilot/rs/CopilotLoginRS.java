@@ -7,9 +7,9 @@ import com.google.gson.*;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.util.Filepath;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.concurrent.ExecutorService;
 
@@ -17,14 +17,15 @@ import java.util.concurrent.ExecutorService;
 @Slf4j
 public class CopilotLoginRS extends ReactiveStateImpl<CopilotLoginState> {
 
-    private final File file = new File(Persistance.COPILOT_DIR, Persistance.LOGIN_RESPONSE_JSON_FILE);
+    private final Filepath file;
 
     private final Gson gson;
     private final ExecutorService executorService;
 
     @Inject
-    public CopilotLoginRS(Gson gson, ExecutorService executorService) {
+    public CopilotLoginRS(Persistance persistance, Gson gson, ExecutorService executorService) {
         super(new CopilotLoginState());
+        this.file = persistance.getDirectory().joinSegment(Persistance.LOGIN_RESPONSE_JSON_FILE);
         this.gson = gson;
         this.executorService = executorService;
         registerListener((s) -> log.debug("CopilotLoginRS to {}", s));
@@ -42,10 +43,10 @@ public class CopilotLoginRS extends ReactiveStateImpl<CopilotLoginState> {
         executorService.submit(() -> {
             try {
                 String json = gson.toJson(lr);
-                Path target = file.toPath();
-                Path tmp = Files.createTempFile(target.getParent(), "login-response", ".tmp");
-                Files.writeString(tmp, json, StandardCharsets.UTF_8);
-                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                Filepath target = file;
+                Filepath tmp = target.getParent().createTempFile("login-response", ".tmp");
+                tmp.write(json);
+                tmp.moveTo(target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } catch (IOException e) {
                 log.warn("Error saving login response", e);
             }
@@ -53,9 +54,9 @@ public class CopilotLoginRS extends ReactiveStateImpl<CopilotLoginState> {
     }
 
     private LoginResponse loadLoginResponse() {
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        try (BufferedReader reader = file.openBufferedReader()) {
             return gson.fromJson(reader, LoginResponse.class);
-        } catch (FileNotFoundException ignored) {
+        } catch (NoSuchFileException ignored) {
             return null;
         } catch (JsonSyntaxException | JsonIOException | IOException e) {
             log.warn("error loading saved login json file {}", file, e);
@@ -64,8 +65,10 @@ public class CopilotLoginRS extends ReactiveStateImpl<CopilotLoginState> {
     }
 
     public void clear () {
-        if (file.exists() && !file.delete()) {
-            log.warn("failed to delete login response file {}", file);
+        try {
+            file.deleteIfExists();
+        } catch (IOException e) {
+            log.warn("failed to delete login response file {}", file, e);
         }
         set(new CopilotLoginState());
     }

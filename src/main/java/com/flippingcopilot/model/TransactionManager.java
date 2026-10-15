@@ -22,6 +22,8 @@ import static com.flippingcopilot.util.FormatUtil.formatDurationSince;
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class TransactionManager {
 
+    private final Persistance persistance;
+
     // dependencies
     private final FlipManager flipManager;
     private final ScheduledExecutorService executorService;
@@ -82,7 +84,7 @@ public class TransactionManager {
         synchronized (this) {
             List<Transaction> unAckedTransactions = getUnAckedTransactions(displayName);
             unAckedTransactions.add(transaction);
-            Persistance.storeUnAckedTransactions(unAckedTransactions, displayName);
+            persistance.storeUnAckedTransactions(unAckedTransactions, displayName);
         }
         MutableReference<Long> profit = new MutableReference<>(0L);
         if (OfferStatus.SELL.equals(transaction.getType())) {
@@ -101,7 +103,7 @@ public class TransactionManager {
     }
 
     public List<Transaction> getUnAckedTransactions(String displayName) {
-        return cachedUnAckedTransactions.computeIfAbsent(displayName, (k) -> Persistance.loadUnAckedTransactions(displayName));
+        return cachedUnAckedTransactions.computeIfAbsent(displayName, (k) -> persistance.loadUnAckedTransactions(displayName));
     }
 
     public synchronized void scheduleSyncIn(int seconds, String displayName) {

@@ -1,78 +1,65 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.Transaction;
+import com.google.common.io.CharStreams;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.client.RuneLite;
+import net.runelite.client.util.Filepath;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.stream.Stream;
 
 @Slf4j
 public class Persistance {
-    public static Gson gson;
-    public static final File COPILOT_DIR = new File(RuneLite.RUNELITE_DIR, "flipping-copilot");
+    private final Gson gson;
+    private final Filepath directory;
+    private final boolean existingInstallation;
     public static final String UN_ACKED_TRANSACTIONS_FILE_TEMPLATE = "%s_un_acked.jsonl";
     public static final String LOGIN_RESPONSE_JSON_FILE = "login-response.json";
-    public static File directory;
 
-    public static void setUp(String directoryPath) throws IOException {
-        directory = new File(directoryPath);
-        createDirectory(directory);
-        createRequiredFiles();
-    }
-
-    public static void setUp(Gson gson) throws IOException {
-        Persistance.gson = gson;
-        directory = COPILOT_DIR;
-        createDirectory(COPILOT_DIR);
-        createRequiredFiles();
-    }
-
-    public static boolean hasExistingInstallation() {
-        if (!COPILOT_DIR.exists() || !COPILOT_DIR.isDirectory()) {
-            return false;
-        }
-
-        String[] files = COPILOT_DIR.list();
-        return files != null && files.length > 0;
-    }
-
-    private static void createRequiredFiles() throws IOException {
-        generateFileIfDoesNotExist(LOGIN_RESPONSE_JSON_FILE);
-    }
-
-    private static void generateFileIfDoesNotExist(String filename) throws IOException {
-        File file = new File(directory, filename);
-        if (!file.exists()) {
-            if (!file.createNewFile()) {
-                log.info("Failed to generate file {}", file.getPath());
+    public Persistance(Gson gson, Filepath directory) throws IOException {
+        this.gson = gson;
+        this.directory = directory;
+        // Capture this before consumers create files so a fresh install stays distinguishable.
+        boolean existing = false;
+        if (directory.isDirectory()) {
+            try (Stream<Filepath> files = directory.walk(1)) {
+                existing = files.anyMatch(file -> !file.equals(directory));
             }
         }
+        existingInstallation = existing;
+        directory.createDirectories();
     }
 
-    private static void createDirectory(File directory) throws IOException {
-        if (!directory.exists()) {
-            if (!directory.mkdir()) {
-                throw new IOException("unable to create parent directory!");
-            }
+    public Filepath getDirectory() {
+        return directory;
+    }
+
+    public boolean hasExistingInstallation() {
+        return existingInstallation;
+    }
+
+    public static String readString(Filepath file) throws IOException {
+        try (Reader reader = file.openReader()) {
+            return CharStreams.toString(reader);
         }
     }
 
-
-    public static List<Transaction> loadUnAckedTransactions(String displayName) {
+    public List<Transaction> loadUnAckedTransactions(String displayName) {
         List<Transaction> transactions = new ArrayList<>();
-        File file = new File(COPILOT_DIR, String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
+        Filepath file = directory.joinSegment(String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
         if (!file.exists()) {
             log.info("no existing un acked transactions file for {}", displayName);
             return new ArrayList<>();
         }
         Set<UUID> added = new HashSet<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        try (BufferedReader reader = file.openBufferedReader()) {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.isEmpty()) {
@@ -90,7 +77,7 @@ public class Persistance {
                     log.warn("error deserializing transaction line '{}' file {}", line, file, e);
                 }
             }
-        } catch (FileNotFoundException e) {
+        } catch (NoSuchFileException e) {
             log.info("no existing un acked transactions file for {}", displayName);
             return new ArrayList<>();
         } catch (IOException e) {
@@ -104,9 +91,9 @@ public class Persistance {
         return transactions;
     }
 
-    public static void storeUnAckedTransactions(List<Transaction> transactions, String displayName) {
-        File unackedTransactionsFile = new File(COPILOT_DIR, String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
-        try (BufferedWriter w = new BufferedWriter(new FileWriter(unackedTransactionsFile, false))) {
+    public void storeUnAckedTransactions(List<Transaction> transactions, String displayName) {
+        Filepath unackedTransactionsFile = directory.joinSegment(String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
+        try (BufferedWriter w = unackedTransactionsFile.openBufferedWriter()) {
             for (Transaction transaction : transactions) {
                 String json = gson.toJson(transaction);
                 w.write(json);

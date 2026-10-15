@@ -9,6 +9,7 @@ import com.flippingcopilot.ui.Paginator;
 import com.flippingcopilot.ui.components.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.Filepath;
 
 import javax.inject.Named;
 import javax.swing.*;
@@ -188,11 +189,13 @@ public class FlipsPanel extends JPanel {
     }
 
     private void downloadAsCSV() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setSelectedFile(new File("flips.csv"));
-        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-            File file = fileChooser.getSelectedFile();
-            try (FileWriter writer = new FileWriter(file)) {
+        java.util.List<Filepath> selection = new Filepath.Chooser()
+                .setIsSave()
+                .setFileName("flips.csv")
+                .showDialog(this);
+        if (selection != null && !selection.isEmpty()) {
+            Filepath file = selection.get(0);
+            try (Writer writer = file.openBufferedWriter()) {
                 sortAndFilter.writeCsvRecords(writer);
                 JOptionPane.showMessageDialog(this, "Flips exported successfully!",
                         "Export Complete", JOptionPane.INFORMATION_MESSAGE);
