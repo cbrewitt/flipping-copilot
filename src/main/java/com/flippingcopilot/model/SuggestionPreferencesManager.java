@@ -7,6 +7,7 @@ import com.google.inject.name.Named;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.util.Filepath;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -28,32 +29,35 @@ public class SuggestionPreferencesManager {
     private static final int DEFAULT_TIMEFRAME = 5;
     private static final long DEFAULT_DUMP_MIN_PROFIT = 100_000;
 
-    public static final Path DEFAULT_PROFILE_PATH = Paths.get(Persistance.COPILOT_DIR.getPath(), "Default profile.profile.json");
+    private final Filepath defaultProfilePath;
     public static final String PROFILE_SUFFIX = ".profile.json";
 
     // dependencies
+    private final Persistance persistance;
     private final Gson gson;
     private final ScheduledExecutorService executorService;
     private final AccountSuggestionPreferencesRS osrsAccountPreferences;
 
     // state
     private ProfileSuggestionPreferences cachedPreferences;
-    private Path selectedProfile;
-    private List<Path> availableProfiles;
+    private Filepath selectedProfile;
+    private List<Filepath> availableProfiles;
 
     @Getter
     @Setter
     private volatile boolean sellOnlyMode = false;
 
     @Inject
-    public SuggestionPreferencesManager(Gson gson,
+    public SuggestionPreferencesManager(Persistance persistance, Gson gson,
                                         @Named("copilotExecutor") ScheduledExecutorService executorService,
                                         AccountSuggestionPreferencesRS osrsAccountPreferences) {
+        this.persistance = persistance;
         this.gson = gson;
         this.executorService = executorService;
         this.osrsAccountPreferences = osrsAccountPreferences;
+        this.defaultProfilePath = persistance.getDirectory().joinSegment("Default profile.profile.json");
         loadAvailableProfiles();
-        selectedProfile = DEFAULT_PROFILE_PATH;
+        selectedProfile = defaultProfilePath;
         loadCurrentProfile();
         executorService.scheduleAtFixedRate(() -> {
             this.loadAvailableProfiles();
@@ -196,7 +200,7 @@ public class SuggestionPreferencesManager {
     }
 
     public synchronized boolean isDefaultProfileSelected() {
-        return DEFAULT_PROFILE_PATH.equals(selectedProfile);
+        return defaultProfilePath.equals(selectedProfile);
     }
 
     public synchronized String getCurrentProfile() {
@@ -209,33 +213,38 @@ public class SuggestionPreferencesManager {
     }
 
     public synchronized void addProfile(String name) throws IOException {
-        Path p = Paths.get(Persistance.COPILOT_DIR.toString(), name + PROFILE_SUFFIX);
+        Filepath p;
+        try {
+            p = fromDisplayName(name);
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Invalid profile name: " + name, e);
+        }
         createProfileFile(p);
         availableProfiles.add(p);
         selectedProfile = p;
         loadCurrentProfile();
     }
 
-    private synchronized void updateProfile(Path profile, Consumer<ProfileSuggestionPreferences> changes) {
-        Path lockFile = Paths.get(profile+ ".lock");
-        Path tmpFile = Paths.get(profile+ ".tmp");
+    private synchronized void updateProfile(Filepath profile, Consumer<ProfileSuggestionPreferences> changes) {
+        Filepath lockFile = profile.getParent().joinSegment(profile.getFileName() + ".lock");
+        Filepath tmpFile = profile.getParent().joinSegment(profile.getFileName() + ".tmp");
         try {
             ProfileSuggestionPreferences preferences;
-            if (Files.exists(profile)) {
-                preferences = gson.fromJson(Files.readString(profile), ProfileSuggestionPreferences.class);
+            if (profile.exists()) {
+                preferences = gson.fromJson(Persistance.readString(profile), ProfileSuggestionPreferences.class);
             } else {
                 preferences = new ProfileSuggestionPreferences();
             }
             changes.accept(preferences);
             String toWrite = gson.toJson(preferences);
             // acquire <file>.lock
-            try (FileChannel lockChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE); FileLock l = lockChannel.lock()) {
+            try (FileChannel lockChannel = lockFile.openFileChannel(StandardOpenOption.CREATE, StandardOpenOption.WRITE); FileLock l = lockChannel.lock()) {
                 // write as .tmp file then re-name
-                Files.writeString(tmpFile,toWrite );
-                Files.move(tmpFile, profile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                tmpFile.write(toWrite);
+                tmpFile.moveTo(profile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } finally {
-                Files.deleteIfExists(lockFile);
-                Files.deleteIfExists(tmpFile);
+                lockFile.deleteIfExists();
+                tmpFile.deleteIfExists();
             }
         } catch (IOException e) {
             log.warn("error saving preferences json file {}", profile, e);
@@ -244,8 +253,8 @@ public class SuggestionPreferencesManager {
 
     private synchronized void loadCurrentProfile() {
         try {
-            if (Files.exists(selectedProfile)) {
-                cachedPreferences = gson.fromJson(Files.readString(selectedProfile), ProfileSuggestionPreferences.class);
+            if (selectedProfile.exists()) {
+                cachedPreferences = gson.fromJson(Persistance.readString(selectedProfile), ProfileSuggestionPreferences.class);
             } else {
                 cachedPreferences = new ProfileSuggestionPreferences();
             }
@@ -255,48 +264,50 @@ public class SuggestionPreferencesManager {
     }
 
     private synchronized void loadAvailableProfiles() {
-        try (Stream<Path> paths = Files.list(Persistance.COPILOT_DIR.toPath())) {
+        try (Stream<Filepath> paths = persistance.getDirectory().walk(1)) {
             availableProfiles = paths
-                    .filter(p -> p.toString().endsWith(PROFILE_SUFFIX))
+                    .filter(p -> p.isFile() && p.getFileName().endsWith(PROFILE_SUFFIX))
                     .collect(Collectors.toList());
         } catch (IOException e) {
             availableProfiles = new ArrayList<>();
-            availableProfiles.add(DEFAULT_PROFILE_PATH);
             log.error("loading available profiles", e);
+        }
+        if (!availableProfiles.contains(defaultProfilePath)) {
+            availableProfiles.add(0, defaultProfilePath);
         }
     }
 
-    private String toDisplayName(Path p ) {
-        return p == null ? null : p.getFileName().toString().replaceAll("\\.profile\\.json$", "");
+    private String toDisplayName(Filepath p ) {
+        return p == null ? null : p.getFileName().replaceAll("\\.profile\\.json$", "");
     }
 
-    private Path fromDisplayName(String name) {
-        return Paths.get(Persistance.COPILOT_DIR.toString(), name + PROFILE_SUFFIX);
+    private Filepath fromDisplayName(String name) {
+        return persistance.getDirectory().joinSegment(name + PROFILE_SUFFIX);
     }
 
     public synchronized void deleteSelectedProfile() throws IOException {
-        Path lockFile = Paths.get(selectedProfile+ ".lock");
-        try (FileChannel lockChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE); FileLock l = lockChannel.lock()) {
-            Files.delete(selectedProfile);
+        Filepath lockFile = selectedProfile.getParent().joinSegment(selectedProfile.getFileName() + ".lock");
+        try (FileChannel lockChannel = lockFile.openFileChannel(StandardOpenOption.CREATE, StandardOpenOption.WRITE); FileLock l = lockChannel.lock()) {
+            selectedProfile.delete();
         } finally {
-            Files.deleteIfExists(lockFile);
+            lockFile.deleteIfExists();
         }
-        selectedProfile = DEFAULT_PROFILE_PATH;
+        selectedProfile = defaultProfilePath;
         loadCurrentProfile();
         loadAvailableProfiles();
     }
 
-    private void createProfileFile(Path profile) throws IOException {
-        Path lockFile = Paths.get(profile + ".lock");
-        Path tmpFile = Paths.get(profile + ".tmp");
+    private void createProfileFile(Filepath profile) throws IOException {
+        Filepath lockFile = profile.getParent().joinSegment(profile.getFileName() + ".lock");
+        Filepath tmpFile = profile.getParent().joinSegment(profile.getFileName() + ".tmp");
         String toWrite = "{}";
         // acquire <file>.lock
-        try (FileChannel lockChannel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE); FileLock l = lockChannel.lock()) {
+        try (FileChannel lockChannel = lockFile.openFileChannel(StandardOpenOption.CREATE, StandardOpenOption.WRITE); FileLock l = lockChannel.lock()) {
             // write as .tmp file then re-name
-            Files.writeString(tmpFile, toWrite);
-            Files.move(tmpFile, profile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            tmpFile.write(toWrite);
+            tmpFile.moveTo(profile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } finally {
-            Files.deleteIfExists(lockFile);
+            lockFile.deleteIfExists();
         }
     }
 

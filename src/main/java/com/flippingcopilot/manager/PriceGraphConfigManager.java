@@ -3,28 +3,34 @@ package com.flippingcopilot.manager;
 import com.flippingcopilot.controller.Persistance;
 import com.flippingcopilot.ui.graph.model.Config;
 import com.google.gson.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.util.Filepath;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.*;
-import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.util.concurrent.ScheduledExecutorService;
 
 
 @Slf4j
 @Singleton
-@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class PriceGraphConfigManager {
 
     public static final String JSON_FILE = "price_graph_config.json";
 
-    private final File file = new File(Persistance.COPILOT_DIR, JSON_FILE);
+    private final Filepath file;
 
     // dependencies
     private final Gson gson;
     private final ScheduledExecutorService executorService;
+
+    @Inject
+    public PriceGraphConfigManager(Persistance persistance, Gson gson, ScheduledExecutorService executorService) {
+        this.file = persistance.getDirectory().joinSegment(JSON_FILE);
+        this.gson = gson;
+        this.executorService = executorService;
+    }
 
     // state
     private Config cachedConfig;
@@ -51,7 +57,7 @@ public class PriceGraphConfigManager {
                 Config config = getConfig();
                 try {
                     String json = gson.toJson(config);
-                    Files.write(file.toPath(), json.getBytes());
+                    file.write(json);
                 } catch (IOException e) {
                     log.warn("error saving graph config {}", e.getMessage(), e);
                 }
@@ -60,9 +66,9 @@ public class PriceGraphConfigManager {
     }
 
     public Config load() {
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        try (BufferedReader reader = file.openBufferedReader()) {
             return gson.fromJson(reader, Config.class);
-        } catch (FileNotFoundException ignored) {
+        } catch (NoSuchFileException ignored) {
             return new Config();
         } catch (JsonSyntaxException | JsonIOException | IOException e) {
             log.warn("error loading saved graph config json file {}", file, e);

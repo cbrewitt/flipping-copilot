@@ -7,7 +7,7 @@ import joptsimple.internal.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.inject.Named;
-import java.io.FileWriter;
+import java.io.Writer;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
@@ -142,7 +142,7 @@ public class FlipFilterAndSort extends PagedFilterSort {
                 && filteredItems.isEmpty();
     }
 
-    public synchronized void writeCsvRecords(FileWriter writer) {
+    public synchronized void writeCsvRecords(Writer writer) {
         try {
             writer.write(Strings.join(FlipsPanel.COLUMN_NAMES, ","));
         } catch (IOException e) {

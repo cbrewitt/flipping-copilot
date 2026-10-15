@@ -35,7 +35,9 @@ import java.util.concurrent.*;
 @Slf4j
 @PluginDescriptor(
 		name = "Flipping Copilot",
-		description = "Your AI assistant for trading"
+		description = "Your AI assistant for trading",
+		internalName = "flipping-copilot",
+		legacyDataDirectory = "flipping-copilot"
 )
 @PluginDependency(BankTagsPlugin.class)
 public class FlippingCopilotPlugin extends Plugin {
@@ -52,7 +54,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private ClientToolbar clientToolbar;
 	@Inject
-	private Gson gson;
+	private Persistance persistance;
 	@Inject
 	private GrandExchange grandExchange;
 	@Inject
@@ -138,20 +140,25 @@ public class FlippingCopilotPlugin extends Plugin {
 		return scheduledExecutor;
 	}
 
+	@Provides
+	@Singleton
+	public Persistance providePersistance(Gson gson) throws java.io.IOException {
+		return new Persistance(gson, getPluginDirectory());
+	}
+
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
 	private NavigationButton navButton;
 
 	@Override
 	protected void startUp() throws Exception {
-		boolean hadExistingInstallation = Persistance.hasExistingInstallation();
+		boolean hadExistingInstallation = persistance.hasExistingInstallation();
 		keybindHandler.register();
 		overlayManager.add(inventorySlotTooltipOverlay);
 		overlayManager.add(inventoryPortfolioBadgeOverlay);
 		overlayManager.add(portfolioBankTabBadgeOverlay);
 		portfolioBankTagController.startUp();
 		highlightController.activate();
-		Persistance.setUp(gson);
 		// seems we need to delay instantiating the UI till here as otherwise the panels look different
 		mainPanel = injector.getInstance(MainPanel.class);
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/icon-small.png");

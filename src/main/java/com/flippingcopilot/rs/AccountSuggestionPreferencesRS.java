@@ -7,6 +7,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.util.Filepath;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -16,15 +17,17 @@ import java.util.concurrent.ScheduledExecutorService;
 @Slf4j
 public class AccountSuggestionPreferencesRS extends ReactiveStateImpl<AccountSuggestionPreferences> {
 
+    private final Persistance persistance;
     private final Gson gson;
     private final ScheduledExecutorService executorService;
     private final ReactiveState<Long> accountHashState;
 
     @Inject
-    public AccountSuggestionPreferencesRS(Gson gson,
+    public AccountSuggestionPreferencesRS(Persistance persistance, Gson gson,
                                           @Named("copilotExecutor") ScheduledExecutorService executorService,
                                           OsrsLoginRS osrsLoginRS) {
         super(new AccountSuggestionPreferences());
+        this.persistance = persistance;
         this.gson = gson;
         this.executorService = executorService;
         this.accountHashState = ReactiveStateUtil.derive(osrsLoginRS, s -> s == null ? null : s.accountHash);
@@ -53,15 +56,15 @@ public class AccountSuggestionPreferencesRS extends ReactiveStateImpl<AccountSug
     }
 
     private synchronized void persist(AccountSuggestionPreferences preferences, Long ah) {
-        Path file = accountPreferencesPath(ah);
-        Path tmpFile = Paths.get(file + ".tmp");
+        Filepath file = accountPreferencesPath(ah);
+        Filepath tmpFile = file.getParent().joinSegment(file.getFileName() + ".tmp");
         try {
             String toWrite = gson.toJson(preferences);
             try {
-                Files.writeString(tmpFile, toWrite);
-                Files.move(tmpFile, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                tmpFile.write(toWrite);
+                tmpFile.moveTo(file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } finally {
-                Files.deleteIfExists(tmpFile);
+                tmpFile.deleteIfExists();
             }
         } catch (IOException e) {
             log.warn("error saving account preferences json file {}", file, e);
@@ -71,10 +74,10 @@ public class AccountSuggestionPreferencesRS extends ReactiveStateImpl<AccountSug
     private void loadAccountPreferences(Long accountHash) {
         AccountSuggestionPreferences preferences = new AccountSuggestionPreferences();
         if (accountHash != null) {
-            Path file = accountPreferencesPath(accountHash);
+            Filepath file = accountPreferencesPath(accountHash);
             try {
-                if (Files.exists(file)) {
-                    preferences = gson.fromJson(Files.readString(file), AccountSuggestionPreferences.class);
+                if (file.exists()) {
+                    preferences = gson.fromJson(Persistance.readString(file), AccountSuggestionPreferences.class);
                 }
             } catch (IOException e) {
                 log.warn("error loading account preferences json file {}", file, e);
@@ -83,7 +86,7 @@ public class AccountSuggestionPreferencesRS extends ReactiveStateImpl<AccountSug
         set(preferences);
     }
 
-    private Path accountPreferencesPath(Long accountHash) {
-        return Paths.get(Persistance.COPILOT_DIR.getPath(), "acc_" + accountHash + "_prefs.json");
+    private Filepath accountPreferencesPath(Long accountHash) {
+        return persistance.getDirectory().joinSegment("acc_" + accountHash + "_prefs.json");
     }
 }

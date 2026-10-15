@@ -13,6 +13,7 @@ import com.flippingcopilot.util.ProfitCalculator;
 import joptsimple.internal.Strings;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.Filepath;
 
 import javax.inject.Named;
 import javax.swing.*;
@@ -365,14 +366,15 @@ public class TransactionsPanel extends JPanel {
             return;
         }
 
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Save Transactions CSV");
-        fileChooser.setSelectedFile(new File("transactions.csv"));
-
-        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-            File file = fileChooser.getSelectedFile();
+        java.util.List<Filepath> selection = new Filepath.Chooser()
+                .setIsSave()
+                .setDialogTitle("Save Transactions CSV")
+                .setFileName("transactions.csv")
+                .showDialog(this);
+        if (selection != null && !selection.isEmpty()) {
+            Filepath file = selection.get(0);
             executorService.submit(() -> {
-                try (FileWriter writer = new FileWriter(file)) {
+                try (Writer writer = file.openBufferedWriter()) {
                     writer.write(Strings.join(COLUMN_NAMES, ","));
 
                     // Use the stream method to write all matching transactions
@@ -402,7 +404,7 @@ public class TransactionsPanel extends JPanel {
                             });
 
                     SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this,
-                            "Transactions exported successfully to " + file.getName(),
+                            "Transactions exported successfully to " + file.getFileName(),
                             "Export Complete",
                             JOptionPane.INFORMATION_MESSAGE));
                 } catch (Exception e) {
