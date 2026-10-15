@@ -62,6 +62,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	@Inject
 	private GrandExchangeOfferEventHandler offerEventHandler;
 	@Inject
+	private ItemSinkTracker itemSinkTracker;
+	@Inject
 	private AccountStatusManager accountStatusManager;
 	@Inject
 	private SuggestionController suggestionController;
@@ -319,6 +321,7 @@ public class FlippingCopilotPlugin extends Plugin {
 		switch (event.getGameState())
 		{
 			case LOGIN_SCREEN:
+				itemSinkTracker.reset();
 				sessionManager.reset();
 				suggestionManager.reset();
 				osrsLoginManager.reset();

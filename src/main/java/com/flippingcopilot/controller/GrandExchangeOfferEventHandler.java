@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.GrandExchangeOfferChanged;
+import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import static com.flippingcopilot.model.OsrsLoginManager.GE_LOGIN_BURST_WINDOW;
@@ -31,13 +32,86 @@ public class GrandExchangeOfferEventHandler {
     private final GrandExchangeUncollectedManager grandExchangeUncollectedManager;
     private final OfferManager offerManager;
     private final SuggestionManager suggestionManager;
+    private final ItemSinkTracker itemSinkTracker;
+
+    // a sale to the GE tax item sink is drawn from these per-slot varps, never from the slot's offer
+    private static final int[] ITEM_SINK_OBJ = {
+        VarPlayerID.GE_ITEMSINK_OBJ_0, VarPlayerID.GE_ITEMSINK_OBJ_1, VarPlayerID.GE_ITEMSINK_OBJ_2, VarPlayerID.GE_ITEMSINK_OBJ_3,
+        VarPlayerID.GE_ITEMSINK_OBJ_4, VarPlayerID.GE_ITEMSINK_OBJ_5, VarPlayerID.GE_ITEMSINK_OBJ_6, VarPlayerID.GE_ITEMSINK_OBJ_7,
+    };
+    private static final int[] ITEM_SINK_PRICE = {
+        VarPlayerID.GE_ITEMSINK_PRICE_LONG_0, VarPlayerID.GE_ITEMSINK_PRICE_LONG_1, VarPlayerID.GE_ITEMSINK_PRICE_LONG_2, VarPlayerID.GE_ITEMSINK_PRICE_LONG_3,
+        VarPlayerID.GE_ITEMSINK_PRICE_LONG_4, VarPlayerID.GE_ITEMSINK_PRICE_LONG_5, VarPlayerID.GE_ITEMSINK_PRICE_LONG_6, VarPlayerID.GE_ITEMSINK_PRICE_LONG_7,
+    };
 
     // state
     private final Queue<Transaction> transactionsToProcess = new ConcurrentLinkedQueue<>();
 
     public void onGameTick() {
+        checkItemSink();
         if(!transactionsToProcess.isEmpty()) {
             processTransactions();
+        }
+    }
+
+    /**
+     * The GE tax item sink buys one item the moment a sell offer is posted. The slot's offer stays EMPTY and the
+     * game shows the sale from the ge_itemsink varps instead, so no GrandExchangeOfferChanged event ever fires
+     * for it: watch the varps and book the sale here.
+     */
+    private void checkItemSink() {
+        if (client.getGameState() != GameState.LOGGED_IN || osrsLoginManager.isUnsupportedWorldType()) {
+            return;
+        }
+        GrandExchangeOffer[] offers = client.getGrandExchangeOffers();
+        boolean loginBurst = osrsLoginManager.hasJustLoggedIn();
+        for (int slot = 0; slot < ITEM_SINK_OBJ.length; slot++) {
+            int itemId = client.getVarpValue(ITEM_SINK_OBJ[slot]);
+            switch (itemSinkTracker.observe(slot, itemId, loginBurst)) {
+                case SOLD:
+                    if (offers != null && offers[slot] != null && offers[slot].getState() != GrandExchangeOfferState.EMPTY) {
+                        // the slot holds a real offer, whose events already account for it
+                        break;
+                    }
+                    Transaction t = inferItemSinkSale(slot, itemId, varpLong(ITEM_SINK_PRICE[slot]));
+                    log.debug("inferred item sink sale {}", t);
+                    transactionsToProcess.add(t);
+                    grandExchangeUncollectedManager.addUncollected(client.getAccountHash(), slot, itemId, 0, t.getAmountSpent());
+                    suggestionManager.setSuggestionNeeded(true);
+                    break;
+                case CLEARED:
+                    grandExchangeUncollectedManager.ensureSlotClear(client.getAccountHash(), slot);
+                    suggestionManager.setSuggestionNeeded(true);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    private Transaction inferItemSinkSale(int slot, int itemId, long price) {
+        Transaction t = new Transaction();
+        t.setId(UUID.randomUUID());
+        t.setType(OfferStatus.SELL);
+        t.setItemId(itemId);
+        t.setPrice(price);
+        t.setQuantity(1);
+        t.setBoxId(slot);
+        t.setAmountSpent(price);
+        t.setTimestamp(Instant.now());
+        t.setCopilotPriceUsed(itemId == offerManager.getLastViewedSlotItemId() && price == offerManager.getLastViewedSlotItemPrice() && Instant.now().minusSeconds(30).getEpochSecond() < offerManager.getLastViewedSlotPriceTime());
+        t.setWasCopilotSuggestion(itemId == suggestionManager.getSuggestionItemIdOnOfferSubmitted() && OfferStatus.SELL.equals(suggestionManager.getSuggestionOfferStatusOnOfferSubmitted()));
+        t.setLogin(false);
+        t.setConsistent(true);
+        return t;
+    }
+
+    // RuneLite 1.13.1 types some of the *_LONG varps as int varps, and getVarpLongValue then throws
+    private long varpLong(int varp) {
+        try {
+            return client.getVarpLongValue(varp);
+        } catch (IllegalArgumentException e) {
+            return client.getVarpValue(varp);
         }
     }
 
