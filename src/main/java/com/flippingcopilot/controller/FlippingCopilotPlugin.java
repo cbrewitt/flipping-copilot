@@ -149,6 +149,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
 	private NavigationButton navButton;
+	private ScheduledFuture<?> sessionStatsTask;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -186,7 +187,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
 		}
 		flipsDialogController.initDialog(SwingUtilities.getWindowAncestor(mainPanel));
-		executorService.scheduleAtFixedRate(() ->
+		sessionStatsTask = executorService.scheduleAtFixedRate(() ->
 			clientThread.invoke(() -> {
 				boolean loginValid = osrsLoginManager.isValidLoginState();
 				if (loginValid) {
@@ -203,6 +204,10 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void shutDown() throws Exception {
+		if (sessionStatsTask != null) {
+			sessionStatsTask.cancel(false);
+			sessionStatsTask = null;
+		}
 		overlayManager.remove(inventorySlotTooltipOverlay);
 		overlayManager.remove(inventoryPortfolioBadgeOverlay);
 		overlayManager.remove(portfolioBankTabBadgeOverlay);
