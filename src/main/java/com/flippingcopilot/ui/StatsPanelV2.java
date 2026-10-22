@@ -8,6 +8,7 @@ import com.flippingcopilot.rs.PortfolioStateRS;
 import com.flippingcopilot.ui.components.AccountDropdown;
 import com.flippingcopilot.ui.components.IntervalDropdown;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
+import com.flippingcopilot.util.SessionRateUtil;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.ColorScheme;
@@ -23,6 +24,8 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.flippingcopilot.util.FormatUtil.formatDurationSince;
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
@@ -179,9 +182,7 @@ public class StatsPanelV2 extends JPanel {
                         if(accountId != null && accountId != -1) {
                             webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, true);
                             sessionManager.resetSession();
-                            if (IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit())) {
-                                flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
-                            }
+                            applySessionInterval();
                         }
                         refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
                     }
@@ -192,9 +193,36 @@ public class StatsPanelV2 extends JPanel {
 
     private void setupTimeIntervalDropdown() {
         intervalDropdown = new IntervalDropdown((intervalTimeUnit, intervalValue) -> {
+            if (IntervalTimeUnit.SESSION.equals(intervalTimeUnit)) {
+                applySessionInterval();
+                return;
+            }
             long startTime = IntervalDropdown.calculateStartTime(intervalTimeUnit, intervalValue, sessionManager.getCachedSessionData().startTime);
             flipManager.setIntervalStartTime((int) startTime);
         }, IntervalDropdown.ALL_TIME, true);
+    }
+
+    public void applySessionInterval() {
+        if (!IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit())) {
+            return;
+        }
+        Integer liveAccountId = liveAccountId();
+        if (!isValidAccountId(liveAccountId)) {
+            // accounts not loaded yet
+            flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+            return;
+        }
+        Map<Integer, Integer> startTimes = new HashMap<>();
+        sessionManager.getAccountSessions(liveAccountId).forEach((accountId, sd) -> startTimes.put(accountId, sd.startTime));
+        flipManager.setIntervalSessionStartTimes(startTimes);
+    }
+
+    private Integer liveAccountId() {
+        return copilotLoginRS.get().getAccountId(osrsLoginManager.getPlayerDisplayName());
+    }
+
+    private static boolean isValidAccountId(Integer accountId) {
+        return accountId != null && accountId != -1;
     }
 
     public void resetIntervalDropdownToSession() {
@@ -398,9 +426,22 @@ public class StatsPanelV2 extends JPanel {
         // 'Session time' and 'Hourly profit' should only be set if 'Session' is select in the dropdown
         if (IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit())) {
             setSessionStatsVisible(true);
+            Integer liveAccountId = liveAccountId();
+            Integer selectedAccountId = flipManager.getIntervalAccount();
+            long hourlyProfit;
+            if (!isValidAccountId(liveAccountId)) {
+                // accounts not loaded yet
+                hourlyProfit = SessionRateUtil.hourlyProfit(stats.profit, sd.durationMillis);
+            } else if (selectedAccountId == null) {
+                // sum of each account's own GP/hr
+                hourlyProfit = SessionRateUtil.combinedHourlyProfit(sessionManager.getAccountSessions(liveAccountId),
+                        (startTime, accountId) -> flipManager.calculateStats(startTime, accountId).profit);
+            } else {
+                SessionData selectedSession = sessionManager.getAccountSessions(liveAccountId).get(selectedAccountId);
+                sd = selectedSession != null ? selectedSession : new SessionData(sd.startTime, 0, 0);
+                hourlyProfit = SessionRateUtil.hourlyProfit(stats.profit, sd.durationMillis);
+            }
             long seconds = sd.durationMillis / 1000;
-            float hoursFloat = (((float) seconds) / 3600.0f);
-            long hourlyProfit = hoursFloat == 0 ? 0 : (long) (stats.profit / hoursFloat);
             String sessionTime = String.format("%02d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60);
             sessionTimeVal.setText(sessionTime);
             hourlyProfitVal.setText(UIUtilities.formatProfitWithoutGp(hourlyProfit) + " gp/hr");

@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * This class is essentially a cache of user flips that facilitates efficient access to the flips and statistics for
@@ -43,6 +44,8 @@ public class FlipManager {
     private volatile int copilotUserId;
     private Integer intervalAccount;
     private int intervalStartTime;
+    // per-account session start times, null when intervalStartTime applies to every account
+    private Map<Integer, Integer> intervalAccountStartTimes;
     private Stats intervalStats = new Stats();
 
     final Map<Integer, Map<Integer, FlipV2>> lastOpenFlipByItemId = new HashMap<>();
@@ -102,15 +105,30 @@ public class FlipManager {
 
     public synchronized void setIntervalStartTime(int startTime) {
         log.debug("time interval start set to: {}", Instant.ofEpochSecond(startTime));
-        if (startTime == intervalStartTime) {
+        if (startTime == intervalStartTime && intervalAccountStartTimes == null) {
             return;
         }
         intervalStartTime = startTime;
+        intervalAccountStartTimes = null;
+        recalculateIntervalStats();
+    }
+
+    public synchronized void setIntervalSessionStartTimes(Map<Integer, Integer> accountStartTimes) {
+        Map<Integer, Integer> startTimes = new HashMap<>(accountStartTimes);
+        if (startTimes.equals(intervalAccountStartTimes)) {
+            return;
+        }
+        log.debug("time interval set to per-account session start times: {}", startTimes);
+        intervalAccountStartTimes = startTimes;
+        // page iteration starts at the earliest session
+        startTimes.values().stream().min(Integer::compare).ifPresent(t -> intervalStartTime = t);
         recalculateIntervalStats();
     }
 
     private void recalculateIntervalStats() {
-        if(intervalAccount == null) {
+        if (intervalAccountStartTimes != null) {
+            intervalStats = calculateStatsForAccountStartTimes(intervalAccountStartTimes, intervalAccount);
+        } else if(intervalAccount == null) {
             intervalStats = calculateStatsAllAccounts(intervalStartTime);
         } else {
             intervalStats = calculateStatsForAccount(intervalStartTime, intervalAccount);
@@ -143,8 +161,24 @@ public class FlipManager {
         return stats;
     }
 
-    public List<FlipV2> getPageFlips(int page, int pageSize) {
-        return getPageFlips(page, pageSize,  intervalStartTime, intervalAccount);
+    private Stats calculateStatsForAccountStartTimes(Map<Integer, Integer> accountStartTimes, Integer accountFilter) {
+        Stats stats = new Stats();
+        accountStartTimes.forEach((accountId, startTime) -> {
+            if (accountFilter == null || accountFilter.equals(accountId)) {
+                stats.add(calculateStatsForAccount(startTime, accountId));
+            }
+        });
+        return stats;
+    }
+
+    public synchronized List<FlipV2> getPageFlips(int page, int pageSize) {
+        if (intervalAccountStartTimes == null) {
+            return getPageFlips(page, pageSize, intervalStartTime, intervalAccount, f -> true);
+        }
+        if (intervalAccountStartTimes.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return getPageFlips(page, pageSize, intervalStartTime, intervalAccount, this::isInInterval);
     }
 
     public synchronized void aggregateFlips(int intervalStartTime, Integer accountId, boolean includeBuyingFlips, Consumer<FlipV2> c) {
@@ -182,6 +216,10 @@ public class FlipManager {
     }
 
     public synchronized List<FlipV2> getPageFlips(int page, int pageSize, int intervalStartTime, Integer accountId) {
+        return getPageFlips(page, pageSize, intervalStartTime, accountId, f -> true);
+    }
+
+    private List<FlipV2> getPageFlips(int page, int pageSize, int intervalStartTime, Integer accountId, Predicate<FlipV2> inInterval) {
         if (Objects.equals(accountId,-1)) {
             return new ArrayList<>();
         }
@@ -198,7 +236,7 @@ public class FlipManager {
             int n = weekFlips.size();
             for(int ii=n-1; ii >= 0 && pageFlips.size() < pageSize; ii--) {
                 FlipV2 flip = weekFlips.get(ii);
-                if (!isTrackedFlip(flip)) {
+                if (!isTrackedFlip(flip) || !inInterval.test(flip)) {
                     continue;
                 }
                 if (toSkip > 0) {
@@ -217,6 +255,7 @@ public class FlipManager {
     public synchronized void reset() {
         intervalAccount = null;
         intervalStartTime = 0;
+        intervalAccountStartTimes = null;
         copilotUserId = 0;
         intervalStats = new Stats();
         lastOpenFlipByItemId.clear();
@@ -317,7 +356,14 @@ public class FlipManager {
     }
 
     private boolean isInInterval(FlipV2 flip) {
-        return flip.getClosedTime() >= intervalStartTime && (intervalAccount == null || flip.getAccountId() == intervalAccount);
+        if (intervalAccount != null && flip.getAccountId() != intervalAccount) {
+            return false;
+        }
+        if (intervalAccountStartTimes != null) {
+            Integer accountStartTime = intervalAccountStartTimes.get(flip.getAccountId());
+            return accountStartTime != null && flip.getClosedTime() >= accountStartTime;
+        }
+        return flip.getClosedTime() >= intervalStartTime;
     }
 
     private WeekAggregate getOrInitWeek(int closeTime) {
