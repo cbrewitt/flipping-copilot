@@ -6,6 +6,7 @@ import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.*;
 import com.flippingcopilot.ui.UIUtilities;
+import com.flippingcopilot.ui.components.AccountDropdown;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -13,6 +14,7 @@ import net.runelite.client.ui.FontManager;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
@@ -26,24 +28,29 @@ public class PortfolioPanel extends JPanel {
     private static final String CONTENT_CARD = "content";
     private static final String LOGIN_PROMPT_CARD = "login";
     private static final String[] COLUMN_NAMES = {
-            "Item", "Market value", "Quantity", "Unrealized Profit", "Unrealized ROI", "Avg buy price", "Time held"
+            "Item", "Market value", "Quantity", "Unrealized Profit", "Unrealized ROI", "Avg buy price", "Time held", "Accounts"
     };
+    private static final int ACCOUNTS_COLUMN = 7;
 
-    private static final Map<String, Comparator<PortfolioItemCardData>> SORT_COMPARATORS = new HashMap<>();
+    private static final Map<String, Comparator<PortfolioRow>> SORT_COMPARATORS = new HashMap<>();
     static {
         SORT_COMPARATORS.put("Item", Comparator.comparing(
-                PortfolioItemCardData::getItemName,
+                PortfolioRow::getItemName,
                 Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
         // Numeric columns are pre-reversed so the default DESC direction shows largest-first
-        SORT_COMPARATORS.put("Market value", Comparator.<PortfolioItemCardData>comparingLong(
-                i -> i.getPostTaxSellUnitPrice() * (long) i.getPortfolioQuantity()).reversed());
-        SORT_COMPARATORS.put("Quantity", Comparator.comparingInt(PortfolioItemCardData::getPortfolioQuantity).reversed());
-        SORT_COMPARATORS.put("Avg buy price", Comparator.comparingLong(PortfolioItemCardData::getUnitBuyPrice).reversed());
-        SORT_COMPARATORS.put("Time held", Comparator.comparingInt(PortfolioItemCardData::getHeldMinutes));
-        SORT_COMPARATORS.put("Unrealized Profit", Comparator.comparingLong(PortfolioItemCardData::portfolioUnrealizedProfit).reversed());
+        SORT_COMPARATORS.put("Market value", Comparator.comparingLong(PortfolioRow::getMarketValue).reversed());
+        SORT_COMPARATORS.put("Quantity", Comparator.comparingInt(PortfolioRow::getQuantity).reversed());
+        SORT_COMPARATORS.put("Avg buy price", Comparator.comparing(
+                PortfolioRow::getAvgBuyPrice,
+                Comparator.nullsLast(Comparator.<Long>naturalOrder().reversed())));
+        SORT_COMPARATORS.put("Time held", Comparator.comparingInt(PortfolioRow::getHeldMinutes));
+        SORT_COMPARATORS.put("Unrealized Profit", Comparator.comparingLong(PortfolioRow::getUnrealizedProfit).reversed());
         SORT_COMPARATORS.put("Unrealized ROI", Comparator.comparing(
-                PortfolioPanel::calculateUnrealizedRoi,
+                PortfolioRow::getUnrealizedRoi,
                 Comparator.nullsLast(Comparator.<Double>naturalOrder().reversed())));
+        SORT_COMPARATORS.put("Accounts", Comparator.comparing(
+                r -> String.join(", ", r.getAccounts()),
+                String.CASE_INSENSITIVE_ORDER));
     }
 
     private final ItemController itemController;
@@ -53,18 +60,27 @@ public class PortfolioPanel extends JPanel {
     private final CopilotLoginRS copilotLoginRS;
     private final OsrsLoginRS osrsLoginRS;
     private final PortfolioStateRS portfolioStateRS;
+    private final AccountPortfoliosRS accountPortfoliosRS;
     private final BankStateRS bankStateRS;
     private final ClientThread clientThread;
     private final Consumer<Integer> openPriceGraph;
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
     private final JPanel summaryTablePanel;
-    private final PaginatedTablePanel<PortfolioItemCardData> tablePanel;
+    private final PaginatedTablePanel<PortfolioRow> tablePanel;
+    private final TableColumn accountsColumn;
+    private final AccountDropdown accountDropdown;
     private final JLabel autoSyncInfoLabel;
     private final JButton clearPortfolioButton;
     private final Map<Integer, ImageIcon> itemIconCache = new ConcurrentHashMap<>();
 
-    private List<PortfolioItemCardData> currentItems = new ArrayList<>();
+    // null for all accounts
+    private Integer selectedAccountId;
+    private Integer lastLiveAccountId;
+    private boolean syncingDropdown;
+    private boolean accountsColumnVisible = true;
+    private PortfolioView currentView;
+    private List<PortfolioRow> currentRows = new ArrayList<>();
     private String sortColumn = "Unrealized Profit";
     private SortDirection sortDirection = SortDirection.DESC;
 
@@ -75,6 +91,7 @@ public class PortfolioPanel extends JPanel {
                           CopilotLoginRS copilotLoginRS,
                           OsrsLoginRS osrsLoginRs,
                           PortfolioStateRS portfolioStateRS,
+                          AccountPortfoliosRS accountPortfoliosRS,
                           BankStateRS bankStateRS,
                           ClientThread clientThread,
                           Consumer<Integer> openPriceGraph) {
@@ -85,6 +102,7 @@ public class PortfolioPanel extends JPanel {
         this.copilotLoginRS = copilotLoginRS;
         this.osrsLoginRS = osrsLoginRs;
         this.portfolioStateRS = portfolioStateRS;
+        this.accountPortfoliosRS = accountPortfoliosRS;
         this.bankStateRS = bankStateRS;
         this.clientThread = clientThread;
         this.openPriceGraph = openPriceGraph;
@@ -134,6 +152,8 @@ public class PortfolioPanel extends JPanel {
         contentPanel.add(summarySection, BorderLayout.NORTH);
 
         tablePanel = new PaginatedTablePanel<>(COLUMN_NAMES, this::toRow, 40);
+        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.get().displayNameToAccountId, this::onAccountSelected);
+        tablePanel.leftControls().add(accountDropdown);
         tablePanel.rightControls().add(clearPortfolioButton);
         tablePanel.installHeaderSort(() -> sortColumn, () -> sortDirection, (clickedColumn, newDirection) -> {
             sortColumn = clickedColumn;
@@ -216,17 +236,16 @@ public class PortfolioPanel extends JPanel {
             }
         };
         tablePanel.setRenderer(roiRenderer, 4);
+        accountsColumn = tablePanel.table().getColumnModel().getColumn(ACCOUNTS_COLUMN);
+        setAccountsColumnVisible(false);
         contentPanel.add(tablePanel, BorderLayout.CENTER);
 
         cardPanel.add(contentPanel, CONTENT_CARD);
         cardPanel.add(DialogUi.centeredMessage("Log into the game to see account portfolio", null, false, 18f), LOGIN_PROMPT_CARD);
         add(cardPanel, BorderLayout.CENTER);
 
-        portfolioStateRS.registerListener(state -> SwingUtilities.invokeLater(() -> {
-            if (osrsLoginRS.get().loggedIn) {
-                renderFromState(state);
-            }
-        }));
+        portfolioStateRS.registerListener(state -> SwingUtilities.invokeLater(this::renderIfLoggedIn));
+        accountPortfoliosRS.registerListener(state -> SwingUtilities.invokeLater(this::renderIfLoggedIn));
         osrsLoginRS.registerListener(state -> SwingUtilities.invokeLater(this::refresh));
         bankStateRS.registerListener(state -> SwingUtilities.invokeLater(this::refreshAutoSyncLabel));
 
@@ -237,7 +256,34 @@ public class PortfolioPanel extends JPanel {
         refresh();
     }
 
+    public void selectAccount(Integer accountId) {
+        selectedAccountId = accountId;
+        refresh();
+    }
+
+    private void onAccountSelected(Integer accountId) {
+        // ignore events from programmatic updates
+        if (syncingDropdown || Objects.equals(accountId, selectedAccountId)) {
+            return;
+        }
+        selectedAccountId = accountId;
+        renderIfLoggedIn();
+    }
+
+    private Integer liveAccountId() {
+        Integer accountId = copilotLoginRS.get().getAccountId(osrsLoginRS.get().displayName);
+        return accountId == null || accountId == -1 ? null : accountId;
+    }
+
     private void refresh() {
+        Integer liveAccountId = liveAccountId();
+        // follow the logged in account unless another option was picked
+        if (Objects.equals(selectedAccountId, lastLiveAccountId)) {
+            selectedAccountId = liveAccountId;
+        }
+        lastLiveAccountId = liveAccountId;
+        syncDropdown();
+
         if (!osrsLoginRS.get().loggedIn) {
             cardLayout.show(cardPanel, LOGIN_PROMPT_CARD);
             clearPortfolioButton.setEnabled(false);
@@ -246,15 +292,22 @@ public class PortfolioPanel extends JPanel {
             return;
         }
         cardLayout.show(cardPanel, CONTENT_CARD);
-        Integer accountId = copilotLoginRS.get().getAccountId(osrsLoginRS.get().displayName);
-        clearPortfolioButton.setEnabled(accountId != null && accountId != -1);
-        refreshAutoSyncLabel();
-        renderFromState(portfolioStateRS.get());
+        render();
+    }
+
+    private void syncDropdown() {
+        syncingDropdown = true;
+        try {
+            accountDropdown.refresh();
+            accountDropdown.setSelectedAccountId(selectedAccountId);
+        } finally {
+            syncingDropdown = false;
+        }
     }
 
     private void onClearPortfolioClicked() {
         Integer accountId = copilotLoginRS.get().getAccountId(osrsLoginRS.get().displayName);
-        if (accountId == null || accountId == -1) {
+        if (accountId == null || accountId == -1 || !isLiveAccountView()) {
             return;
         }
         int choice = JOptionPane.showConfirmDialog(
@@ -271,10 +324,10 @@ public class PortfolioPanel extends JPanel {
                 (userId, result) -> SwingUtilities.invokeLater(() -> {
                     portfolioStateRS.updatePortfolioState(suggestionManager.getSuggestion(), result);
                     suggestionManager.setSuggestionNeeded(true);
-                    clearPortfolioButton.setEnabled(true);
+                    clearPortfolioButton.setEnabled(isLiveAccountView());
                 }),
                 error -> SwingUtilities.invokeLater(() -> {
-                    clearPortfolioButton.setEnabled(true);
+                    clearPortfolioButton.setEnabled(isLiveAccountView());
                     JOptionPane.showMessageDialog(
                             this,
                             "Failed to clear portfolio. Please try again.",
@@ -284,31 +337,59 @@ public class PortfolioPanel extends JPanel {
         );
     }
 
+    private boolean isLiveAccountView() {
+        return currentView != null && currentView.isLiveAccount();
+    }
+
     private void refreshAutoSyncLabel() {
-        String labelText = bankStateRS.get().isLoaded()
-                ? "Bank loaded. Full quantity syncing enabled. Note: items are excluded from syncing whilst active in one of your Grand Exchange slots."
-                : "Please open your bank once to enable more accurate quantity syncing.";
+        String labelText;
+        if (currentView != null && !currentView.isLiveAccount()) {
+            String sources = UIUtilities.describePortfolioSources(currentView);
+            labelText = (selectedAccountId == null ? "Combined portfolio of " : "Last saved portfolio of ") + sources
+                    + ". Select your logged in account to edit its portfolio.";
+        } else {
+            labelText = bankStateRS.get().isLoaded()
+                    ? "Bank loaded. Full quantity syncing enabled. Note: items are excluded from syncing whilst active in one of your Grand Exchange slots."
+                    : "Please open your bank once to enable more accurate quantity syncing.";
+        }
         autoSyncInfoLabel.setText(String.format("<html><div style='width: 560px; text-align: left;'>%s</div></html>", labelText));
     }
 
-    private List<PortfolioItemCardData> filterInPortfolioItems(List<PortfolioItemCardData> items) {
-        List<PortfolioItemCardData> filteredItems = new ArrayList<>();
-        for (PortfolioItemCardData item : items) {
-            if (item.isInPortfolio()) {
-                filteredItems.add(item);
-            }
+    private void renderIfLoggedIn() {
+        if (osrsLoginRS.get().loggedIn) {
+            render();
         }
-        return filteredItems;
     }
 
-    private void renderFromState(PortfolioState state) {
-        List<PortfolioItemCardData> items = new ArrayList<>(state.getItemCardDataByItemId().values());
-        currentItems = filterInPortfolioItems(items);
-        PortfolioSummaryData sm = state.getSummaryData();
-        renderSummary(sm, currentItems.size());
+    private void render() {
+        syncDropdown();
+        currentView = PortfolioAggregator.build(
+                selectedAccountId,
+                liveAccountId(),
+                portfolioStateRS.get(),
+                accountPortfoliosRS.get(),
+                copilotLoginRS.get().accountIdToDisplayName,
+                itemController::getItemName);
+        currentRows = currentView.getRows();
+        clearPortfolioButton.setEnabled(currentView.isLiveAccount());
+        setAccountsColumnVisible(!currentView.isLiveAccount());
+        renderSummary(currentView.getSummary(), currentRows.size());
+        refreshAutoSyncLabel();
         renderTable();
         revalidate();
         repaint();
+    }
+
+    private void setAccountsColumnVisible(boolean visible) {
+        if (visible == accountsColumnVisible) {
+            return;
+        }
+        if (visible) {
+            tablePanel.table().getColumnModel().addColumn(accountsColumn);
+        } else {
+            tablePanel.table().getColumnModel().removeColumn(accountsColumn);
+        }
+        accountsColumnVisible = visible;
     }
 
     private void renderSummary(PortfolioSummaryData data, int totalItemsInPortfolio) {
@@ -342,41 +423,46 @@ public class PortfolioPanel extends JPanel {
     }
 
     private void renderTable() {
-        List<PortfolioItemCardData> sortedItems = new ArrayList<>(currentItems);
-        FilterSortUtil.sort(sortedItems, SORT_COMPARATORS, sortColumn, sortDirection);
-        tablePanel.setRows(sortedItems);
+        List<PortfolioRow> sortedRows = new ArrayList<>(currentRows);
+        FilterSortUtil.sort(sortedRows, SORT_COMPARATORS, sortColumn, sortDirection);
+        tablePanel.setRows(sortedRows);
     }
 
-    private Object[] toRow(PortfolioItemCardData item) {
+    private Object[] toRow(PortfolioRow row) {
         NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
-        long avgBuyPrice = item.getUnitBuyPrice();
         return new Object[]{
-                new ItemCell(item.getItemId(), item.getItemName()),
-                item.getPostTaxSellUnitPrice() * item.getPortfolioQuantity(),
-                nf.format(item.getPortfolioQuantity()),
-                item.portfolioUnrealizedProfit(),
-                calculateUnrealizedRoi(item),
-                avgBuyPrice > 0 ? avgBuyPrice : null,
-                UIUtilities.formatDurationMinutes(item.getHeldMinutes())
+                new ItemCell(row.getItemId(), row.getItemName()),
+                row.getMarketValue(),
+                nf.format(row.getQuantity()),
+                row.getUnrealizedProfit(),
+                row.getUnrealizedRoi(),
+                row.getAvgBuyPrice(),
+                UIUtilities.formatDurationMinutes(row.getHeldMinutes()),
+                String.join(", ", row.getAccounts())
         };
     }
 
-    private void showPortfolioMenu(MouseEvent e, PortfolioItemCardData item) {
+    private void showPortfolioMenu(MouseEvent e, PortfolioRow row) {
         JPopupMenu popupMenu = new JPopupMenu();
-        buildContextMenu(popupMenu, item);
+        buildContextMenu(popupMenu, row);
         popupMenu.show(e.getComponent(), e.getX(), e.getY());
     }
 
-    private void buildContextMenu(JPopupMenu menu, PortfolioItemCardData item) {
-        int portfolioQty = item.getPortfolioQuantity();
+    private void buildContextMenu(JPopupMenu menu, PortfolioRow row) {
+        int portfolioQty = row.getQuantity();
 
         JMenuItem showGraph = new JMenuItem("Show price graph");
-        showGraph.addActionListener(e -> openPriceGraph.accept(item.getItemId()));
+        showGraph.addActionListener(e -> openPriceGraph.accept(row.getItemId()));
         menu.add(showGraph);
+
+        // removal only applies to the logged in account
+        if (!isLiveAccountView()) {
+            return;
+        }
 
         if (portfolioQty > 0) {
             JMenuItem removeAll = new JMenuItem("Remove from portfolio");
-            removeAll.addActionListener(e -> togglePortfolio(item.getItemId(), ToggleItemPortfolioRequest.REMOVE, 0));
+            removeAll.addActionListener(e -> togglePortfolio(row.getItemId(), ToggleItemPortfolioRequest.REMOVE, 0));
             menu.add(removeAll);
         }
 
@@ -388,7 +474,7 @@ public class PortfolioPanel extends JPanel {
                     try {
                         int qty = Integer.parseInt(input.trim());
                         if (qty > 0) {
-                            togglePortfolio(item.getItemId(), ToggleItemPortfolioRequest.REMOVE, qty);
+                            togglePortfolio(row.getItemId(), ToggleItemPortfolioRequest.REMOVE, qty);
                         }
                     } catch (NumberFormatException ignored) {
                     }
@@ -428,17 +514,6 @@ public class PortfolioPanel extends JPanel {
     private String formatGp(long amount, boolean signed) {
         String prefix = signed && amount > 0 ? "+" : "";
         return prefix + GP_FORMAT.format(amount) + " gp";
-    }
-
-    private static Double calculateUnrealizedRoi(PortfolioItemCardData item) {
-        if (item.getUnrealizedUnitProfit() == null) {
-            return null;
-        }
-        long unitBuyPrice = item.getPostTaxSellUnitPrice() - item.getUnrealizedUnitProfit();
-        if (unitBuyPrice <= 0) {
-            return null;
-        }
-        return (double) item.getUnrealizedUnitProfit() / (double) unitBuyPrice;
     }
 
     private static class ItemCell {

@@ -1,6 +1,7 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
+import com.flippingcopilot.model.PortfolioView;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.QuantityFormatter;
@@ -11,6 +12,9 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.text.*;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
 
@@ -106,6 +110,26 @@ public class UIUtilities {
             return hours + "h " + remainingMinutes + "m";
         }
         return Math.max(1, remainingMinutes) + "m";
+    }
+
+    public static String describePortfolioSources(PortfolioView view) {
+        long now = Instant.now().getEpochSecond();
+        List<String> parts = new ArrayList<>();
+        for (PortfolioView.Source s : view.getSources()) {
+            parts.add(s.getSavedAt() == null
+                    ? s.getDisplayName() + " (live)"
+                    : s.getDisplayName() + " (" + formatDurationMinutes((int) ((now - s.getSavedAt()) / 60)) + " ago)");
+        }
+        StringBuilder sb = new StringBuilder(String.join(", ", parts));
+        if (!view.getMissingAccounts().isEmpty()) {
+            if (sb.length() > 0) {
+                sb.append(". ");
+            }
+            sb.append("No portfolio data yet for ")
+                    .append(String.join(", ", view.getMissingAccounts()))
+                    .append(", log into each once to include it");
+        }
+        return sb.toString();
     }
 
     public static String truncateString(String string, int length) {

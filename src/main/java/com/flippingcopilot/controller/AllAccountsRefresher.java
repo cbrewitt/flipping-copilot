@@ -4,6 +4,7 @@ import com.flippingcopilot.model.CopilotLoginState;
 import com.flippingcopilot.model.OsrsLoginManager;
 import com.flippingcopilot.model.OsrsLoginState;
 import com.flippingcopilot.model.SessionManager;
+import com.flippingcopilot.rs.AccountPortfoliosRS;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.rs.OsrsLoginRS;
 import com.flippingcopilot.ui.StatsPanelV2;
@@ -19,7 +20,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-// Re-reads session files written by other clients so 'All accounts' includes their accounts.
+// Re-reads session and portfolio files written by other clients so 'All accounts' includes their accounts.
 @Slf4j
 @Singleton
 public class AllAccountsRefresher {
@@ -30,6 +31,7 @@ public class AllAccountsRefresher {
     private final OsrsLoginRS osrsLoginRS;
     private final OsrsLoginManager osrsLoginManager;
     private final SessionManager sessionManager;
+    private final AccountPortfoliosRS accountPortfoliosRS;
     private final ScheduledExecutorService executorService;
 
     private ScheduledFuture<?> task;
@@ -39,11 +41,13 @@ public class AllAccountsRefresher {
                                 OsrsLoginRS osrsLoginRS,
                                 OsrsLoginManager osrsLoginManager,
                                 SessionManager sessionManager,
+                                AccountPortfoliosRS accountPortfoliosRS,
                                 @Named("copilotExecutor") ScheduledExecutorService executorService) {
         this.copilotLoginRS = copilotLoginRS;
         this.osrsLoginRS = osrsLoginRS;
         this.osrsLoginManager = osrsLoginManager;
         this.sessionManager = sessionManager;
+        this.accountPortfoliosRS = accountPortfoliosRS;
         this.executorService = executorService;
     }
 
@@ -69,6 +73,7 @@ public class AllAccountsRefresher {
             OsrsLoginState osrsLogin = osrsLoginRS.get();
             String liveDisplayName = osrsLogin != null && osrsLogin.loggedIn ? osrsLogin.displayName : null;
             boolean sessionsChanged = sessionManager.refreshOtherAccountSessions(accounts, liveDisplayName);
+            accountPortfoliosRS.reload(accounts);
             if (liveDisplayName == null) {
                 return;
             }
@@ -79,7 +84,7 @@ public class AllAccountsRefresher {
                 }
             });
         } catch (Exception e) {
-            log.warn("error refreshing other accounts' sessions", e);
+            log.warn("error refreshing other accounts' sessions and portfolios", e);
         }
     }
 }
