@@ -40,9 +40,6 @@ public class StatsPanelV2 extends JPanel {
     public final Icon FLIPS_DIALOG = new ImageIcon(FLIPS_DIALOG_ICON);
     public final Icon HIGHLIGHTED_FLIPS_DIALOG = new ImageIcon(ImageUtil.luminanceScale(FLIPS_DIALOG_ICON, BUTTON_HOVER_LUMINANCE));
 
-    private static final int SESSION_TIME_ROW = 4;
-    private static final int HOURLY_PROFIT_ROW = 5;
-
     // dependencies
     private final CopilotLoginRS copilotLoginRS;
     private final OsrsLoginManager osrsLoginManager;
@@ -60,6 +57,8 @@ public class StatsPanelV2 extends JPanel {
     private final JButton sessionResetButton = new JButton("  Reset session ");
     private JPanel profitAndSubInfoPanel;
     private JPanel subInfoPanel;
+    private JPanel sessionTimeRow;
+    private JPanel hourlyProfitRow;
     private final JPanel flipsPanel = new JPanel();
     private final JLabel totalProfitVal = new JLabel("0 gp");
     private final JLabel roiVal = new JLabel("-0.00%");
@@ -252,11 +251,13 @@ public class StatsPanelV2 extends JPanel {
 
     private JPanel buildSubInfoPanel() {
         JPanel subInfoPanel = UIUtilities.verticalPanel(ColorScheme.DARKER_GRAY_COLOR);
+        sessionTimeRow = buildSubInfoPanelItem("Session time:", sessionTimeVal, ColorScheme.GRAND_EXCHANGE_ALCH);
+        hourlyProfitRow = buildSubInfoPanelItem("Hourly profit:", hourlyProfitVal, Color.WHITE);
         subInfoPanel.add(buildSubInfoPanelItem("Unrealized profit:", unrealizedProfitVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
         subInfoPanel.add(buildSubInfoPanelItem("Flips made:", flipsMadeVal, ColorScheme.LIGHT_GRAY_COLOR));
         subInfoPanel.add(buildSubInfoPanelItem("ROI:", roiVal, UIUtilities.TOMATO));
-        subInfoPanel.add(buildSubInfoPanelItem("Session time:", sessionTimeVal, ColorScheme.GRAND_EXCHANGE_ALCH));
-        subInfoPanel.add(buildSubInfoPanelItem("Hourly profit:", hourlyProfitVal, Color.WHITE));
+        subInfoPanel.add(sessionTimeRow);
+        subInfoPanel.add(hourlyProfitRow);
         subInfoPanel.add(buildSubInfoPanelItem("Portfolio value:", portfolioValueVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
         subInfoPanel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0,0,1,0, ColorScheme.DARK_GRAY_COLOR),
                 new EmptyBorder(2, 5, 5, 5)));
@@ -410,7 +411,7 @@ public class StatsPanelV2 extends JPanel {
     }
 
     private void setSessionStatsVisible(boolean visible) {
-        subInfoPanel.getComponent(SESSION_TIME_ROW).setVisible(visible);
-        subInfoPanel.getComponent(HOURLY_PROFIT_ROW).setVisible(visible);
+        sessionTimeRow.setVisible(visible);
+        hourlyProfitRow.setVisible(visible);
     }
 }
