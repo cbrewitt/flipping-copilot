@@ -127,6 +127,8 @@ public class FlippingCopilotPlugin extends Plugin {
 	private PortfolioBankTagController portfolioBankTagController;
 	@Inject
 	private PlayerLocationController playerLocationController;
+	@Inject
+	private AllAccountsRefresher allAccountsRefresher;
 
 	// We use our own ThreadPool since the default ScheduledExecutorService only has a single thread and we don't want to block it
 	@Provides
@@ -151,6 +153,7 @@ public class FlippingCopilotPlugin extends Plugin {
 	private MainPanel mainPanel;
 	private StatsPanelV2 statsPanel;
 	private NavigationButton navButton;
+	private ScheduledFuture<?> sessionStatsTask;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -185,10 +188,11 @@ public class FlippingCopilotPlugin extends Plugin {
 
 		if(osrsLoginManager.getInvalidStateDisplayMessage() == null) {
 			flipManager.setIntervalAccount(null);
-			flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+			statsPanel.applySessionInterval();
 		}
 		flipsDialogController.initDialog(SwingUtilities.getWindowAncestor(mainPanel));
-		executorService.scheduleAtFixedRate(() ->
+		allAccountsRefresher.start(statsPanel);
+		sessionStatsTask = executorService.scheduleAtFixedRate(() ->
 			clientThread.invoke(() -> {
 				boolean loginValid = osrsLoginManager.isValidLoginState();
 				if (loginValid) {
@@ -205,6 +209,11 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Override
 	protected void shutDown() throws Exception {
+		allAccountsRefresher.stop();
+		if (sessionStatsTask != null) {
+			sessionStatsTask.cancel(false);
+			sessionStatsTask = null;
+		}
 		overlayManager.remove(inventorySlotTooltipOverlay);
 		overlayManager.remove(inventoryPortfolioBadgeOverlay);
 		overlayManager.remove(portfolioBankTabBadgeOverlay);
@@ -356,7 +365,7 @@ public class FlippingCopilotPlugin extends Plugin {
 					} else {
 						flipManager.setIntervalAccount(null);
 					}
-					flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+					statsPanel.applySessionInterval();
 					statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn()  && osrsLoginManager.isValidLoginState());
 					mainPanel.refresh();
 					if(copilotLoginRS.get().isLoggedIn()) {

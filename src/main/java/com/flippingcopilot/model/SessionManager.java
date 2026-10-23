@@ -11,6 +11,7 @@ import javax.inject.Singleton;
 import java.io.*;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
@@ -21,6 +22,8 @@ import java.util.concurrent.ScheduledExecutorService;
 public class SessionManager {
 
     public static final String SESSION_DATA_FILE_TEMPLATE = "%s_session_data.jsonl";
+    // other accounts only count while another client is updating their session file
+    public static final long ACTIVE_SESSION_MAX_AGE_MILLIS = 30 * 60 * 1000;
 
     private final Persistance persistance;
     private final OsrsLoginManager osrsLoginManager;
@@ -31,6 +34,10 @@ public class SessionManager {
     private final Map<String, Filepath> displayNameToFile = new HashMap<>();
 
     private Instant lastSessionUpdateTime;
+
+    // kept out of cachedSessionData so this client never writes another client's session back to disk
+    private final Map<String, FileSessionData> otherAccountFileCache = new HashMap<>();
+    private volatile Map<Integer, SessionData> otherAccountSessions = Collections.emptyMap();
 
     public synchronized SessionData getCachedSessionData() {
         SessionData sd = getSessionData(osrsLoginManager.getPlayerDisplayName());
@@ -110,5 +117,85 @@ public class SessionManager {
 
     public synchronized void reset() {
         lastSessionUpdateTime = null;
+    }
+
+    public Map<Integer, SessionData> getAccountSessions(Integer liveAccountId) {
+        Map<Integer, SessionData> sessions = new HashMap<>(otherAccountSessions);
+        if (liveAccountId != null && liveAccountId != -1) {
+            sessions.put(liveAccountId, getCachedSessionData());
+        }
+        return sessions;
+    }
+
+    // file IO, call off the client and Swing threads
+    public boolean refreshOtherAccountSessions(Map<String, Integer> displayNameToAccountId, String liveDisplayName) {
+        long now = System.currentTimeMillis();
+        Map<Integer, SessionData> sessions = new HashMap<>();
+        synchronized (otherAccountFileCache) {
+            otherAccountFileCache.keySet().retainAll(displayNameToAccountId.keySet());
+            displayNameToAccountId.forEach((displayName, accountId) -> {
+                if (displayName.equals(liveDisplayName)) {
+                    return;
+                }
+                SessionData sd = readActiveSession(displayName, now);
+                if (sd != null) {
+                    sessions.put(accountId, sd);
+                }
+            });
+        }
+        boolean changed = !sameSessions(sessions, otherAccountSessions);
+        otherAccountSessions = Collections.unmodifiableMap(sessions);
+        return changed;
+    }
+
+    private SessionData readActiveSession(String displayName, long now) {
+        Filepath file = persistance.getDirectory().joinSegment(String.format(SESSION_DATA_FILE_TEMPLATE, Persistance.hashDisplayName(displayName)));
+        FileSessionData cached = otherAccountFileCache.get(displayName);
+        try {
+            if (!file.exists()) {
+                otherAccountFileCache.remove(displayName);
+                return null;
+            }
+            long modified = file.getLastModifiedTime().toMillis();
+            if (now - modified > ACTIVE_SESSION_MAX_AGE_MILLIS) {
+                return null;
+            }
+            if (cached == null || cached.modified != modified) {
+                try (BufferedReader reader = file.openBufferedReader()) {
+                    SessionData sd = gson.fromJson(reader, SessionData.class);
+                    if (sd != null) {
+                        cached = new FileSessionData(modified, sd);
+                        otherAccountFileCache.put(displayName, cached);
+                    }
+                }
+            }
+        } catch (JsonSyntaxException | JsonIOException | IOException e) {
+            // may be mid-write by another client
+            log.debug("error reading session data file {}", file, e);
+        }
+        return cached == null ? null : new SessionData(cached.data.startTime, cached.data.durationMillis, cached.data.averageCash);
+    }
+
+    private static boolean sameSessions(Map<Integer, SessionData> a, Map<Integer, SessionData> b) {
+        if (!a.keySet().equals(b.keySet())) {
+            return false;
+        }
+        for (Map.Entry<Integer, SessionData> e : a.entrySet()) {
+            SessionData other = b.get(e.getKey());
+            if (e.getValue().startTime != other.startTime || e.getValue().durationMillis != other.durationMillis) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static class FileSessionData {
+        final long modified;
+        final SessionData data;
+
+        FileSessionData(long modified, SessionData data) {
+            this.modified = modified;
+            this.data = data;
+        }
     }
 }
