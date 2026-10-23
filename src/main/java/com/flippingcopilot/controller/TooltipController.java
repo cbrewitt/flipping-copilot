@@ -1,5 +1,6 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.UIUtilities;
 import com.flippingcopilot.util.ProfitCalculator;
 import lombok.RequiredArgsConstructor;
@@ -22,11 +23,13 @@ import java.util.regex.Pattern;
 public class TooltipController {
     private static final int SCRIPT_TOOLTIP_GE = 526;
     private static final int TOOLTIP_HEIGHT_WITH_PROFIT = 45;
+    private static final int TOOLTIP_LINE_HEIGHT = 13;
 
     private static final int WIDTH_PADDING = 4;
 
     private final Client client;
     private final ProfitCalculator profitCalculator;
+    private final SuggestionManager suggestionManager;
 
     public void tooltip(ScriptPostFired e) {
         if(e.getScriptId() != SCRIPT_TOOLTIP_GE) {
@@ -58,8 +61,17 @@ public class TooltipController {
 
             if(name != null) {
                 long profit = profitCalculator.getProfitByItemName(name);
-                text.setText(text.getText()  + "<br>Profit: " + UIUtilities.quantityToRSDecimalStack(profit, false) + " gp");
-                tooltip.setOriginalHeight(TOOLTIP_HEIGHT_WITH_PROFIT);
+                String updatedText = text.getText() + "<br>Profit: " + UIUtilities.quantityToRSDecimalStack(profit, false) + " gp";
+                int height = TOOLTIP_HEIGHT_WITH_PROFIT;
+
+                Double expectedSeconds = suggestionManager.getExpectedDurationForItem(name);
+                if (expectedSeconds != null) {
+                    updatedText += "<br>Est. time: " + UIUtilities.formatSuggestionDuration(expectedSeconds);
+                    height += TOOLTIP_LINE_HEIGHT;
+                }
+
+                text.setText(updatedText);
+                tooltip.setOriginalHeight(height);
 
                 int width = calculateTooltipWidth(text.getFont(), text.getText());
                 tooltip.setOriginalWidth(width);
