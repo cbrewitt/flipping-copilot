@@ -30,7 +30,6 @@ public class CopilotLoginController {
     private final ApiRequestHandler apiRequestHandler;
     private final FlipManager flipManager;
     private final OsrsLoginManager osrsLoginManager;
-    private final SessionManager sessionManager;
     private final TransactionManager transactionManager;
     private final ScheduledExecutorService executorService;
     private final CopilotLoginRS copilotLoginRS;
@@ -42,14 +41,12 @@ public class CopilotLoginController {
                                   HighlightController highlightController,
                                   SuggestionManager suggestionManager,
                                   OsrsLoginManager osrsLoginManager,
-                                  SessionManager sessionManager,
                                   TransactionManager transactionManager,
                                   ScheduledExecutorService executorService,
                                   CopilotLoginRS copilotLoginRS) {
         this.apiRequestHandler = apiRequestHandler;
         this.flipManager = flipManager;
         this.osrsLoginManager = osrsLoginManager;
-        this.sessionManager = sessionManager;
         this.transactionManager = transactionManager;
         this.executorService = executorService;
         this.copilotLoginRS = copilotLoginRS;
@@ -143,7 +140,7 @@ public class CopilotLoginController {
         String displayName = osrsLoginManager.getPlayerDisplayName();
         if(displayName != null) {
             flipManager.setIntervalAccount(null);
-            flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+            mainPanel.copilotPanel.statsPanel.applySessionInterval();
             transactionManager.scheduleSyncIn(0, displayName);
         }
         flipManager.setCopilotUserId(loginResponse.getUserId());

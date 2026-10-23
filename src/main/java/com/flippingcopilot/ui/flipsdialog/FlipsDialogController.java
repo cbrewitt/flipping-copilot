@@ -35,6 +35,7 @@ public class FlipsDialogController {
     private final SuggestionManager suggestionManager;
     private final OsrsLoginRS osrsLoginRS;
     private final PortfolioStateRS portfolioStateRS;
+    private final AccountPortfoliosRS accountPortfoliosRS;
     private final BankStateRS bankStateRS;
     private final GeHistoryStateRS geHistoryStateRS;
     private final ClientThread clientThread;
@@ -43,6 +44,7 @@ public class FlipsDialogController {
     private JTabbedPane tabbedPane;
     private JDialog dialog;
     private FlipsPanel flipsPanel;
+    private PortfolioPanel portfolioPanel;
     private MissedFlipsPanel missedFlipsPanel;
     private VisualizeFlipPanel visualizeFlipPanel;
 
@@ -59,6 +61,7 @@ public class FlipsDialogController {
             SuggestionManager suggestionManager,
             OsrsLoginRS osrsLoginRS,
             PortfolioStateRS portfolioStateRS,
+            AccountPortfoliosRS accountPortfoliosRS,
             BankStateRS bankStateRS,
             GeHistoryStateRS geHistoryStateRS,
             ClientThread clientThread) {
@@ -73,6 +76,7 @@ public class FlipsDialogController {
         this.suggestionManager = suggestionManager;
         this.osrsLoginRS = osrsLoginRS;
         this.portfolioStateRS = portfolioStateRS;
+        this.accountPortfoliosRS = accountPortfoliosRS;
         this.bankStateRS = bankStateRS;
         this.geHistoryStateRS = geHistoryStateRS;
         this.clientThread = clientThread;
@@ -100,7 +104,7 @@ public class FlipsDialogController {
             AccountsAggregatePanel accountsPanel = new AccountsAggregatePanel(copilotLoginRS,
                     executorService, config, apiRequestHandler, flipsManager);
             ProfitPanel profitPanel = new ProfitPanel(flipsManager, executorService, copilotLoginRS, config);
-            PortfolioPanel portfolioPanel = new PortfolioPanel(
+            portfolioPanel = new PortfolioPanel(
                     itemController,
                     config,
                     apiRequestHandler,
@@ -108,6 +112,7 @@ public class FlipsDialogController {
                     copilotLoginRS,
                     osrsLoginRS,
                     portfolioStateRS,
+                    accountPortfoliosRS,
                     bankStateRS,
                     clientThread,
                     itemId -> showPriceGraphTab(itemId, false, null)
@@ -225,6 +230,13 @@ public class FlipsDialogController {
     public void showPortfolioTab() {
         tabbedPane.setSelectedIndex(0);
         dialog.setVisible(true);
+    }
+
+    public void showPortfolioTab(Integer accountId) {
+        if (portfolioPanel != null) {
+            portfolioPanel.selectAccount(accountId);
+        }
+        showPortfolioTab();
     }
 
     public void showVisualizeFlip(FlipV2 flip) {

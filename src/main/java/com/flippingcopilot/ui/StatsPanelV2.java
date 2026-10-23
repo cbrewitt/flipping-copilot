@@ -3,11 +3,13 @@ package com.flippingcopilot.ui;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.*;
 import com.flippingcopilot.model.*;
+import com.flippingcopilot.rs.AccountPortfoliosRS;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import com.flippingcopilot.ui.components.AccountDropdown;
 import com.flippingcopilot.ui.components.IntervalDropdown;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
+import com.flippingcopilot.util.SessionRateUtil;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.ui.ColorScheme;
@@ -23,6 +25,8 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.flippingcopilot.util.FormatUtil.formatDurationSince;
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
@@ -40,9 +44,6 @@ public class StatsPanelV2 extends JPanel {
     public final Icon FLIPS_DIALOG = new ImageIcon(FLIPS_DIALOG_ICON);
     public final Icon HIGHLIGHTED_FLIPS_DIALOG = new ImageIcon(ImageUtil.luminanceScale(FLIPS_DIALOG_ICON, BUTTON_HOVER_LUMINANCE));
 
-    private static final int SESSION_TIME_ROW = 4;
-    private static final int HOURLY_PROFIT_ROW = 5;
-
     // dependencies
     private final CopilotLoginRS copilotLoginRS;
     private final OsrsLoginManager osrsLoginManager;
@@ -53,6 +54,7 @@ public class StatsPanelV2 extends JPanel {
     private final ClientThread clientThread;
     private final FlipsDialogController flipsDialogController;
     private final PortfolioStateRS portfolioStateRS;
+    private final AccountPortfoliosRS accountPortfoliosRS;
 
     // state
     private IntervalDropdown intervalDropdown;
@@ -60,6 +62,10 @@ public class StatsPanelV2 extends JPanel {
     private final JButton sessionResetButton = new JButton("  Reset session ");
     private JPanel profitAndSubInfoPanel;
     private JPanel subInfoPanel;
+    private JPanel unrealizedProfitRow;
+    private JPanel sessionTimeRow;
+    private JPanel hourlyProfitRow;
+    private JPanel portfolioValueRow;
     private final JPanel flipsPanel = new JPanel();
     private final JLabel totalProfitVal = new JLabel("0 gp");
     private final JLabel roiVal = new JLabel("-0.00%");
@@ -83,7 +89,8 @@ public class StatsPanelV2 extends JPanel {
                         WebHookController webHookController,
                         ClientThread clientThread,
                         FlipsDialogController flipsDialogController,
-                        PortfolioStateRS portfolioStateRS) {
+                        PortfolioStateRS portfolioStateRS,
+                        AccountPortfoliosRS accountPortfoliosRS) {
         this.copilotLoginRS = copilotLoginRS;
         this.osrsLoginManager = osrsLoginManager;
         this.sessionManager = sessionManager;
@@ -93,6 +100,7 @@ public class StatsPanelV2 extends JPanel {
         this.clientThread = clientThread;
         this.flipsDialogController = flipsDialogController;
         this.portfolioStateRS = portfolioStateRS;
+        this.accountPortfoliosRS = accountPortfoliosRS;
         setLayout(new BorderLayout());
 
         setupTimeIntervalDropdown();
@@ -144,6 +152,7 @@ public class StatsPanelV2 extends JPanel {
         add(bottomPanel, BorderLayout.SOUTH);
 
         flipManager.setFlipsChangedCallback(() -> refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState()));
+        accountPortfoliosRS.registerListener(s -> refresh(false, lastValidState));
     }
 
     private void setupFlipsDialogButton() {
@@ -180,9 +189,7 @@ public class StatsPanelV2 extends JPanel {
                         if(accountId != null && accountId != -1) {
                             webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, true);
                             sessionManager.resetSession();
-                            if (IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit())) {
-                                flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
-                            }
+                            applySessionInterval();
                         }
                         refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
                     }
@@ -193,9 +200,36 @@ public class StatsPanelV2 extends JPanel {
 
     private void setupTimeIntervalDropdown() {
         intervalDropdown = new IntervalDropdown((intervalTimeUnit, intervalValue) -> {
+            if (IntervalTimeUnit.SESSION.equals(intervalTimeUnit)) {
+                applySessionInterval();
+                return;
+            }
             long startTime = IntervalDropdown.calculateStartTime(intervalTimeUnit, intervalValue, sessionManager.getCachedSessionData().startTime);
             flipManager.setIntervalStartTime((int) startTime);
         }, IntervalDropdown.ALL_TIME, true);
+    }
+
+    public void applySessionInterval() {
+        if (!IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit())) {
+            return;
+        }
+        Integer liveAccountId = liveAccountId();
+        if (!isValidAccountId(liveAccountId)) {
+            // accounts not loaded yet
+            flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+            return;
+        }
+        Map<Integer, Integer> startTimes = new HashMap<>();
+        sessionManager.getAccountSessions(liveAccountId).forEach((accountId, sd) -> startTimes.put(accountId, sd.startTime));
+        flipManager.setIntervalSessionStartTimes(startTimes);
+    }
+
+    private Integer liveAccountId() {
+        return copilotLoginRS.get().getAccountId(osrsLoginManager.getPlayerDisplayName());
+    }
+
+    private static boolean isValidAccountId(Integer accountId) {
+        return accountId != null && accountId != -1;
     }
 
     public void resetIntervalDropdownToSession() {
@@ -252,12 +286,17 @@ public class StatsPanelV2 extends JPanel {
 
     private JPanel buildSubInfoPanel() {
         JPanel subInfoPanel = UIUtilities.verticalPanel(ColorScheme.DARKER_GRAY_COLOR);
-        subInfoPanel.add(buildSubInfoPanelItem("Unrealized profit:", unrealizedProfitVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
+        Runnable showPortfolio = () -> flipsDialogController.showPortfolioTab(flipManager.getIntervalAccount());
+        unrealizedProfitRow = buildSubInfoPanelItem("Unrealized profit:", unrealizedProfitVal, ColorScheme.LIGHT_GRAY_COLOR, showPortfolio);
+        sessionTimeRow = buildSubInfoPanelItem("Session time:", sessionTimeVal, ColorScheme.GRAND_EXCHANGE_ALCH);
+        hourlyProfitRow = buildSubInfoPanelItem("Hourly profit:", hourlyProfitVal, Color.WHITE);
+        portfolioValueRow = buildSubInfoPanelItem("Portfolio value:", portfolioValueVal, ColorScheme.LIGHT_GRAY_COLOR, showPortfolio);
+        subInfoPanel.add(unrealizedProfitRow);
         subInfoPanel.add(buildSubInfoPanelItem("Flips made:", flipsMadeVal, ColorScheme.LIGHT_GRAY_COLOR));
         subInfoPanel.add(buildSubInfoPanelItem("ROI:", roiVal, UIUtilities.TOMATO));
-        subInfoPanel.add(buildSubInfoPanelItem("Session time:", sessionTimeVal, ColorScheme.GRAND_EXCHANGE_ALCH));
-        subInfoPanel.add(buildSubInfoPanelItem("Hourly profit:", hourlyProfitVal, Color.WHITE));
-        subInfoPanel.add(buildSubInfoPanelItem("Portfolio value:", portfolioValueVal, ColorScheme.LIGHT_GRAY_COLOR, flipsDialogController::showPortfolioTab));
+        subInfoPanel.add(sessionTimeRow);
+        subInfoPanel.add(hourlyProfitRow);
+        subInfoPanel.add(portfolioValueRow);
         subInfoPanel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0,0,1,0, ColorScheme.DARK_GRAY_COLOR),
                 new EmptyBorder(2, 5, 5, 5)));
         return subInfoPanel;
@@ -387,19 +426,39 @@ public class StatsPanelV2 extends JPanel {
             log.debug("populating flips took {}", formatDurationSince(s));
         }
 
-        PortfolioSummaryData summaryData = portfolioStateRS.get().getSummaryData();
+        Integer liveAccountId = liveAccountId();
+        Integer selectedAccountId = flipManager.getIntervalAccount();
+        PortfolioView portfolio = PortfolioAggregator.build(selectedAccountId, liveAccountId, portfolioStateRS.get(),
+                accountPortfoliosRS.get(), copilotLoginRS.get().accountIdToDisplayName, itemId -> null);
+        PortfolioSummaryData summaryData = portfolio.getSummary();
         long portfolioValue = summaryData.getPortfolioMarketValue();
         portfolioValueVal.setText(UIUtilities.quantityToRSDecimalStack(Math.abs(portfolioValue), true) + " gp");
         long unrealizedProfit = summaryData.getUnrealizedProfit();
         unrealizedProfitVal.setText(UIUtilities.formatProfit(unrealizedProfit));
         unrealizedProfitVal.setForeground(UIUtilities.getProfitColor(unrealizedProfit, config));
+        String portfolioToolTip = portfolio.isLiveAccount()
+                ? "Open portfolio"
+                : "<html>Open portfolio<br>" + UIUtilities.describePortfolioSources(portfolio) + "</html>";
+        setRowToolTip(unrealizedProfitRow, portfolioToolTip);
+        setRowToolTip(portfolioValueRow, portfolioToolTip);
 
         // 'Session time' and 'Hourly profit' should only be set if 'Session' is select in the dropdown
         if (IntervalTimeUnit.SESSION.equals(intervalDropdown.getSelectedIntervalTimeUnit())) {
             setSessionStatsVisible(true);
+            long hourlyProfit;
+            if (!isValidAccountId(liveAccountId)) {
+                // accounts not loaded yet
+                hourlyProfit = SessionRateUtil.hourlyProfit(stats.profit, sd.durationMillis);
+            } else if (selectedAccountId == null) {
+                // sum of each account's own GP/hr
+                hourlyProfit = SessionRateUtil.combinedHourlyProfit(sessionManager.getAccountSessions(liveAccountId),
+                        (startTime, accountId) -> flipManager.calculateStats(startTime, accountId).profit);
+            } else {
+                SessionData selectedSession = sessionManager.getAccountSessions(liveAccountId).get(selectedAccountId);
+                sd = selectedSession != null ? selectedSession : new SessionData(sd.startTime, 0, 0);
+                hourlyProfit = SessionRateUtil.hourlyProfit(stats.profit, sd.durationMillis);
+            }
             long seconds = sd.durationMillis / 1000;
-            float hoursFloat = (((float) seconds) / 3600.0f);
-            long hourlyProfit = hoursFloat == 0 ? 0 : (long) (stats.profit / hoursFloat);
             String sessionTime = String.format("%02d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60);
             sessionTimeVal.setText(sessionTime);
             hourlyProfitVal.setText(UIUtilities.formatProfitWithoutGp(hourlyProfit) + " gp/hr");
@@ -410,7 +469,16 @@ public class StatsPanelV2 extends JPanel {
     }
 
     private void setSessionStatsVisible(boolean visible) {
-        subInfoPanel.getComponent(SESSION_TIME_ROW).setVisible(visible);
-        subInfoPanel.getComponent(HOURLY_PROFIT_ROW).setVisible(visible);
+        sessionTimeRow.setVisible(visible);
+        hourlyProfitRow.setVisible(visible);
+    }
+
+    private static void setRowToolTip(JPanel row, String text) {
+        row.setToolTipText(text);
+        for (Component c : row.getComponents()) {
+            if (c instanceof JComponent) {
+                ((JComponent) c).setToolTipText(text);
+            }
+        }
     }
 }

@@ -18,6 +18,9 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
     private final BankStateRS bankStateRS;
     private final ClientThread clientThread;
     private final AccountStatusManager accountStatusManager;
+    private final OsrsLoginRS osrsLoginRS;
+    private final CopilotLoginRS copilotLoginRS;
+    private final AccountPortfoliosRS accountPortfoliosRS;
 
     private volatile Instant portfolioItemsServerTime;
 
@@ -26,12 +29,17 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
                             ItemController itemController,
                             BankStateRS bankStateRS,
                             ClientThread clientThread,
-                            AccountStatusManager accountStatusManager) {
+                            AccountStatusManager accountStatusManager,
+                            CopilotLoginRS copilotLoginRS,
+                            AccountPortfoliosRS accountPortfoliosRS) {
         super(PortfolioState.empty());
         this.itemController = itemController;
         this.bankStateRS = bankStateRS;
         this.clientThread = clientThread;
         this.accountStatusManager = accountStatusManager;
+        this.osrsLoginRS = osrsLoginRS;
+        this.copilotLoginRS = copilotLoginRS;
+        this.accountPortfoliosRS = accountPortfoliosRS;
         osrsLoginRS.registerListener(state -> {
             if (state == null || !state.loggedIn) {
                 set(PortfolioState.empty());
@@ -97,18 +105,34 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
             }
             Map<Integer, Integer> runeliteBank = bankStateRS.get().isLoaded() ? bankStateRS.get().getItems() : null;
             Map<Integer, Integer> effectiveBank = runeliteBank == null ? suggestionBank : runeliteBank;
-            set(buildPortfolioState(
+            PortfolioState state = buildPortfolioState(
                     effectiveBank,
                     itemController.getRunliteInventory(),
                     portfolioItems,
                     offers,
                     uncollected
-            ));
+            );
+            set(state);
             if (portfolioItems != null && portfolioItemsTime != null) {
                 portfolioItemsServerTime = portfolioItemsTime;
             }
+            // only snapshot when the server sent portfolio items
+            if (portfolioItems != null) {
+                saveAccountSnapshot(state);
+            }
             return true;
         });
+    }
+
+    private void saveAccountSnapshot(PortfolioState state) {
+        OsrsLoginState login = osrsLoginRS.get();
+        if (login == null || !login.loggedIn || login.displayName == null) {
+            return;
+        }
+        Integer accountId = copilotLoginRS.get().getAccountId(login.displayName);
+        if (accountId != null && accountId != -1) {
+            accountPortfoliosRS.saveAsync(login.displayName, accountId, state);
+        }
     }
 
     public void updatePortfolioState(Suggestion suggestion, ToggleItemPortfolioResult result) {
