@@ -38,14 +38,14 @@ public class MarketTest {
         manager.setCopilotUserId(7);
         UUID id = UUID.randomUUID();
         manager.mergeFlips(Arrays.asList(flip(id, Market.OSRS, 100), flip(id, Market.HC, 1000)), 7);
-        assertEquals(100, manager.calculateStats(0, null).profit);
+        assertEquals(100, manager.current().calculateStats(0, null).profit);
         login.set(login.get().toBuilder().loggedIn(true).market(Market.HC).build());
-        assertEquals(1000, manager.calculateStats(0, null).profit);
-        assertEquals(1, manager.getPageFlips(0, 50, 0, null).size());
+        assertEquals(1000, manager.current().calculateStats(0, null).profit);
+        assertEquals(1, manager.current().getPageFlips(0, 50, 0, null).size());
         manager.deleteAccount(42);
-        assertEquals(0, manager.calculateStats(0, null).profit);
+        assertEquals(0, manager.current().calculateStats(0, null).profit);
         login.set(login.get().toBuilder().market(Market.OSRS).build());
-        assertEquals(0, manager.calculateStats(0, null).profit);
+        assertEquals(0, manager.current().calculateStats(0, null).profit);
     }
 
     private FlipV2 flip(UUID id, Market market, long profit) {

@@ -1,15 +1,12 @@
 package com.flippingcopilot.rs;
 
-import com.flippingcopilot.model.Market;
+import com.flippingcopilot.model.*;
 
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.model.BankState;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.*;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Singleton
 @Slf4j

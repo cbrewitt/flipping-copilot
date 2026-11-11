@@ -4,17 +4,14 @@ import com.flippingcopilot.ui.UIUtilities;
 import com.flippingcopilot.util.ProfitCalculator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.api.FontTypeFace;
+import net.runelite.api.*;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.regex.*;
 
 @Singleton
 @Slf4j

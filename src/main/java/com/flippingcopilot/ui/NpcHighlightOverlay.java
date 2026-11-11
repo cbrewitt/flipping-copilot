@@ -1,7 +1,8 @@
 package com.flippingcopilot.ui;
 
-import net.runelite.api.NPC;
 import net.runelite.api.Point;
+
+import net.runelite.api.*;
 import net.runelite.client.ui.overlay.*;
 import net.runelite.client.ui.overlay.outline.ModelOutlineRenderer;
 import net.runelite.client.util.ImageUtil;

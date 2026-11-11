@@ -1,13 +1,13 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.ui.graph.model.Data;
+
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.CopilotLoginRS;
-import com.flippingcopilot.rs.PortfolioStateRS;
+import com.flippingcopilot.rs.*;
 import com.flippingcopilot.ui.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
-import com.flippingcopilot.ui.graph.model.Data;
-import com.flippingcopilot.ui.graph.model.PriceLine;
+import com.flippingcopilot.ui.graph.model.*;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
@@ -16,8 +16,7 @@ import net.runelite.client.audio.AudioPlayer;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageBuilder;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import javax.swing.*;
 import java.util.function.Consumer;
 

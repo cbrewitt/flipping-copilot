@@ -1,11 +1,9 @@
 package com.flippingcopilot.rs;
 
 import com.flippingcopilot.model.Market;
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BooleanSupplier;
-import java.util.function.Consumer;
+import java.util.function.*;
 
 /** Market detected from the current world, retained while logged out. */
 @Singleton

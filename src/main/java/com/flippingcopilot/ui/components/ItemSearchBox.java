@@ -6,13 +6,11 @@ import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
 import javax.swing.plaf.basic.BasicComboBoxEditor;
-import java.awt.Color;
-import java.awt.Component;
+import java.awt.*;
 import java.awt.event.*;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
+import java.util.function.*;
 
 @Slf4j
 public class ItemSearchBox extends JComboBox<ItemIdName> {

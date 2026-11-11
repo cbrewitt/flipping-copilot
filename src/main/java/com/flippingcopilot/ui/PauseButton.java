@@ -4,10 +4,8 @@ import com.flippingcopilot.controller.SuggestionController;
 import com.flippingcopilot.model.PausedManager;
 import net.runelite.client.util.ImageUtil;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
+import javax.inject.*;
+import javax.swing.*;
 
 import static com.flippingcopilot.ui.UIUtilities.BUTTON_HOVER_LUMINANCE;
 

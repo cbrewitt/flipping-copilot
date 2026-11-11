@@ -1,8 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.ProfitCalculator;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
+import com.google.protobuf.*;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 

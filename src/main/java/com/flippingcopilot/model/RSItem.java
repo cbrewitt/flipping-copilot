@@ -1,6 +1,5 @@
 package com.flippingcopilot.model;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.*;
 import net.runelite.api.*;
 
 @Getter

@@ -90,7 +90,7 @@ public class MarketApiTest {
             }
         });
         for (Market market : Market.values()) {
-            assertEquals(Collections.singletonMap("Player",42), ApiRequestHandler.decodeRsAccountNames(body,market));
+            assertEquals(Collections.singletonMap("Player",42), ApiRequestHandler.decodeRsAccountNames(body).get(market.id));
         }
     }
 }

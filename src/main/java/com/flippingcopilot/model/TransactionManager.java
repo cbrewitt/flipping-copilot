@@ -1,19 +1,16 @@
 package com.flippingcopilot.model;
 
-import com.flippingcopilot.controller.ApiRequestHandler;
-import com.flippingcopilot.controller.Persistance;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.util.MutableReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.function.*;
 
 import static com.flippingcopilot.util.FormatUtil.formatDurationSince;
 
@@ -92,7 +89,7 @@ public class TransactionManager {
         if (market == osrsLoginManager.getMarket() && OfferStatus.SELL.equals(transaction.getType())) {
             Integer accountId = copilotLoginRS.get().getAccountId(displayName);
             if (accountId != null && accountId != -1) {
-                Long p = flipManager.estimateTransactionProfit(accountId, transaction);
+                Long p = flipManager.current().estimateTransactionProfit(accountId, transaction);
                 if (p != null) {
                     profit.setValue(p);
                 }

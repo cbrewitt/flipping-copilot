@@ -1,8 +1,7 @@
 package com.flippingcopilot.ui.components;
 
 
-import java.awt.CardLayout;
-import java.awt.Container;
+import java.awt.*;
 import java.util.LinkedList;
 
 

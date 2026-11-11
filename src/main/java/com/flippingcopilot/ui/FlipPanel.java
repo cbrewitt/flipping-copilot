@@ -4,11 +4,9 @@ import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.FlipV2;
 import net.runelite.client.ui.ColorScheme;
 
-import javax.swing.JLabel;
-import javax.swing.JPanel;
+import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 
 import static com.flippingcopilot.util.DateUtil.formatEpoch;
 

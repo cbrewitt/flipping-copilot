@@ -1,13 +1,10 @@
 package com.flippingcopilot.model;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
+import com.google.protobuf.*;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import java.io.*;
+import java.nio.*;
 import java.util.UUID;
 
 @Getter

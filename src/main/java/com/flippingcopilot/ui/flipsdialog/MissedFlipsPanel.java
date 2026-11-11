@@ -1,8 +1,7 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.controller.ApiRequestHandler;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.*;
 import com.flippingcopilot.ui.Spinner;
@@ -19,8 +18,7 @@ import java.text.NumberFormat;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.function.*;
 
 import static com.flippingcopilot.util.DateUtil.formatEpoch;
 import static com.flippingcopilot.util.DateUtil.formatEpochOrNa;
@@ -183,7 +181,7 @@ public class MissedFlipsPanel extends JPanel {
                 disappearedFlips = Collections.emptyList();
                 ghostFlips = Collections.emptyList();
             } else {
-                List<FlipV2> all = new ArrayList<>(flipsManager.getMissedFlipsForAccount(accountId));
+                List<FlipV2> all = new ArrayList<>(flipsManager.current().getMissedFlipsForAccount(accountId));
                 int cutoff = (int) (Instant.now().getEpochSecond() - MAX_AGE_SECONDS);
                 all.removeIf(f -> f.getUpdatedTime() < cutoff);
                 if (!filteredItems.isEmpty()) {

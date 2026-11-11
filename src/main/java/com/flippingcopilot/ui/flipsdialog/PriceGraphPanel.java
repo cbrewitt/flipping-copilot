@@ -1,26 +1,21 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.rs.MarketRS;
-import com.flippingcopilot.rs.OsrsLoginRS;
-import java.util.function.BooleanSupplier;
+import com.flippingcopilot.rs.*;
+import java.util.function.*;
 
-import com.flippingcopilot.controller.ApiRequestHandler;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.UIUtilities;
-import com.flippingcopilot.ui.components.ItemSearchBox;
-import com.flippingcopilot.ui.components.TrackingCardLayout;
+import com.flippingcopilot.ui.components.*;
 import com.flippingcopilot.ui.graph.*;
-import com.flippingcopilot.ui.graph.model.Data;
-import com.flippingcopilot.ui.graph.model.PriceLine;
+import com.flippingcopilot.ui.graph.model.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.function.Consumer;
 
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 

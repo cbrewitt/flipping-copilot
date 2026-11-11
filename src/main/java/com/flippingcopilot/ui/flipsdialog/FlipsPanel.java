@@ -1,8 +1,7 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.controller.ApiRequestHandler;
-import com.flippingcopilot.controller.ItemController;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.Paginator;

@@ -5,12 +5,12 @@ import com.flippingcopilot.rs.CopilotLoginRS;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.inject.Named;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 @Slf4j
+@RequiredArgsConstructor
 public class AccountsAggregateFilterSort {
 
     // dependencies
@@ -24,18 +24,6 @@ public class AccountsAggregateFilterSort {
     private int intervalStartTime = 1;
     private int cachedIntervalStartTime = Integer.MIN_VALUE;
     private final List<AccountAggregate> cachedAggregates =  new ArrayList<>();
-
-    public AccountsAggregateFilterSort(FlipManager flipManager,
-                                       CopilotLoginRS copilotLoginRS,
-                                       Consumer<List<AccountAggregate>> aggregatesCallback,
-                                       Consumer<Boolean> slowLoadingCallback,
-                                       @Named("copilotExecutor") ExecutorService executorService) {
-        this.flipManager = flipManager;
-        this.copilotLoginRS = copilotLoginRS;
-        this.aggregatesCallback = aggregatesCallback;
-        this.slowLoadingCallback = slowLoadingCallback;
-        this.executorService = executorService;
-    }
 
     public synchronized void setInterval(IntervalTimeUnit timeUnit, Integer value) {
         intervalStartTime = FilterSortUtil.intervalStart(timeUnit, value);
@@ -57,7 +45,7 @@ public class AccountsAggregateFilterSort {
                 copilotLoginRS.historyAccounts().forEach(
                         (displayName, accountId)  -> a.accounts.put(accountId, new AccountAggregator(accountId))
                 );
-                flipManager.aggregateFlips(intervalStartTime, null, false, a);
+                flipManager.current().aggregateFlips(intervalStartTime, null, false, a);
                 cachedIntervalStartTime = intervalStartTime;
                 a.accounts.forEach((k, v) -> cachedAggregates.add(v.toAccountAggregate(copilotLoginRS.get().getDisplayName(k))));
                 log.debug("loaded {} account aggregates", cachedAggregates.size());

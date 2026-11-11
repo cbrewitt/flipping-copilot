@@ -1,7 +1,6 @@
 package com.flippingcopilot.ui;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import javax.swing.*;
 import java.awt.*;
 

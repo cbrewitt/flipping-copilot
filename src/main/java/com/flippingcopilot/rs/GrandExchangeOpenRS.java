@@ -1,7 +1,6 @@
 package com.flippingcopilot.rs;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.*;
 import lombok.extern.slf4j.Slf4j;
 
 @Singleton

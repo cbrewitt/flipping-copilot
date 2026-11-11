@@ -2,11 +2,9 @@ package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.OfferHandler;
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.model.OfferManager;
-import com.flippingcopilot.model.Suggestion;
+import com.flippingcopilot.model.*;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.api.FontID;
+import net.runelite.api.*;
 import net.runelite.api.widgets.*;
 import net.runelite.client.config.Keybind;
 

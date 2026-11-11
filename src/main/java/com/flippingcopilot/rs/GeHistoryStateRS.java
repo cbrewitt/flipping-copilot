@@ -1,19 +1,15 @@
 package com.flippingcopilot.rs;
 
-import com.flippingcopilot.model.Market;
+import com.flippingcopilot.model.*;
 
-import com.flippingcopilot.model.GeHistoryRow;
-import com.flippingcopilot.model.GeHistoryState;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.widgets.Widget;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.regex.*;
 
 @Singleton
 @Slf4j

@@ -4,8 +4,7 @@ import com.flippingcopilot.model.Market;
 
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.*;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 

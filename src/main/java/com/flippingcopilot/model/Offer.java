@@ -4,8 +4,7 @@ import com.flippingcopilot.util.ProtoUtils;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.GrandExchangeOffer;
-import net.runelite.api.GrandExchangeOfferState;
+import net.runelite.api.*;
 
 
 @Slf4j

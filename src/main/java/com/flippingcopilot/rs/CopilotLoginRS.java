@@ -1,13 +1,10 @@
 package com.flippingcopilot.rs;
 
 import com.flippingcopilot.controller.Persistance;
-import com.flippingcopilot.model.CopilotLoginState;
-import com.flippingcopilot.model.LoginResponse;
-import com.flippingcopilot.model.Market;
+import com.flippingcopilot.model.*;
 import java.util.*;
 import com.google.gson.*;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Filepath;
 

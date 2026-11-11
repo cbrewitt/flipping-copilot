@@ -6,8 +6,7 @@ import com.google.gson.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Filepath;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.io.*;
 import java.nio.file.NoSuchFileException;
 import java.util.concurrent.ScheduledExecutorService;

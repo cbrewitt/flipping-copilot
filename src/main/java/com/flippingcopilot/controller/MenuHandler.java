@@ -2,8 +2,7 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.BankStateRS;
-import com.flippingcopilot.rs.PortfolioStateRS;
+import com.flippingcopilot.rs.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.flippingcopilot.ui.graph.model.PriceLine;
 import lombok.RequiredArgsConstructor;
@@ -15,8 +14,7 @@ import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.widgets.Widget;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.util.Map;
 import java.util.function.Consumer;
 

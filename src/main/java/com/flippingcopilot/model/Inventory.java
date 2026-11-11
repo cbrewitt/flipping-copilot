@@ -4,8 +4,7 @@ import net.runelite.api.*;
 import net.runelite.api.ItemID;
 import static com.flippingcopilot.util.Constants.PLATINUM_TOKEN_VALUE;
 
-import java.util.ArrayList;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 

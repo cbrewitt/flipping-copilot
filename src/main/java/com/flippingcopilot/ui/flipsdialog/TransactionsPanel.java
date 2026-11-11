@@ -1,14 +1,11 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.controller.ApiRequestHandler;
-import com.flippingcopilot.controller.ItemController;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
-import com.flippingcopilot.ui.Paginator;
-import com.flippingcopilot.ui.UIUtilities;
-import com.flippingcopilot.ui.components.AccountDropdown;
-import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
+import com.flippingcopilot.ui.*;
+import com.flippingcopilot.ui.components.*;
 import com.flippingcopilot.util.ProfitCalculator;
 import joptsimple.internal.Strings;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +21,7 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.function.*;
 
 import static com.flippingcopilot.ui.flipsdialog.FlipFilterAndSort.escapeCSV;
 import static com.flippingcopilot.ui.flipsdialog.FlipFilterAndSort.formatTimestampISO;
@@ -292,7 +288,7 @@ public class TransactionsPanel extends JPanel {
         if (ZERO_UUID.equals(tx.getClientFlipId())) {
             return false;
         }
-        return !flipManager.isGhostFlip(tx.getAccountId(), tx.getClientFlipId());
+        return !flipManager.current().isGhostFlip(tx.getAccountId(), tx.getClientFlipId());
     }
 
     private long calculateTax(AckedTransaction tx) {

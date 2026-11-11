@@ -2,13 +2,11 @@ package com.flippingcopilot.ui;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.QuantityFormatter;
+import net.runelite.client.util.*;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.text.*;
 import java.util.Locale;

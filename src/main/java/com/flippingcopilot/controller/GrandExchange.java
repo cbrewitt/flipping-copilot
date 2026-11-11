@@ -1,15 +1,15 @@
 package com.flippingcopilot.controller;
 
+import net.runelite.api.gameval.InterfaceID;
+
 import com.flippingcopilot.model.GEOfferScreenSetupOfferState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.gameval.*;
-import net.runelite.api.widgets.ComponentID;
-import net.runelite.api.widgets.Widget;
+import net.runelite.api.widgets.*;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.util.Arrays;
 
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;

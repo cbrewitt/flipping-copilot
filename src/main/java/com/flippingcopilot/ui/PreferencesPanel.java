@@ -1,15 +1,13 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.controller.*;
-import com.flippingcopilot.model.SuggestionPreferencesManager;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.AccountSuggestionPreferencesRS;
-import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.components.ItemSearchMultiSelect;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;

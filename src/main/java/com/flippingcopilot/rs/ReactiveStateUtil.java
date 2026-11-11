@@ -1,7 +1,6 @@
 package com.flippingcopilot.rs;
 
-import java.util.function.BiConsumer;
-import java.util.function.Function;
+import java.util.function.*;
 
 public final class ReactiveStateUtil {
 

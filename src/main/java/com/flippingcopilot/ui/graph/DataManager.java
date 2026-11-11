@@ -5,8 +5,7 @@ import com.flippingcopilot.ui.graph.model.*;
 import com.flippingcopilot.util.ProfitCalculator;
 
 import java.awt.*;
-import java.time.Duration;
-import java.time.Instant;
+import java.time.*;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.List;

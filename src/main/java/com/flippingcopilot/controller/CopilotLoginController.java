@@ -1,20 +1,16 @@
 package com.flippingcopilot.controller;
 
 import java.util.*;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.concurrent.*;
+import java.util.function.*;
 
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
-import com.flippingcopilot.ui.LoginPanel;
-import com.flippingcopilot.ui.MainPanel;
+import com.flippingcopilot.ui.*;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 
 import static com.flippingcopilot.util.FormatUtil.formatDurationSince;
 
@@ -54,7 +50,7 @@ public class CopilotLoginController {
         this.executorService = executorService;
         this.copilotLoginRS = copilotLoginRS;
         flipManager.setCopilotUserId(copilotLoginRS.get().getUserId());
-        for (Market market : Market.values()) loadCopilotAccounts(market, 0);
+        loadCopilotAccounts(0);
         copilotLoginRS.registerListener((s) -> {
             if(s.loginResponse == null) {
                 flipManager.reset();
@@ -65,26 +61,29 @@ public class CopilotLoginController {
         });
     }
 
-    private void loadCopilotAccounts(Market market, int previousFailures) {
+    private void loadCopilotAccounts(int previousFailures) {
         int userId = copilotLoginRS.get().getUserId();
         if(userId == -1) {
             return;
         }
         long s = System.nanoTime();
-        Consumer<Map<String, Integer>> onSuccess = (displayNameToAccountId) -> {
+        Consumer<Map<String, Map<String, Integer>>> onSuccess = accounts -> {
             if (copilotLoginRS.get().getUserId() != userId) return;
-            displayNameToAccountId.forEach((key, value) -> copilotLoginRS.addAccountIfMissing(value, key, userId, market));
-            log.info("loading {} copilot accounts succeeded - took {}", displayNameToAccountId.size(), formatDurationSince(s));
-            syncFlips(userId, market, new HashMap<>(), 0);
+            for (Market market : Market.values()) {
+                accounts.getOrDefault(market.id, Collections.emptyMap()).forEach(
+                        (name, id) -> copilotLoginRS.addAccountIfMissing(id, name, userId, market));
+                syncFlips(userId, market, new HashMap<>(), 0);
+            }
+            log.info("loading copilot accounts succeeded - took {}", formatDurationSince(s));
         };
         Consumer<String> onFailure = (errorMessage) -> {
             if (copilotLoginRS.get().getUserId() == userId) {
                 long backOffSeconds = Math.min(15, (long) Math.exp(previousFailures));
                 log.info("failed to load copilot accounts ({}) retrying in {}s", errorMessage, backOffSeconds);
-                executorService.schedule(() -> loadCopilotAccounts(market, previousFailures + 1), backOffSeconds, TimeUnit.SECONDS);
+                executorService.schedule(() -> loadCopilotAccounts(previousFailures + 1), backOffSeconds, TimeUnit.SECONDS);
             }
         };
-        apiRequestHandler.asyncLoadAccounts(market, onSuccess, onFailure);
+        apiRequestHandler.asyncLoadAccounts(onSuccess, onFailure);
     }
 
     private void syncFlips(int userId, Market market, Map<Integer, Integer> accountIdTime, int previousFailures) {
@@ -143,12 +142,12 @@ public class CopilotLoginController {
         mainPanel.refresh();
         String displayName = osrsLoginManager.getPlayerDisplayName();
         if(displayName != null) {
-            flipManager.setIntervalAccount(null);
-            flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+            flipManager.current().setIntervalAccount(null);
+            flipManager.current().setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
             transactionManager.scheduleSyncIn(0, displayName);
         }
         flipManager.setCopilotUserId(loginResponse.getUserId());
-        for (Market market : Market.values()) loadCopilotAccounts(market, 0);
+        loadCopilotAccounts(0);
     }
 
     public void onLoginFailure(String errorMessage) {

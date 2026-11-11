@@ -4,8 +4,7 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.util.EnumSet;
 
 @Slf4j

@@ -1,14 +1,12 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.CopilotLoginRS;
-import com.flippingcopilot.rs.MarketRS;
-import java.util.function.BooleanSupplier;
+import com.flippingcopilot.rs.*;
+import java.util.function.*;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.util.ProtoUtils;
 import com.google.inject.Singleton;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
+import com.google.protobuf.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
@@ -18,8 +16,6 @@ import javax.inject.Inject;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 import static com.flippingcopilot.util.FormatUtil.formatDuration;
 import static com.flippingcopilot.util.FormatUtil.formatSize;
@@ -86,8 +82,8 @@ public class ApiRequestHandler {
         for (FlipV2 flip : flips) flip.setMarket(market);
     }
 
-    private RequestBody protoBody(byte[] body) {
-        return RequestBody.create(PROTO_MEDIA_TYPE, body);
+    private Request post(Request.Builder request, byte[] body) {
+        return request.post(RequestBody.create(PROTO_MEDIA_TYPE, body)).build();
     }
 
     private Call timeoutCall(Request request, int seconds) {
@@ -159,10 +155,8 @@ public class ApiRequestHandler {
 
 
     public void authenticate(String username, String password, Consumer<LoginResponse> successCallback, Consumer<String> failureCallback) {
-        Request request = unauthed("/v2/login")
-                .addHeader("Authorization", Credentials.basic(username, password))
-                .post(protoBody(EMPTY_BODY))
-                .build();
+        Request request = post(unauthed("/v2/login")
+                .addHeader("Authorization", Credentials.basic(username, password)), EMPTY_BODY);
 
         enqueue(request, null, "login", stringFailure(failureCallback), response -> {
             if (response.body() == null) {
@@ -232,9 +226,7 @@ public class ApiRequestHandler {
                                    Consumer<Data> graphDataConsumer,
                                    Consumer<HttpResponseException>  onFailure) {
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = marketAuthed(jwtToken, "/v3/suggestion", markets.get())
-                .post(protoBody(status))
-                .build();
+        Request request = post(marketAuthed(jwtToken, "/v3/suggestion", markets.get()), status);
 
         long startNanos = System.nanoTime();
         enqueue(request, jwtToken, "get suggestion",
@@ -294,9 +286,7 @@ public class ApiRequestHandler {
         });
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = authed(jwtToken, market.path("/v2/profit-tracking/client-transactions")).tag(Market.class, market)
-                .post(protoBody(body))
-                .build();
+        Request request = post(authed(jwtToken, market.path("/v2/profit-tracking/client-transactions")).tag(Market.class, market), body);
 
         enqueue(request, jwtToken, "sync transactions", onFailure,
                 response -> onSuccess.accept(userId, decodeFlips(response)));
@@ -307,9 +297,7 @@ public class ApiRequestHandler {
                                          Consumer<HttpResponseException> onFailure) {
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = marketAuthed(jwtToken, "/v2/profit-tracking/toggle-item-portfolio", markets.get())
-                .post(protoBody(payload.encodeProto()))
-                .build();
+        Request request = post(marketAuthed(jwtToken, "/v2/profit-tracking/toggle-item-portfolio", markets.get()), payload.encodeProto());
 
         enqueue(request, jwtToken, "toggle item portfolio account=" + payload.getAccountId() + " item=" + payload.getItemId(), onFailure,
                 response -> onSuccess.accept(userId, ToggleItemPortfolioResult.decodeProto(response.body().bytes())));
@@ -335,9 +323,7 @@ public class ApiRequestHandler {
         byte[] body = encodeUuidRequest(flipID);
         log.debug("requesting visualize data for flip {}", flipID);
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = marketAuthed(jwtToken, "/v2/profit-tracking/visualize-flip", market)
-                .post(protoBody(body))
-                .build();
+        Request request = post(marketAuthed(jwtToken, "/v2/profit-tracking/visualize-flip", market), body);
 
         enqueue(timeoutCall(request, 30), jwtToken, "visualize flip " + flipID, stringFailure(onFailure), response -> {
             VisualizeFlipResponse rsp = VisualizeFlipResponse.decodeProto(response.body().bytes());
@@ -356,9 +342,7 @@ public class ApiRequestHandler {
         });
         log.debug("requesting price graph data for item {}", itemId);
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = marketAuthed(jwtToken, "/v2/prices", markets.get())
-                .post(protoBody(body))
-                .build();
+        Request request = post(marketAuthed(jwtToken, "/v2/prices", markets.get()), body);
 
         Consumer<HttpResponseException> emitError = error -> {
             ItemPrice ip = new ItemPrice(0, 0, DEFAULT_COPILOT_PRICE_ERROR_MESSAGE, null);
@@ -379,9 +363,7 @@ public class ApiRequestHandler {
             }
         });
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = authed(jwtToken, "/v2/premium-instances/update-assignments")
-                .post(protoBody(payload))
-                .build();
+        Request request = post(authed(jwtToken, "/v2/premium-instances/update-assignments"), payload);
 
         enqueuePremiumStatusRequest(request, jwtToken, "update premium instances", consumer);
     }
@@ -416,9 +398,7 @@ public class ApiRequestHandler {
         byte[] body = encodeUuidRequest(flip.getId());
         String jwtToken = copilotLoginRS.get().getJwtToken();
 
-        Request request = marketAuthed(jwtToken, "/v2/profit-tracking/delete-flip", flip.getMarket())
-                .post(protoBody(body))
-                .build();
+        Request request = post(marketAuthed(jwtToken, "/v2/profit-tracking/delete-flip", flip.getMarket()), body);
 
         enqueue(request, jwtToken, "delete flip " + flip.getId(), runnableFailure(onFailure),
                 response -> onSuccess.accept(decodeFlips(response)));
@@ -439,9 +419,7 @@ public class ApiRequestHandler {
     public void asyncReviveGhostFlip(UUID flipId, Market market,
                                      BiConsumer<Integer, List<FlipV2>> onSuccess,
                                      Consumer<HttpResponseException> onFailure) {
-        byte[] body = ProtoUtils.encodeMessage(out -> {
-            out.writeByteArray(1, ProtoUtils.uuidToBytes(flipId));
-        });
+        byte[] body = encodeUuidRequest(flipId);
         postProtoExpectingFlips("/v2/profit-tracking/revive-ghost-flip", market, body,
                 "revive ghost flip=" + flipId, onSuccess, onFailure);
     }
@@ -451,9 +429,7 @@ public class ApiRequestHandler {
                                          Consumer<HttpResponseException> onFailure) {
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = marketAuthed(jwtToken, path, market)
-                .post(protoBody(body))
-                .build();
+        Request request = post(marketAuthed(jwtToken, path, market), body);
 
         enqueue(request, jwtToken, logLabel, onFailure,
                 response -> onSuccess.accept(userId, decodeFlips(response)));
@@ -466,9 +442,7 @@ public class ApiRequestHandler {
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
 
-        Request request = marketAuthed(jwtToken, "/v2/profit-tracking/clear-account-portfolio", markets.get())
-                .post(protoBody(body))
-                .build();
+        Request request = post(marketAuthed(jwtToken, "/v2/profit-tracking/clear-account-portfolio", markets.get()), body);
 
         enqueue(request, jwtToken, "clear account portfolio account=" + accountId, onFailure,
                 response -> onSuccess.accept(userId, ToggleItemPortfolioResult.decodeProto(response.body().bytes())));
@@ -478,15 +452,13 @@ public class ApiRequestHandler {
         byte[] body = encodeAccountRequest(accountId);
         String jwtToken = copilotLoginRS.get().getJwtToken();
 
-        Request request = authed(jwtToken, "/v2/profit-tracking/delete-account")
-                .post(protoBody(body))
-                .build();
+        Request request = post(authed(jwtToken, "/v2/profit-tracking/delete-account"), body);
 
         enqueue(request, jwtToken, "delete account " + accountId, runnableFailure(onFailure),
                 response -> onSuccess.run());
     }
 
-    public void asyncLoadAccounts(Market market, Consumer<Map<String, Integer>> onSuccess, Consumer<String> onFailure) {
+    public void asyncLoadAccounts(Consumer<Map<String, Map<String, Integer>>> onSuccess, Consumer<String> onFailure) {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = authed(jwtToken, "/v2/profit-tracking/rs-account-names")
                 .get()
@@ -494,7 +466,7 @@ public class ApiRequestHandler {
 
         enqueue(request, jwtToken, "load user display names", stringFailure(onFailure), response -> {
             byte[] responseBody = response.body() != null ? response.body().bytes() : new byte[0];
-            onSuccess.accept(decodeRsAccountNames(responseBody, market));
+            onSuccess.accept(decodeRsAccountNames(responseBody));
         });
     }
 
@@ -503,9 +475,7 @@ public class ApiRequestHandler {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         DataDeltaRequest body = new DataDeltaRequest(accountIdTime);
 
-        Request request = authed(jwtToken, market.path("/v2/profit-tracking/client-flips-delta")).tag(Market.class, market)
-                .post(protoBody(body.encodeProto()))
-                .build();
+        Request request = post(authed(jwtToken, market.path("/v2/profit-tracking/client-flips-delta")).tag(Market.class, market), body.encodeProto());
 
         enqueue(request, jwtToken, "load flips", stringFailure(onFailure),
                 response -> {
@@ -519,9 +489,7 @@ public class ApiRequestHandler {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         AccountClientTransactionsRequest body = new AccountClientTransactionsRequest(0, 0, displayName);
 
-        Request request = marketAuthed(jwtToken, "/v2/profit-tracking/account-client-transactions", markets.get())
-                .post(protoBody(body.encodeProto()))
-                .build();
+        Request request = post(marketAuthed(jwtToken, "/v2/profit-tracking/account-client-transactions", markets.get()), body.encodeProto());
 
         enqueue(request, jwtToken, "load transactions", stringFailure(onFailure), response -> {
             onSuccess.accept(AckedTransaction.listDecodeProto(response.body().bytes()));
@@ -532,9 +500,7 @@ public class ApiRequestHandler {
     public Call asyncConsumeDumpAlerts(String displayName, Market market, Consumer<Response> onSuccess, Consumer<HttpResponseException> onFailure) {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         byte[] body = ProtoUtils.encodeMessage(out -> out.writeString(1, displayName));
-        Request request = authed(jwtToken, market.path("/v2/dump-alerts"))
-                .post(protoBody(body))
-                .build();
+        Request request = post(authed(jwtToken, market.path("/v2/dump-alerts")), body);
 
         Call call = client.newBuilder()
                 .readTimeout(10, TimeUnit.SECONDS)
@@ -578,8 +544,8 @@ public class ApiRequestHandler {
         return ProtoUtils.encodeMessage(out -> out.writeInt32(1, accountId));
     }
 
-    static Map<String, Integer> decodeRsAccountNames(byte[] bytes, Market market) throws IOException {
-        Map<String, Integer> names = new HashMap<>();
+    static Map<String, Map<String, Integer>> decodeRsAccountNames(byte[] bytes) throws IOException {
+        Map<String, Map<String, Integer>> names = new HashMap<>();
         CodedInputStream input = CodedInputStream.newInstance(bytes);
         while (!input.isAtEnd()) {
             int tag = input.readTag();
@@ -600,7 +566,7 @@ public class ApiRequestHandler {
                 }
             }
             input.popLimit(limit);
-            if (market.id.equals(game)) names.put(name, id);
+            names.computeIfAbsent(game, key -> new HashMap<>()).put(name, id);
         }
         return names;
     }
@@ -625,9 +591,7 @@ public class ApiRequestHandler {
         });
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = marketAuthed(jwtToken, path, markets.get())
-                .post(protoBody(body))
-                .build();
+        Request request = post(marketAuthed(jwtToken, path, markets.get()), body);
 
         enqueue(request, jwtToken, label + " " + transaction.getId(), runnableFailure(onFailure),
                 response -> onSuccess.accept(userId, decodeFlips(response)));

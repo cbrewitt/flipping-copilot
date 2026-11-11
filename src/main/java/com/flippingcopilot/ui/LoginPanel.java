@@ -1,14 +1,11 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.controller.ApiRequestHandler;
-import com.flippingcopilot.controller.CopilotLoginController;
+import com.flippingcopilot.controller.*;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.LinkBrowser;
+import net.runelite.client.util.*;
 import okhttp3.Call;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;

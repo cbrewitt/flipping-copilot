@@ -1,13 +1,11 @@
 package com.flippingcopilot.model;
 
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
+import com.google.protobuf.*;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 
 @Getter

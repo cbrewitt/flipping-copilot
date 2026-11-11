@@ -2,8 +2,7 @@ package com.flippingcopilot.model;
 
 import lombok.Value;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 @Value
 public class GeHistoryState {

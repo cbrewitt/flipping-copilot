@@ -1,11 +1,9 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.controller.ApiRequestHandler;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
-import com.flippingcopilot.model.FlipV2;
-import com.flippingcopilot.model.VisualizeFlipResponse;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.graph.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;

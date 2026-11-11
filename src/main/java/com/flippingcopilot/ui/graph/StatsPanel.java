@@ -6,8 +6,7 @@ import com.flippingcopilot.manager.PriceGraphConfigManager;
 
 import javax.swing.table.DefaultTableModel;
 import java.text.NumberFormat;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.*;
 
 public class StatsPanel extends BaseStatsPanel {
     private static final String[] ROWS = {

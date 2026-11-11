@@ -1,22 +1,19 @@
 package com.flippingcopilot.ui;
 
-import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.controller.InventorySlotTooltipDataProvider;
-import com.flippingcopilot.controller.PlayerLocationController;
-import com.flippingcopilot.model.InventorySlotTooltipData;
-import com.flippingcopilot.model.TooltipHoverSource;
-import lombok.RequiredArgsConstructor;
-import net.runelite.api.Client;
 import net.runelite.api.Point;
+
+import com.flippingcopilot.config.FlippingCopilotConfig;
+import com.flippingcopilot.controller.*;
+import com.flippingcopilot.model.*;
+import lombok.RequiredArgsConstructor;
+import net.runelite.api.*;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.ui.overlay.*;
-import net.runelite.client.ui.overlay.tooltip.Tooltip;
-import net.runelite.client.ui.overlay.tooltip.TooltipManager;
+import net.runelite.client.ui.overlay.tooltip.*;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.awt.*;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
 
 @Singleton

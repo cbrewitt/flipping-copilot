@@ -3,16 +3,13 @@ package com.flippingcopilot.controller;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.SuggestionManager;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
-import net.runelite.api.Client;
-import net.runelite.api.VarClientInt;
+import net.runelite.api.*;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.Keybind;
-import net.runelite.client.input.KeyListener;
-import net.runelite.client.input.KeyManager;
+import net.runelite.client.input.*;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.awt.event.KeyEvent;
 
 

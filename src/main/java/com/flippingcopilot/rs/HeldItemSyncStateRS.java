@@ -1,10 +1,8 @@
 package com.flippingcopilot.rs;
 
-import com.flippingcopilot.model.Market;
+import com.flippingcopilot.model.*;
 
-import com.flippingcopilot.model.HeldItemSyncState;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.*;
 
 @Singleton
 public class HeldItemSyncStateRS extends ReactiveStateImpl<HeldItemSyncState> {

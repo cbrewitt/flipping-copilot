@@ -4,15 +4,13 @@ import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.AccountSuggestionPreferencesRS;
 import net.runelite.client.ui.ColorScheme;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.regex.*;
 
 @Singleton
 public class ControlPanel extends JPanel

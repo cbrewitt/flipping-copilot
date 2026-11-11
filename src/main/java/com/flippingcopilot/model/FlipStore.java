@@ -2,17 +2,14 @@ package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.util.Constants;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import javax.swing.*;
 import java.time.Instant;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.function.*;
 
 /**
  * This class is essentially a cache of user flips that facilitates efficient access to the flips and statistics for

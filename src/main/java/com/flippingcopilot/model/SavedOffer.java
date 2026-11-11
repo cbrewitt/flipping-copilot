@@ -1,8 +1,7 @@
 package com.flippingcopilot.model;
 
 import lombok.Data;
-import net.runelite.api.GrandExchangeOffer;
-import net.runelite.api.GrandExchangeOfferState;
+import net.runelite.api.*;
 
 import java.util.Objects;
 

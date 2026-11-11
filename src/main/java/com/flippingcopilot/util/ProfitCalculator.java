@@ -5,10 +5,8 @@ import com.flippingcopilot.rs.PortfolioStateRS;
 import lombok.RequiredArgsConstructor;
 import net.runelite.api.Client;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-import java.util.Arrays;
-import java.util.HashSet;
+import javax.inject.*;
+import java.util.*;
 
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)

@@ -1,14 +1,12 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.model.PremiumInstanceStatus;
-import com.flippingcopilot.model.SuggestionManager;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.PremiumInstancePanel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import javax.swing.*;
 import java.util.function.Consumer;
 

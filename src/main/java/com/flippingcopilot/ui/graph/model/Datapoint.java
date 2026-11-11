@@ -1,7 +1,6 @@
 package com.flippingcopilot.ui.graph.model;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.awt.*;
 
