@@ -35,59 +35,61 @@ public class TransactionManager {
     private final ConcurrentMap<String, List<Transaction>> cachedUnAckedTransactions = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, AtomicBoolean> transactionSyncScheduled = new ConcurrentHashMap<>();
 
-    public void syncUnAckedTransactions(String displayName) {
+    public void syncUnAckedTransactions(String displayName, Market market) {
 
         long s = System.nanoTime();
         List<Transaction> toSend;
         synchronized (this) {
-            toSend = new ArrayList<>(getUnAckedTransactions(displayName));
+            toSend = new ArrayList<>(getUnAckedTransactions(displayName, market));
             if(toSend.isEmpty()) {
-                transactionSyncScheduled.get(displayName).set(false);
+                transactionSyncScheduled.get(market.storageKey(displayName)).set(false);
                 return;
             }
         }
 
         BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
             if(!flips.isEmpty()) {
-                copilotLoginRS.addAccountIfMissing(flips.get(0).getAccountId(), displayName, userId);
+                copilotLoginRS.addAccountIfMissing(flips.get(0).getAccountId(), displayName, userId, market);
             }
             flipManager.mergeFlips(flips, userId);
             log.info("sending {} transactions took {}", toSend.size(), formatDurationSince(s));
             synchronized (this) {
-                List<Transaction> unAckedTransactions  = getUnAckedTransactions(displayName);
-                transactionSyncScheduled.get(displayName).set(false);
+                List<Transaction> unAckedTransactions  = getUnAckedTransactions(displayName, market);
+                transactionSyncScheduled.get(market.storageKey(displayName)).set(false);
                 toSend.forEach(unAckedTransactions::remove);
+                persistance.storeUnAckedTransactions(unAckedTransactions, displayName, market);
                 if(!unAckedTransactions.isEmpty()) {
-                    scheduleSyncIn(0, displayName);
+                    scheduleSyncIn(0, displayName, market);
                 }
             }
         };
 
         Consumer<HttpResponseException> onFailure = (e) -> {
             synchronized (this) {
-                transactionSyncScheduled.get(displayName).set(false);
+                transactionSyncScheduled.get(market.storageKey(displayName)).set(false);
             }
             String currentDisplayName = osrsLoginManager.getPlayerDisplayName();
             if (copilotLoginRS.get().isLoggedIn() && (currentDisplayName == null || currentDisplayName.equals(displayName))) {
                 log.warn("failed to send transactions to copilot server {}", e.getMessage(), e);
-                scheduleSyncIn(10, displayName);
+                scheduleSyncIn(10, displayName, market);
             }
         };
-        api.sendTransactionsAsync(toSend, displayName, onSuccess, onFailure);
+        api.sendTransactionsAsync(toSend, displayName, market, onSuccess, onFailure);
     }
 
     public long addTransaction(Transaction transaction, String displayName) {
+        Market market = transaction.getMarket() == null ? osrsLoginManager.getMarket() : transaction.getMarket();
         if (osrsLoginManager.isUnsupportedWorldType()) {
             log.debug("ignoring transaction for {} on unsupported world type(s)", displayName);
             return 0;
         }
         synchronized (this) {
-            List<Transaction> unAckedTransactions = getUnAckedTransactions(displayName);
+            List<Transaction> unAckedTransactions = getUnAckedTransactions(displayName, market);
             unAckedTransactions.add(transaction);
-            persistance.storeUnAckedTransactions(unAckedTransactions, displayName);
+            persistance.storeUnAckedTransactions(unAckedTransactions, displayName, market);
         }
         MutableReference<Long> profit = new MutableReference<>(0L);
-        if (OfferStatus.SELL.equals(transaction.getType())) {
+        if (market == osrsLoginManager.getMarket() && OfferStatus.SELL.equals(transaction.getType())) {
             Integer accountId = copilotLoginRS.get().getAccountId(displayName);
             if (accountId != null && accountId != -1) {
                 Long p = flipManager.estimateTransactionProfit(accountId, transaction);
@@ -97,21 +99,29 @@ public class TransactionManager {
             }
         }
         if (copilotLoginRS.get().isLoggedIn()) {
-            scheduleSyncIn(0, displayName);
+            scheduleSyncIn(0, displayName, market);
         }
         return profit.getValue();
     }
 
     public List<Transaction> getUnAckedTransactions(String displayName) {
-        return cachedUnAckedTransactions.computeIfAbsent(displayName, (k) -> persistance.loadUnAckedTransactions(displayName));
+        return getUnAckedTransactions(displayName, osrsLoginManager.getMarket());
     }
 
-    public synchronized void scheduleSyncIn(int seconds, String displayName) {
-        AtomicBoolean scheduled = transactionSyncScheduled.computeIfAbsent(displayName, k -> new AtomicBoolean(false));
+    private List<Transaction> getUnAckedTransactions(String displayName, Market market) {
+        return cachedUnAckedTransactions.computeIfAbsent(market.storageKey(displayName), (k) -> persistance.loadUnAckedTransactions(displayName, market));
+    }
+
+    public void scheduleSyncIn(int seconds, String displayName) {
+        for (Market market : Market.values()) scheduleSyncIn(seconds, displayName, market);
+    }
+
+    private synchronized void scheduleSyncIn(int seconds, String displayName, Market market) {
+        AtomicBoolean scheduled = transactionSyncScheduled.computeIfAbsent(market.storageKey(displayName), k -> new AtomicBoolean(false));
         if(scheduled.compareAndSet(false, true)) {
-            log.info("scheduling {} attempt to sync {} transactions in {}s", displayName, getUnAckedTransactions(displayName).size(), seconds);
+            log.info("scheduling {} attempt to sync {} transactions in {}s", displayName, getUnAckedTransactions(displayName, market).size(), seconds);
             executorService.schedule(() ->  {
-                this.syncUnAckedTransactions(displayName);
+                this.syncUnAckedTransactions(displayName, market);
             }, seconds, TimeUnit.SECONDS);
         } else {
             log.debug("skipping scheduling sync as already scheduled");

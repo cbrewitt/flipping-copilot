@@ -54,8 +54,8 @@ public class AccountsAggregateFilterSort {
                 log.debug("loading account aggregates");
                 cachedAggregates.clear();
                 Aggregator a = new Aggregator();
-                copilotLoginRS.get().accountIdToDisplayName.forEach(
-                        (accountId, displayName)  -> a.accounts.put(accountId, new AccountAggregator(accountId))
+                copilotLoginRS.historyAccounts().forEach(
+                        (displayName, accountId)  -> a.accounts.put(accountId, new AccountAggregator(accountId))
                 );
                 flipManager.aggregateFlips(intervalStartTime, null, false, a);
                 cachedIntervalStartTime = intervalStartTime;

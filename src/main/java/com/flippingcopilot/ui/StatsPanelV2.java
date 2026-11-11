@@ -1,5 +1,7 @@
 package com.flippingcopilot.ui;
 
+import com.flippingcopilot.rs.MarketRS;
+
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.*;
 import com.flippingcopilot.model.*;
@@ -83,7 +85,7 @@ public class StatsPanelV2 extends JPanel {
                         WebHookController webHookController,
                         ClientThread clientThread,
                         FlipsDialogController flipsDialogController,
-                        PortfolioStateRS portfolioStateRS) {
+                        PortfolioStateRS portfolioStateRS, MarketRS markets) {
         this.copilotLoginRS = copilotLoginRS;
         this.osrsLoginManager = osrsLoginManager;
         this.sessionManager = sessionManager;
@@ -120,7 +122,7 @@ public class StatsPanelV2 extends JPanel {
 
         JPanel intervalRsAccountDropdownWrapper = new JPanel(new BorderLayout(0, 0));
         accountDropdown = new AccountDropdown(
-                () -> copilotLoginRS.get().displayNameToAccountId,
+                () -> copilotLoginRS.historyAccounts(),
                 flipManager::setIntervalAccount,
                 AccountDropdown.ALL_ACCOUNTS_DROPDOWN_OPTION
         );
@@ -144,6 +146,12 @@ public class StatsPanelV2 extends JPanel {
         add(bottomPanel, BorderLayout.SOUTH);
 
         flipManager.setFlipsChangedCallback(() -> refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState()));
+        markets.registerListener(m -> SwingUtilities.invokeLater(() -> {
+            long start = IntervalDropdown.calculateStartTime(intervalDropdown.getSelectedIntervalTimeUnit(),
+                    intervalDropdown.getSelectedIntervalValue(), sessionManager.getCachedSessionData().startTime);
+            flipManager.setIntervalStartTime((int) start);
+            refresh(true, lastValidState);
+        }));
     }
 
     private void setupFlipsDialogButton() {

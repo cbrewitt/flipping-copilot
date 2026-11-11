@@ -1,5 +1,7 @@
 package com.flippingcopilot.rs;
 
+import com.flippingcopilot.model.Market;
+
 import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.model.*;
 import com.google.inject.Inject;
@@ -14,6 +16,7 @@ import net.runelite.api.ItemID;
 @Slf4j
 @Singleton
 public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
+    private Market lastMarket = Market.OSRS;
     private final ItemController itemController;
     private final BankStateRS bankStateRS;
     private final ClientThread clientThread;
@@ -33,7 +36,9 @@ public class PortfolioStateRS extends ReactiveStateImpl<PortfolioState> {
         this.clientThread = clientThread;
         this.accountStatusManager = accountStatusManager;
         osrsLoginRS.registerListener(state -> {
-            if (state == null || !state.loggedIn) {
+            boolean marketChanged = state != null && state.market != lastMarket;
+            if (state != null) lastMarket = state.market;
+            if (state == null || !state.loggedIn || marketChanged) {
                 set(PortfolioState.empty());
                 portfolioItemsServerTime = null;
             }

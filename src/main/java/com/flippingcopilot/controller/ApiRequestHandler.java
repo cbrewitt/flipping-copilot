@@ -2,6 +2,8 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
+import com.flippingcopilot.rs.MarketRS;
+import java.util.function.BooleanSupplier;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.util.ProtoUtils;
 import com.google.inject.Singleton;
@@ -42,6 +44,7 @@ public class ApiRequestHandler {
     private final CopilotLoginRS copilotLoginRS;
     private final SuggestionPreferencesManager preferencesManager;
     private final ClientThread clientThread;
+    private final MarketRS markets;
 
     @FunctionalInterface
     private interface CheckedResponseConsumer {
@@ -54,6 +57,33 @@ public class ApiRequestHandler {
 
     private Request.Builder authed(String jwtToken, String path) {
         return unauthed(path).addHeader("Authorization", "Bearer " + jwtToken);
+    }
+
+    private Request.Builder marketAuthed(String jwt, String path, Market market) {
+        BooleanSupplier guard = markets.guard();
+        return authed(jwt, market.path(path)).tag(Market.class, market)
+                .tag(BooleanSupplier.class, () -> guard.getAsBoolean()
+                        && market == markets.get()
+                        && Objects.equals(jwt, copilotLoginRS.get().getJwtToken()));
+    }
+
+    private boolean current(Request request) {
+        BooleanSupplier guard = request.tag(BooleanSupplier.class);
+        return guard == null || guard.getAsBoolean();
+    }
+
+    private void invokeCurrent(Request request, Runnable callback) {
+        clientThread.invoke(() -> { if (current(request)) callback.run(); });
+    }
+
+    private List<FlipV2> decodeFlips(Response response) throws IOException {
+        List<FlipV2> flips = FlipV2.listDecodeProto(response.body().bytes());
+        markFlips(flips, response.request().tag(Market.class));
+        return flips;
+    }
+
+    private void markFlips(List<FlipV2> flips, Market market) {
+        for (FlipV2 flip : flips) flip.setMarket(market);
     }
 
     private RequestBody protoBody(byte[] body) {
@@ -94,12 +124,14 @@ public class ApiRequestHandler {
         call.enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
+                if (!current(call.request())) return;
                 log.warn("{} failed", label, e);
                 onFailure.accept(new HttpResponseException(-1, UNKNOWN_ERROR));
             }
 
             @Override
             public void onResponse(Call call, Response response) {
+                if (!current(call.request())) { response.close(); return; }
                 try {
                     if (!response.isSuccessful()) {
                         clearLoginIfUnauthorized(response, jwtToken);
@@ -200,13 +232,13 @@ public class ApiRequestHandler {
                                    Consumer<Data> graphDataConsumer,
                                    Consumer<HttpResponseException>  onFailure) {
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = authed(jwtToken, "/v3/suggestion")
+        Request request = marketAuthed(jwtToken, "/v3/suggestion", markets.get())
                 .post(protoBody(status))
                 .build();
 
         long startNanos = System.nanoTime();
         enqueue(request, jwtToken, "get suggestion",
-                error -> clientThread.invoke(() -> onFailure.accept(error)),
+                error -> invokeCurrent(request, () -> onFailure.accept(error)),
                 response -> handleSuggestionResponse(response, startNanos, suggestionConsumer, graphDataConsumer));
     }
 
@@ -226,7 +258,7 @@ public class ApiRequestHandler {
             suggestionSize = suggestionBytes.length;
             s = Suggestion.decodeProto(suggestionBytes);
             suggestionNanos = System.nanoTime() - startNanos;
-            clientThread.invoke(() -> suggestionConsumer.accept(s));
+            invokeCurrent(response.request(), () -> suggestionConsumer.accept(s));
 
             try {
                 byte[] graphDataBytes = ProtoUtils.readFrame(is);
@@ -249,10 +281,10 @@ public class ApiRequestHandler {
             d.fromWaitSuggestion = true;
         }
         Data finalD = d;
-        clientThread.invoke(() -> graphDataConsumer.accept(finalD));
+        invokeCurrent(response.request(), () -> graphDataConsumer.accept(finalD));
     }
 
-    public void sendTransactionsAsync(List<Transaction> transactions, String displayName, BiConsumer<Integer, List<FlipV2>> onSuccess, Consumer<HttpResponseException> onFailure) {
+    public void sendTransactionsAsync(List<Transaction> transactions, String displayName, Market market, BiConsumer<Integer, List<FlipV2>> onSuccess, Consumer<HttpResponseException> onFailure) {
         log.debug("sending {} transactions for display name {}", transactions.size(), displayName);
         byte[] body = ProtoUtils.encodeMessage(out -> {
             for (Transaction transaction : transactions) {
@@ -262,12 +294,12 @@ public class ApiRequestHandler {
         });
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = authed(jwtToken, "/v2/profit-tracking/client-transactions")
+        Request request = authed(jwtToken, market.path("/v2/profit-tracking/client-transactions")).tag(Market.class, market)
                 .post(protoBody(body))
                 .build();
 
         enqueue(request, jwtToken, "sync transactions", onFailure,
-                response -> onSuccess.accept(userId, FlipV2.listDecodeProto(response.body().bytes())));
+                response -> onSuccess.accept(userId, decodeFlips(response)));
     }
 
     public void toggleItemPortfolioAsync(ToggleItemPortfolioRequest payload,
@@ -275,7 +307,7 @@ public class ApiRequestHandler {
                                          Consumer<HttpResponseException> onFailure) {
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = authed(jwtToken, "/v2/profit-tracking/toggle-item-portfolio")
+        Request request = marketAuthed(jwtToken, "/v2/profit-tracking/toggle-item-portfolio", markets.get())
                 .post(protoBody(payload.encodeProto()))
                 .build();
 
@@ -299,11 +331,11 @@ public class ApiRequestHandler {
     }
 
 
-    public void asyncGetVisualizeFlipData(UUID flipID, Consumer<VisualizeFlipResponse> onSuccess, Consumer<String> onFailure) {
+    public void asyncGetVisualizeFlipData(UUID flipID, Market market, Consumer<VisualizeFlipResponse> onSuccess, Consumer<String> onFailure) {
         byte[] body = encodeUuidRequest(flipID);
         log.debug("requesting visualize data for flip {}", flipID);
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = authed(jwtToken, "/v2/profit-tracking/visualize-flip")
+        Request request = marketAuthed(jwtToken, "/v2/profit-tracking/visualize-flip", market)
                 .post(protoBody(body))
                 .build();
 
@@ -324,18 +356,18 @@ public class ApiRequestHandler {
         });
         log.debug("requesting price graph data for item {}", itemId);
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = authed(jwtToken, "/v2/prices")
+        Request request = marketAuthed(jwtToken, "/v2/prices", markets.get())
                 .post(protoBody(body))
                 .build();
 
         Consumer<HttpResponseException> emitError = error -> {
             ItemPrice ip = new ItemPrice(0, 0, DEFAULT_COPILOT_PRICE_ERROR_MESSAGE, null);
-            clientThread.invoke(() -> consumer.accept(ip));
+            invokeCurrent(request, () -> consumer.accept(ip));
         };
         enqueue(timeoutCall(request, 30), jwtToken, "copilot price item=" + itemId, emitError, response -> {
             ItemPrice ip = ItemPrice.decodeProto(response.body().bytes());
             log.debug("price graph data received for item {}", itemId);
-            clientThread.invoke(() -> consumer.accept(ip));
+            invokeCurrent(request, () -> consumer.accept(ip));
         });
     }
 
@@ -384,15 +416,15 @@ public class ApiRequestHandler {
         byte[] body = encodeUuidRequest(flip.getId());
         String jwtToken = copilotLoginRS.get().getJwtToken();
 
-        Request request = authed(jwtToken, "/v2/profit-tracking/delete-flip")
+        Request request = marketAuthed(jwtToken, "/v2/profit-tracking/delete-flip", flip.getMarket())
                 .post(protoBody(body))
                 .build();
 
         enqueue(request, jwtToken, "delete flip " + flip.getId(), runnableFailure(onFailure),
-                response -> onSuccess.accept(FlipV2.listDecodeProto(response.body().bytes())));
+                response -> onSuccess.accept(decodeFlips(response)));
     }
 
-    public void asyncAddMissedSale(UUID flipId, long price, int quantity,
+    public void asyncAddMissedSale(UUID flipId, Market market, long price, int quantity,
                                    BiConsumer<Integer, List<FlipV2>> onSuccess,
                                    Consumer<HttpResponseException> onFailure) {
         byte[] body = ProtoUtils.encodeMessage(out -> {
@@ -400,31 +432,31 @@ public class ApiRequestHandler {
             out.writeInt32(3, quantity);
             out.writeInt64(4, price);
         });
-        postProtoExpectingFlips("/v2/profit-tracking/add-missed-sale", body,
+        postProtoExpectingFlips("/v2/profit-tracking/add-missed-sale", market, body,
                 "add missed sale flip=" + flipId, onSuccess, onFailure);
     }
 
-    public void asyncReviveGhostFlip(UUID flipId,
+    public void asyncReviveGhostFlip(UUID flipId, Market market,
                                      BiConsumer<Integer, List<FlipV2>> onSuccess,
                                      Consumer<HttpResponseException> onFailure) {
         byte[] body = ProtoUtils.encodeMessage(out -> {
             out.writeByteArray(1, ProtoUtils.uuidToBytes(flipId));
         });
-        postProtoExpectingFlips("/v2/profit-tracking/revive-ghost-flip", body,
+        postProtoExpectingFlips("/v2/profit-tracking/revive-ghost-flip", market, body,
                 "revive ghost flip=" + flipId, onSuccess, onFailure);
     }
 
-    private void postProtoExpectingFlips(String path, byte[] body, String logLabel,
+    private void postProtoExpectingFlips(String path, Market market, byte[] body, String logLabel,
                                          BiConsumer<Integer, List<FlipV2>> onSuccess,
                                          Consumer<HttpResponseException> onFailure) {
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = authed(jwtToken, path)
+        Request request = marketAuthed(jwtToken, path, market)
                 .post(protoBody(body))
                 .build();
 
         enqueue(request, jwtToken, logLabel, onFailure,
-                response -> onSuccess.accept(userId, FlipV2.listDecodeProto(response.body().bytes())));
+                response -> onSuccess.accept(userId, decodeFlips(response)));
     }
 
     public void asyncClearAccountPortfolio(int accountId,
@@ -434,7 +466,7 @@ public class ApiRequestHandler {
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
 
-        Request request = authed(jwtToken, "/v2/profit-tracking/clear-account-portfolio")
+        Request request = marketAuthed(jwtToken, "/v2/profit-tracking/clear-account-portfolio", markets.get())
                 .post(protoBody(body))
                 .build();
 
@@ -454,7 +486,7 @@ public class ApiRequestHandler {
                 response -> onSuccess.run());
     }
 
-    public void asyncLoadAccounts(Consumer<Map<String, Integer>> onSuccess, Consumer<String> onFailure) {
+    public void asyncLoadAccounts(Market market, Consumer<Map<String, Integer>> onSuccess, Consumer<String> onFailure) {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         Request request = authed(jwtToken, "/v2/profit-tracking/rs-account-names")
                 .get()
@@ -462,28 +494,32 @@ public class ApiRequestHandler {
 
         enqueue(request, jwtToken, "load user display names", stringFailure(onFailure), response -> {
             byte[] responseBody = response.body() != null ? response.body().bytes() : new byte[0];
-            onSuccess.accept(decodeRsAccountNames(responseBody));
+            onSuccess.accept(decodeRsAccountNames(responseBody, market));
         });
     }
 
-    public void asyncLoadFlips(Map<Integer, Integer> accountIdTime, BiConsumer<Integer, FlipsDeltaResult> onSuccess, Consumer<String> onFailure) {
+    public void asyncLoadFlips(Market market, Map<Integer, Integer> accountIdTime, BiConsumer<Integer, FlipsDeltaResult> onSuccess, Consumer<String> onFailure) {
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
         DataDeltaRequest body = new DataDeltaRequest(accountIdTime);
 
-        Request request = authed(jwtToken, "/v2/profit-tracking/client-flips-delta")
+        Request request = authed(jwtToken, market.path("/v2/profit-tracking/client-flips-delta")).tag(Market.class, market)
                 .post(protoBody(body.encodeProto()))
                 .build();
 
         enqueue(request, jwtToken, "load flips", stringFailure(onFailure),
-                response -> onSuccess.accept(userId, FlipsDeltaResult.decodeProto(response.body().bytes())));
+                response -> {
+                    FlipsDeltaResult result = FlipsDeltaResult.decodeProto(response.body().bytes());
+                    markFlips(result.flips, market);
+                    onSuccess.accept(userId, result);
+                });
     }
 
     public void asyncLoadTransactionsData(String displayName, Consumer<byte[]> onSuccess, Consumer<String> onFailure) {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         AccountClientTransactionsRequest body = new AccountClientTransactionsRequest(0, 0, displayName);
 
-        Request request = authed(jwtToken, "/v2/profit-tracking/account-client-transactions")
+        Request request = marketAuthed(jwtToken, "/v2/profit-tracking/account-client-transactions", markets.get())
                 .post(protoBody(body.encodeProto()))
                 .build();
 
@@ -493,10 +529,10 @@ public class ApiRequestHandler {
     }
 
     // the response is a long-lived stream of length-prefixed DumpAlert frames, so it is handed to the caller open
-    public Call asyncConsumeDumpAlerts(String displayName, Consumer<Response> onSuccess, Consumer<HttpResponseException> onFailure) {
+    public Call asyncConsumeDumpAlerts(String displayName, Market market, Consumer<Response> onSuccess, Consumer<HttpResponseException> onFailure) {
         String jwtToken = copilotLoginRS.get().getJwtToken();
         byte[] body = ProtoUtils.encodeMessage(out -> out.writeString(1, displayName));
-        Request request = authed(jwtToken, "/v2/dump-alerts")
+        Request request = authed(jwtToken, market.path("/v2/dump-alerts"))
                 .post(protoBody(body))
                 .build();
 
@@ -542,41 +578,29 @@ public class ApiRequestHandler {
         return ProtoUtils.encodeMessage(out -> out.writeInt32(1, accountId));
     }
 
-    private static Map<String, Integer> decodeRsAccountNames(byte[] bytes) throws IOException {
+    static Map<String, Integer> decodeRsAccountNames(byte[] bytes, Market market) throws IOException {
         Map<String, Integer> names = new HashMap<>();
         CodedInputStream input = CodedInputStream.newInstance(bytes);
         while (!input.isAtEnd()) {
             int tag = input.readTag();
-            if (tag == 0) {
-                break;
-            }
-            if (WireFormat.getTagFieldNumber(tag) != 1) {
-                input.skipField(tag);
-                continue;
-            }
-
-            int length = input.readRawVarint32();
-            int limit = input.pushLimit(length);
-            String displayName = "";
-            int accountId = 0;
+            if (tag == 0) break;
+            int field = WireFormat.getTagFieldNumber(tag);
+            if (field != 2) { input.skipField(tag); continue; }
+            int limit = input.pushLimit(input.readRawVarint32());
+            int id = 0;
+            String name = "", game = "";
             while (!input.isAtEnd()) {
-                int entryTag = input.readTag();
-                if (entryTag == 0) {
-                    break;
-                }
-                switch (WireFormat.getTagFieldNumber(entryTag)) {
-                    case 1:
-                        displayName = input.readString();
-                        break;
-                    case 2:
-                        accountId = input.readInt32();
-                        break;
-                    default:
-                        input.skipField(entryTag);
+                int entry = input.readTag();
+                if (entry == 0) break;
+                switch (WireFormat.getTagFieldNumber(entry)) {
+                    case 1: id = input.readInt32(); break;
+                    case 2: name = input.readString(); break;
+                    case 3: game = input.readString(); break;
+                    default: input.skipField(entry);
                 }
             }
             input.popLimit(limit);
-            names.put(displayName, accountId);
+            if (market.id.equals(game)) names.put(name, id);
         }
         return names;
     }
@@ -601,12 +625,12 @@ public class ApiRequestHandler {
         });
         Integer userId = copilotLoginRS.get().getUserId();
         String jwtToken = copilotLoginRS.get().getJwtToken();
-        Request request = authed(jwtToken, path)
+        Request request = marketAuthed(jwtToken, path, markets.get())
                 .post(protoBody(body))
                 .build();
 
         enqueue(request, jwtToken, label + " " + transaction.getId(), runnableFailure(onFailure),
-                response -> onSuccess.accept(userId, FlipV2.listDecodeProto(response.body().bytes())));
+                response -> onSuccess.accept(userId, decodeFlips(response)));
     }
 
 }

@@ -167,7 +167,7 @@ public class MissedFlipsPanel extends JPanel {
         if (displayName == null) {
             return null;
         }
-        Map<String, Integer> map = copilotLoginRS.get().displayNameToAccountId;
+        Map<String, Integer> map = copilotLoginRS.historyAccounts();
         if (map == null) {
             return null;
         }
@@ -343,11 +343,15 @@ public class MissedFlipsPanel extends JPanel {
                     "Transaction Error",
                     JOptionPane.ERROR_MESSAGE);
         };
-        apiRequestHandler.asyncAddMissedSale(flip.getId(), price, qty, onSuccess, onFailure);
+        apiRequestHandler.asyncAddMissedSale(flip.getId(), flip.getMarket(), price, qty, onSuccess, onFailure);
     }
 
     private List<GeHistoryRow> findGeHistorySellMatches(FlipV2 flip) {
         GeHistoryState state = geHistoryStateRS.get();
+        if (flip.getMarket() != osrsLoginRS.get().market
+                || !java.util.Objects.equals(copilotLoginRS.get().getAccountId(osrsLoginRS.get().displayName), flip.getAccountId())) {
+            return Collections.emptyList();
+        }
         if (state == null || !state.isLoaded() || state.getCapturedAt() <= flip.getUpdatedTime()) {
             return Collections.emptyList();
         }
@@ -416,7 +420,7 @@ public class MissedFlipsPanel extends JPanel {
                     "Revive Error",
                     JOptionPane.ERROR_MESSAGE);
         };
-        apiRequestHandler.asyncReviveGhostFlip(flip.getId(), onSuccess, onFailure);
+        apiRequestHandler.asyncReviveGhostFlip(flip.getId(), flip.getMarket(), onSuccess, onFailure);
     }
 
     private boolean validateProfit(long profit, FlipV2 flip, long price) {

@@ -13,6 +13,7 @@ import java.util.*;
 @Slf4j
 @Data
 public class FlipV2 {
+    private transient Market market = Market.OSRS;
 
     private UUID id;
     private int accountId;

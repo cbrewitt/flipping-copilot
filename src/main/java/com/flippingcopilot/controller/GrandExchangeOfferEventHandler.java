@@ -75,7 +75,7 @@ public class GrandExchangeOfferEventHandler {
                     }
                     Transaction t = inferItemSinkSale(slot, itemId, varpLong(ITEM_SINK_PRICE[slot]));
                     log.debug("inferred item sink sale {}", t);
-                    transactionsToProcess.add(t);
+                    queueTransaction(t);
                     grandExchangeUncollectedManager.addUncollected(client.getAccountHash(), slot, itemId, 0, t.getAmountSpent());
                     suggestionManager.setSuggestionNeeded(true);
                     break;
@@ -150,7 +150,7 @@ public class GrandExchangeOfferEventHandler {
 
         Transaction t = inferTransaction(slot, o, prev, consistent);
         if(t != null) {
-            transactionsToProcess.add(t);
+            queueTransaction(t);
             processTransactions();
             log.debug("inferred transaction {}", t);
         }
@@ -209,6 +209,13 @@ public class GrandExchangeOfferEventHandler {
 
     }
 
+    private void queueTransaction(Transaction transaction) {
+        transaction.setMarket(osrsLoginManager.getMarket());
+        transaction.setDisplayName(osrsLoginManager.getPlayerDisplayName());
+        transaction.setAccountHash(client.getAccountHash());
+        transactionsToProcess.add(transaction);
+    }
+
     private void processTransactions() {
         if (osrsLoginManager.isUnsupportedWorldType()) {
             return;
@@ -217,8 +224,14 @@ public class GrandExchangeOfferEventHandler {
         if(displayName != null) {
             Transaction transaction;
             while ((transaction = transactionsToProcess.poll()) != null) {
-                long profit = transactionManager.addTransaction(transaction, displayName);
-                if (grandExchange.isHomeScreenOpen() && profit != 0) {
+                String origin = transaction.getDisplayName();
+                if (origin == null && transaction.getAccountHash() == client.getAccountHash()) origin = displayName;
+                if (origin == null) {
+                    log.warn("cannot attribute queued GE transaction to an account");
+                    continue;
+                }
+                long profit = transactionManager.addTransaction(transaction, origin);
+                if (transaction.getMarket() == osrsLoginManager.getMarket() && grandExchange.isHomeScreenOpen() && profit != 0) {
                     new GpDropOverlay(overlayManager, client, profit, transaction.getBoxId());
                 }
             }

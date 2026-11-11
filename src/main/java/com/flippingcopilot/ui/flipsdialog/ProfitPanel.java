@@ -57,7 +57,7 @@ public class ProfitPanel extends JPanel {
 
         intervalDropdown = DialogUi.intervalDropdown((units, value) -> refreshGraph(false));
 
-        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.get().displayNameToAccountId, accountId -> refreshGraph(false));
+        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.historyAccounts(), accountId -> refreshGraph(false));
         accountDropdown.refresh();
 
         leftPanel.add(intervalDropdown);

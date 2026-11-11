@@ -74,7 +74,7 @@ public class FlipsPanel extends JPanel {
         ItemSearchMultiSelect searchField = ItemSearchMultiSelect.itemsFilter(this, itemController,
                 sortAndFilter::getFilteredItems, sortAndFilter::setFilteredItems);
 
-        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.get().displayNameToAccountId, sortAndFilter::setAccountId);
+        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.historyAccounts(), sortAndFilter::setAccountId);
 
         IntervalDropdown timeIntervalDropdown = DialogUi.intervalDropdown(sortAndFilter::setInterval);
 

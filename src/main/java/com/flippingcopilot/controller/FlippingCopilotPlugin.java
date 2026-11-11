@@ -259,15 +259,33 @@ public class FlippingCopilotPlugin extends Plugin {
 		return bank != null && !bank.isHidden();
 	}
 
+    private void refreshLoginState() {
+        OsrsLoginState next = osrsLoginRS.get().nextState(client);
+        if (!next.equals(osrsLoginRS.get())) suggestionManager.reset();
+        if (next.loggedIn && next.market != osrsLoginRS.get().market) {
+            itemSinkTracker.reset();
+            sessionManager.reset();
+            suggestionManager.reset();
+            accountStatusManager.reset();
+            grandExchangeUncollectedManager.reset();
+            offerManager.setViewedSlotItemId(-1);
+            offerManager.setViewedSlotItemPrice(-1);
+            offerManager.setLastViewedSlotItemId(-1);
+            offerManager.setLastViewedSlotItemPrice(-1);
+            highlightController.removeAll();
+        }
+        osrsLoginRS.set(next);
+    }
+
 	@Subscribe
 	public void onGameTick(GameTick event) {
+        refreshLoginState();
 		bankStateRS.onGameTick();
 		geHistoryStateRS.onGameTick(client);
 		grandExchangeOpenRS.set(grandExchange.isOpen());
 
 		suggestionController.onGameTick();
 		offerEventHandler.onGameTick();
-		osrsLoginRS.set(osrsLoginRS.get().nextState(client));
 	}
 
 	@Subscribe
@@ -318,6 +336,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event) {
+        refreshLoginState();
 		switch (event.getGameState())
 		{
 			case LOGIN_SCREEN:
@@ -328,14 +347,12 @@ public class FlippingCopilotPlugin extends Plugin {
 				accountStatusManager.reset();
 				grandExchangeUncollectedManager.reset();
 				statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
-				osrsLoginRS.set(osrsLoginRS.get().nextState(client));
 				mainPanel.refresh();
 				break;
 			case LOGGING_IN:
 			case HOPPING:
 			case CONNECTION_LOST:
 				osrsLoginManager.setLastLoginTick(client.getTickCount());
-				osrsLoginRS.set(osrsLoginRS.get().nextState(client));
 				break;
 			case LOGGED_IN:
 				// we want to update the flips panel on login but unfortunately the display name

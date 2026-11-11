@@ -64,6 +64,17 @@ public class TransactionsPanel extends JPanel {
     private volatile int pageSize = DEFAULT_PAGE_SIZE;
     private volatile int currentPage = 1;
     private volatile Integer selectedAccountId;
+    private volatile int marketVersion;
+
+    public void resetMarket() {
+        marketVersion++;
+        transactionDataWrapper = null;
+        selectedAccountId = null;
+        loadTransactionsTriggered.set(false);
+        accountDropdown.refresh();
+        tablePanel.setRows(Collections.emptyList());
+        if (isShowing()) loadTransactionsIfNeeded();
+    }
 
     public TransactionsPanel(CopilotLoginRS copilotLoginRS,
                              ItemController itemController,
@@ -131,7 +142,7 @@ public class TransactionsPanel extends JPanel {
 
         // Account dropdown
         accountDropdown = DialogUi.accountDropdown(
-                () -> copilotLoginRS.get().displayNameToAccountId,
+                () -> copilotLoginRS.historyAccounts(),
                 accountId -> {
                     if (!Objects.equals(accountId, selectedAccountId)) {
                         currentPage = 1;
@@ -213,14 +224,17 @@ public class TransactionsPanel extends JPanel {
         }
         setSpinnerVisible(true);
         errorLabel.setVisible(false);
+        int expectedMarket = marketVersion;
         apiRequestHandler.asyncLoadTransactionsData(
                 displayName,
                 transactionsData -> SwingUtilities.invokeLater(() -> {
+                    if (marketVersion != expectedMarket) return;
                     setSpinnerVisible(false);
                     transactionDataWrapper = new TransactionDataWrapper(transactionsData);
                     applyFilters(true);
                 }),
                 error -> SwingUtilities.invokeLater(() -> {
+                    if (marketVersion != expectedMarket) return;
                     setSpinnerVisible(false);
                     errorLabel.setVisible(true);
                     log.error("Failed to load transactions: {}", error);
@@ -319,19 +333,21 @@ public class TransactionsPanel extends JPanel {
     private JMenuItem transactionMenuItem(AckedTransaction transaction, String label, String confirmMessage,
                                           String errorMessage, String logAction,
                                           TransactionRequest request, Consumer<AckedTransaction> localUpdate) {
+        int expectedMarket = marketVersion;
         JMenuItem item = new JMenuItem(label);
         item.addActionListener(evt -> {
             int result = JOptionPane.showConfirmDialog(this,
                     confirmMessage,
                     "Confirm Action",
                     JOptionPane.YES_NO_OPTION);
-            if (result == JOptionPane.YES_OPTION) {
+            if (result == JOptionPane.YES_OPTION && marketVersion == expectedMarket) {
                 loadingText.setText("");
                 setSpinnerVisible(true);
                 log.info("{} transaction with ID: {}", logAction, transaction.getId());
 
                 BiConsumer<Integer, List<FlipV2>> onSuccess = (userId, flips) -> {
                     flipManager.mergeFlips(flips, userId);
+                    if (marketVersion != expectedMarket) return;
                     setSpinnerVisible(false);
                     transaction.setClientFlipId(ZERO_UUID);
                     localUpdate.accept(transaction);
@@ -339,6 +355,7 @@ public class TransactionsPanel extends JPanel {
                 };
 
                 Runnable onFailure = () -> {
+                    if (marketVersion != expectedMarket) return;
                     setSpinnerVisible(false);
                     JOptionPane.showMessageDialog(this,
                             errorMessage,

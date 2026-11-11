@@ -1,5 +1,8 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.rs.MarketRS;
+import java.util.function.BooleanSupplier;
+
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.OfferEditor;
@@ -36,6 +39,7 @@ public class OfferHandler {
     private final ClientThread clientThread;
     private final SuggestionManager suggestionManager;
     private final ApiRequestHandler apiRequestHandler;
+    private final MarketRS markets;
     private final OsrsLoginManager osrsLoginManager;
     private final OfferManager offerManager;
     private final HighlightController highlightController;
@@ -65,8 +69,10 @@ public class OfferHandler {
                 return;
             }
             viewedSlotPriceErrorText = "Loading copilot item price..";
+            BooleanSupplier current = markets.guard();
             Consumer<ItemPrice> itemPriceConsumer = (fetchedPrice) -> {
                 clientThread.invoke(() -> {
+                    if (!current.getAsBoolean()) return;
                     if (fetchedPrice == null) {
                         viewedSlotPriceErrorText = "Unknown error";
                         return;

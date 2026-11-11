@@ -1,5 +1,9 @@
 package com.flippingcopilot.ui.flipsdialog;
 
+import com.flippingcopilot.rs.MarketRS;
+import com.flippingcopilot.rs.OsrsLoginRS;
+import java.util.function.BooleanSupplier;
+
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
@@ -22,6 +26,7 @@ import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 @Slf4j
 public class PriceGraphPanel extends JPanel {
+    private final MarketRS markets;
 
     // Dependencies
     private final ItemController itemController;
@@ -54,7 +59,8 @@ public class PriceGraphPanel extends JPanel {
                            PriceGraphConfigManager configManager,
                            FlippingCopilotConfig copilotConfig,
                            ApiRequestHandler apiRequestHandler,
-                           OsrsLoginManager osrsLoginManager, SuggestionManager suggestionManager) {
+                           OsrsLoginManager osrsLoginManager, SuggestionManager suggestionManager, MarketRS markets, OsrsLoginRS login) {
+        this.markets = markets;
         this.itemController = itemController;
         this.apiRequestHandler = apiRequestHandler;
         this.osrsLoginManager = osrsLoginManager;
@@ -140,6 +146,11 @@ public class PriceGraphPanel extends JPanel {
         add(contentPanel, BorderLayout.CENTER);
 
         contentCardLayout.show(contentPanel, Cards.LANDING_CARD.name());
+        login.registerListener(state -> SwingUtilities.invokeLater(() -> {
+            suggestionPriceData = null;
+            isShowingSuggestionPriceData = false;
+            showLandingCard();
+        }));
     }
 
     private void onItemSelected(Integer itemId) {
@@ -156,8 +167,10 @@ public class PriceGraphPanel extends JPanel {
         currentItemId = itemId;
         log.debug("Loading price graph for item: {}", itemId);
         contentCardLayout.show(contentPanel, Cards.LOADING_CARD.name());
+        BooleanSupplier current = markets.guard();
         Consumer<ItemPrice> consumer = (ItemPrice itemPrice) -> {
             SwingUtilities.invokeLater(() -> {
+                if (!current.getAsBoolean()) return;
                 String errorMessage = firstNonNull(itemPrice.getMessage(), "");
                 if (!errorMessage.isEmpty()) {
                     showErrorCard(errorMessage);

@@ -43,6 +43,8 @@ public class SuggestionManager {
     }
 
     public void reset() {
+        suggestionRequestInProgress = false;
+        graphDataReadingInProgress = false;
         suggestionNeeded = false;
         suggestionRefreshPending = false;
         suggestion = null;

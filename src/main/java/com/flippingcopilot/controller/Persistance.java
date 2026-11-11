@@ -1,6 +1,7 @@
 package com.flippingcopilot.controller;
 
 import com.flippingcopilot.model.Transaction;
+import com.flippingcopilot.model.Market;
 import com.google.common.io.CharStreams;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
@@ -51,9 +52,9 @@ public class Persistance {
         }
     }
 
-    public List<Transaction> loadUnAckedTransactions(String displayName) {
+    public List<Transaction> loadUnAckedTransactions(String displayName, Market market) {
         List<Transaction> transactions = new ArrayList<>();
-        Filepath file = directory.joinSegment(String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
+        Filepath file = directory.joinSegment(market.filePrefix + String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
         if (!file.exists()) {
             log.info("no existing un acked transactions file for {}", displayName);
             return new ArrayList<>();
@@ -91,8 +92,8 @@ public class Persistance {
         return transactions;
     }
 
-    public void storeUnAckedTransactions(List<Transaction> transactions, String displayName) {
-        Filepath unackedTransactionsFile = directory.joinSegment(String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
+    public void storeUnAckedTransactions(List<Transaction> transactions, String displayName, Market market) {
+        Filepath unackedTransactionsFile = directory.joinSegment(market.filePrefix + String.format(UN_ACKED_TRANSACTIONS_FILE_TEMPLATE, hashDisplayName(displayName)));
         try (BufferedWriter w = unackedTransactionsFile.openBufferedWriter()) {
             for (Transaction transaction : transactions) {
                 String json = gson.toJson(transaction);

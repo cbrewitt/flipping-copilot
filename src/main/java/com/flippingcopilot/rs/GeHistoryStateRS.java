@@ -1,5 +1,7 @@
 package com.flippingcopilot.rs;
 
+import com.flippingcopilot.model.Market;
+
 import com.flippingcopilot.model.GeHistoryRow;
 import com.flippingcopilot.model.GeHistoryState;
 import com.google.inject.Inject;
@@ -16,6 +18,7 @@ import java.util.regex.Pattern;
 @Singleton
 @Slf4j
 public class GeHistoryStateRS extends ReactiveStateImpl<GeHistoryState> {
+    private Market lastMarket = Market.OSRS;
 
     private static final int GE_HISTORY_GROUP = 383;
     private static final int GE_HISTORY_LIST_CHILD = 3;
@@ -33,7 +36,9 @@ public class GeHistoryStateRS extends ReactiveStateImpl<GeHistoryState> {
         super(GeHistoryState.empty());
         this.osrsLoginRS = osrsLoginRS;
         osrsLoginRS.registerListener(state -> {
-            if (state == null || !state.loggedIn) {
+            boolean marketChanged = state != null && state.market != lastMarket;
+            if (state != null) lastMarket = state.market;
+            if (state == null || !state.loggedIn || marketChanged) {
                 lastSeenVisible = false;
                 set(GeHistoryState.empty());
                 return;

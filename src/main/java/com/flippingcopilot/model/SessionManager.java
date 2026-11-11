@@ -32,13 +32,18 @@ public class SessionManager {
 
     private Instant lastSessionUpdateTime;
 
+    private String sessionKey() {
+        String name = osrsLoginManager.getPlayerDisplayName();
+        return name == null ? null : osrsLoginManager.getMarket().storageKey(name);
+    }
+
     public synchronized SessionData getCachedSessionData() {
-        SessionData sd = getSessionData(osrsLoginManager.getPlayerDisplayName());
+        SessionData sd = getSessionData(sessionKey());
         return new SessionData(sd.startTime,  sd.durationMillis, sd.averageCash);
     }
 
     public synchronized void resetSession() {
-        String displayName = osrsLoginManager.getPlayerDisplayName();
+        String displayName = sessionKey();
         SessionData sd = getSessionData(displayName);
         sd.startTime = (int) Instant.now().getEpochSecond();
         sd.averageCash = 0;
@@ -47,7 +52,7 @@ public class SessionManager {
     }
 
     public synchronized boolean updateSessionStats(boolean currentlyFlipping, long cashStack) {
-        String displayName = osrsLoginManager.getPlayerDisplayName();
+        String displayName = sessionKey();
         if (!currentlyFlipping || displayName == null) {
             lastSessionUpdateTime = null;
             return false;

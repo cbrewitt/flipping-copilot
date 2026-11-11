@@ -1,5 +1,6 @@
 package com.flippingcopilot.ui.flipsdialog;
 
+
 import com.flippingcopilot.controller.ApiRequestHandler;
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
@@ -24,6 +25,7 @@ import java.util.concurrent.ScheduledExecutorService;
 @Singleton
 public class FlipsDialogController {
 
+    private final MarketRS markets;
     private final ItemController itemController;
     private final FlipManager flipsManager;
     private final ExecutorService executorService;
@@ -61,7 +63,8 @@ public class FlipsDialogController {
             PortfolioStateRS portfolioStateRS,
             BankStateRS bankStateRS,
             GeHistoryStateRS geHistoryStateRS,
-            ClientThread clientThread) {
+            ClientThread clientThread, MarketRS markets) {
+        this.markets = markets;
         this.itemController = itemController;
         this.flipsManager = flipsManager;
         this.executorService = executorService;
@@ -120,7 +123,7 @@ public class FlipsDialogController {
                     config,
                     apiRequestHandler,
                     osrsLoginManager,
-                    suggestionManager
+                    suggestionManager, markets, osrsLoginRS
             );
             tabbedPane.addTab("Portfolio", portfolioPanel);
             tabbedPane.addTab("Flips", flipsPanel);
@@ -169,6 +172,15 @@ public class FlipsDialogController {
                 }
             });
             dialog.setContentPane(tabbedPane);
+            markets.registerListener(m -> SwingUtilities.invokeLater(() -> {
+                flipsPanel.onTabShown();
+                itemsPanel.onTabShown();
+                accountsPanel.onTabShown();
+                profitPanel.refreshGraph(true);
+                missedFlipsPanel.onTabShown();
+                transactionsPanel.resetMarket();
+                visualizeFlipPanel.resetMarket();
+            }));
 
             GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
             Rectangle bounds = env.getMaximumWindowBounds(); // Excludes taskbar

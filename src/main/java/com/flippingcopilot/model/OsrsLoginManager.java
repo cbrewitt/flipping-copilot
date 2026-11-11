@@ -36,6 +36,8 @@ public class OsrsLoginManager {
 
     private boolean lastIsIronman = false;
 
+    public Market getMarket() { return Market.fromWorlds(client.getWorldType()); }
+
     public boolean isMembersWorld() {
         return client.getWorldType().contains(WorldType.MEMBERS);
     }

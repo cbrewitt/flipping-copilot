@@ -55,7 +55,7 @@ public class ItemAggregatePanel extends JPanel {
 
         IntervalDropdown timeIntervalDropdown = DialogUi.intervalDropdown(sortAndFilter::setInterval);
 
-        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.get().displayNameToAccountId, sortAndFilter::setAccountId);
+        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.historyAccounts(), sortAndFilter::setAccountId);
         accountDropdown.refresh();
 
         tablePanel.leftControls().add(searchField);
