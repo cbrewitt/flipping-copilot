@@ -1,22 +1,19 @@
 package com.flippingcopilot.controller;
 
+import com.flippingcopilot.rs.*;
+import java.util.function.*;
+
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.OfferEditor;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
-import net.runelite.api.widgets.ComponentID;
-import net.runelite.api.widgets.Widget;
+import net.runelite.api.widgets.*;
 import net.runelite.client.callback.ClientThread;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import static net.runelite.api.VarPlayer.CURRENT_GE_ITEM;
 
@@ -36,6 +33,7 @@ public class OfferHandler {
     private final ClientThread clientThread;
     private final SuggestionManager suggestionManager;
     private final ApiRequestHandler apiRequestHandler;
+    private final MarketRS markets;
     private final OsrsLoginManager osrsLoginManager;
     private final OfferManager offerManager;
     private final HighlightController highlightController;
@@ -65,8 +63,10 @@ public class OfferHandler {
                 return;
             }
             viewedSlotPriceErrorText = "Loading copilot item price..";
+            BooleanSupplier current = markets.guard();
             Consumer<ItemPrice> itemPriceConsumer = (fetchedPrice) -> {
                 clientThread.invoke(() -> {
+                    if (!current.getAsBoolean()) return;
                     if (fetchedPrice == null) {
                         viewedSlotPriceErrorText = "Unknown error";
                         return;

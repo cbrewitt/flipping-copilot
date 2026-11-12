@@ -165,6 +165,13 @@ public class GraphPanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
+        if (!dataManager.hasPriceData()) {
+            String message = "No price history available";
+            g2d.setColor(config.textColor);
+            g2d.drawString(message, (getWidth() - g2d.getFontMetrics().stringWidth(message)) / 2, getHeight() / 2);
+            return;
+        }
+
         // First draw the legend above the plot area
         renderer.drawLegend(g2d, config, pricePa, data.predictionTimes != null);
 

@@ -3,8 +3,7 @@ package com.flippingcopilot.model;
 import com.flippingcopilot.ui.graph.model.Data;
 import com.flippingcopilot.util.ProtoUtils;
 import com.google.gson.annotations.SerializedName;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
+import com.google.protobuf.*;
 import lombok.*;
 
 import java.io.IOException;

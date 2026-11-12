@@ -1,8 +1,7 @@
 package com.flippingcopilot.ui.graph.model;
 
 import com.flippingcopilot.util.ProtoUtils;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
+import com.google.protobuf.*;
 import lombok.Getter;
 
 import java.io.IOException;

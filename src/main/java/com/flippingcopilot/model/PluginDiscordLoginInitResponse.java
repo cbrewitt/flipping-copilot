@@ -1,9 +1,7 @@
 package com.flippingcopilot.model;
 
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import com.google.protobuf.*;
+import lombok.*;
 
 import java.io.IOException;
 

@@ -6,8 +6,7 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Filepath;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.io.*;
 import java.nio.file.NoSuchFileException;
 import java.util.*;
@@ -19,9 +18,10 @@ import java.util.concurrent.ScheduledExecutorService;
 @RequiredArgsConstructor(onConstructor_ = @Inject)
 public class OfferManager {
 
-    private static final String OFFER_FILE_TEMPLATE = "acc_%d_%d.json";
+    private static final String OFFER_FILE_TEMPLATE = "acc_%s_%d.json";
 
     private final Persistance persistance;
+    private final OsrsLoginManager login;
 
     // dependencies
     private final Gson gson;
@@ -47,11 +47,15 @@ public class OfferManager {
     @Setter
     boolean offerJustPlaced = false;
 
-    private final Map<Long, Map<Integer, SavedOffer>> cachedOffers = new HashMap<>();
-    private final Map<Long, Map<Integer, Filepath>> files = new HashMap<>();
-    private final Map<Long, Map<Integer, SavedOffer>> lastSaved = new HashMap<>();
+    private final Map<String, Map<Integer, SavedOffer>> cachedOffers = new HashMap<>();
+    private final Map<String, Map<Integer, Filepath>> files = new HashMap<>();
+    private final Map<String, Map<Integer, SavedOffer>> lastSaved = new HashMap<>();
 
     public synchronized SavedOffer loadOffer(Long accountHash, Integer slot) {
+        return loadOffer(login.getMarket().filePrefix + accountHash, slot);
+    }
+
+    private SavedOffer loadOffer(String accountHash, Integer slot) {
         Map<Integer, SavedOffer> slotToOffer = cachedOffers.computeIfAbsent(accountHash, (k) -> new HashMap<>());
         return slotToOffer.computeIfAbsent(slot, (k) -> {
             Filepath file = getFile(accountHash, k);
@@ -66,25 +70,26 @@ public class OfferManager {
         });
     }
 
-    public synchronized void saveOffer(Long accountHash, Integer slot, SavedOffer offer) {
+    public synchronized void saveOffer(Long account, Integer slot, SavedOffer offer) {
+        String accountHash = login.getMarket().filePrefix + account;
         Map<Integer, SavedOffer> slotToOffer = cachedOffers.computeIfAbsent(accountHash, (k) -> new HashMap<>());
         slotToOffer.put(slot, offer);
         saveAsync(accountHash, slot);
     }
 
-    private void saveAsync(Long accountHash, Integer slot) {
+    private void saveAsync(String accountHash, Integer slot) {
         executorService.submit(() -> save(accountHash, slot));
     }
 
     public synchronized void saveAll() {
-        for(Long accountHash: cachedOffers.keySet()) {
+        for(String accountHash: cachedOffers.keySet()) {
             for(Integer slot: cachedOffers.get(accountHash).keySet()) {
                 save(accountHash, slot);
             }
         }
     }
 
-    private void save(Long accountHash, Integer slot) {
+    private synchronized void save(String accountHash, Integer slot) {
         Filepath file = getFile(accountHash,slot);
         synchronized (file) {
             SavedOffer offer = loadOffer(accountHash, slot);
@@ -105,7 +110,7 @@ public class OfferManager {
     }
 
 
-    private Filepath getFile(Long accountHash, Integer slot) {
+    private Filepath getFile(String accountHash, Integer slot) {
         Map<Integer, Filepath> slotToFile = files.computeIfAbsent(accountHash, (k) -> new HashMap<>());
         return slotToFile.computeIfAbsent(slot, (k) -> persistance.getDirectory().joinSegment(String.format(OFFER_FILE_TEMPLATE, accountHash, slot)));
     }

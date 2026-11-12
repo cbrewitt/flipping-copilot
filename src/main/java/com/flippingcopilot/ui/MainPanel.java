@@ -2,13 +2,10 @@ package com.flippingcopilot.ui;
 
 import com.flippingcopilot.rs.CopilotLoginRS;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.ui.PluginPanel;
-import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.LinkBrowser;
+import net.runelite.client.ui.*;
+import net.runelite.client.util.*;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;

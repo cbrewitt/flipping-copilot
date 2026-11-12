@@ -1,7 +1,6 @@
 package com.flippingcopilot.model;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import javax.inject.Singleton;
 import java.time.Instant;
@@ -43,6 +42,8 @@ public class SuggestionManager {
     }
 
     public void reset() {
+        suggestionRequestInProgress = false;
+        graphDataReadingInProgress = false;
         suggestionNeeded = false;
         suggestionRefreshPending = false;
         suggestion = null;

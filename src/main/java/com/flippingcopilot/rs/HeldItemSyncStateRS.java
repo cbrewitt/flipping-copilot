@@ -1,17 +1,20 @@
 package com.flippingcopilot.rs;
 
-import com.flippingcopilot.model.HeldItemSyncState;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.flippingcopilot.model.*;
+
+import com.google.inject.*;
 
 @Singleton
 public class HeldItemSyncStateRS extends ReactiveStateImpl<HeldItemSyncState> {
+    private Market lastMarket = Market.OSRS;
 
     @Inject
     public HeldItemSyncStateRS(OsrsLoginRS osrsLoginRS) {
         super(HeldItemSyncState.empty());
         osrsLoginRS.registerListener(state -> {
-            if (state == null || !state.loggedIn) {
+            boolean marketChanged = state != null && state.market != lastMarket;
+            if (state != null) lastMarket = state.market;
+            if (state == null || !state.loggedIn || marketChanged) {
                 set(HeldItemSyncState.empty());
             }
         });

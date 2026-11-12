@@ -1,20 +1,19 @@
 package com.flippingcopilot.controller;
 
 
-import com.flippingcopilot.model.DumpAlert;
-import com.flippingcopilot.model.Suggestion;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.*;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
-import okhttp3.Call;
-import okhttp3.Response;
+import okhttp3.*;
 import okio.BufferedSource;
 
 import javax.inject.Inject;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.*;
 
 @Slf4j
 @Singleton
@@ -24,8 +23,10 @@ public class DumpsStreamController {
     private static final long MAX_FRAME_BYTES = 1 << 20;
 
     private final ClientThread clientThread;
+    private final ScheduledExecutorService executor;
     private final ApiRequestHandler apiRequestHandler;
     private final SuggestionController suggestionController;
+    private final AtomicLong generation = new AtomicLong();
     private final AtomicReference<Call> activeCall = new AtomicReference<>();
     private final ReactiveState<String> subscribedDisplayName;
 
@@ -36,8 +37,9 @@ public class DumpsStreamController {
                                  AccountSuggestionPreferencesRS accountSuggestionPreferencesRS,
                                  OsrsLoginRS osrsLoginRS,
                                  CopilotLoginRS copilotLoginRS,
-                                 GrandExchangeOpenRS grandExchangeOpenRS) {
+                                 GrandExchangeOpenRS grandExchangeOpenRS, ScheduledExecutorService executor) {
         this.clientThread = clientThread;
+        this.executor = executor;
         this.apiRequestHandler = apiRequestHandler;
         this.suggestionController = suggestionController;
         this.subscribedDisplayName = ReactiveStateUtil.derive(
@@ -54,7 +56,7 @@ public class DumpsStreamController {
                             || !Boolean.TRUE.equals(isGrandExchangeOpen)) {
                         return null;
                     }
-                    return loginState.displayName;
+                    return loginState.market.id + ":" + loginState.displayName;
                 });
         subscribedDisplayName.registerListener(name -> {
             if (name != null) {
@@ -66,6 +68,7 @@ public class DumpsStreamController {
     }
 
     public void ensureUnsubscribed() {
+        generation.incrementAndGet();
         Call call = activeCall.getAndSet(null);
         if (call != null) {
             call.cancel();
@@ -73,28 +76,33 @@ public class DumpsStreamController {
     }
 
     private void consumeDumps() {
-        String displayName = subscribedDisplayName.get();
-        if(displayName != null) {
-            Call previous = activeCall.get();
-            Call call = apiRequestHandler.asyncConsumeDumpAlerts(displayName,
-                    this::consumeDumpStream,
-                    error -> {
-                        log.warn("dump alerts connection failed, re-connecting: {}", error.getMessage());
-                        consumeDumps();
-                    }
-            );
-            log.info("{} subscribing to dumps", displayName);
-            if (activeCall.getAndSet(call) != previous || subscribedDisplayName.get() == null) { // catches race edge case
-                ensureUnsubscribed();
-            }
-        }
+        String subscription = subscribedDisplayName.get();
+        if (subscription == null) return;
+        long expected = generation.incrementAndGet();
+        int separator = subscription.indexOf(':');
+        Market market = subscription.startsWith(Market.HC.id + ":") ? Market.HC : Market.OSRS;
+        String displayName = subscription.substring(separator + 1);
+        Call call = apiRequestHandler.asyncConsumeDumpAlerts(displayName, market,
+                response -> {
+                    if (generation.get() == expected) consumeDumpStream(response, expected);
+                    else response.close();
+                }, error -> {
+                    reconnect(expected);
+                });
+        Call previous = activeCall.getAndSet(call);
+        if (previous != null) previous.cancel();
+        if (generation.get() != expected) call.cancel();
+    }
+
+    private void reconnect(long expected) {
+        executor.schedule(() -> { if (generation.get() == expected) consumeDumps(); }, 5, TimeUnit.SECONDS);
     }
 
     // each frame is a uvarint byte length followed by that many bytes of an encoded DumpAlert; a zero-length frame is the keepalive
-    private void consumeDumpStream(Response response) {
+    private void consumeDumpStream(Response response, long expected) {
         try (Response resp = response) {
             BufferedSource source = resp.body().source();
-            while (activeCall.get() != null) {
+            while (generation.get() == expected) {
                 long length = readUvarint(source);
                 if (length == 0) {
                     continue;
@@ -103,13 +111,13 @@ public class DumpsStreamController {
                 if (length < 0 || length > MAX_FRAME_BYTES) {
                     throw new IOException("invalid dump frame length: " + length);
                 }
-                handleDumpMessage(source.readByteArray(length));
+                handleDumpMessage(source.readByteArray(length), expected);
             }
         } catch (IOException e) {
             String displayName = subscribedDisplayName.get();
-            if (displayName != null) {
+            if (displayName != null && generation.get() == expected) {
                 log.warn("dump alerts stream error", e);
-                consumeDumps();
+                reconnect(expected);
             } else {
                 log.info("consumeDumpStream ended gracefully");
             }
@@ -128,7 +136,7 @@ public class DumpsStreamController {
         throw new IOException("dump frame length is not a valid uvarint");
     }
 
-    private void handleDumpMessage(byte[] data) throws IOException {
+    private void handleDumpMessage(byte[] data, long expected) throws IOException {
         Suggestion suggestion = DumpAlert.decodeProto(data).suggestion;
         if (suggestion == null) {
             log.warn("dump suggestion decode failed");
@@ -137,7 +145,9 @@ public class DumpsStreamController {
         suggestion.setMessage("<html><b><font color=#FA4A4B>Dump alert!!</font></b></html>");
         suggestion.setDumpAlert(true);
         suggestion.setDumpAlertReceived(Instant.now());
-        clientThread.invoke(() -> suggestionController.handleDumpSuggestion(suggestion));
+        clientThread.invoke(() -> {
+            if (generation.get() == expected) suggestionController.handleDumpSuggestion(suggestion);
+        });
         log.info("received dump suggestion {} {}", suggestion.getName(), suggestion.getType());
     }
 

@@ -6,6 +6,15 @@ import static org.junit.Assert.assertEquals;
 
 public class UIUtilitiesTest {
     @Test
+    public void quantityFormatterSupportsFullLongRange() {
+        assertEquals("9,223,372.037T", UIUtilities.quantityToRSDecimalStack(Long.MAX_VALUE, true));
+        assertEquals("-9,223,372.037T", UIUtilities.quantityToRSDecimalStack(Long.MIN_VALUE, true));
+        assertEquals("1,000T", UIUtilities.quantityToRSDecimalStack(1_000_000_000_000_000L, false));
+        assertEquals("1.5B", UIUtilities.quantityToRSDecimalStack(1_500_000_000L, true));
+        assertEquals("0", UIUtilities.quantityToRSDecimalStack(0, false));
+    }
+
+    @Test
     public void truncateString_returnsOriginalString_whenLengthIsGreaterThanStringLength() {
         String result = UIUtilities.truncateString("Hello", 10);
         assertEquals("Hello", result);

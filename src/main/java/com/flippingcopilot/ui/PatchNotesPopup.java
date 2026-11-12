@@ -19,10 +19,10 @@ public final class PatchNotesPopup {
     }
 
     // When shipping new patch notes: bump LATEST_VERSION and update writeNotes below.
-    public static final int LATEST_VERSION = 1;
+    public static final int LATEST_VERSION = 2;
 
     public static void show(Component parent) {
-        JLabel heading = new JLabel("Flipping Copilot has been updated to v1.8.0");
+        JLabel heading = new JLabel("Hardcore Worlds Support!");
         heading.setForeground(Color.WHITE);
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 16f));
 
@@ -59,20 +59,14 @@ public final class PatchNotesPopup {
         SimpleAttributeSet bold = new SimpleAttributeSet();
         StyleConstants.setBold(bold, true);
         try {
+            doc.insertString(doc.getLength(), "Flipping Copilot now supports Hardcore Worlds!\n\n", bold);
             doc.insertString(doc.getLength(),
-                    "Two new features in this update:\n\n", null);
-            doc.insertString(doc.getLength(), "Portfolio Tracking\n", bold);
-            doc.insertString(doc.getLength(),
-                    "- See your unrealized profit for held items\n"
-                            + "- Right click items to add/remove\n"
-                            + "- Track your total portfolio value, along with per-item breakdown\n"
-                            + "\n",
+                    "Log into a Hardcore World with your Hardcore OSRS account to get flip suggestions based on live Hardcore market data. No additional setup is required.\n\n",
                     null);
-            doc.insertString(doc.getLength(), "Holds\n", bold);
+            doc.insertString(doc.getLength(), "Separate economy, separate profits\n", bold);
             doc.insertString(doc.getLength(),
-                    "- Hold items for bigger margins instead of selling immediately\n"
-                            + "- Earn passive GP on holds while your GE slots stay free for active flips\n"
-                            + "- Get sell suggestions when a held item is ready to flip",
+                    "Profit tracking stays separate for Regular and Hardcore OSRS. Selecting \"All Accounts\" shows combined profits for the game type you are currently logged into.\n\n"
+                            + "— The Flipping Copilot Team",
                     null);
         } catch (BadLocationException e) {
             throw new IllegalStateException(e);

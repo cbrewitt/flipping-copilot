@@ -1,6 +1,5 @@
 package com.flippingcopilot.model;
-import com.flippingcopilot.util.Constants;
-import com.flippingcopilot.util.ProtoUtils;
+import com.flippingcopilot.util.*;
 import com.google.protobuf.CodedOutputStream;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;

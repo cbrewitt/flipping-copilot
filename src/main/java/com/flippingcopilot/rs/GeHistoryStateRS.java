@@ -1,21 +1,20 @@
 package com.flippingcopilot.rs;
 
-import com.flippingcopilot.model.GeHistoryRow;
-import com.flippingcopilot.model.GeHistoryState;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.flippingcopilot.model.*;
+
+import com.google.inject.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.widgets.Widget;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.regex.*;
 
 @Singleton
 @Slf4j
 public class GeHistoryStateRS extends ReactiveStateImpl<GeHistoryState> {
+    private Market lastMarket = Market.OSRS;
 
     private static final int GE_HISTORY_GROUP = 383;
     private static final int GE_HISTORY_LIST_CHILD = 3;
@@ -33,7 +32,9 @@ public class GeHistoryStateRS extends ReactiveStateImpl<GeHistoryState> {
         super(GeHistoryState.empty());
         this.osrsLoginRS = osrsLoginRS;
         osrsLoginRS.registerListener(state -> {
-            if (state == null || !state.loggedIn) {
+            boolean marketChanged = state != null && state.market != lastMarket;
+            if (state != null) lastMarket = state.market;
+            if (state == null || !state.loggedIn || marketChanged) {
                 lastSeenVisible = false;
                 set(GeHistoryState.empty());
                 return;

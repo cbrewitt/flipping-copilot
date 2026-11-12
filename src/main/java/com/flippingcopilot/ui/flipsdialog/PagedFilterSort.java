@@ -1,7 +1,6 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.model.IntervalTimeUnit;
-import com.flippingcopilot.model.SortDirection;
+import com.flippingcopilot.model.*;
 import lombok.Getter;
 
 import java.util.*;

@@ -1,14 +1,11 @@
 package com.flippingcopilot.model;
 
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.google.protobuf.*;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Slf4j
 @Data

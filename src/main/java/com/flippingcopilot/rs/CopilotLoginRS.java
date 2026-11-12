@@ -1,11 +1,10 @@
 package com.flippingcopilot.rs;
 
 import com.flippingcopilot.controller.Persistance;
-import com.flippingcopilot.model.CopilotLoginState;
-import com.flippingcopilot.model.LoginResponse;
+import com.flippingcopilot.model.*;
+import java.util.*;
 import com.google.gson.*;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Filepath;
 
@@ -18,6 +17,14 @@ import java.util.concurrent.ExecutorService;
 public class CopilotLoginRS extends ReactiveStateImpl<CopilotLoginState> {
 
     private final Filepath file;
+    @Inject private MarketRS markets;
+
+    public Map<String, Integer> historyAccounts() {
+        Map<String, Integer> result = new HashMap<>();
+        CopilotLoginState state = get();
+        for (Integer id : state.historyAccounts.getOrDefault(markets.get(), Collections.emptySet())) result.put(state.getDisplayName(id), id);
+        return result;
+    }
 
     private final Gson gson;
     private final ExecutorService executorService;
@@ -74,11 +81,12 @@ public class CopilotLoginRS extends ReactiveStateImpl<CopilotLoginState> {
     }
 
 
-    public void removeAccount(Integer accountId) {
+    public synchronized void removeAccount(Integer accountId) {
         update((s) -> {
             CopilotLoginState updated = s.copy();
             String displayName = updated.accountIdToDisplayName.get(accountId);
             updated.accountIdToDisplayName.remove(accountId);
+            updated.historyAccounts.values().forEach(ids -> ids.remove(accountId));
             if(displayName != null){
                 updated.displayNameToAccountId.remove(displayName);
             }
@@ -86,10 +94,11 @@ public class CopilotLoginRS extends ReactiveStateImpl<CopilotLoginState> {
         });
     }
 
-    public void addAccountIfMissing(Integer accountId, String displayName, int copilotUserId) {
+    public synchronized void addAccountIfMissing(Integer accountId, String displayName, int copilotUserId, Market market) {
         update((s) -> {
-            if (!s.accountIdToDisplayName.containsKey(accountId) && s.getUserId() == copilotUserId) {
+            if (s.getUserId() == copilotUserId && !s.historyAccounts.getOrDefault(market, Collections.emptySet()).contains(accountId)) {
                 CopilotLoginState updated = s.copy();
+                updated.historyAccounts.computeIfAbsent(market, m -> new HashSet<>()).add(accountId);
                 updated.displayNameToAccountId.put(displayName, accountId);
                 updated.accountIdToDisplayName.put(accountId, displayName);
                 return updated;

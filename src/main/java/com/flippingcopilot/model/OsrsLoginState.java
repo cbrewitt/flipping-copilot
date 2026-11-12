@@ -15,6 +15,7 @@ import java.util.EnumSet;
 public class OsrsLoginState {
 
     public boolean loggedIn;
+    @Builder.Default public Market market = Market.OSRS;
 
     // These are not cleared on log out so the last values can still be accessed.
     public boolean isIronMan;
@@ -29,6 +30,7 @@ public class OsrsLoginState {
                     .loggedIn(true)
                     .isIronMan(client.getVarbitValue(VarbitID.IRONMAN) > 0)
                     .worldTypes(client.getWorldType())
+                    .market(Market.fromWorlds(client.getWorldType()))
                     .displayName(p == null ? null : p.getName())
                     .accountHash(client.getAccountHash())
                     .build();

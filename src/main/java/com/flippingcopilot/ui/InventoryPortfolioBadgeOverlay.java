@@ -1,8 +1,7 @@
 package com.flippingcopilot.ui;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.controller.PlayerLocationController;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.model.PortfolioItemCardData;
 import com.flippingcopilot.rs.PortfolioStateRS;
 import lombok.RequiredArgsConstructor;
@@ -11,8 +10,7 @@ import net.runelite.api.widgets.*;
 import net.runelite.client.ui.overlay.WidgetItemOverlay;
 import net.runelite.client.util.ImageUtil;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 

@@ -1,7 +1,6 @@
 package com.flippingcopilot.controller;
 
-import com.flippingcopilot.ui.PatchNotesPopup;
-import com.flippingcopilot.ui.UIUtilities;
+import com.flippingcopilot.ui.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.util.Filepath;
 

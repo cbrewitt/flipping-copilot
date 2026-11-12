@@ -1,27 +1,27 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.controller.ApiRequestHandler;
+import com.flippingcopilot.rs.*;
+import java.util.function.*;
+
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.UIUtilities;
-import com.flippingcopilot.ui.components.ItemSearchBox;
-import com.flippingcopilot.ui.components.TrackingCardLayout;
+import com.flippingcopilot.ui.components.*;
 import com.flippingcopilot.ui.graph.*;
-import com.flippingcopilot.ui.graph.model.Data;
-import com.flippingcopilot.ui.graph.model.PriceLine;
+import com.flippingcopilot.ui.graph.model.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.function.Consumer;
 
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
 @Slf4j
 public class PriceGraphPanel extends JPanel {
+    private final MarketRS markets;
 
     // Dependencies
     private final ItemController itemController;
@@ -54,7 +54,8 @@ public class PriceGraphPanel extends JPanel {
                            PriceGraphConfigManager configManager,
                            FlippingCopilotConfig copilotConfig,
                            ApiRequestHandler apiRequestHandler,
-                           OsrsLoginManager osrsLoginManager, SuggestionManager suggestionManager) {
+                           OsrsLoginManager osrsLoginManager, SuggestionManager suggestionManager, MarketRS markets, OsrsLoginRS login) {
+        this.markets = markets;
         this.itemController = itemController;
         this.apiRequestHandler = apiRequestHandler;
         this.osrsLoginManager = osrsLoginManager;
@@ -140,6 +141,11 @@ public class PriceGraphPanel extends JPanel {
         add(contentPanel, BorderLayout.CENTER);
 
         contentCardLayout.show(contentPanel, Cards.LANDING_CARD.name());
+        login.registerListener(state -> SwingUtilities.invokeLater(() -> {
+            suggestionPriceData = null;
+            isShowingSuggestionPriceData = false;
+            showLandingCard();
+        }));
     }
 
     private void onItemSelected(Integer itemId) {
@@ -156,8 +162,10 @@ public class PriceGraphPanel extends JPanel {
         currentItemId = itemId;
         log.debug("Loading price graph for item: {}", itemId);
         contentCardLayout.show(contentPanel, Cards.LOADING_CARD.name());
+        BooleanSupplier current = markets.guard();
         Consumer<ItemPrice> consumer = (ItemPrice itemPrice) -> {
             SwingUtilities.invokeLater(() -> {
+                if (!current.getAsBoolean()) return;
                 String errorMessage = firstNonNull(itemPrice.getMessage(), "");
                 if (!errorMessage.isEmpty()) {
                     showErrorCard(errorMessage);

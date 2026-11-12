@@ -1,12 +1,10 @@
 package com.flippingcopilot.controller;
 
 import lombok.RequiredArgsConstructor;
-import net.runelite.api.Client;
-import net.runelite.api.Player;
+import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 
 @Singleton
 @RequiredArgsConstructor(onConstructor_ = @Inject)

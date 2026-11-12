@@ -3,11 +3,9 @@ package com.flippingcopilot.ui;
 
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
-import javax.swing.ImageIcon;
-import javax.swing.JToggleButton;
+import javax.swing.*;
 
-import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.SwingUtil;
+import net.runelite.client.util.*;
 
 class PreferencesToggleButton extends JToggleButton
 {

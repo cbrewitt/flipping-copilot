@@ -2,11 +2,9 @@ package com.flippingcopilot.controller;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
-import com.flippingcopilot.rs.BankStateRS;
-import com.flippingcopilot.rs.PortfolioStateRS;
+import com.flippingcopilot.rs.*;
 import com.flippingcopilot.util.BankTagsUtil;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.gameval.ItemID;
 import net.runelite.client.callback.ClientThread;

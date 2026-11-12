@@ -12,6 +12,9 @@ import java.util.UUID;
 @NoArgsConstructor
 @Setter
 public class Transaction {
+    private transient Market market;
+    private transient String displayName;
+    private transient long accountHash;
 
     private UUID id;
     private OfferStatus type;

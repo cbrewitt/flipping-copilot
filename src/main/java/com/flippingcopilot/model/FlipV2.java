@@ -1,8 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.ProfitCalculator;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
+import com.google.protobuf.*;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,6 +12,7 @@ import java.util.*;
 @Slf4j
 @Data
 public class FlipV2 {
+    private transient Market market = Market.OSRS;
 
     private UUID id;
     private int accountId;

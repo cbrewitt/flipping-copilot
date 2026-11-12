@@ -7,13 +7,11 @@ import joptsimple.internal.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.inject.Named;
-import java.io.Writer;
-import java.io.IOException;
+import java.io.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
+import java.util.function.*;
 
 
 @Slf4j
@@ -77,10 +75,10 @@ public class FlipFilterAndSort extends PagedFilterSort {
         try {
             if (canUseFlipsManager()) {
                 if (totalPagesMaybeChanged || forceReload) {
-                    totalFlips = flipManager.calculateStats(intervalStartTime, accountId).flipsMade;
+                    totalFlips = flipManager.current().calculateStats(intervalStartTime, accountId).flipsMade;
                     totalPagesChangedCallback.accept(FilterSortUtil.totalPages(totalFlips, pageSize));
                 }
-                flipsCallback.accept(flipManager.getPageFlips(page, pageSize, intervalStartTime, accountId));
+                flipsCallback.accept(flipManager.current().getPageFlips(page, pageSize, intervalStartTime, accountId));
             } else {
                 slowLoadingCallback.accept(true);
                 boolean cachedFlipsOutOfDate = !Objects.equals(cachedAccountId, accountId)
@@ -101,7 +99,7 @@ public class FlipFilterAndSort extends PagedFilterSort {
                     cachedFlips.clear();
                     Predicate<FlipV2> itemFilter = filteredItems.isEmpty() ? f -> true : f -> filteredItems.contains(f.getItemId());
                     Predicate<FlipV2> statusFilter = f -> includedStatuses.contains(f.getStatus());
-                    flipManager.aggregateFlips(intervalStartTime, accountId, includedStatuses.contains(FlipStatus.BUYING), (f) -> {
+                    flipManager.current().aggregateFlips(intervalStartTime, accountId, includedStatuses.contains(FlipStatus.BUYING), (f) -> {
                         if(itemFilter.test(f) && statusFilter.test(f)) {
                             f.setCachedItemName(itemController.getItemName(f.getItemId()));
                             cachedFlips.add(f);
@@ -157,7 +155,7 @@ public class FlipFilterAndSort extends PagedFilterSort {
             }
         };
         if (canUseFlipsManager()) {
-            flipManager.aggregateFlips(intervalStartTime, accountId, false, c);
+            flipManager.current().aggregateFlips(intervalStartTime, accountId, false, c);
         } else {
             cachedFlips.forEach(c);
         }

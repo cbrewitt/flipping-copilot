@@ -8,8 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.inject.Named;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
+import java.util.function.*;
 
 @Slf4j
 public class ItemAggregateFilterSort extends PagedFilterSort {
@@ -86,7 +85,7 @@ public class ItemAggregateFilterSort extends PagedFilterSort {
                 cachedAggregates.clear();
                 Predicate<FlipV2> flipFilter = filteredItems.isEmpty() ? f -> true : f -> filteredItems.contains(f.getItemId());
                 Aggregator a = new Aggregator(flipFilter);
-                flipManager.aggregateFlips(intervalStartTime, cachedAccountId, false, a);
+                flipManager.current().aggregateFlips(intervalStartTime, cachedAccountId, false, a);
                 cachedIntervalStartTime = intervalStartTime;
                 a.items.forEach((k, v) -> cachedAggregates.add(v.toItemAggregate(itemController.getItemName(k))));
                 log.debug("loaded {} cached item aggregates", cachedAggregates.size());

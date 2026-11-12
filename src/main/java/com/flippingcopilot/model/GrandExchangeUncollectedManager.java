@@ -4,8 +4,7 @@ import com.flippingcopilot.util.MutableReference;
 import com.google.inject.Singleton;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.api.ItemID;
+import net.runelite.api.*;
 
 import java.util.*;
 

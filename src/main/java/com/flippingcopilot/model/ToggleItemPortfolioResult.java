@@ -1,15 +1,12 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.ProtoUtils;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.google.protobuf.*;
+import lombok.*;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Getter
 @NoArgsConstructor

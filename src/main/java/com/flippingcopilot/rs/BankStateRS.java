@@ -1,17 +1,17 @@
 package com.flippingcopilot.rs;
 
+import com.flippingcopilot.model.*;
+
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.model.BankState;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.*;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Singleton
 @Slf4j
 public class BankStateRS extends ReactiveStateImpl<BankState> {
+    private Market lastMarket = Market.OSRS;
     private final ItemController itemController;
     private final OsrsLoginRS osrsLoginRS;
 
@@ -30,6 +30,8 @@ public class BankStateRS extends ReactiveStateImpl<BankState> {
                 return;
             }
 
+            if (lastMarket != state.market) set(BankState.empty());
+            lastMarket = state.market;
             Long accountHash = state.accountHash;
             Long loadedAccountHash = get().getLoadedAccountHash();
             if (loadedAccountHash != null && !Objects.equals(loadedAccountHash, accountHash)) {

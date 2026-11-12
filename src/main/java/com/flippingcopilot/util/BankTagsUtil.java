@@ -1,7 +1,6 @@
 package com.flippingcopilot.util;
 
-import net.runelite.client.plugins.Plugin;
-import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.*;
 import net.runelite.client.plugins.banktags.BankTagsPlugin;
 
 public final class BankTagsUtil {

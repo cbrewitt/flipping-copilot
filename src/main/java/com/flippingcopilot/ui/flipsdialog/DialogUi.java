@@ -2,8 +2,7 @@ package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.model.IntervalTimeUnit;
 import com.flippingcopilot.ui.Spinner;
-import com.flippingcopilot.ui.components.AccountDropdown;
-import com.flippingcopilot.ui.components.IntervalDropdown;
+import com.flippingcopilot.ui.components.*;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;

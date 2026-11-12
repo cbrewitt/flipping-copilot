@@ -1,16 +1,13 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.controller.*;
-import com.flippingcopilot.rs.BankStateRS;
-import com.flippingcopilot.rs.HeldItemSyncStateRS;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import com.flippingcopilot.rs.*;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.gameval.InventoryID;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.util.*;
 
 @Slf4j

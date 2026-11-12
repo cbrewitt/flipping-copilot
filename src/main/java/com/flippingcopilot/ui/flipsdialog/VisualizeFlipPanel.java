@@ -1,11 +1,9 @@
 package com.flippingcopilot.ui.flipsdialog;
 
-import com.flippingcopilot.controller.ApiRequestHandler;
+import com.flippingcopilot.controller.*;
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.controller.ItemController;
 import com.flippingcopilot.manager.PriceGraphConfigManager;
-import com.flippingcopilot.model.FlipV2;
-import com.flippingcopilot.model.VisualizeFlipResponse;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.ui.graph.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
@@ -59,6 +57,11 @@ public class VisualizeFlipPanel extends JPanel {
         contentCardLayout.show(this, Cards.LANDING_CARD.name());
     }
 
+    public void resetMarket() {
+        currentFlip = null;
+        contentCardLayout.show(this, Cards.LANDING_CARD.name());
+    }
+
     public void showFlipVisualization(FlipV2 flip) {
         if (flip == null) {
             return;
@@ -66,7 +69,7 @@ public class VisualizeFlipPanel extends JPanel {
         currentFlip = flip;
         contentCardLayout.show(this, Cards.LOADING_CARD.name());
         Consumer<String> onFailure = (String errorMessage) -> {
-            SwingUtilities.invokeLater(() -> showErrorCard(errorMessage));
+            SwingUtilities.invokeLater(() -> { if (currentFlip == flip) showErrorCard(errorMessage); });
         };
         Consumer<VisualizeFlipResponse> onSuccess = (VisualizeFlipResponse d) -> {
             // the server sends a message and no graph data when it has no price history for the item
@@ -77,10 +80,10 @@ public class VisualizeFlipPanel extends JPanel {
             }
             d.graphData.clearPredictionData();
             SwingUtilities.invokeLater(() -> {
-                showGraphCard(new DataManager(d.getGraphData(), d), flip);
+                if (currentFlip == flip) showGraphCard(new DataManager(d.getGraphData(), d), flip);
             });
         };
-        apiRequestHandler.asyncGetVisualizeFlipData(flip.getId(), onSuccess, onFailure);
+        apiRequestHandler.asyncGetVisualizeFlipData(flip.getId(), flip.getMarket(), onSuccess, onFailure);
     }
 
     private void showErrorCard(String errorMessage) {

@@ -1,8 +1,7 @@
 package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.ProtoUtils;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.*;
 
 @Getter
 @AllArgsConstructor

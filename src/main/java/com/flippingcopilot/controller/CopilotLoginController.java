@@ -1,20 +1,16 @@
 package com.flippingcopilot.controller;
 
 import java.util.*;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.concurrent.*;
+import java.util.function.*;
 
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
-import com.flippingcopilot.ui.LoginPanel;
-import com.flippingcopilot.ui.MainPanel;
+import com.flippingcopilot.ui.*;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.inject.*;
 
 import static com.flippingcopilot.util.FormatUtil.formatDurationSince;
 
@@ -71,13 +67,17 @@ public class CopilotLoginController {
             return;
         }
         long s = System.nanoTime();
-        Consumer<Map<String, Integer>> onSuccess = (displayNameToAccountId) -> {
-            displayNameToAccountId.forEach((key, value) -> copilotLoginRS.addAccountIfMissing(value, key, userId));
-            log.info("loading {} copilot accounts succeeded - took {}", displayNameToAccountId.size(), formatDurationSince(s));
-            syncFlips(copilotLoginRS.get().getUserId(), new HashMap<>(), 0);
+        Consumer<Map<String, Map<String, Integer>>> onSuccess = accounts -> {
+            if (copilotLoginRS.get().getUserId() != userId) return;
+            for (Market market : Market.values()) {
+                accounts.getOrDefault(market.id, Collections.emptyMap()).forEach(
+                        (name, id) -> copilotLoginRS.addAccountIfMissing(id, name, userId, market));
+                syncFlips(userId, market, new HashMap<>(), 0);
+            }
+            log.info("loading copilot accounts succeeded - took {}", formatDurationSince(s));
         };
         Consumer<String> onFailure = (errorMessage) -> {
-            if (copilotLoginRS.get().isLoggedIn()) {
+            if (copilotLoginRS.get().getUserId() == userId) {
                 long backOffSeconds = Math.min(15, (long) Math.exp(previousFailures));
                 log.info("failed to load copilot accounts ({}) retrying in {}s", errorMessage, backOffSeconds);
                 executorService.schedule(() -> loadCopilotAccounts(previousFailures + 1), backOffSeconds, TimeUnit.SECONDS);
@@ -86,17 +86,17 @@ public class CopilotLoginController {
         apiRequestHandler.asyncLoadAccounts(onSuccess, onFailure);
     }
 
-    private void syncFlips(int userId, Map<Integer, Integer> accountIdTime, int previousFailures) {
+    private void syncFlips(int userId, Market market, Map<Integer, Integer> accountIdTime, int previousFailures) {
         // Continuously sync's the delta of new or updated flips from the server with back off on failure
         if(copilotLoginRS.get().getUserId() != userId) {
             log.info("user={}, no longer logged in, stopping syncFlips.", userId);
             return;
         }
-        Set<Integer> accountIds = copilotLoginRS.get().accountIds();
+        Set<Integer> accountIds = new HashSet<>(copilotLoginRS.get().historyAccounts.getOrDefault(market, Collections.emptySet()));
         if(accountIds.isEmpty()) {
             long backOffSeconds = Math.min(45, (long) 1+previousFailures);
             log.info("user={}, no accounts loaded - re-scheduling runSyncFlips in {}s", userId, backOffSeconds);
-            executorService.schedule(() -> syncFlips(userId, accountIdTime, previousFailures+1), backOffSeconds, TimeUnit.SECONDS);
+            executorService.schedule(() -> syncFlips(userId, market, accountIdTime, previousFailures+1), backOffSeconds, TimeUnit.SECONDS);
             return;
         }
         accountIds.forEach(a -> accountIdTime.computeIfAbsent(a, i -> 0));
@@ -108,14 +108,14 @@ public class CopilotLoginController {
             }
             log.debug("user={}, loading {} updated flips - took {}", userId, r.flips.size(), formatDurationSince(s));
             accountIds.forEach((a) -> accountIdTime.put(a, r.time));
-            executorService.schedule(() -> syncFlips(userId, accountIdTime, 0), 5, TimeUnit.SECONDS);
+            executorService.schedule(() -> syncFlips(userId, market, accountIdTime, 0), 5, TimeUnit.SECONDS);
         };
         Consumer<String> onFailure = (errorMessage) -> {
             long backOffSeconds = Math.min(45, (long) Math.exp(previousFailures));
             log.info("user={}, failed to load updated flips ({}) retrying in {}s", userId, errorMessage, backOffSeconds);
-            executorService.schedule(() -> syncFlips(userId, accountIdTime, previousFailures + 1), backOffSeconds, TimeUnit.SECONDS);
+            executorService.schedule(() -> syncFlips(userId, market, accountIdTime, previousFailures + 1), backOffSeconds, TimeUnit.SECONDS);
         };
-        apiRequestHandler.asyncLoadFlips(accountIdTime, onSuccess, onFailure);
+        apiRequestHandler.asyncLoadFlips(market, accountIdTime, onSuccess, onFailure);
     }
 
     public void onLoginPressed(String email, String password) {
@@ -142,8 +142,8 @@ public class CopilotLoginController {
         mainPanel.refresh();
         String displayName = osrsLoginManager.getPlayerDisplayName();
         if(displayName != null) {
-            flipManager.setIntervalAccount(null);
-            flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+            flipManager.current().setIntervalAccount(null);
+            flipManager.current().setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
             transactionManager.scheduleSyncIn(0, displayName);
         }
         flipManager.setCopilotUserId(loginResponse.getUserId());

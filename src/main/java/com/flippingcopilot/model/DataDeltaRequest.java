@@ -2,8 +2,7 @@ package com.flippingcopilot.model;
 
 import com.flippingcopilot.util.ProtoUtils;
 import com.google.protobuf.CodedOutputStream;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.*;
 
 import java.util.Map;
 

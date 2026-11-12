@@ -13,6 +13,7 @@ import java.util.*;
 public class CopilotLoginState {
 
     public LoginResponse loginResponse = null;
+    public Map<Market, Set<Integer>> historyAccounts = new EnumMap<>(Market.class);
     public Map<String,Integer> displayNameToAccountId = new HashMap<>();
     public Map<Integer, String> accountIdToDisplayName = new HashMap<>();
 
@@ -47,6 +48,11 @@ public class CopilotLoginState {
     }
 
     public CopilotLoginState copy() {
-        return new CopilotLoginState(loginResponse, new HashMap<>(displayNameToAccountId), new HashMap<>(accountIdToDisplayName));
+        CopilotLoginState copy = new CopilotLoginState();
+        copy.loginResponse = loginResponse;
+        copy.displayNameToAccountId.putAll(displayNameToAccountId);
+        copy.accountIdToDisplayName.putAll(accountIdToDisplayName);
+        historyAccounts.forEach((m, ids) -> copy.historyAccounts.put(m, new HashSet<>(ids)));
+        return copy;
     }
 }

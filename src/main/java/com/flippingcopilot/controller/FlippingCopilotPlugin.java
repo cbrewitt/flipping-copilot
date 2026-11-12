@@ -1,29 +1,27 @@
 package com.flippingcopilot.controller;
 
+import net.runelite.api.gameval.InventoryID;
+
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.*;
 import com.flippingcopilot.ui.*;
 import com.flippingcopilot.ui.flipsdialog.FlipsDialogController;
 import com.google.gson.Gson;
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
+import com.google.inject.*;
 import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
-import net.runelite.api.gameval.InterfaceID;
-import net.runelite.api.gameval.InventoryID;
+import net.runelite.api.gameval.*;
 import net.runelite.api.events.*;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.ClientShutdown;
-import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.*;
 import net.runelite.client.plugins.*;
 import net.runelite.client.plugins.banktags.BankTagsPlugin;
-import net.runelite.client.ui.ClientToolbar;
-import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.*;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
@@ -184,8 +182,8 @@ public class FlippingCopilotPlugin extends Plugin {
 		SwingUtilities.invokeLater(() -> patchNotesController.maybeShowOnStartup(mainPanel, hadExistingInstallation));
 
 		if(osrsLoginManager.getInvalidStateDisplayMessage() == null) {
-			flipManager.setIntervalAccount(null);
-			flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+			flipManager.current().setIntervalAccount(null);
+			flipManager.current().setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
 		}
 		flipsDialogController.initDialog(SwingUtilities.getWindowAncestor(mainPanel));
 		executorService.scheduleAtFixedRate(() ->
@@ -217,7 +215,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			String displayName = osrsLoginManager.getLastDisplayName();
 			Integer accountId = copilotLoginRS.get().getAccountId(displayName);
 			if (accountId != null && accountId != -1) {
-				webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
+				webHookController.sendMessage(flipManager.current().calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
 			}
 		}
 		keybindHandler.unregister();
@@ -259,15 +257,33 @@ public class FlippingCopilotPlugin extends Plugin {
 		return bank != null && !bank.isHidden();
 	}
 
+    private void refreshLoginState() {
+        OsrsLoginState next = osrsLoginRS.get().nextState(client);
+        if (!next.equals(osrsLoginRS.get())) suggestionManager.reset();
+        if (next.loggedIn && next.market != osrsLoginRS.get().market) {
+            itemSinkTracker.reset();
+            sessionManager.reset();
+            suggestionManager.reset();
+            accountStatusManager.reset();
+            grandExchangeUncollectedManager.reset();
+            offerManager.setViewedSlotItemId(-1);
+            offerManager.setViewedSlotItemPrice(-1);
+            offerManager.setLastViewedSlotItemId(-1);
+            offerManager.setLastViewedSlotItemPrice(-1);
+            highlightController.removeAll();
+        }
+        osrsLoginRS.set(next);
+    }
+
 	@Subscribe
 	public void onGameTick(GameTick event) {
+        refreshLoginState();
 		bankStateRS.onGameTick();
 		geHistoryStateRS.onGameTick(client);
 		grandExchangeOpenRS.set(grandExchange.isOpen());
 
 		suggestionController.onGameTick();
 		offerEventHandler.onGameTick();
-		osrsLoginRS.set(osrsLoginRS.get().nextState(client));
 	}
 
 	@Subscribe
@@ -318,6 +334,7 @@ public class FlippingCopilotPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event) {
+        refreshLoginState();
 		switch (event.getGameState())
 		{
 			case LOGIN_SCREEN:
@@ -328,14 +345,12 @@ public class FlippingCopilotPlugin extends Plugin {
 				accountStatusManager.reset();
 				grandExchangeUncollectedManager.reset();
 				statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn() && osrsLoginManager.isValidLoginState());
-				osrsLoginRS.set(osrsLoginRS.get().nextState(client));
 				mainPanel.refresh();
 				break;
 			case LOGGING_IN:
 			case HOPPING:
 			case CONNECTION_LOST:
 				osrsLoginManager.setLastLoginTick(client.getTickCount());
-				osrsLoginRS.set(osrsLoginRS.get().nextState(client));
 				break;
 			case LOGGED_IN:
 				// we want to update the flips panel on login but unfortunately the display name
@@ -352,11 +367,11 @@ public class FlippingCopilotPlugin extends Plugin {
 					statsPanel.resetIntervalDropdownToSession();
 					Integer accountId = copilotLoginRS.get().getAccountId(name);
 					if (accountId != null && accountId != -1) {
-						flipManager.setIntervalAccount(accountId);
+						flipManager.current().setIntervalAccount(accountId);
 					} else {
-						flipManager.setIntervalAccount(null);
+						flipManager.current().setIntervalAccount(null);
 					}
-					flipManager.setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
+					flipManager.current().setIntervalStartTime(sessionManager.getCachedSessionData().startTime);
 					statsPanel.refresh(true, copilotLoginRS.get().isLoggedIn()  && osrsLoginManager.isValidLoginState());
 					mainPanel.refresh();
 					if(copilotLoginRS.get().isLoggedIn()) {
@@ -380,7 +395,7 @@ public class FlippingCopilotPlugin extends Plugin {
 			String displayName = osrsLoginManager.getLastDisplayName();
 			Integer accountId = copilotLoginRS.get().getAccountId(displayName);
 			if (accountId != null && accountId != -1) {
-				webHookController.sendMessage(flipManager.calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
+				webHookController.sendMessage(flipManager.current().calculateStats(sessionManager.getCachedSessionData().startTime, accountId), sessionManager.getCachedSessionData(), displayName, false);
 			}
 		}
 	}

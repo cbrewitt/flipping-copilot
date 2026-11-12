@@ -1,7 +1,6 @@
 package com.flippingcopilot.model;
 
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
+import com.google.protobuf.*;
 
 import java.io.IOException;
 

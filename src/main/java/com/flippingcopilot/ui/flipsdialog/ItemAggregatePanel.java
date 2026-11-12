@@ -2,8 +2,7 @@ package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
 import com.flippingcopilot.controller.ItemController;
-import com.flippingcopilot.model.FlipManager;
-import com.flippingcopilot.model.ItemAggregate;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.Paginator;
 import com.flippingcopilot.ui.components.*;
@@ -55,7 +54,7 @@ public class ItemAggregatePanel extends JPanel {
 
         IntervalDropdown timeIntervalDropdown = DialogUi.intervalDropdown(sortAndFilter::setInterval);
 
-        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.get().displayNameToAccountId, sortAndFilter::setAccountId);
+        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.historyAccounts(), sortAndFilter::setAccountId);
         accountDropdown.refresh();
 
         tablePanel.leftControls().add(searchField);

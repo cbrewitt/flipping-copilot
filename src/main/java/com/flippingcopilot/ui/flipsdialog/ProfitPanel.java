@@ -1,12 +1,10 @@
 package com.flippingcopilot.ui.flipsdialog;
 
 import com.flippingcopilot.config.FlippingCopilotConfig;
-import com.flippingcopilot.model.FlipManager;
-import com.flippingcopilot.model.FlipV2;
+import com.flippingcopilot.model.*;
 import com.flippingcopilot.rs.CopilotLoginRS;
 import com.flippingcopilot.ui.UIUtilities;
-import com.flippingcopilot.ui.components.AccountDropdown;
-import com.flippingcopilot.ui.components.IntervalDropdown;
+import com.flippingcopilot.ui.components.*;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
@@ -57,7 +55,7 @@ public class ProfitPanel extends JPanel {
 
         intervalDropdown = DialogUi.intervalDropdown((units, value) -> refreshGraph(false));
 
-        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.get().displayNameToAccountId, accountId -> refreshGraph(false));
+        accountDropdown = DialogUi.accountDropdown(() -> copilotLoginRS.historyAccounts(), accountId -> refreshGraph(false));
         accountDropdown.refresh();
 
         leftPanel.add(intervalDropdown);
@@ -106,7 +104,7 @@ public class ProfitPanel extends JPanel {
                     ProfitAggregator aggregator = new ProfitAggregator();
                     cachedIntervalStartTime = startTime;
                     cachedAccountId = accountId;
-                    flipManager.aggregateFlips(cachedIntervalStartTime, cachedAccountId, false, aggregator);
+                    flipManager.current().aggregateFlips(cachedIntervalStartTime, cachedAccountId, false, aggregator);
                     cachedDatapoints = aggregator.generateProfitDataPoints();
                     log.debug("Generated {} profit data points and {} daily profits", cachedDatapoints.size(), cachedDatapoints.size());
                 }
