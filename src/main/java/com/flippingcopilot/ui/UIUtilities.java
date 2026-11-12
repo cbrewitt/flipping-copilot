@@ -33,22 +33,17 @@ public class UIUtilities {
 
     public static synchronized String quantityToRSDecimalStack(long quantity, boolean precise)
     {
-        String sign = quantity >= 0 ? "" : "-";
-        quantity = Math.abs(quantity);
-        if (Long.toString(quantity).length() <= 4)
-        {
-            return sign + QuantityFormatter.formatNumber(quantity);
+        if (quantity > -10000 && quantity < 10000) {
+            return QuantityFormatter.formatNumber(quantity);
         }
-
-        long power = (long) Math.log10(quantity);
-
-        // Output thousandths for values above a million
+        // Convert before abs: Math.abs(Long.MIN_VALUE) overflows a long.
+        double magnitude = Math.abs((double) quantity);
+        int power = (int) Math.log10(magnitude);
+        int suffix = Math.min(power / 3, 4);
         NumberFormat format = precise && power >= 6
-                ? PRECISE_DECIMAL_FORMATTER
-                : DECIMAL_FORMATTER;
-
-        return sign+format.format(quantity / Math.pow(10, (Long.divideUnsigned(power, 3)) * 3))
-                + new String[] {"", "K", "M", "B", "T"}[(int) (power / 3)];
+                ? PRECISE_DECIMAL_FORMATTER : DECIMAL_FORMATTER;
+        return (quantity < 0 ? "-" : "") + format.format(magnitude / Math.pow(1000, suffix))
+                + new String[] {"", "K", "M", "B", "T"}[suffix];
     }
 
     public static Color getProfitColor(long profit, FlippingCopilotConfig config) {

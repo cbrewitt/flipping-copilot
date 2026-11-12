@@ -73,6 +73,12 @@ public class DataManager {
     }
 
 
+    public boolean hasPriceData() {
+        return !(highDatapoints.isEmpty() && lowDatapoints.isEmpty()
+                && predictionLowDatapoints.isEmpty() && predictionHighDatapoints.isEmpty()
+                && flipEntryDatapoints.isEmpty() && flipCloseDatapoints.isEmpty());
+    }
+
     public Bounds calculateHomeBounds() {
         int xMax = flipCloseDatapoints.isEmpty() ? maxBounds.xMax : maxCloseTime;
         int xMin = flipEntryDatapoints.isEmpty() ? maxBounds.xMax - 4*Constants.DAY_SECONDS : minEntryTime;
@@ -145,6 +151,8 @@ public class DataManager {
                 }
             }
         }
+        if (n == 0) return new Bounds();
+
         for (Datapoint d : volumes) {
             if (p.test(d)) {
                 b.y2Max = Math.max(b.y2Max, d.highVolume + d.lowVolume);
@@ -249,7 +257,9 @@ public class DataManager {
         for (int i = data.volume1hLows.length-1; i >= 0; i--) {
             volumes.add(0, Datapoint.newVolumeDatapoint(data.volume1hTimes[i], data.volume1hLows[i], data.volume1hHighs[i]));
         }
-        int current1hTime = data.volume1hTimes[data.volume1hTimes.length-1] + Constants.HOUR_SECONDS;
+        int current1hTime = data.volume1hTimes.length == 0
+                ? (int) (Instant.now().getEpochSecond() / Constants.HOUR_SECONDS) * Constants.HOUR_SECONDS
+                : data.volume1hTimes[data.volume1hTimes.length-1] + Constants.HOUR_SECONDS;
         int currentHourLowVolume = 0;
         int currentHoursHighVolume =0;
         for (int i = data.volume5mLows.length-1; i >= 0; i--) {

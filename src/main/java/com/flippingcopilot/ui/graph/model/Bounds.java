@@ -17,7 +17,8 @@ public class Bounds {
     public Bounds() {
         xMax = (int) Instant.now().getEpochSecond();
         xMin = xMax - 24*60*60*4;
-        yMax = Long.MAX_VALUE;
+        yMax = 1;
+        y2Max = 10;
         yMin = 0;
     }
 
