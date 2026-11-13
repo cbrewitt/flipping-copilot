@@ -170,7 +170,7 @@ public class PriceGraphPanel extends JPanel {
                 if (!errorMessage.isEmpty()) {
                     showErrorCard(errorMessage);
                 } else {
-                    showGraphCard(new DataManager(itemPrice.getGraphData(), null), offerPriceLine);
+                    showGraphCard(new DataManager(itemPrice.getGraphData(), null, markets.get()), offerPriceLine);
                 }
             });
         };
@@ -188,7 +188,7 @@ public class PriceGraphPanel extends JPanel {
                 showLandingCard();
                 return;
             }
-            DataManager dm = new DataManager(d, null);
+            DataManager dm = new DataManager(d, null, markets.get());
             showGraphCard(dm, suggestedPriceLine);
         }
     }

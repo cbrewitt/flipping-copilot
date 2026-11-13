@@ -321,7 +321,7 @@ public class MissedFlipsPanel extends JPanel {
         }
 
         long avgBuy = flip.getAvgBuyPrice();
-        long estimatedProfit = (long) qty * (ProfitCalculator.getPostTaxPrice(flip.getItemId(), price) - avgBuy);
+        long estimatedProfit = (long) qty * (ProfitCalculator.getPostTaxPrice(flip.getItemId(), price, flip.getMarket()) - avgBuy);
         if (!validateProfit(estimatedProfit, flip, price)) {
             return;
         }

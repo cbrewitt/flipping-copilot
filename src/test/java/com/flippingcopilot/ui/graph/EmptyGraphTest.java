@@ -32,7 +32,7 @@ public class EmptyGraphTest {
 
     @Test public void emptyHistoryHasSafeHomeAndPresetBounds() throws Exception {
         for (Data data : new Data[]{emptyData(), Data.decodeProto(new byte[0])}) {
-            DataManager manager = new DataManager(data, null);
+            DataManager manager = new DataManager(data, null, com.flippingcopilot.model.Market.OSRS);
             assertFalse(manager.hasPriceData());
             assertRenderable(manager.maxBounds);
             assertRenderable(manager.calculateHomeBounds());
@@ -44,7 +44,7 @@ public class EmptyGraphTest {
         Data data = emptyData();
         data.low1hTimes = new int[]{(int) Instant.now().getEpochSecond()};
         data.low1hPrices = new long[]{100};
-        DataManager manager = new DataManager(data, null);
+        DataManager manager = new DataManager(data, null, com.flippingcopilot.model.Market.OSRS);
         assertTrue(manager.hasPriceData());
         assertEquals(97, manager.maxBounds.yMin);
         assertEquals(103, manager.maxBounds.yMax);

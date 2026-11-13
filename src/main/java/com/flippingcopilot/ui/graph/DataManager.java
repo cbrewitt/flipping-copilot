@@ -1,6 +1,7 @@
 package com.flippingcopilot.ui.graph;
 
 import com.flippingcopilot.model.VisualizeFlipResponse;
+import com.flippingcopilot.model.Market;
 import com.flippingcopilot.ui.graph.model.*;
 import com.flippingcopilot.util.ProfitCalculator;
 
@@ -27,6 +28,7 @@ public class DataManager {
 
     public final Data data;
     private final VisualizeFlipResponse fpr;
+    private final Market market;
     public double priceChange24H = 0;
     public double priceChangeWeek = 0;
     public int lastLowTime = 0;
@@ -37,8 +39,9 @@ public class DataManager {
     public long tax;
     public long profit;
 
-    public DataManager(Data data, VisualizeFlipResponse fpr) {
+    public DataManager(Data data, VisualizeFlipResponse fpr, Market market) {
         this.data = data;
+        this.market = market;
         this.fpr = fpr;
         processDatapoints();
         calculateStats();
@@ -321,7 +324,7 @@ public class DataManager {
         }
 
         margin = data.sellPrice - data.buyPrice;
-        tax = ProfitCalculator.getTaxAmount(data.itemId, data.sellPrice);
+        tax = ProfitCalculator.getTaxAmount(data.itemId, data.sellPrice, market);
         profit = margin - tax;
     }
 
