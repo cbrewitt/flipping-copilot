@@ -294,7 +294,7 @@ public class TransactionsPanel extends JPanel {
     private long calculateTax(AckedTransaction tx) {
         if (tx.getQuantity() < 0) {
             long pricePerItem = tx.getAmountSpent() / tx.getQuantity();
-            long pricePostTax = ProfitCalculator.getPostTaxPrice(tx.getItemId(), pricePerItem);
+            long pricePostTax = ProfitCalculator.getPostTaxPrice(tx.getItemId(), pricePerItem, osrsLoginManager.getMarket());
             return (pricePerItem - pricePostTax) * tx.getQuantity();
         }
         return 0;
