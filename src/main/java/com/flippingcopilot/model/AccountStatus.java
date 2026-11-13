@@ -14,7 +14,7 @@ import java.util.*;
 @Data
 public class AccountStatus {
 
-    private final int version = 100;
+    private final int version = 101;
 
     private StatusOfferList offers;
     private Inventory inventory;

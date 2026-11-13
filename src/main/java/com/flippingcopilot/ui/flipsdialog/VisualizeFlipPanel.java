@@ -80,7 +80,7 @@ public class VisualizeFlipPanel extends JPanel {
             }
             d.graphData.clearPredictionData();
             SwingUtilities.invokeLater(() -> {
-                if (currentFlip == flip) showGraphCard(new DataManager(d.getGraphData(), d), flip);
+                if (currentFlip == flip) showGraphCard(new DataManager(d.getGraphData(), d, flip.getMarket()), flip);
             });
         };
         apiRequestHandler.asyncGetVisualizeFlipData(flip.getId(), flip.getMarket(), onSuccess, onFailure);
