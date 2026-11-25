@@ -11,6 +11,7 @@ import com.flippingcopilot.ui.graph.model.*;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.client.Notifier;
 import net.runelite.client.audio.AudioPlayer;
 import net.runelite.client.callback.ClientThread;
@@ -245,9 +246,12 @@ public class SuggestionController {
                 }
             });
         }
-        if (client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 14) {
-            clientThread.invokeLater(gePreviousSearch::showSuggestedItemInSearch);
-        }
+        clientThread.invokeLater(() -> {
+            if (client.getVarcIntValue(VarClientID.MESLAYERMODE) == 14
+                    && "".equals(client.getVarcStrValue(VarClientID.MESLAYERINPUT))) {
+                gePreviousSearch.showSuggestedItemInSearch();
+            }
+        });
     }
 
     private void playDumpAlertSound() {
