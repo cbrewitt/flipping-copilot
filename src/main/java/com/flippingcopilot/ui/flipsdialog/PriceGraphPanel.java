@@ -152,7 +152,8 @@ public class PriceGraphPanel extends JPanel {
         if (itemId == null) {
             return;
         }
-        if(osrsLoginManager.getPlayerDisplayName() == null) {
+        String displayName = osrsLoginManager.getPlayerDisplayName();
+        if(displayName == null) {
             contentCardLayout.show(contentPanel, Cards.LOGIN_PROMPT.name());
             return;
         }
@@ -174,7 +175,7 @@ public class PriceGraphPanel extends JPanel {
                 }
             });
         };
-        apiRequestHandler.asyncGetItemPriceWithGraphData(itemId, "FlipCopilot", consumer, true);
+        apiRequestHandler.asyncGetItemPriceWithGraphData(itemId, displayName, consumer, true);
     }
 
     public void setLoadingCard() {
